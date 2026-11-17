@@ -205,7 +205,7 @@ export default class WordModePlugin extends Plugin {
         const leaf = this.app.workspace.getMostRecentLeaf();
         const v = leaf && leaf.view;
         if (!(v instanceof MarkdownView) || !v.file) return false;
-        if (!checking) this.switchToWord(leaf!);
+        if (!checking) void this.switchToWord(leaf!);
         return true;
       },
     });
@@ -214,7 +214,7 @@ export default class WordModePlugin extends Plugin {
       checkCallback: checking => {
         const leaf = this.app.workspace.getMostRecentLeaf();
         if (!leaf || !(leaf.view instanceof WordModeView)) return false;
-        if (!checking) this.switchToMarkdown(leaf);
+        if (!checking) void this.switchToMarkdown(leaf);
         return true;
       },
     });
@@ -223,8 +223,8 @@ export default class WordModePlugin extends Plugin {
       checkCallback: checking => {
         const leaf = this.app.workspace.getMostRecentLeaf();
         if (!leaf) return false;
-        if (leaf.view instanceof WordModeView) { if (!checking) this.switchToMarkdown(leaf); return true; }
-        if (leaf.view instanceof MarkdownView && leaf.view.file) { if (!checking) this.switchToWord(leaf); return true; }
+        if (leaf.view instanceof WordModeView) { if (!checking) void this.switchToMarkdown(leaf); return true; }
+        if (leaf.view instanceof MarkdownView && leaf.view.file) { if (!checking) void this.switchToWord(leaf); return true; }
         return false;
       },
     });
@@ -268,21 +268,23 @@ export default class WordModePlugin extends Plugin {
     // 桌機：Word 模式的存檔狀態、檢視切換、縮放放進 Obsidian 右下角狀態列（字數用 Obsidian 內建的）
     this.statusEl = this.addStatusBarItem();
     this.statusEl.addClass('wm-statusbar');
-    this.statusEl.style.display = 'none';
+    this.statusEl.hide();
     this.registerEvent(this.app.workspace.on('active-leaf-change', () => this.updateStatus(null)));
     this.registerEvent(this.app.workspace.on('layout-change', () => this.updateStatus(null)));
 
     // 在 Markdown 畫面按 Ctrl+E（Obsidian 的「切換閱讀／編輯」）：改成切回 Word 模式
     const cmds = this.app.commands;
     if (cmds && cmds.executeCommand) {
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- the original method is kept so the wrapper can call it with the right `this`
       const orig = cmds.executeCommand;
+      // eslint-disable-next-line @typescript-eslint/no-this-alias -- the patched function is called with its own `this`, so the plugin is captured in a variable
       const plugin = this;
       const patched = function (this: CommandManager, command: Command, ...rest: unknown[]): boolean {
         try {
           // plugin.unloaded：外掛停用後，如果別的外掛也包了這個函式，這層還原不了，所以自己停止作用
           if (!plugin.unloaded && command && command.id === 'markdown:toggle-preview' && plugin.settings.ctrlE !== false) {
             const v = plugin.app.workspace.getActiveViewOfType(MarkdownView);
-            if (v && v.file && /\.md$/i.test(v.file.path)) { plugin.switchToWord(v.leaf); return true; }
+            if (v && v.file && /\.md$/i.test(v.file.path)) { void plugin.switchToWord(v.leaf); return true; }
           }
         } catch (e) { console.error('[Word 模式]', e); }
         return orig.call(this, command, ...rest);
@@ -312,7 +314,7 @@ export default class WordModePlugin extends Plugin {
       // 啟用外掛時，把已開啟的筆記轉成 Word 模式
       this.app.workspace.getLeavesOfType('markdown').forEach(leaf => {
         const f = leaf.view && (leaf.view as LeafView).file;
-        if (f && this.eligible(f.path)) leaf.setViewState({ type: VIEW_TYPE, state: { file: f.path } });
+        if (f && this.eligible(f.path)) void leaf.setViewState({ type: VIEW_TYPE, state: { file: f.path } });
       });
     });
   }
@@ -326,7 +328,7 @@ export default class WordModePlugin extends Plugin {
     if (this.restoreSetViewState) this.restoreSetViewState();
     this.app.workspace.getLeavesOfType(VIEW_TYPE).forEach(leaf => {
       const f = leaf.view && (leaf.view as LeafView).file;
-      if (f) leaf.setViewState({ type: 'markdown', state: { file: f.path } });
+      if (f) void leaf.setViewState({ type: 'markdown', state: { file: f.path } });
     });
   }
 
@@ -482,7 +484,7 @@ export default class WordModePlugin extends Plugin {
     if (!el) return;
     const active = this.app.workspace.getActiveViewOfType(WordModeView);
     if (view && view !== active) return;
-    if (Platform.isMobile) { el.style.display = 'none'; this.barView = null; return; }
+    if (Platform.isMobile) { el.hide(); this.barView = null; return; }
     if (active && active.pm) {
       el.style.display = '';
       if (this.barView !== active || !el.childElementCount) {
@@ -495,7 +497,7 @@ export default class WordModePlugin extends Plugin {
     }
     // Markdown 編輯與閱讀模式：狀態列一樣放檢視切換按鈕（只有圖示），位置與 Word 模式相同
     const md = this.settings.mdStatusBar !== false ? this.app.workspace.getActiveViewOfType(MarkdownView) : null;
-    if (!md || !md.file || !/\.md$/i.test(md.file.path)) { el.style.display = 'none'; this.barView = null; this.mdStatusKey = null; return; }
+    if (!md || !md.file || !/\.md$/i.test(md.file.path)) { el.hide(); this.barView = null; this.mdStatusKey = null; return; }
     const mode = md.getMode && md.getMode() === 'preview' ? 'preview' : 'source';
     const stamp = md.file.path + '|' + mode;
     el.style.display = '';
@@ -546,8 +548,10 @@ export default class WordModePlugin extends Plugin {
 
   // 開啟 Markdown 筆記時，自動改用 Word 模式
   patchSetViewState(): void {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias -- the patched function is called with its own `this`, so the plugin is captured in a variable
     const plugin = this;
     const proto = WorkspaceLeaf.prototype;
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- the original method is kept so the wrapper can call it with the right `this`
     const orig = proto.setViewState;
     const patched = function (this: WorkspaceLeaf, state: ViewState, eState?: unknown): Promise<void> {
       try {

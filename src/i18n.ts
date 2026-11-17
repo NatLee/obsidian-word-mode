@@ -1,4 +1,5 @@
 // 多語系：介面文字以繁體中文為鍵，英文翻譯放在 en.js
+import { Platform } from 'obsidian';
 import EN from './i18n-en.js';
 import JA from './i18n-ja.js';
 import KO from './i18n-ko.js';
@@ -9,7 +10,8 @@ export type TranslationVars = Record<string, string | number>;
 const DICTS: Record<string, Record<string, string>> = { en: EN, ja: JA, ko: KO };
 
 let lang: string = 'zh-TW';
-const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || '');
+// 快速鍵要顯示 Cmd／Option 的平台：macOS、iPhone、iPad
+const isMac = Platform.isMacOS || Platform.isIosApp;
 
 export function detectLanguage(): Language {
   let l: string | null | undefined = null;

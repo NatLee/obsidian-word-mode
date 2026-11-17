@@ -207,7 +207,7 @@ export function normalize(row: MathRow): MathRow {
     const last = out[out.length - 1];
     if (it.t === 'text') { if (last && last.t === 'text') last.v += it.v; else out.push(it); continue; }
     if (!last || last.t !== 'text') out.push({ t: 'text', v: '' });
-    for (const k of ['a', 'b', 'n'] as const) if (Array.isArray(it[k])) it[k] = normalize(it[k]!);
+    for (const k of ['a', 'b', 'n'] as const) if (Array.isArray(it[k])) it[k] = normalize(it[k]);
     if (it.rows) it.rows = it.rows.map(r => r.map(normalize));
     out.push(it);
   }
@@ -224,7 +224,7 @@ const GROUP_LABEL: Record<string, string> = { '\\text': 'T', '\\mathrm': 'rm', '
 
 export interface MathFieldOptions {
   onChange?(latex: string): void;
-  label?(text: string): string; // 翻譯
+  label?: (text: string) => string; // 翻譯
 }
 // 目前所在的文字格：所在的列、在列裡的位置、對應的 DOM
 export interface MathSlot { row: MathRow; index: number; span: HTMLElement; }
@@ -437,7 +437,7 @@ export class MathField {
     const walk = (row: MathRow): void => row.forEach((it, index) => {
       if (found) return;
       if (it.t === 'text') { if (this.byItem.get(it) === span) found = { row, index, span }; return; }
-      for (const k of ['a', 'b', 'n'] as const) if (Array.isArray(it[k])) walk(it[k]!);
+      for (const k of ['a', 'b', 'n'] as const) if (Array.isArray(it[k])) walk(it[k]);
       if (it.rows) it.rows.forEach(r => r.forEach(walk));
     });
     walk(this.model);
@@ -459,7 +459,7 @@ export class MathField {
         if (x.t === 'text') continue;
         for (const k of ['a', 'b', 'n'] as const) {
           if (firstSlot || !Array.isArray(x[k])) continue;
-          if (!toLatex(x[k]!).trim()) firstSlot = x[k]!; else findSlot(x[k]!);
+          if (!toLatex(x[k]).trim()) firstSlot = x[k]!; else findSlot(x[k]);
         }
         if (x.rows) for (const rr of x.rows) for (const cell of rr) { if (!firstSlot && !toLatex(cell).trim()) firstSlot = cell; }
       }
@@ -481,7 +481,7 @@ export class MathField {
         if (i >= 0) { target = x; offset = i; x.v = x.v.replace(MARK, ''); }
         return;
       }
-      for (const k of ['a', 'b', 'n'] as const) if (Array.isArray(x[k])) walk(x[k]!);
+      for (const k of ['a', 'b', 'n'] as const) if (Array.isArray(x[k])) walk(x[k]);
       if (x.rows) x.rows.forEach(rr => rr.forEach(walk));
     });
     walk(this.model);

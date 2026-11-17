@@ -193,7 +193,7 @@ export class WordModeView extends TextFileView {
     this.registerDomEvent(this.scroller, 'wheel', e => {
       if (!(e.ctrlKey || e.metaKey)) return;
       e.preventDefault();
-      this.plugin.setZoom(this.plugin.settings.zoom + (e.deltaY < 0 ? 10 : -10));
+      void this.plugin.setZoom(this.plugin.settings.zoom + (e.deltaY < 0 ? 10 : -10));
     }, { passive: false });
 
     // 快速鍵放在這個畫面的 scope，才不會被 Obsidian 的全域快速鍵搶走（例如 Ctrl+K、Ctrl+E）
@@ -220,7 +220,7 @@ export class WordModeView extends TextFileView {
     reg(['Mod', 'Shift'], 'h', cmd(C.toggleHighlight), true);
     reg(['Mod', 'Shift'], 'x', cmd(C.toggleStrike), true);
     this.addAction('code-2', withKey('切換到 Markdown 編輯', 'Mod+E'), () => this.plugin.switchToMarkdown(this.leaf));
-    this.registerEvent(this.app.vault.on('modify', f => { if (f === this.file) this.onExternalModify(f as TFile); }));
+    this.registerEvent(this.app.vault.on('modify', f => { if (f === this.file) void this.onExternalModify(f as TFile); }));
   }
 
   // 建立（或依設定重建）上方功能區
@@ -240,7 +240,7 @@ export class WordModeView extends TextFileView {
       isFullWidth: () => !!this.plugin.settings.fullWidth,
       findState: () => ({ open: !!(this.findBar && this.findBar.isOpen), replace: !!(this.findBar && this.findBar.replacing) }),
       outlineOpen: () => this.plugin.outlineOpen(),
-      rememberColor: c => { this.plugin.settings.lastFontColor = c; this.plugin.saveSettings(); },
+      rememberColor: c => { this.plugin.settings.lastFontColor = c; void this.plugin.saveSettings(); },
       formatDate: f => (window.moment ? window.moment().format(f) : new Date().toLocaleString()),
       dialogs: {
         link: () => this.openLinkDialog(),
@@ -453,7 +453,7 @@ export class WordModeView extends TextFileView {
       v.dispatch(v.state.tr.replaceSelection(new Slice(frag, 0, 0)).scrollIntoView());
       return;
     }
-    if (image && !text && !html) { this.insertUploadedImages([image]); return; }
+    if (image && !text && !html) { void this.insertUploadedImages([image]); return; }
     let ev: ClipboardEvent | undefined;
     try {
       const dt = new DataTransfer();
@@ -882,7 +882,7 @@ export class WordModeView extends TextFileView {
       return;
     }
     if (f instanceof TFile && f.extension !== 'md') {
-      this.app.workspace.getLeaf(newLeaf ? 'tab' : false).openFile(f);
+      void this.app.workspace.getLeaf(newLeaf ? 'tab' : false).openFile(f);
       return;
     }
     let linktext = target.replace(/^<|>$/g, '');
@@ -891,7 +891,7 @@ export class WordModeView extends TextFileView {
       const sub = linktext.includes('#') ? '#' + linktext.split('#').slice(1).join('#') : '';
       linktext = f.path + sub;
     }
-    this.app.workspace.openLinkText(linktext, this.sourcePath(), newLeaf ? 'tab' : false);
+    void this.app.workspace.openLinkText(linktext, this.sourcePath(), newLeaf ? 'tab' : false);
   }
 
   nodeViewContext(): NodeViewContext {
@@ -1113,7 +1113,7 @@ export class WordModeView extends TextFileView {
     }
     if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 's') {
       e.preventDefault();
-      this.save();
+      void this.save();
       return true;
     }
     return false;
@@ -1309,7 +1309,7 @@ export class WordModeView extends TextFileView {
     const files = Array.from((e.clipboardData && e.clipboardData.files) || []).filter(f => /^image\//.test(f.type));
     if (!files.length) return false;
     e.preventDefault();
-    this.insertUploadedImages(files);
+    void this.insertUploadedImages(files);
     return true;
   }
 
@@ -1328,7 +1328,7 @@ export class WordModeView extends TextFileView {
     if (!files.length) return false;
     e.preventDefault();
     place();
-    this.insertUploadedImages(files);
+    void this.insertUploadedImages(files);
     return true;
   }
 
@@ -1561,7 +1561,7 @@ export class WordModeView extends TextFileView {
   openImage(a: Attrs): void {
     if (/^https?:/i.test(a.src)) { window.open(a.src); return; }
     const f = this.resolveFile(a.src);
-    if (f) this.app.workspace.getLeaf('tab').openFile(f);
+    if (f) void this.app.workspace.getLeaf('tab').openFile(f);
   }
 
   imageMenu(evt: MouseEvent, pos: number): void {
@@ -1650,7 +1650,7 @@ export class WordModeView extends TextFileView {
         this.pm!.focus();
       } catch (e) {
         console.error('[Word Mode]', e);
-        new Notice(t('套用範本失敗：') + (e && (e as CaughtError).message ? (e as CaughtError).message : e));
+        new Notice(t('套用範本失敗：') + (e && (e as CaughtError).message ? (e as CaughtError).message : String(e)));
       }
     }).open();
   }
@@ -1677,7 +1677,7 @@ export class WordModeView extends TextFileView {
         }
       } catch (e) {
         console.error('[Word 模式] 套用範本失敗', e);
-        new Notice(t('套用範本失敗：') + (e && (e as CaughtError).message ? (e as CaughtError).message : e));
+        new Notice(t('套用範本失敗：') + (e && (e as CaughtError).message ? (e as CaughtError).message : String(e)));
       }
     }).open();
   }
@@ -1720,7 +1720,7 @@ export class WordModeView extends TextFileView {
         replacePos = null;
       } catch (e) {
         console.error('[Word 模式] 圖片儲存失敗', e);
-        new Notice(t('圖片儲存失敗：') + (e && (e as CaughtError).message ? (e as CaughtError).message : e));
+        new Notice(t('圖片儲存失敗：') + (e && (e as CaughtError).message ? (e as CaughtError).message : String(e)));
       }
     }
   }

@@ -201,9 +201,9 @@ class ImageView implements NodeView {
     if (url) {
       if (this.img.getAttribute('src') !== url) this.img.src = url;
       this.img.style.display = '';
-      this.missing.style.display = 'none';
+      this.missing.hide();
     } else {
-      this.img.style.display = 'none';
+      this.img.hide();
       this.missing.style.display = '';
       this.missing.replaceChildren();
       const i = el('span', 'wm-inline-icon', this.missing); this.ctx.icon(i, 'image-off', '');
@@ -685,7 +685,7 @@ class CodeBlockView implements NodeView {
     this.srcBtn = btn('wm-code-src', t('顯示／隱藏原始碼'), 'code-2', t('原始碼'), () => this.toggleSource());
     this.copy = btn('wm-code-copy', t('複製程式碼'), 'copy', t('複製'), () => {
       const text = this.node.textContent;
-      if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => { this.copy.classList.add('is-done'); setTimeout(() => this.copy.classList.remove('is-done'), 900); });
+      if (navigator.clipboard) void navigator.clipboard.writeText(text).then(() => { this.copy.classList.add('is-done'); setTimeout(() => this.copy.classList.remove('is-done'), 900); });
     });
     this.sel.addEventListener('change', () => {
       if (this.sel.value === '__other') {

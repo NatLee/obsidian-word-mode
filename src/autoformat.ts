@@ -37,9 +37,9 @@ function wrapBlock(tr: Transaction, pos: number, type: NodeType, attrs: Attrs | 
   if (!wrapping) return false;
   if (itemAttrs) wrapping[wrapping.length - 1].attrs = itemAttrs;
   // 有 wrapping 就表示 range 不是 null
-  tr.wrap(range!, wrapping);
-  const before = tr.doc.resolve(range!.start).nodeBefore;
-  if (before && before.type === type && canJoin(tr.doc, range!.start)) tr.join(range!.start);
+  tr.wrap(range, wrapping);
+  const before = tr.doc.resolve(range.start).nodeBefore;
+  if (before && before.type === type && canJoin(tr.doc, range.start)) tr.join(range.start);
   return true;
 }
 

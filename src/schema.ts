@@ -30,7 +30,7 @@ const tables = tableNodes({
     align: {
       default: null,
       getFromDOM: (dom) => dom.style.textAlign || null,
-      setDOMAttr: (value, attrs) => { if (value) attrs.style = (attrs.style || '') + `text-align: ${value};`; },
+      setDOMAttr: (value, attrs) => { if (value) attrs.style = ((attrs.style as string | undefined) || '') + `text-align: ${value};`; },
     },
   },
 });

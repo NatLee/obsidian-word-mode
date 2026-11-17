@@ -72,7 +72,7 @@ const DEMOS: Record<string, DemoBuilder> = {
   right: b => linesDemo(b, 'wm-anim-align wm-to-right', 3, [90, 55, 75]),
   justify: b => linesDemo(b, 'wm-anim-align wm-to-justify', 3, [90, 55, 75]),
   quote: b => linesDemo(b, 'wm-anim-quote', 2),
-  callout: b => { const w = el('div', 'wm-demo-callout wm-anim-pop', b); el('div', 'wm-demo-callout-title', w, 'ⓘ ' + t('提示')); el('div', 'wm-demo-bar', w).style.width = '80%'; },
+  callout: b => { const w = el('div', 'wm-demo-callout wm-anim-pop', b); el('div', 'wm-demo-callout-title', w, 'ⓘ ' + t('提示')); el('div', 'wm-demo-bar wm-demo-bar-wide', w); },
   sort: b => {
     const w = el('div', 'wm-demo-sort', b);
     ['C', 'A', 'B'].forEach((x, i) => { const r = el('div', 'wm-demo-sortrow wm-sort-' + i, w); el('span', null, r, x + ' ' + t('項目')); });

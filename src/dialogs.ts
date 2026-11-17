@@ -340,6 +340,7 @@ export class EquationModal extends Modal {
       const row = pal.createDiv('wm-eq-items');
       for (const [label, snip, raw] of groups[i][1]) {
         const b = row.createEl('button', { cls: 'wm-eq-btn' + (raw ? ' is-recent' : '') });
+        // eslint-disable-next-line no-control-regex -- matching control characters is the purpose of this pattern
         if (raw || /^[\u0000-ɏ]+$/.test(label) && label.length <= 3) b.setText(raw ? label : label); else b.setText(t(label));
         // 按鈕上直接顯示公式的樣子
         if (!raw && /^(\\[a-z]|[\^_])/i.test(snip) && label.length > 1) {
@@ -391,7 +392,7 @@ export class EquationModal extends Modal {
       const v = this.ta.value.trim(); if (!v) return;
       if (this.plugin) {
         const r = [v].concat((this.plugin.settings.recentMath || []).filter((x: string) => x !== v)).slice(0, 12);
-        this.plugin.settings.recentMath = r; this.plugin.saveSettings();
+        this.plugin.settings.recentMath = r; void this.plugin.saveSettings();
       }
       this.close(); this.onSave(v, this.display);
     });

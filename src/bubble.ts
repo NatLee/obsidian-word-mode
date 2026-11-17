@@ -53,7 +53,7 @@ class Bubble {
     this.view = view;
     this.ctx = ctx;
     this.dom = el('div', 'wm-bubble');
-    this.dom.style.display = 'none';
+    this.dom.hide();
     this.dom.addEventListener('mousedown', e => { if ((e.target as HTMLElement).tagName !== 'INPUT') e.preventDefault(); });
     this.dom.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse' && (e.target as HTMLElement).tagName !== 'INPUT') e.preventDefault(); });
     ctx.host.appendChild(this.dom);
@@ -68,7 +68,7 @@ class Bubble {
 
   destroy() { this.view.dom.removeEventListener('blur', this.onBlur); this.dom.remove(); }
 
-  hide() { this.dom.style.display = 'none'; this.info = null; this.key = ''; }
+  hide() { this.dom.hide(); this.info = null; this.key = ''; }
 
   update(view: EditorView, prev: EditorState | null) {
     const st = view.state;
@@ -87,6 +87,7 @@ class Bubble {
     let rect: { left: number; top: number; bottom: number };
     try {
       if (info.pos != null) {
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- the cast is needed: Node has no getBoundingClientRect, and removing it fails the type check
         const dom = v.nodeDOM(info.pos) as MaybeElement | null;
         rect = dom && dom.getBoundingClientRect ? dom.getBoundingClientRect() : v.coordsAtPos(info.pos);
       } else {

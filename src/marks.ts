@@ -23,7 +23,9 @@ export interface MarksMeta { on?: boolean | null; always?: boolean | null; }
 
 export const marksKey = new PluginKey<MarksState>('wmMarks');
 
+// eslint-disable-next-line no-irregular-whitespace -- the irregular whitespace is the character this code detects or cleans up
 const CJK = /[　-〿㐀-鿿豈-﫿＀-￯]/;
+// eslint-disable-next-line no-irregular-whitespace -- the irregular whitespace is the character this code detects or cleans up
 const INVISIBLE = /[​-‍⁠﻿]/;
 const OBJ = '￰'; // 代表非文字的節點（圖片、連結等）
 
@@ -49,6 +51,7 @@ function scanText(text: string, base: number, inCode: boolean): WeirdFound[] {
   const out: WeirdFound[] = [];
   const add = (i: number, len: number, kind: WeirdKindId) => out.push({ from: base + i, to: base + i + len, kind });
   let m;
+  // eslint-disable-next-line no-control-regex, no-irregular-whitespace -- matching control characters is the purpose of this pattern; the irregular whitespace is the character this code detects or cleans up
   const re = /[​-‍⁠﻿]|[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]| |�/g;
   while ((m = re.exec(text))) {
     const c = m[0];
@@ -82,6 +85,7 @@ export function scanBlock(node: PMNode, pos: number): WeirdFound[] {
   let text = '';
   node.forEach(c => {
     // 有程式碼格式的文字只檢查看不見的字元
+    // eslint-disable-next-line no-control-regex, no-irregular-whitespace -- matching control characters is the purpose of this pattern; the irregular whitespace is the character this code detects or cleans up
     if (c.isText && c.marks.some(mk => mk.type.name === 'code')) text += c.text!.replace(/[^\u0000-\u001f\u007f ​-‍⁠﻿�]/g, OBJ);
     else text += c.isText ? c.text : OBJ.repeat(c.nodeSize);
   });
@@ -137,6 +141,7 @@ function blockDecos(node: PMNode, pos: number, s: MarksFlags): Decoration[] {
       const at = pos + 1 + off;
       if (c.type.name === 'hard_break') { decos.push(Decoration.widget(at, widget('wm-mark-br', '↵'), { side: -1, key: 'br' })); return; }
       if (!c.isText) return;
+      // eslint-disable-next-line no-irregular-whitespace -- the irregular whitespace is the character this code detects or cleans up
       const re = /[ 　\t]/g; let m;
       while ((m = re.exec(c.text!))) {
         const cls = m[0] === ' ' ? 'wm-ws-space' : m[0] === '　' ? 'wm-ws-full' : 'wm-ws-tab';

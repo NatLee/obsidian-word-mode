@@ -318,6 +318,7 @@ const URL_SPLIT = /(https?:\/\/[^\s<>()\[\]]+)/;
 
 // Obsidian 額外的特殊字元（== 螢光、$ 數學、%% 註解、< HTML、| 表格）。
 // 只跳脫前面沒有反斜線（或有偶數個反斜線）的字元，避免重複跳脫。
+// eslint-disable-next-line @typescript-eslint/unbound-method -- the original method is kept so the wrapper can call it with the right `this`
 const origEsc = MarkdownSerializerState.prototype.esc;
 MarkdownSerializerState.prototype.esc = function (this: SerializerState, str: string, startOfLine = false): string {
   let s = origEsc.call(this, str, startOfLine);

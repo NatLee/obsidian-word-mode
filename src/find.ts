@@ -142,7 +142,7 @@ export class FindBar {
   constructor(host: HTMLElement, ctx: FindBarContext) {
     this.ctx = ctx; // { getView(), icon(el, name, fallback) }
     this.dom = el('div', 'wm-findbar', host);
-    this.dom.style.display = 'none';
+    this.dom.hide();
     const row1 = el('div', 'wm-find-row', this.dom);
     this.input = el('input', 'wm-find-input', row1);
     this.input.type = 'text';
@@ -166,7 +166,7 @@ export class FindBar {
     b2.type = 'button';
     b2.addEventListener('click', () => this.replaceAll());
     this.replacing = false;
-    this.row2.style.display = 'none';
+    this.row2.hide();
 
     this.input.addEventListener('input', () => this.search(this.input.value));
     const keys = (e: KeyboardEvent) => {
@@ -212,7 +212,7 @@ export class FindBar {
 
   close() {
     const v = this.view;
-    this.dom.style.display = 'none';
+    this.dom.hide();
     if (v) {
       v.dispatch(v.state.tr.setMeta(findKey, { query: '', current: -1 }));
       v.focus();
