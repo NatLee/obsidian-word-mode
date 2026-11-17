@@ -16,15 +16,21 @@ Your files stay plain Markdown. When you edit a note, only the blocks you change
 - **Tables** you edit in place: add and remove rows and columns, set alignment, and paste cells from a spreadsheet.
 - **Images**: paste or pick an image, then drag to resize it.
 - **Links** to notes, headings, and web pages, with a small toolbar that appears when the cursor is on a link.
-- **Find and replace**.
+- **Find and replace**, with whole-word and regular-expression options.
 - **Outline sidebar** and heading folding.
 - **Formatting marks** such as `¶`, and a cleanup tool for invisible or stray characters.
-- **Callouts, equations, task lists, and code blocks** with syntax highlighting.
+- **Formatting as you type**: start a paragraph with `- `, `1. `, `# `, `> `, or `[ ] `, or finish `**bold**`, `*italic*`, or `[[note]]`, and it turns into formatting. Each change is its own undo step, so one undo removes the formatting and keeps what you typed.
+- **Suggestions** for notes and headings when you type `[[`, and for tags when you type `#`.
+- **Diagrams**: Mermaid diagrams are shown as diagrams. A diagram editor lets you edit flowcharts as a list of steps and connections, or any diagram as code, with a live preview. Dataview queries and code blocks from other plugins are shown as their results.
+- **Equations**: a visual editor where fractions, roots, superscripts, and matrices are boxes you type in, or plain LaTeX. You choose the default in the settings.
+- **Embeds**: embedded notes, headings, audio, video, PDFs, and YouTube links are shown in place.
+- **Footnotes**: insert a footnote, hover over its number to read it, and edit its text without touching the syntax.
+- **Callouts** (including foldable ones), **task lists** with custom statuses such as `[/]` and `[-]`, **tags**, and **code blocks** with syntax highlighting.
 - **Paste Markdown text** and convert it to formatted text in one step.
 - **Sync conflict handling**: if a note changes on disk while you have unsaved edits, you choose which version to keep.
 - Interface in Traditional Chinese, English, Japanese, and Korean.
 
-Anything Word Mode can't edit visually, such as HTML blocks and footnote definitions, is shown as a raw block and saved unchanged.
+Anything Word Mode can't edit visually, such as HTML blocks, is shown as a raw block and saved unchanged.
 
 ## Usage
 
@@ -60,7 +66,7 @@ Requires Obsidian 1.5.7 or later.
 
 ## Privacy and disclosures
 
-- **Network use**: none. The plugin makes no network requests. If you insert an image by its web address, Obsidian loads that image from the address, the same as in any note.
+- **Network use**: only to display web content that your notes already point to. If a note contains an image, audio, or video from a web address, Word mode loads it from that address. If a note embeds a YouTube link, Word mode shows the YouTube player, which connects to `youtube.com`. This is the same content Obsidian's own editor loads for that note. The plugin sends none of your notes or data anywhere.
 - **Telemetry**: none.
 - **Accounts and payment**: not required.
 - **Files outside your vault**: never read or written.
@@ -71,6 +77,7 @@ Requires Obsidian 1.5.7 or later.
 - Mobile use hasn't been tested on real devices.
 - Some buttons on the toolbar shown in Markdown and reading mode call built-in Obsidian commands and haven't all been tested individually.
 - The Japanese and Korean translations haven't been reviewed by native speakers.
+- Diagram and query results, embeds, and page previews are drawn by Obsidian. They are covered by automated tests that simulate Obsidian, and haven't been checked with every plugin and theme.
 
 ## Development
 
@@ -109,6 +116,14 @@ Don't keep this folder or `node_modules` inside a folder that a sync client watc
 | `src/outline.js` | Outline sidebar. |
 | `src/marks.js` | Formatting marks and stray-character cleanup. |
 | `src/codehl.js` | Syntax highlighting for code blocks. |
+| `src/autoformat.js` | Formatting as you type. |
+| `src/suggest.js`, `src/complete.js` | Suggestions for notes, headings, and tags. |
+| `src/dialogs.js` | Dialogs: links, equations, shortcuts, cleanup, word count. |
+| `src/mathvisual.js` | Visual equation editor. |
+| `src/mermaid.js`, `src/flowchart.js` | Diagram editor, and the flowchart parser behind its form. |
+| `src/embeds.js` | Embedded notes, media, and PDFs. |
+| `src/footnotes.js` | Footnote commands. |
+| `src/decoutil.js`, `src/dom.js`, `src/textstats.js` | Shared helpers. |
 | `src/hints.js` | Detailed button tooltips. |
 | `src/i18n.js`, `src/i18n-*.js` | Translations, keyed by the Traditional Chinese text. |
 | `styles/word-mode.css` | Styles. |
