@@ -4,8 +4,8 @@ import { defineConfig, globalIgnores } from 'eslint/config';
 import obsidianmd from 'eslint-plugin-obsidianmd';
 
 export default defineConfig([
-  // 建置產物、測試與 Node 腳本不是外掛的原始碼
-  globalIgnores(['node_modules', 'dist', 'dist-test', '.worktrees', 'tests', 'docs', 'build.mjs', 'version-bump.mjs', 'release-local.mjs']),
+  // 建置產物、測試、Node 腳本與草稿檔不是外掛的原始碼
+  globalIgnores(['node_modules', 'dist', 'dist-test', '.worktrees', 'tests', 'docs', 'build.mjs', 'version-bump.mjs', 'release-local.mjs', 'scratch*.mjs']),
   ...obsidianmd.configs.recommended,
   {
     languageOptions: {
