@@ -60,8 +60,8 @@ class Bubble {
     ctx.host.appendChild(this.dom);
     this.info = null;
     this.key = '';
-    this.onBlur = () => setTimeout(() => {
-      if (!this.view.hasFocus() && !this.dom.contains(document.activeElement)) this.hide();
+    this.onBlur = () => window.setTimeout(() => {
+      if (!this.view.hasFocus() && !this.dom.contains(activeDocument.activeElement)) this.hide();
     }, 150);
     view.dom.addEventListener('blur', this.onBlur);
     this.update(view, null);
@@ -79,7 +79,7 @@ class Bubble {
     const key = info.kind + ':' + (info.pos != null ? info.pos : info.from + '-' + info.to) + ':' + JSON.stringify(info.node ? info.node.attrs : info.href);
     this.info = info;
     if (key !== this.key) { this.key = key; this.render(info); }
-    this.dom.style.display = '';
+    this.dom.show();
     this.position(info);
   }
 
@@ -95,7 +95,7 @@ class Bubble {
         const a = v.coordsAtPos(info.from);
         rect = { left: a.left, bottom: a.bottom, top: a.top };
       }
-    } catch (e) { return; }
+    } catch { return; }
     const host = this.ctx.host.getBoundingClientRect();
     const maxLeft = Math.max(0, host.width - (this.dom.offsetWidth || 320) - 8);
     this.dom.style.left = Math.min(maxLeft, Math.max(0, rect.left - host.left)) + 'px';

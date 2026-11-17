@@ -415,15 +415,15 @@ export default class WordModePlugin extends Plugin {
       const pct = Math.max(12, Math.min(35, 260 / (total || 1200) * 100));
       if (mine.setDimension) mine.setDimension(pct);
       if (other !== mine && other.setDimension) other.setDimension(100 - pct);
-    } catch (e) { /* 用預設寬度 */ }
+    } catch { /* 用預設寬度 */ }
   }
 
 
 
   outlineChanged(view: WordModeView | MarkdownView, docChanged: boolean): void {
     if (!this.outlineOpen()) return;
-    clearTimeout(this.outlineTimer);
-    this.outlineTimer = setTimeout(() => {
+    window.clearTimeout(this.outlineTimer);
+    this.outlineTimer = window.setTimeout(() => {
       for (const l of this.app.workspace.getLeavesOfType(OUTLINE_TYPE)) {
         const ov = l.view;
         if (!(ov instanceof OutlineView)) continue;
@@ -472,7 +472,7 @@ export default class WordModePlugin extends Plugin {
     const reopen = this.app.setting && this.app.setting.activeTab && this.app.setting.activeTab.id === id;
     await plugins.disablePlugin(id);
     await plugins.enablePlugin(id);
-    if (reopen) setTimeout(() => { try { this.app.setting!.openTabById(id); } catch (e) { /* 忽略 */ } }, 100);
+    if (reopen) window.setTimeout(() => { try { this.app.setting!.openTabById(id); } catch { /* 忽略 */ } }, 100);
   }
 
   async setZoom(z: number): Promise<void> {
@@ -488,7 +488,7 @@ export default class WordModePlugin extends Plugin {
     if (view && view !== active) return;
     if (Platform.isMobile) { el.hide(); this.barView = null; return; }
     if (active && active.pm) {
-      el.style.display = '';
+      el.show();
       if (this.barView !== active || !el.childElementCount) {
         el.empty();
         active.buildBottomBar(el, true);
@@ -502,7 +502,7 @@ export default class WordModePlugin extends Plugin {
     if (!md || !md.file || !/\.md$/i.test(md.file.path)) { el.hide(); this.barView = null; this.mdStatusKey = null; return; }
     const mode = md.getMode && md.getMode() === 'preview' ? 'preview' : 'source';
     const stamp = md.file.path + '|' + mode;
-    el.style.display = '';
+    el.show();
     if (this.barView === md && this.mdStatusKey === stamp && el.childElementCount) return;
     el.empty();
     this.barView = md;
@@ -582,7 +582,7 @@ export default class WordModePlugin extends Plugin {
     this.forceMarkdown.set(leaf, path);
     const state = mode === 'preview' ? { file: path, mode: 'preview' } : { file: path, mode: 'source', source: false };
     await leaf.setViewState({ type: 'markdown', state, active: true });
-    setTimeout(() => { const nv: LeafView = leaf.view; if (nv && nv.editor && mode !== 'preview') nv.editor.focus(); }, 50);
+    window.setTimeout(() => { const nv: LeafView = leaf.view; if (nv && nv.editor && mode !== 'preview') nv.editor.focus(); }, 50);
   }
 
   async switchToWord(leaf: WorkspaceLeaf): Promise<void> {
@@ -592,7 +592,7 @@ export default class WordModePlugin extends Plugin {
     await v.save();
     this.forceMarkdown.delete(leaf);
     await leaf.setViewState({ type: VIEW_TYPE, state: { file: path }, active: true });
-    setTimeout(() => { const nv: LeafView = leaf.view; if (nv && nv.pm) nv.pm.focus(); }, 50);
+    window.setTimeout(() => { const nv: LeafView = leaf.view; if (nv && nv.pm) nv.pm.focus(); }, 50);
   }
 }
 

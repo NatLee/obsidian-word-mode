@@ -112,7 +112,7 @@ export function fillTable(state: EditorState, rows: string[][]): Transaction | n
   pos += 1;
   for (let c = 0; c < lastC; c++) pos += node.child(lastR).child(c).nodeSize;
   const cell = node.child(lastR).child(lastC);
-  try { tr.setSelection(TextSelection.create(tr.doc, pos + 2 + cell.firstChild!.content.size)); } catch (e) { /* 保持預設 */ }
+  try { tr.setSelection(TextSelection.create(tr.doc, pos + 2 + cell.firstChild!.content.size)); } catch { /* 保持預設 */ }
   return tr.scrollIntoView();
 }
 

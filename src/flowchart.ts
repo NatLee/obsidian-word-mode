@@ -48,7 +48,7 @@ const unquote = (s: string): string => {
 // 文字裡有 Mermaid 的特殊符號時要加引號
 const quote = (s: unknown): string => {
   const v = String(s).replace(/"/g, '#quot;').replace(/\r?\n/g, '<br>');
-  return /^[\p{L}\p{N}\s_.,:：，。！？、\-]*$/u.test(v) && !/^\s|\s$/.test(v) && v !== '' ? v : '"' + v + '"';
+  return /^[\p{L}\p{N}\s_.,:：，。！？、-]*$/u.test(v) && !/^\s|\s$/.test(v) && v !== '' ? v : '"' + v + '"';
 };
 
 // 從字串開頭讀一個節點：A、A[文字]、A{"文字"}…；回傳 { id, text, shape, rest } 或 null
@@ -69,7 +69,7 @@ function readNode(s: string): ReadNode | null {
     const text = unquote(rest.slice(open.length, i));
     return { id, text, shape, rest: rest.slice(i + close.length) };
   }
-  if (/^[\[({>]/.test(rest)) return null; // 不認得的形狀
+  if (/^[[({>]/.test(rest)) return null; // 不認得的形狀
   return { id, text: null, shape: null, rest };
 }
 

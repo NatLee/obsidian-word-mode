@@ -261,11 +261,11 @@ export class Toolbar {
     const first = TABS.find(([id]) => this.panels[id] && !this.panels[id].classList.contains('is-empty'));
     this.showTab(this.panels[ctx.initialTab] && !this.panels[ctx.initialTab]!.classList.contains('is-empty') ? ctx.initialTab : (first ? first[0] : 'home'));
     this.onDocDown = e => { if (this.popup && !this.popup.contains(e.target as Node | null) && !this.popupOwner!.contains(e.target as Node | null)) this.closePopup(); };
-    document.addEventListener('pointerdown', this.onDocDown, true);
+    this.dom.ownerDocument.addEventListener('pointerdown', this.onDocDown, true);
   }
 
   destroy(): void {
-    document.removeEventListener('pointerdown', this.onDocDown, true);
+    this.dom.ownerDocument.removeEventListener('pointerdown', this.onDocDown, true);
     this.closePopup();
     hideHint();
     this.dom.remove();
@@ -608,7 +608,7 @@ export class Toolbar {
     this.painterBtn.classList.toggle('is-sticky', !!sticky);
     v.dom.classList.add('wm-painting');
     this.painterHandler = () => {
-      setTimeout(() => {
+      window.setTimeout(() => {
         const view = this.view;
         if (!this.painter || !view || view.state.selection.empty) return;
         C.applyMarks(this.painter)(view.state, view.dispatch);

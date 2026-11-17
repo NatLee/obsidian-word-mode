@@ -171,7 +171,7 @@ export class MarkdownBar {
     setIcon(i, spec.icon);
     if (showLabel && spec.label) el('span', 'wm-btn-label', b, t(spec.label));
     b.addEventListener('mousedown', e => e.preventDefault());
-    b.addEventListener('click', e => { e.preventDefault(); hideHint(); if (b.classList.contains('is-disabled')) return; spec.run(e, b); setTimeout(() => this.update(), 50); });
+    b.addEventListener('click', e => { e.preventDefault(); hideHint(); if (b.classList.contains('is-disabled')) return; spec.run(e, b); window.setTimeout(() => this.update(), 50); });
     const it: MdButtonItem = { dom: b, spec, title };
     this.items.push(it);
     if (this.richHints) {

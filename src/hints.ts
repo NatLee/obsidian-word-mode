@@ -112,15 +112,15 @@ const DEMOS: Record<string, DemoBuilder> = {
 
 function ensureCard(): HTMLDivElement {
   if (card && card.isConnected) return card;
-  card = el('div', 'wm-hint-card', document.body);
+  card = el('div', 'wm-hint-card', activeDocument.body);
   card.setAttribute('role', 'tooltip');
-  card.addEventListener('mouseenter', () => clearTimeout(timer!));
+  card.addEventListener('mouseenter', () => window.clearTimeout(timer!));
   card.addEventListener('mouseleave', hideHint);
   return card;
 }
 
 export function hideHint(): void {
-  clearTimeout(timer!);
+  window.clearTimeout(timer!);
   current = null;
   if (card) card.classList.remove('is-shown');
 }
@@ -152,14 +152,14 @@ function show(btn: HTMLElement, info: HintInfo) {
 // info: () => { title, keys, desc, demo, reason }
 export function attachHint(btn: HTMLElement, info: () => HintInfo): void {
   btn.addEventListener('mouseenter', () => {
-    clearTimeout(timer!);
+    window.clearTimeout(timer!);
     // 已經有提示卡在顯示：直接換成這個按鈕的（像 Word）；否則等一下再出現
     const wait = card && card.classList.contains('is-shown') ? 80 : 550;
-    timer = setTimeout(() => { current = btn; show(btn, info()); }, wait);
+    timer = window.setTimeout(() => { current = btn; show(btn, info()); }, wait);
   });
   btn.addEventListener('mouseleave', () => {
-    clearTimeout(timer!);
-    timer = setTimeout(() => { if (current === btn) hideHint(); }, 120);
+    window.clearTimeout(timer!);
+    timer = window.setTimeout(() => { if (current === btn) hideHint(); }, 120);
   });
   btn.addEventListener('mousedown', hideHint);
 }

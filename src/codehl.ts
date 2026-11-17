@@ -44,7 +44,7 @@ function blockDecos(Prism: PrismLike, node: PMNode, pos: number): Decoration[] {
   const grammar = Prism.languages[langOf(node)];
   if (!grammar || !node.textContent) return [];
   const ranges: ClassRange[] = [];
-  try { flatten(Prism.tokenize(node.textContent, grammar), pos + 1, ranges, []); } catch (e) { return []; }
+  try { flatten(Prism.tokenize(node.textContent, grammar), pos + 1, ranges, []); } catch { return []; }
   return ranges.filter(r => r.to > r.from).map(r => Decoration.inline(r.from, r.to, { class: r.cls }));
 }
 

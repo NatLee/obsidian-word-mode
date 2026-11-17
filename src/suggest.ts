@@ -58,7 +58,7 @@ export function suggestTrigger(state: EditorState): SuggestTrigger | null {
   if (!empty || !$from.parent.isTextblock || $from.parent.type.spec.code) return null;
   if ((state.storedMarks || $from.marks()).some(m => m.type.name === 'code')) return null;
   const before = $from.parent.textBetween(Math.max(0, $from.parentOffset - 200), $from.parentOffset, null, LEAF);
-  let m = /(!?)\[\[([^\[\]|\n￼]*)$/.exec(before);
+  let m = /(!?)\[\[([^[\]|\n￼]*)$/.exec(before);
   if (m) return { kind: 'link', embed: !!m[1], query: m[2], from: $from.pos - m[0].length, to: $from.pos };
   m = /(^|\s)#([^\s#￼]{1,60})$/.exec(before);
   if (m) return { kind: 'tag', query: m[2], from: $from.pos - m[2].length - 1, to: $from.pos };
@@ -132,7 +132,7 @@ export function suggestPlugin(ctx: SuggestContext): Plugin<SuggestTrigger | null
       const vw = window.innerWidth || 1024; const vh = window.innerHeight || 768;
       box.style.left = Math.max(4, Math.min(c.left, vw - w - 4)) + 'px';
       box.style.top = (c.bottom + 4 + h > vh && c.top - h - 4 > 0 ? c.top - h - 4 : c.bottom + 4) + 'px';
-    } catch (e) { /* 測試環境沒有版面資訊 */ }
+    } catch { /* 測試環境沒有版面資訊 */ }
   };
 
   return new Plugin<SuggestTrigger | null>({
@@ -165,7 +165,7 @@ export function suggestPlugin(ctx: SuggestContext): Plugin<SuggestTrigger | null
         if (e.key === 'Escape') { close(); view.dispatch(view.state.tr.setMeta(suggestKey, { close: true })); return true; }
         return false;
       },
-      handleDOMEvents: { blur: () => { setTimeout(close, 150); return false; } },
+      handleDOMEvents: { blur: () => { window.setTimeout(close, 150); return false; } },
     },
   });
 }

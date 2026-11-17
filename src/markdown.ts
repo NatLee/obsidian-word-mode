@@ -207,7 +207,7 @@ function obsidianCore(state: StateCore): void {
       && tokens[i + 2] && tokens[i + 2].type === 'inline') {
       const inl = tokens[i + 2];
       // 任何單一字元都算任務狀態（- [/]、- [-]、- [>] 等自訂狀態，Tasks 外掛與佈景主題會用）
-      const m = inl.content.match(/^\[([^\[\]\n])\][ \t]/);
+      const m = inl.content.match(/^\[([^[\]\n])\][ \t]/);
       const first = inl.children && inl.children[0];
       if (m && first && first.type === 'text' && first.content.startsWith(m[0])) {
         t.meta = Object.assign({}, t.meta, { checked: m[1] !== ' ', status: m[1] === ' ' || m[1] === 'x' ? null : m[1] });
@@ -314,7 +314,7 @@ export function createParser(tokenizer: MarkdownItInstance): MarkdownParser {
 // Serializer
 // ---------------------------------------------------------------------------
 
-const URL_SPLIT = /(https?:\/\/[^\s<>()\[\]]+)/;
+const URL_SPLIT = /(https?:\/\/[^\s<>()[\]]+)/;
 
 // Obsidian 額外的特殊字元（== 螢光、$ 數學、%% 註解、< HTML、| 表格）。
 // 只跳脫前面沒有反斜線（或有偶數個反斜線）的字元，避免重複跳脫。
@@ -868,7 +868,7 @@ export class MarkdownConverter {
     const body = lines.slice(bodyStart).map(stripEol).join('\n');
     const env = {};
     let tokens: Token[] = [];
-    try { tokens = this.tokenizer.parse(body, env); } catch (e) { tokens = []; }
+    try { tokens = this.tokenizer.parse(body, env); } catch { tokens = []; }
     const covered: [number, number, Token][] = [];
     for (const t of tokens) {
       if (t.level === 0 && t.map && t.nesting >= 0) covered.push([t.map[0] + bodyStart, t.map[1] + bodyStart, t]);
@@ -915,7 +915,7 @@ export class MarkdownConverter {
         try {
           const fb = parseFormattedBlock(src);
           if (fb && this.serializeNodes([fb]).trim() === src.trim()) segNodes = [withBid(fb, idx)];
-        } catch (e) { segNodes = null; }
+        } catch { segNodes = null; }
       }
       if (kind === 'frontmatter') {
         segNodes = [schema.nodes.frontmatter.create({ src, bid: idx })];
@@ -924,7 +924,7 @@ export class MarkdownConverter {
           let psrc = src;
           if (r.token!.type === 'table_open') {
             // 表格裡 [[筆記|別名]] 沒有跳脫的 |：當成同一格（重新輸出時會寫成 \|）
-            psrc = src.replace(/!?\[\[[^\[\]\n]*\]\]/g, w => w.replace(/\\\||\|/g, m => (m === '|' ? '\\|' : m)));
+            psrc = src.replace(/!?\[\[[^[\]\n]*\]\]/g, w => w.replace(/\\\||\|/g, m => (m === '|' ? '\\|' : m)));
             if (tableHasExtraCells(psrc)) throw new Error('表格的格數比標題列多，保留原文');
           }
           const d = this.parser.parse(psrc, Object.assign({}, env));
@@ -934,14 +934,14 @@ export class MarkdownConverter {
           d.forEach(n => segNodes!.push(withBid(liftCallouts(n, inl), idx)));
           if (!segNodes.length) segNodes = null;
           else this.serializeNodes(segNodes); // 確認可序列化
-        } catch (e) {
+        } catch {
           segNodes = null;
         }
       }
       if (!segNodes) segNodes = [schema.nodes.raw_block.create({ src, kind: kind === 'md' ? 'raw' : kind, bid: idx })];
       let canon: string;
       try { canon = this.serializeNodes(segNodes); }
-      catch (e) {
+      catch {
         segNodes = [schema.nodes.raw_block.create({ src, kind: 'raw', bid: idx })];
         canon = this.serializeNodes(segNodes);
       }

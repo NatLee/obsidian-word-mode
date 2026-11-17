@@ -1,6 +1,6 @@
 // 尋找與取代（Ctrl+F / Ctrl+H）
 import { Plugin, PluginKey, TextSelection } from 'prosemirror-state';
-import { t, withKey, key } from './i18n.js';
+import { t, withKey } from './i18n.js';
 import { Decoration, DecorationSet } from 'prosemirror-view';
 import { el } from './dom.js';
 import type { Node as PMNode } from 'prosemirror-model';
@@ -44,9 +44,9 @@ export function buildMatcher(query: string, opts: FindOptions = {}): Matcher | M
   const whole = !!opts.wholeWord && !opts.regex;
   if (whole) src = '(^|[^' + WORD + '])(?:' + src + ')(?=$|[^' + WORD + '])';
   const flags = 'g' + (opts.caseSensitive ? '' : 'i');
-  try { return { re: new RegExp(src, flags + 'u'), whole }; } catch (e) {
+  try { return { re: new RegExp(src, flags + 'u'), whole }; } catch {
     if (!opts.regex) return { error: true };
-    try { return { re: new RegExp(src, flags), whole }; } catch (e2) { return { error: true }; }
+    try { return { re: new RegExp(src, flags), whole }; } catch { return { error: true }; }
   }
 }
 
@@ -81,7 +81,7 @@ export function replacementFor(matched: string, query: string, opts: FindOptions
   if (!opts.regex) return replacement;
   const mt = buildMatcher(query, opts);
   if (!mt || mt.error) return replacement;
-  try { return matched.replace(new RegExp(mt.re.source, mt.re.flags.replace('g', '')), replacement); } catch (e) { return replacement; }
+  try { return matched.replace(new RegExp(mt.re.source, mt.re.flags.replace('g', '')), replacement); } catch { return replacement; }
 }
 
 function compute(doc: PMNode, s: FindState): FindState {
@@ -197,7 +197,7 @@ export class FindBar {
   open(withReplace?: boolean) {
     const v = this.view;
     if (!v) return;
-    this.dom.style.display = '';
+    this.dom.show();
     const { from, to, empty } = v.state.selection;
     if (!empty) {
       const tv = v.state.doc.textBetween(from, to, ' ');
@@ -224,7 +224,7 @@ export class FindBar {
     this.replacing = on;
     this.row2.style.display = on ? '' : 'none';
     this.replToggle.classList.toggle('is-active', on);
-    if (on && this.isOpen && this.input.value) setTimeout(() => this.replInput.focus(), 0);
+    if (on && this.isOpen && this.input.value) window.setTimeout(() => this.replInput.focus(), 0);
     if (this.ctx.onChange) this.ctx.onChange();
   }
 

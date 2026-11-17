@@ -737,7 +737,7 @@ export function insertBlock(node: PMNode): Command {
             : node.firstChild && node.firstChild.isTextblock ? found + 2 : found + node.nodeSize;
           const sel = TextSelection.near(tr.doc.resolve(at));
           tr.setSelection(sel);
-        } catch (e) { /* 保持預設 */ }
+        } catch { /* 保持預設 */ }
       }
       dispatch(tr.scrollIntoView());
     }
@@ -798,10 +798,10 @@ export const table: TableCommands = {
       if (dispatch) {
         let tr = state.tr;
         t.node.forEach((row, rowOff) => {
-          let off = 0; let i = 0;
+          let i = 0;
           row.forEach((cell, cellOff) => {
             if (i === col) tr = tr.setNodeMarkup(t.pos + 1 + rowOff + 1 + cellOff, null, Object.assign({}, cell.attrs, { align: a }));
-            i++; off += cell.nodeSize;
+            i++;
           });
         });
         dispatch(tr);
@@ -855,7 +855,7 @@ export function moveBlock(dir: Direction): Command {
         newStart = start + sib.nodeSize;
         tr.insert(end + sib.nodeSize, node).delete(start, end);
       }
-      try { tr.setSelection(TextSelection.create(tr.doc, newStart + a, newStart + b)); } catch (e) { /* 保持預設 */ }
+      try { tr.setSelection(TextSelection.create(tr.doc, newStart + a, newStart + b)); } catch { /* 保持預設 */ }
       dispatch(tr.scrollIntoView());
     }
     return true;
@@ -899,7 +899,7 @@ export function sortTableByColumn(dir: Direction): Command {
       const pos = $from.before(tDepth);
       const node = table.type.create(table.attrs, [head, ...sorted]);
       const tr = state.tr.replaceWith(pos, pos + table.nodeSize, node);
-      try { tr.setSelection(TextSelection.near(tr.doc.resolve(Math.min(state.selection.from, tr.doc.content.size)))); } catch (e) { /* 保持預設 */ }
+      try { tr.setSelection(TextSelection.near(tr.doc.resolve(Math.min(state.selection.from, tr.doc.content.size)))); } catch { /* 保持預設 */ }
       dispatch(tr);
     }
     return true;

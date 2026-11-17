@@ -25,7 +25,7 @@ function buildDecos(doc: PMNode, folded: number[], ctx: FoldContext): Decoration
     if (!isHeading) return;
     const isFolded = folded.includes(pos);
     decos.push(Decoration.widget(pos + 1, view => {
-      const b = document.createElement('span');
+      const b = createSpan();
       b.className = 'wm-fold-toggle' + (isFolded ? ' is-folded' : '');
       b.contentEditable = 'false';
       b.setAttribute('aria-label', isFolded ? t('展開') : t('摺疊'));
@@ -34,7 +34,7 @@ function buildDecos(doc: PMNode, folded: number[], ctx: FoldContext): Decoration
       const toggle = (e: MouseEvent) => {
         e.preventDefault(); e.stopPropagation();
         let at;
-        try { at = view.state.doc.resolve(view.posAtDOM(b, 0)).before(1); } catch (err) { return; }
+        try { at = view.state.doc.resolve(view.posAtDOM(b, 0)).before(1); } catch { return; }
         view.dispatch(view.state.tr.setMeta(foldKey, { toggle: at }));
       };
       b.addEventListener('mousedown', toggle);

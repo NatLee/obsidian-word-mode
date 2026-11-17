@@ -132,7 +132,7 @@ export function cleanWeird(state: EditorState, kinds: readonly string[]): Transa
 }
 
 function widget(cls: string, text: string): () => HTMLSpanElement {
-  return () => { const s = document.createElement('span'); s.className = cls; s.textContent = text; s.contentEditable = 'false'; return s; };
+  return () => { const s = createSpan(); s.className = cls; s.textContent = text; s.contentEditable = 'false'; return s; };
 }
 
 function blockDecos(node: PMNode, pos: number, s: MarksFlags): Decoration[] {

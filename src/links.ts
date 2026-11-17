@@ -24,12 +24,12 @@ export interface WikilinkContext { kind: 'wikilink'; pos: number; node: PMNode; 
 export interface TextLinkContext { kind: 'link' | 'url'; from: number; to: number; href: string; text: string; pos?: undefined; node?: undefined; }
 export type LinkContext = ImageContext | WikilinkContext | TextLinkContext;
 
-export const URL_RE = /https?:\/\/[^\s<>()\[\]]+[^\s<>()\[\].,;:!?'"，。、；：！？」』）]/g;
+export const URL_RE = /https?:\/\/[^\s<>()[\]]+[^\s<>()[\].,;:!?'"，。、；：！？」』）]/g;
 export const isUrl = (s: string): boolean => /^https?:\/\/\S+$/i.test(s.trim());
 export const isExternal = (href: string): boolean => /^[a-z][a-z0-9+.-]*:/i.test(href);
 
 // Obsidian 的 #標籤：前面是行首或空白，可以有 / 分層，不能全是數字
-export const TAG_RE = /(^|\s)#([^\s#!@$%^&*(),.?":;{}|<>\[\]\\`'~=+]+)/g;
+export const TAG_RE = /(^|\s)#([^\s#!@$%^&*(),.?":;{}|<>[\]\\`'~=+]+)/g;
 // 區塊參照 ^id：寫在段落結尾
 const BLOCK_ID_RE = /(^|\s)\^([A-Za-z0-9-]+)$/;
 

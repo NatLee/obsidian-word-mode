@@ -118,8 +118,8 @@ export class MermaidModal extends Modal {
   }
 
   onClose(): void {
-    clearTimeout(this.timer);
-    if (this.handle) { try { this.handle.unload(); } catch (e) { /* 忽略 */ } }
+    window.clearTimeout(this.timer);
+    if (this.handle) { try { this.handle.unload(); } catch { /* 忽略 */ } }
     this.contentEl.empty();
   }
 
@@ -154,7 +154,7 @@ export class MermaidModal extends Modal {
     this.tabCode.toggleClass('is-active', tab === 'code');
     this.visualPane.toggle(tab === 'visual');
     this.codePane.toggle(tab === 'code');
-    if (tab === 'visual') this.buildVisual(); else { this.ta.value = this.src; setTimeout(() => this.ta.focus(), 10); }
+    if (tab === 'visual') this.buildVisual(); else { this.ta.value = this.src; window.setTimeout(() => this.ta.focus(), 10); }
   }
 
   // 表單改了：重新產生程式碼並更新預覽
@@ -267,11 +267,11 @@ export class MermaidModal extends Modal {
     if (model.extra && model.extra.length) p.createDiv({ cls: 'wm-mmd-note', text: t('這張圖另外有 {n} 行樣式設定（style、class 等），會原樣保留；要修改請用程式碼。', { n: model.extra.length }) });
   }
 
-  schedulePreview(): void { clearTimeout(this.timer); this.timer = setTimeout(() => this.preview(), 300); }
+  schedulePreview(): void { window.clearTimeout(this.timer); this.timer = window.setTimeout(() => this.preview(), 300); }
 
   preview(): void {
     if (!this.prev) return;
-    if (this.handle) { try { this.handle.unload(); } catch (e) { /* 忽略 */ } this.handle = null; }
+    if (this.handle) { try { this.handle.unload(); } catch { /* 忽略 */ } this.handle = null; }
     this.prev.empty();
     this.err.setText('');
     const src = this.src.trim();

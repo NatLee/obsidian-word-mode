@@ -124,9 +124,9 @@ class WikilinkView implements NodeView {
     this.dom.classList.toggle('wm-embed', embed);
     if (embed) { this.handle = this.ctx.renderEmbed!(a.target, this.dom); return; }
     if (a.embed) { const i = el('span', 'wm-inline-icon', this.dom); this.ctx.icon(i, 'file-text', ''); }
-    this.dom.appendChild(document.createTextNode(a.alias || displayTarget(a.target)));
+    this.dom.appendChild(activeDocument.createTextNode(a.alias || displayTarget(a.target)));
   }
-  dispose(): void { if (this.handle) { try { this.handle.unload(); } catch (e) { /* 忽略 */ } this.handle = null; } }
+  dispose(): void { if (this.handle) { try { this.handle.unload(); } catch { /* 忽略 */ } this.handle = null; } }
   destroy(): void { this.dispose(); }
   update(node: PMNode): boolean {
     if (node.type !== this.node.type) return false;
@@ -201,14 +201,14 @@ class ImageView implements NodeView {
     const url = this.ctx.resolveImage(a);
     if (url) {
       if (this.img.getAttribute('src') !== url) this.img.src = url;
-      this.img.style.display = '';
+      this.img.show();
       this.missing.hide();
     } else {
       this.img.hide();
-      this.missing.style.display = '';
+      this.missing.show();
       this.missing.replaceChildren();
       const i = el('span', 'wm-inline-icon', this.missing); this.ctx.icon(i, 'image-off', '');
-      this.missing.appendChild(document.createTextNode(t('找不到圖片：') + a.src));
+      this.missing.appendChild(activeDocument.createTextNode(t('找不到圖片：') + a.src));
     }
     this.img.alt = (a.alt || '').replace(/\|\d+(x\d+)?$/, '');
     const w = parseWidth(a);
@@ -231,7 +231,7 @@ class ImageView implements NodeView {
     const startW = this.img.getBoundingClientRect().width || this.img.naturalWidth || 200;
     const maxW = this.ctx.pageWidth();
     const calc = (ev: PointerEvent): number => Math.min(maxW, Math.max(40, Math.round((startW + dir * (ev.clientX - startX)) / 10) * 10));
-    try { handle.setPointerCapture(e.pointerId); } catch (err) { /* 舊環境 */ }
+    try { handle.setPointerCapture(e.pointerId); } catch { /* 舊環境 */ }
     this.dom.classList.add('is-resizing');
     const move = (ev: PointerEvent): void => { const w = calc(ev); this.img.style.width = w + 'px'; this.updateBadge(w); };
     const up = (ev: PointerEvent): void => {
@@ -254,7 +254,7 @@ class ImageView implements NodeView {
   }
   selectNode(): void { this.dom.classList.add('ProseMirror-selectednode'); }
   deselectNode(): void { this.dom.classList.remove('ProseMirror-selectednode'); }
-  dispose(): void { if (this.handle) { try { this.handle.unload(); } catch (e) { /* 忽略 */ } this.handle = null; } }
+  dispose(): void { if (this.handle) { try { this.handle.unload(); } catch { /* 忽略 */ } this.handle = null; } }
   destroy(): void { this.dispose(); }
   stopEvent(e: Event): boolean {
     return (e.target && (e.target as Element).classList && (e.target as Element).classList.contains('wm-image-handle')) || e.type === 'contextmenu'
@@ -317,7 +317,7 @@ class RawBlockView implements NodeView {
     else this.ctx.renderMarkdown(a.src, this.body);
   }
   // 釋放上一次顯示用到的資源（Obsidian 的顯示元件）
-  dispose(): void { if (this.handle) { try { this.handle.unload(); } catch (e) { /* 忽略 */ } this.handle = null; } }
+  dispose(): void { if (this.handle) { try { this.handle.unload(); } catch { /* 忽略 */ } this.handle = null; } }
   destroy(): void { this.dispose(); }
   edit(): void {
     const fn = this.node.attrs.kind === 'footnote' && FOOTNOTE_DEF.exec(this.node.attrs.src);
@@ -453,7 +453,7 @@ class FrontmatterView implements NodeView {
     try {
       const o = this.ctx.parseYaml(tv);
       return o && typeof o === 'object' && !Array.isArray(o) ? o as PropValues : null;
-    } catch (e) { return null; }
+    } catch { return null; }
   }
   commit(obj: PropValues): void {
     const pos = this.getPos();
@@ -541,7 +541,7 @@ class FrontmatterView implements NodeView {
     } else {
       const inp = el('input', 'wm-prop-input', v);
       inp.type = type === 'number' ? 'number' : type === 'date' ? 'date' : type === 'datetime' ? 'datetime-local' : 'text';
-      inp.value = value == null ? '' : String(value).slice(0, type === 'datetime' ? 16 : undefined);
+      inp.value = value == null ? '' : String(value as string | number | boolean).slice(0, type === 'datetime' ? 16 : undefined);
       inp.placeholder = t('（空白）');
       const save = () => {
         let nv: string | number | null = inp.value;
@@ -599,7 +599,7 @@ class ListItemView implements NodeView {
   declare contentDOM: HTMLDivElement;
   constructor(node: PMNode, view: EditorView, getPos: GetPos, ctx?: NodeViewContext) {
     this.node = node; this.view = view; this.getPos = getPos;
-    this.dom = document.createElement('li');
+    this.dom = createEl('li');
     if (node.attrs.checked != null) {
       this.dom.className = 'wm-task';
       this.cb = el('input', 'task-list-item-checkbox', this.dom);
@@ -690,7 +690,7 @@ class CodeBlockView implements NodeView {
     this.srcBtn = btn('wm-code-src', t('顯示／隱藏原始碼'), 'code-2', t('原始碼'), () => this.toggleSource());
     this.copy = btn('wm-code-copy', t('複製程式碼'), 'copy', t('複製'), () => {
       const text = this.node.textContent;
-      if (navigator.clipboard) void navigator.clipboard.writeText(text).then(() => { this.copy.classList.add('is-done'); setTimeout(() => this.copy.classList.remove('is-done'), 900); });
+      if (navigator.clipboard) void navigator.clipboard.writeText(text).then(() => { this.copy.classList.add('is-done'); window.setTimeout(() => this.copy.classList.remove('is-done'), 900); });
     });
     this.sel.addEventListener('change', () => {
       if (this.sel.value === '__other') {
@@ -749,8 +749,8 @@ class CodeBlockView implements NodeView {
     this.pre.dataset && (this.pre.dataset.lang = cur);
   }
   dispose(): void {
-    clearTimeout(this.timer);
-    if (this.handle) { try { this.handle.unload(); } catch (e) { /* 忽略 */ } this.handle = null; }
+    window.clearTimeout(this.timer);
+    if (this.handle) { try { this.handle.unload(); } catch { /* 忽略 */ } this.handle = null; }
   }
   // 顯示結果：內容或語言變了才重畫（打字時延後一下，不要每個字都重畫）
   syncPreview(now: boolean): void {
@@ -763,7 +763,7 @@ class CodeBlockView implements NodeView {
     if (!on) { this.dispose(); this.preview.replaceChildren(); this.rendered = null; return; }
     const key = this.node.attrs.params + '\n' + text;
     if (key === this.rendered) return;
-    clearTimeout(this.timer);
+    window.clearTimeout(this.timer);
     const run = () => {
       this.dispose();
       this.rendered = key;
@@ -773,7 +773,7 @@ class CodeBlockView implements NodeView {
       const fence = ticks ? ticks.sort().slice(-1)[0] + '`' : '```';
       this.handle = this.ctx.renderBlock!(fence + this.node.attrs.params + '\n' + text + '\n' + fence, this.preview);
     };
-    if (now) run(); else this.timer = setTimeout(run, 400);
+    if (now) run(); else this.timer = window.setTimeout(run, 400);
   }
   update(node: PMNode): boolean {
     if (node.type !== this.node.type) return false;
@@ -849,15 +849,15 @@ class CalloutView implements NodeView {
     this.syncIcon();
     this.syncFold();
     // 自訂類型的圖示寫在 CSS（--callout-icon），要等節點放進畫面後才讀得到
-    if (!this.iconTimer) this.iconTimer = setTimeout(() => { this.iconTimer = null; this.syncIcon(); }, 0);
+    if (!this.iconTimer) this.iconTimer = window.setTimeout(() => { this.iconTimer = null; this.syncIcon(); }, 0);
     const tv = a.type.charAt(0).toUpperCase() + a.type.slice(1);
-    this.titleEl.textContent = a.title ? a.title.replace(/(\*\*|__|==|`)/g, '').replace(/\\([\\`*_{}\[\]()#+\-.!|<>=$%~])/g, '$1') : tv;
+    this.titleEl.textContent = a.title ? a.title.replace(/(\*\*|__|==|`)/g, '').replace(/\\([\\`*_{}[\]()#+\-.!|<>=$%~])/g, '$1') : tv;
     this.titleEl.classList.toggle('is-default', !a.title);
   }
   // 圖示：Obsidian、佈景主題或 CSS 片段用 --callout-icon 指定的優先（自訂的提示框類型才會有對的圖示）
   syncIcon(): void {
     let name = '';
-    try { name = getComputedStyle(this.dom).getPropertyValue('--callout-icon').trim().replace(/^["']|["']$/g, ''); } catch (e) { name = ''; }
+    try { name = getComputedStyle(this.dom).getPropertyValue('--callout-icon').trim().replace(/^["']|["']$/g, ''); } catch { name = ''; }
     this.icon.replaceChildren();
     this.ctx.icon(this.icon, name && name !== 'none' && !name.startsWith('<') ? name : calloutIcon(this.node.attrs.type), '');
   }
@@ -868,7 +868,7 @@ class CalloutView implements NodeView {
     this.foldEl.replaceChildren();
     if (fold) this.ctx.icon(this.foldEl, this.collapsed ? 'chevron-right' : 'chevron-down', this.collapsed ? '▸' : '▾');
   }
-  destroy(): void { clearTimeout(this.iconTimer!); }
+  destroy(): void { window.clearTimeout(this.iconTimer!); }
   update(node: PMNode): boolean {
     if (node.type !== this.node.type) return false;
     const changed = JSON.stringify(node.attrs) !== JSON.stringify(this.node.attrs);

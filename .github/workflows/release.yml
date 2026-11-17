@@ -36,7 +36,7 @@ jobs:
           fi
       - run: npm ci
       - run: npm test
-      - run: npm run build:prod
+      - run: npm run build
       - name: 產生建置來源證明
         uses: actions/attest@v4
         with:

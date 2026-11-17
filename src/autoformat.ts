@@ -115,8 +115,8 @@ const INLINE_RULES: Rule[] = [
   markRule(/(^|[^~\\])~~([^~\s]|[^~\s][^~]*[^~\s])~~$/, M.strike, 2),
   markRule(/(^|[^`\\])`([^`]+)`$/, M.code, 1),
   // ![說明](圖片網址或路徑)、![[圖片.png|300]]、![[筆記]]、[[筆記|別名]]
-  nodeRule(/!\[([^\[\]]*)\]\(([^()\s]+)\)$/, m => N.image.create({ src: m[2], alt: m[1] || null, wiki: false })),
-  nodeRule(/(!?)\[\[([^\[\]\n]+)\]\]$/, m => {
+  nodeRule(/!\[([^[\]]*)\]\(([^()\s]+)\)$/, m => N.image.create({ src: m[2], alt: m[1] || null, wiki: false })),
+  nodeRule(/(!?)\[\[([^[\]\n]+)\]\]$/, m => {
     const bar = m[2].indexOf('|');
     const target = (bar < 0 ? m[2] : m[2].slice(0, bar)).trim();
     const alias = bar < 0 ? null : m[2].slice(bar + 1);
@@ -128,7 +128,7 @@ const INLINE_RULES: Rule[] = [
     return N.wikilink.create({ target, alias, embed: !!m[1] });
   }),
   // [文字](網址)
-  { re: /\[([^\[\]]+)\]\(([^()\s]+)\)$/, run(tr, m, c) {
+  { re: /\[([^[\]]+)\]\(([^()\s]+)\)$/, run(tr, m, c) {
     const from = c - m[0].length;
     if (tr.doc.rangeHasMark(from, c, M.code)) return false;
     const textEnd = from + 1 + m[1].length;
@@ -178,7 +178,7 @@ export const autoformatPlugin = new Plugin<boolean>({
       const s1 = view.state;
       const tr = closeHistory(s1.tr);
       let ok = false;
-      try { ok = hit.r.run(tr, hit.m, s1.selection.from) !== false; } catch (e) { ok = false; }
+      try { ok = hit.r.run(tr, hit.m, s1.selection.from) !== false; } catch { ok = false; }
       if (ok && tr.docChanged) view.dispatch(tr.setMeta(autoKey, true).scrollIntoView());
       return true;
     },
