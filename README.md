@@ -93,6 +93,7 @@ Requires Node.js 22. The source is TypeScript. esbuild bundles it, and `tsc` onl
 | --- | --- |
 | `npm install` | Install dependencies. |
 | `npm run typecheck` | Check the types with `tsc`. |
+| `npm run lint` | Run ESLint with the rules Obsidian uses to review community plugins. |
 | `npm test` | Check the types, then run the conversion tests and the editing tests, which simulate Obsidian with jsdom. The last line should be `ALL PASS`. |
 | `npm run build` | Build to `dist/` without minifying. |
 | `npm run build:prod` | Build `main.js`, `manifest.json`, and `styles.css` to `dist/`. |

@@ -14,6 +14,7 @@
     "build": "node build.mjs",
     "build:prod": "node build.mjs --prod",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
     "test": "npm run typecheck && node tests/run.mjs tests/basic.mjs && node tests/run.mjs tests/roundtrip.mjs && node tests/run.mjs tests/flowchart.mjs && node tests/run.mjs tests/mathvisual.mjs && node tests/view/build-test.mjs && node tests/view/test.mjs && node tests/view/features.mjs",
     "test:vault": "node tests/run.mjs tests/vault-check.mjs",
     "release:local": "node release-local.mjs",
@@ -37,9 +38,12 @@
   },
   "devDependencies": {
     "esbuild": "^0.28.2",
+    "eslint": "^9.39.5",
+    "eslint-plugin-obsidianmd": "^0.6.0",
     "jsdom": "^29.1.1",
     "obsidian": "1.5.7",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.73.0"
   },
   "overrides": {
     "prosemirror-markdown": {

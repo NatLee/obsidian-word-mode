@@ -93,6 +93,7 @@ Word Mode 替 `.md` 筆記多加一種編輯器。畫面上看到的是排版好
 | --- | --- |
 | `npm install` | 安裝相依套件。 |
 | `npm run typecheck` | 用 `tsc` 檢查型別。 |
+| `npm run lint` | 執行 ESLint，使用 Obsidian 審查社群外掛的同一套規則。 |
 | `npm test` | 先檢查型別，再執行轉換測試與編輯測試（以 jsdom 模擬 Obsidian）。最後一行應是 `ALL PASS`。 |
 | `npm run build` | 建置到 `dist/`，不壓縮。 |
 | `npm run build:prod` | 建置 `main.js`、`manifest.json`、`styles.css` 到 `dist/`。 |
