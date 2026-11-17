@@ -12,3 +12,6 @@ scratch*.mjs
 *.log
 .DS_Store
 Thumbs.db
+
+# 測試打包的暫存檔
+tests/.build/
