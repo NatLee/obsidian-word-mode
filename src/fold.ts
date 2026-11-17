@@ -1,13 +1,21 @@
 // 標題摺疊：點標題左邊的箭頭，收起到下一個同級（或更高層級）標題之前的內容
 import { Plugin, PluginKey } from 'prosemirror-state';
 import { Decoration, DecorationSet } from 'prosemirror-view';
+import type { Node as PMNode } from 'prosemirror-model';
 import { t } from './i18n.js';
 
-export const foldKey = new PluginKey('wmFold');
+// 外掛狀態：folded 是摺起來的頂層標題位置，set 是對應的裝飾
+export interface FoldState { folded: number[]; set: DecorationSet; }
+// 交易的 meta：toggle 切換某個標題、clear 全部展開、all 全部摺疊
+export interface FoldMeta { toggle?: number; clear?: boolean; all?: boolean; }
+// icon(el, name, fallback)：放圖示，沒有圖示時改用 fallback 文字
+export interface FoldContext { icon(el: HTMLElement, name: string, fallback: string): void; }
 
-function buildDecos(doc, folded, ctx) {
-  const decos = [];
-  let hideUntilLevel = null;
+export const foldKey = new PluginKey<FoldState>('wmFold');
+
+function buildDecos(doc: PMNode, folded: number[], ctx: FoldContext): DecorationSet {
+  const decos: Decoration[] = [];
+  let hideUntilLevel: number | null = null;
   doc.forEach((node, pos) => {
     const isHeading = node.type.name === 'heading';
     if (hideUntilLevel != null) {
@@ -23,7 +31,7 @@ function buildDecos(doc, folded, ctx) {
       b.setAttribute('aria-label', isFolded ? t('展開') : t('摺疊'));
       ctx.icon(b, isFolded ? 'chevron-right' : 'chevron-down', isFolded ? '▸' : '▾');
       // 位置在按下時才從畫面算（裝飾會跟著文件位移，建立時的位置之後可能已經不對）
-      const toggle = e => {
+      const toggle = (e: MouseEvent) => {
         e.preventDefault(); e.stopPropagation();
         let at;
         try { at = view.state.doc.resolve(view.posAtDOM(b, 0)).before(1); } catch (err) { return; }
@@ -42,7 +50,7 @@ function buildDecos(doc, folded, ctx) {
 
 // 最上層的區塊結構有沒有變（新增／刪除區塊、標題變成段落、標題層級改變）。
 // 只是在某個區塊裡打字時結構不變，裝飾跟著位移就好，不用重建
-function structureChanged(a, b) {
+function structureChanged(a: PMNode, b: PMNode): boolean {
   if (a.childCount !== b.childCount) return true;
   for (let i = 0; i < a.childCount; i++) {
     const x = a.child(i); const y = b.child(i);
@@ -52,13 +60,13 @@ function structureChanged(a, b) {
   return false;
 }
 
-export function foldPlugin(ctx) {
-  return new Plugin({
+export function foldPlugin(ctx: FoldContext): Plugin<FoldState> {
+  return new Plugin<FoldState>({
     key: foldKey,
     state: {
       init: (_, state) => ({ folded: [], set: buildDecos(state.doc, [], ctx) }),
       apply(tr, old, oldState, newState) {
-        const meta = tr.getMeta(foldKey);
+        const meta: FoldMeta | undefined = tr.getMeta(foldKey);
         if (!tr.docChanged && !meta) return old;
         let list = old.folded;
         if (tr.docChanged) list = list.map(p => tr.mapping.mapResult(p)).filter(r => !r.deleted).map(r => r.pos);
@@ -76,6 +84,6 @@ export function foldPlugin(ctx) {
         return { folded: list, set: buildDecos(newState.doc, list, ctx) };
       },
     },
-    props: { decorations(state) { return foldKey.getState(state).set; } },
+    props: { decorations(state) { return foldKey.getState(state)!.set; } },
   });
 }

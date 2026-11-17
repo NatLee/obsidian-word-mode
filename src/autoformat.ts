@@ -7,7 +7,16 @@
 import { Plugin, PluginKey, TextSelection } from 'prosemirror-state';
 import { findWrapping, canJoin } from 'prosemirror-transform';
 import { closeHistory, undo } from 'prosemirror-history';
+import type { EditorState, Transaction } from 'prosemirror-state';
+import type { Node as PMNode, NodeType, MarkType, ResolvedPos, Attrs } from 'prosemirror-model';
 import { schema } from './schema.js';
+
+// 規則比對的結果；lead 是開頭不屬於格式的字元數（見 lead()）
+type RuleMatch = RegExpExecArray & { lead?: number };
+// re 比對游標前的文字；run 用比對結果修改 tr，做不到就回傳 false
+interface Rule { re: RegExp; run(tr: Transaction, m: RuleMatch, c: number): boolean; }
+type MakeNode = (m: RuleMatch) => PMNode | null;
+type Dispatch = (tr: Transaction) => void;
 
 const N = schema.nodes;
 const M = schema.marks;
@@ -15,27 +24,28 @@ const LEAF = '\ufffc'; // 代表圖片、連結等非文字節點（長度與節
 const IMAGE_EXT = /\.(png|jpe?g|gif|bmp|svg|webp|avif|heic|tiff?)$/i;
 
 export const autoformatOptions = { enabled: true };
-export const autoKey = new PluginKey('wmAutoformat');
+export const autoKey = new PluginKey<boolean>('wmAutoformat');
 
-function textBefore($pos) {
+function textBefore($pos: ResolvedPos): string {
   return $pos.parent.textBetween(Math.max(0, $pos.parentOffset - 1000), $pos.parentOffset, null, LEAF);
 }
 
 // 把 pos 所在的段落包進清單或引文；前面緊接著同類型的就接在一起
-function wrapBlock(tr, pos, type, attrs, itemAttrs) {
+function wrapBlock(tr: Transaction, pos: number, type: NodeType, attrs: Attrs | null, itemAttrs?: Attrs): boolean {
   const range = tr.doc.resolve(pos).blockRange();
   const wrapping = range && findWrapping(range, type, attrs);
   if (!wrapping) return false;
   if (itemAttrs) wrapping[wrapping.length - 1].attrs = itemAttrs;
-  tr.wrap(range, wrapping);
-  const before = tr.doc.resolve(range.start).nodeBefore;
-  if (before && before.type === type && canJoin(tr.doc, range.start)) tr.join(range.start);
+  // 有 wrapping 就表示 range 不是 null
+  tr.wrap(range!, wrapping);
+  const before = tr.doc.resolve(range!.start).nodeBefore;
+  if (before && before.type === type && canJoin(tr.doc, range!.start)) tr.join(range!.start);
   return true;
 }
 
 // ---------------------------------------------------------------- 段落開頭的規則（打空白時）
 // run(tr, m, c)：tr 是「已經放進打的字」之後的 transaction，c 是游標位置；做不到就回傳 false
-const BLOCK_RULES = [
+const BLOCK_RULES: Rule[] = [
   { re: /^(#{1,6})[ \u3000]$/, run(tr, m, c) {
     const $c = tr.doc.resolve(c);
     if (!$c.node(-1).canReplaceWith($c.index(-1), $c.indexAfter(-1), N.heading)) return false;
@@ -74,7 +84,7 @@ const BLOCK_RULES = [
 
 // ---------------------------------------------------------------- 行內的規則（打完結尾的符號時）
 // 文字格式：m[1] 是前一個字元（不屬於格式）、m[2] 是內容；d 是符號的長度
-function markRule(re, type, d) {
+function markRule(re: RegExp, type: MarkType, d: number): Rule {
   return { re, run(tr, m, c) {
     const to = c;
     const from = to - m[0].length + m[1].length;
@@ -84,7 +94,7 @@ function markRule(re, type, d) {
     return true;
   } };
 }
-function nodeRule(re, make) {
+function nodeRule(re: RegExp, make: MakeNode): Rule {
   return { re, run(tr, m, c) {
     const node = make(m);
     if (!node) return false;
@@ -94,9 +104,9 @@ function nodeRule(re, make) {
     return true;
   } };
 }
-const lead = (re, make) => nodeRule(re, m => { m.lead = m[1].length; return make(m); });
+const lead = (re: RegExp, make: MakeNode): Rule => nodeRule(re, m => { m.lead = m[1].length; return make(m); });
 
-const INLINE_RULES = [
+const INLINE_RULES: Rule[] = [
   markRule(/(^|[^*\\])\*\*([^*\s]|[^*\s][^*]*[^*\s])\*\*$/, M.strong, 2),
   markRule(/(^|[^\w\\])__([^_\s]|[^_\s][^_]*[^_\s])__$/, M.strong, 2),
   markRule(/(^|[^*\\])\*([^*\s]|[^*\s][^*]*[^*\s])\*$/, M.em, 1),
@@ -132,7 +142,7 @@ const INLINE_RULES = [
   nodeRule(/\[\^([^\]\s]+)\]$/, m => N.raw_inline.create({ src: m[0] })),
 ];
 
-function findRule(state, $from, full, wholeBlock) {
+function findRule(state: EditorState, $from: ResolvedPos, full: string, wholeBlock: boolean): { r: Rule; m: RuleMatch } | null {
   if (wholeBlock && $from.parent.type === N.paragraph) {
     for (const r of BLOCK_RULES) { const m = r.re.exec(full); if (m) return { r, m }; }
   }
@@ -140,7 +150,7 @@ function findRule(state, $from, full, wholeBlock) {
   return null;
 }
 
-export const autoformatPlugin = new Plugin({
+export const autoformatPlugin = new Plugin<boolean>({
   key: autoKey,
   // 狀態：上一個動作是不是自動套用格式（是的話，緊接著按 Backspace 會取消格式）
   state: {
@@ -176,17 +186,17 @@ export const autoformatPlugin = new Plugin({
 });
 
 // 剛自動套用格式後按 Backspace：取消格式（打的字還在），像 Word
-export function undoAutoformat(state, dispatch) {
+export function undoAutoformat(state: EditorState, dispatch?: Dispatch): boolean {
   if (!autoKey.getState(state)) return false;
   return undo(state, dispatch);
 }
 
 // 表格那一行的儲存格（只認沒有跳脫的 |）
-function pipeCells(text) {
+function pipeCells(text: string): string[] | null {
   let s = text.trim();
   if (!s.startsWith('|') || !/(^|[^\\])\|$/.test(s) || s.length < 3) return null;
   s = s.slice(1, -1);
-  const cells = [];
+  const cells: string[] = [];
   let cur = '';
   for (let i = 0; i < s.length; i++) {
     if (s[i] === '\\' && s[i + 1] === '|') { cur += '|'; i++; continue; }
@@ -198,7 +208,7 @@ function pipeCells(text) {
 }
 
 // 按 Enter 時的規則：整個段落是 ```、---、| a | b |，或引文第一行是 [!note] 標題
-export function autoformatEnter(state, dispatch) {
+export function autoformatEnter(state: EditorState, dispatch?: Dispatch): boolean {
   if (!autoformatOptions.enabled) return false;
   const { $from, empty } = state.selection;
   const para = $from.parent;
@@ -209,9 +219,9 @@ export function autoformatEnter(state, dispatch) {
   const text = para.textContent;
   const holder = $from.node(-1);
   const index = $from.index(-1);
-  const can = type => holder.canReplaceWith(index, index + 1, type);
+  const can = (type: NodeType) => holder.canReplaceWith(index, index + 1, type);
   const from = $from.before(); const to = $from.after();
-  const done = (tr, selPos) => {
+  const done = (tr: Transaction, selPos: number) => {
     if (dispatch) {
       tr.setSelection(TextSelection.near(tr.doc.resolve(selPos)));
       dispatch(closeHistory(tr).setMeta(autoKey, true).scrollIntoView());
@@ -228,14 +238,14 @@ export function autoformatEnter(state, dispatch) {
   }
   const cells = pipeCells(text);
   if (cells && cells.length >= 2 && can(N.table)) {
-    const cell = (type, tx) => type.create(null, N.paragraph.create(null, tx ? schema.text(tx) : null));
+    const cell = (type: NodeType, tx: string) => type.create(null, N.paragraph.create(null, tx ? schema.text(tx) : null));
     const head = N.table_row.create(null, cells.map(tx => cell(N.table_header, tx)));
     const body = N.table_row.create(null, cells.map(() => cell(N.table_cell, '')));
     return done(state.tr.replaceWith(from, to, N.table.create(null, [head, body])), from + 1 + head.nodeSize + 3);
   }
   if ((m = /^\[!([^\]\s]+)\]([+-]?)(?:[ \u3000]+(.*))?$/.exec(text)) && holder.type === N.blockquote && index === 0 && $from.depth >= 2) {
     const bqPos = $from.before(-1);
-    const rest = [];
+    const rest: PMNode[] = [];
     holder.forEach((c, _o, i) => { if (i > 0) rest.push(c); });
     const content = rest.length ? rest : [N.paragraph.create()];
     const callout = N.callout.create({ type: m[1], fold: m[2] || '', title: (m[3] || '').trim() || null, bid: holder.attrs.bid }, content);

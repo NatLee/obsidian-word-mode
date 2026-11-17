@@ -3,14 +3,41 @@ import { Plugin, PluginKey, TextSelection } from 'prosemirror-state';
 import { t, withKey, key } from './i18n.js';
 import { Decoration, DecorationSet } from 'prosemirror-view';
 import { el } from './dom.js';
+import type { Node as PMNode } from 'prosemirror-model';
+import type { EditorView } from 'prosemirror-view';
 
-export const findKey = new PluginKey('wmFind');
+// 搜尋選項（區分大小寫、正規表示式、全字相符）
+export interface FindOptions { caseSensitive?: boolean; regex?: boolean; wholeWord?: boolean; }
+
+// buildMatcher 的結果：可用的正規表示式，或是寫錯的正規表示式
+export interface Matcher { re: RegExp; whole: boolean; error?: undefined; }
+export interface MatcherError { error: true; }
+
+// 一個搜尋結果在文件裡的範圍
+export interface FindMatch { from: number; to: number; }
+
+// 外掛狀態；decos 是快取的裝飾（decorations 裡直接寫進狀態物件）
+export interface FindState {
+  query: string;
+  caseSensitive: boolean;
+  regex: boolean;
+  wholeWord: boolean;
+  matches: FindMatch[];
+  current: number;
+  error: boolean;
+  decos?: { doc: PMNode; current: number; set: DecorationSet };
+}
+
+// 交易的 meta：要改的欄位
+export type FindMeta = Partial<FindState>;
+
+export const findKey = new PluginKey<FindState>('wmFind');
 
 const OBJ = '￼'; // 代表圖片、連結等非文字節點
 const WORD = '\\p{L}\\p{N}_';
 
 // 把搜尋字串變成正規表示式；opts: { caseSensitive, regex, wholeWord }。寫錯的正規表示式回傳 { error }
-export function buildMatcher(query, opts = {}) {
+export function buildMatcher(query: string, opts: FindOptions = {}): Matcher | MatcherError | null {
   if (!query) return null;
   let src = opts.regex ? query : query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   // 全字相符：前後不能是字母或數字（不用 lookbehind，前一個字元放在第 1 組）
@@ -24,8 +51,8 @@ export function buildMatcher(query, opts = {}) {
 }
 
 // opts 可以是布林值（是否區分大小寫，舊的呼叫方式）或 { caseSensitive, regex, wholeWord }
-export function findMatches(doc, query, opts) {
-  const out = [];
+export function findMatches(doc: PMNode, query: string, opts?: FindOptions | boolean | null): FindMatch[] {
+  const out: FindMatch[] = [];
   const o = typeof opts === 'object' && opts ? opts : { caseSensitive: !!opts };
   const mt = buildMatcher(query, o);
   if (!mt || mt.error) return out;
@@ -34,7 +61,7 @@ export function findMatches(doc, query, opts) {
     let text = '';
     node.forEach(child => { text += child.isText ? child.text : OBJ.repeat(child.nodeSize); });
     mt.re.lastIndex = 0;
-    let m;
+    let m: RegExpExecArray | null;
     while ((m = mt.re.exec(text))) {
       const lead = mt.whole ? m[1].length : 0;
       const start = m.index + lead;
@@ -50,24 +77,24 @@ export function findMatches(doc, query, opts) {
 }
 
 // 取代的文字：正規表示式模式可以用 $1、$2 代表括號裡找到的內容
-export function replacementFor(matched, query, opts, replacement) {
+export function replacementFor(matched: string, query: string, opts: FindOptions, replacement: string): string {
   if (!opts.regex) return replacement;
   const mt = buildMatcher(query, opts);
   if (!mt || mt.error) return replacement;
   try { return matched.replace(new RegExp(mt.re.source, mt.re.flags.replace('g', '')), replacement); } catch (e) { return replacement; }
 }
 
-function compute(doc, s) {
+function compute(doc: PMNode, s: FindState): FindState {
   const mt = buildMatcher(s.query, s);
   return Object.assign({}, s, { matches: findMatches(doc, s.query, s), error: !!(mt && mt.error) });
 }
 
-export const findPlugin = new Plugin({
+export const findPlugin = new Plugin<FindState>({
   key: findKey,
   state: {
     init: () => ({ query: '', caseSensitive: false, regex: false, wholeWord: false, matches: [], current: -1, error: false }),
     apply(tr, old) {
-      const meta = tr.getMeta(findKey);
+      const meta: FindMeta | undefined = tr.getMeta(findKey);
       let s = old;
       if (meta) s = compute(tr.doc, Object.assign({}, old, meta));
       else if (tr.docChanged && old.query) s = compute(tr.doc, old);
@@ -77,7 +104,7 @@ export const findPlugin = new Plugin({
   },
   props: {
     decorations(state) {
-      const s = findKey.getState(state);
+      const s = findKey.getState(state)!;
       if (!s.query || !s.matches.length) return null;
       if (s.decos && s.decos.doc === state.doc && s.decos.current === s.current) return s.decos.set;
       const set = DecorationSet.create(state.doc, s.matches.map((m, i) =>
@@ -88,9 +115,31 @@ export const findPlugin = new Plugin({
   },
 });
 
+// 尋找列需要的外部功能（由 view.js 提供）
+export interface FindBarContext {
+  // 還沒載入筆記時是 null；尋找列只在編輯器存在時開啟、操作，所以 state()、step() 等處用 ! 略過檢查
+  getView(): EditorView | null;
+  icon(el: HTMLElement, name: string, fallback: string): void;
+  onChange?(): void;
+}
+
+type FindOption = 'caseSensitive' | 'wholeWord' | 'regex';
+
 // 尋找列（顯示在工具列下方）
 export class FindBar {
-  constructor(host, ctx) {
+  declare ctx: FindBarContext;
+  declare dom: HTMLDivElement;
+  declare input: HTMLInputElement;
+  declare count: HTMLSpanElement;
+  declare caseBtn: HTMLButtonElement;
+  declare wordBtn: HTMLButtonElement;
+  declare regexBtn: HTMLButtonElement;
+  declare replToggle: HTMLButtonElement;
+  declare row2: HTMLDivElement;
+  declare replInput: HTMLInputElement;
+  declare replacing: boolean;
+
+  constructor(host: HTMLElement, ctx: FindBarContext) {
     this.ctx = ctx; // { getView(), icon(el, name, fallback) }
     this.dom = el('div', 'wm-findbar', host);
     this.dom.style.display = 'none';
@@ -120,7 +169,7 @@ export class FindBar {
     this.row2.style.display = 'none';
 
     this.input.addEventListener('input', () => this.search(this.input.value));
-    const keys = e => {
+    const keys = (e: KeyboardEvent) => {
       if (e.key === 'Enter') { e.preventDefault(); if (e.target === this.replInput) this.replaceOne(); else this.step(e.shiftKey ? -1 : 1); }
       else if (e.key === 'Escape') { e.preventDefault(); this.close(); }
       else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'h') { e.preventDefault(); this.showReplace(!this.replacing); }
@@ -130,7 +179,7 @@ export class FindBar {
     this.replInput.addEventListener('keydown', keys);
   }
 
-  btn(parent, icon, title, run, fallback) {
+  btn(parent: HTMLElement, icon: string, title: string, run: () => void, fallback?: string): HTMLButtonElement {
     const b = el('button', 'wm-find-btn', parent);
     b.type = 'button';
     b.setAttribute('aria-label', title);
@@ -141,11 +190,11 @@ export class FindBar {
     return b;
   }
 
-  get view() { return this.ctx.getView(); }
-  state() { return findKey.getState(this.view.state); }
-  get isOpen() { return this.dom.style.display !== 'none'; }
+  get view(): EditorView | null { return this.ctx.getView(); }
+  state(): FindState { return findKey.getState(this.view!.state)!; }
+  get isOpen(): boolean { return this.dom.style.display !== 'none'; }
 
-  open(withReplace) {
+  open(withReplace?: boolean) {
     const v = this.view;
     if (!v) return;
     this.dom.style.display = '';
@@ -171,7 +220,7 @@ export class FindBar {
     if (this.ctx.onChange) this.ctx.onChange();
   }
 
-  showReplace(on) {
+  showReplace(on: boolean) {
     this.replacing = on;
     this.row2.style.display = on ? '' : 'none';
     this.replToggle.classList.toggle('is-active', on);
@@ -179,10 +228,10 @@ export class FindBar {
     if (this.ctx.onChange) this.ctx.onChange();
   }
 
-  setCase(on) { this.setOption('caseSensitive', on); }
+  setCase(on: boolean) { this.setOption('caseSensitive', on); }
 
   // 區分大小寫、全字相符、正規表示式
-  setOption(name, on) {
+  setOption(name: FindOption, on: boolean) {
     const btn = { caseSensitive: this.caseBtn, wholeWord: this.wordBtn, regex: this.regexBtn }[name];
     btn.classList.toggle('is-active', on);
     // 正規表示式自己可以寫 \b，開啟時「全字相符」不作用
@@ -191,7 +240,7 @@ export class FindBar {
   }
 
   // 搜尋：預設跳到游標之後的第一個結果
-  search(query, change) {
+  search(query: string, change?: FindOptions) {
     const v = this.view;
     if (!v) return;
     const s = this.state();
@@ -204,8 +253,8 @@ export class FindBar {
     this.reveal();
   }
 
-  step(dir) {
-    const v = this.view;
+  step(dir: number) {
+    const v = this.view!;
     const s = this.state();
     if (!s.matches.length) return;
     const cur = ((s.current < 0 ? (dir > 0 ? -1 : 0) : s.current) + dir + s.matches.length) % s.matches.length;
@@ -215,7 +264,7 @@ export class FindBar {
 
   // 選取目前結果並捲到可見處（焦點留在尋找框）
   reveal() {
-    const v = this.view;
+    const v = this.view!;
     const s = this.state();
     this.count.textContent = s.query ? (s.error ? t('正規表示式有誤') : s.matches.length ? `${s.current + 1}/${s.matches.length}` : t('找不到')) : '';
     this.count.classList.toggle('is-empty', !!s.query && !s.matches.length);
@@ -225,7 +274,7 @@ export class FindBar {
   }
 
   replaceOne() {
-    const v = this.view;
+    const v = this.view!;
     const s = this.state();
     const m = s.matches[s.current];
     if (!m) return;
@@ -239,7 +288,7 @@ export class FindBar {
   }
 
   replaceAll() {
-    const v = this.view;
+    const v = this.view!;
     const s = this.state();
     if (!s.matches.length) return;
     const tr = v.state.tr;

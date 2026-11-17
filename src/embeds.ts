@@ -3,16 +3,23 @@
 import { TFile, resolveSubpath, setIcon } from 'obsidian';
 import { t, key } from './i18n.js';
 import { el } from './dom.js';
+import type { WordModeView } from './view.js';
+
+// mediaKind 的結果：missing 是找不到的檔案，file 是交給 renderEmbed 的其他檔案
+export type MediaKind = 'youtube' | 'audio' | 'video' | 'image' | 'missing' | 'file';
+
+// renderEmbed 回傳的釋放把手（view.renderBlock 回傳的也是這個形狀）
+export interface EmbedHandle { unload(): void; }
 
 const IMAGE = /^(png|jpe?g|gif|bmp|svg|webp|avif|heic|tiff?)$/i;
 const AUDIO = /^(mp3|wav|m4a|ogg|3gp|flac|oga|opus)$/i;
 const VIDEO = /^(mp4|webm|ogv|mov|mkv)$/i;
 const YOUTUBE = /^https?:\/\/(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{6,})/i;
 
-const extOf = s => { const m = /\.([A-Za-z0-9]+)$/.exec(String(s).split(/[?#]/)[0]); return m ? m[1] : ''; };
+const extOf = (s: string): string => { const m = /\.([A-Za-z0-9]+)$/.exec(String(s).split(/[?#]/)[0]); return m ? m[1] : ''; };
 
 // 圖片節點（![](…)、![[…]]）實際上是什麼：image 照原本的圖片顯示，其餘交給 renderEmbed
-export function mediaKind(view, src) {
+export function mediaKind(view: WordModeView, src: string): MediaKind {
   if (/^https?:/i.test(src)) {
     if (YOUTUBE.test(src)) return 'youtube';
     const ext = extOf(src);
@@ -25,7 +32,7 @@ export function mediaKind(view, src) {
 }
 
 // 取出要內嵌的那一段 Markdown：整份筆記（去掉文件屬性）、某個標題底下、或某個區塊
-export async function embedSource(view, file, subpath) {
+export async function embedSource(view: WordModeView, file: TFile, subpath: string): Promise<string | null> {
   const app = view.app;
   const data = await app.vault.cachedRead(file);
   const cache = app.metadataCache.getFileCache(file);
@@ -39,13 +46,13 @@ export async function embedSource(view, file, subpath) {
 }
 
 // 在 box 裡顯示內嵌的內容；回傳 { unload() }（重畫或節點被刪除時釋放）
-export function renderEmbed(view, target, box) {
+export function renderEmbed(view: WordModeView, target: string, box: HTMLElement): EmbedHandle {
   const app = view.app;
-  let handle = null;
+  let handle: EmbedHandle | null = null;
   let dead = false;
-  const out = { unload() { dead = true; if (handle) { try { handle.unload(); } catch (e) { /* 忽略 */ } handle = null; } } };
+  const out: EmbedHandle = { unload() { dead = true; if (handle) { try { handle.unload(); } catch (e) { /* 忽略 */ } handle = null; } } };
   box.replaceChildren();
-  const note = (icon, text, cls) => {
+  const note = (icon: string, text: string, cls?: string) => {
     const d = el('span', 'wm-embed-note' + (cls ? ' ' + cls : ''), box);
     setIcon(el('span', 'wm-inline-icon', d), icon);
     d.appendChild(document.createTextNode(text));

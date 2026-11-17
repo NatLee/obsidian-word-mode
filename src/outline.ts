@@ -1,11 +1,43 @@
 // 大綱側邊欄：列出目前筆記（Word 模式或 Markdown）的標題，點一下跳過去，可收合、篩選
 import { ItemView, MarkdownView, setIcon } from 'obsidian';
 import { t } from './i18n.js';
+import type { WorkspaceLeaf } from 'obsidian';
+import type WordModePlugin from './main.js';
+import type { WordModeView } from './view.js';
 
 export const OUTLINE_TYPE = 'natlee-word-outline';
 
+// 大綱的來源畫面：Word 模式或 Markdown。MarkdownView 沒有 pm，寫成 undefined 讓 v.pm 的檢查能分辨兩者
+export type OutlineSource = WordModeView | (MarkdownView & { pm?: undefined });
+
+// 一個標題；Word 模式有 pos（文件位置），Markdown 有 line（行號）。
+// key、parent、depth 在 collect() 建立樹狀關係時才補上（所以 push 時轉型）
+export interface OutlineHeading {
+  level: number;
+  text: string;
+  pos?: number;
+  line?: number;
+  key: string;
+  parent: OutlineHeading | null;
+  depth: number;
+  hasChildren?: boolean;
+}
+
+interface OutlineRow { h: OutlineHeading; row: HTMLDivElement; }
+
 export class OutlineView extends ItemView {
-  constructor(leaf, plugin) {
+  declare plugin: WordModePlugin;
+  declare collapsed: Set<string>;
+  declare filter: string;
+  declare titleEl2: HTMLDivElement;
+  declare search: HTMLInputElement;
+  declare list: HTMLDivElement;
+  declare source: OutlineSource | null | undefined;
+  // 第一次 refresh() 之前是 undefined；rows 是 render() 依 heads 建的，所以 rows 有值時 heads 一定也有
+  declare heads: OutlineHeading[] | undefined;
+  declare rows: OutlineRow[] | undefined;
+
+  constructor(leaf: WorkspaceLeaf, plugin: WordModePlugin) {
     super(leaf);
     this.plugin = plugin;
     this.collapsed = new Set();
@@ -23,7 +55,7 @@ export class OutlineView extends ItemView {
     const top = c.createDiv('wm-ov-top');
     this.titleEl2 = top.createDiv('wm-ov-file');
     const tools = top.createDiv('wm-ov-tools');
-    const btn = (icon, label, run) => {
+    const btn = (icon: string, label: string, run: () => void) => {
       const b = tools.createEl('button', { cls: 'clickable-icon' });
       b.setAttribute('aria-label', t(label));
       setIcon(b, icon);
@@ -37,7 +69,7 @@ export class OutlineView extends ItemView {
     this.search.addEventListener('input', () => { this.filter = this.search.value.trim().toLowerCase(); this.render(); });
     this.list = c.createDiv('wm-ov-list');
     this.registerEvent(this.app.workspace.on('active-leaf-change', () => this.refresh()));
-    this.registerEvent(this.app.metadataCache.on('changed', f => { const v = this.plugin.docView(); if (v && v.file === f && !(v.pm)) this.refresh(); }));
+    this.registerEvent(this.app.metadataCache.on('changed', f => { const v: OutlineSource | null = this.plugin.docView(); if (v && v.file === f && !(v.pm)) this.refresh(); }));
     // Markdown 畫面的游標位置沒有事件，定時更新「目前所在的標題」
     this.registerInterval(window.setInterval(() => this.markCurrent(), 800));
     this.refresh();
@@ -46,21 +78,21 @@ export class OutlineView extends ItemView {
   async onClose() { this.contentEl.empty(); }
 
   // 讀出標題：Word 模式從編輯器文件，Markdown 從 Obsidian 的索引
-  collect() {
-    const v = this.plugin.docView();
+  collect(): OutlineHeading[] {
+    const v: OutlineSource | null = this.plugin.docView();
     this.source = v;
     if (!v || !v.file) return [];
-    const out = [];
+    const out: OutlineHeading[] = [];
     if (v.pm) {
       v.pm.state.doc.forEach((n, pos) => {
-        if (n.type.name === 'heading') out.push({ level: n.attrs.level, text: n.textContent || t('（無標題）'), pos });
+        if (n.type.name === 'heading') out.push({ level: n.attrs.level, text: n.textContent || t('（無標題）'), pos } as OutlineHeading);
       });
     } else {
       const cache = this.app.metadataCache.getFileCache(v.file);
-      for (const h of (cache && cache.headings) || []) out.push({ level: h.level, text: h.heading, line: h.position.start.line });
+      for (const h of (cache && cache.headings) || []) out.push({ level: h.level, text: h.heading, line: h.position.start.line } as OutlineHeading);
     }
     // 建立樹狀關係（收合用）
-    const stack = [];
+    const stack: OutlineHeading[] = [];
     out.forEach((h, i) => {
       h.key = i + ':' + h.text;
       while (stack.length && stack[stack.length - 1].level >= h.level) stack.pop();
@@ -80,7 +112,7 @@ export class OutlineView extends ItemView {
     this.render();
   }
 
-  hidden(h) {
+  hidden(h: OutlineHeading): boolean {
     for (let p = h.parent; p; p = p.parent) if (this.collapsed.has(p.key)) return true;
     return false;
   }
@@ -113,7 +145,7 @@ export class OutlineView extends ItemView {
     this.markCurrent();
   }
 
-  jump(h) {
+  jump(h: OutlineHeading) {
     const v = this.source;
     if (!v) return;
     this.app.workspace.setActiveLeaf(v.leaf, { focus: true });
@@ -135,7 +167,7 @@ export class OutlineView extends ItemView {
     if (v.pm) at = v.pm.state.selection.from;
     else if (v instanceof MarkdownView && v.getMode() === 'source' && v.editor) at = v.editor.getCursor().line;
     let cur = null;
-    if (at != null) for (const h of this.heads) { const p = v.pm ? h.pos : h.line; if (p <= at) cur = h; else break; }
+    if (at != null) for (const h of this.heads!) { const p = v.pm ? h.pos : h.line; if (p! <= at) cur = h; else break; }
     for (const { h, row } of this.rows) row.toggleClass('is-current', h === cur);
   }
 }

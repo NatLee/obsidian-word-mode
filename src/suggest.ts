@@ -4,12 +4,56 @@
 import { Plugin, PluginKey } from 'prosemirror-state';
 import { t } from './i18n.js';
 import { el } from './dom.js';
+import type { EditorState } from 'prosemirror-state';
+import type { EditorView } from 'prosemirror-view';
+import type { Node as PMNode } from 'prosemirror-model';
+import type { TFile } from 'obsidian';
 
-export const suggestKey = new PluginKey('wmSuggest');
+// 游標前面正在打的 [[… 或 #…（外掛狀態）；embed 只有連結（![[…）才有
+export interface SuggestTrigger {
+  kind: 'link' | 'tag';
+  embed?: boolean;
+  query: string;
+  from: number;
+  to: number;
+}
+
+// ctx.files() 回傳的一筆檔案（complete.js 的 searchFiles 產生）
+export interface SuggestFileItem {
+  file: TFile;
+  label: string;
+  detail?: string;
+  icon?: string;
+}
+
+// 選單裡的一列：標籤（tag）、標題（heading，file 為 null 表示目前這份筆記）或檔案
+export interface SuggestItem {
+  label: string;
+  detail?: string;
+  icon: string;
+  file?: TFile | null;
+  heading?: string;
+  tag?: string;
+}
+
+// 自動完成需要的外部功能（complete.js 的 suggestContext 產生）
+export interface SuggestContext {
+  enabled(): boolean;
+  files(query: string): SuggestFileItem[];
+  resolve(name: string): TFile | null;
+  headings(file: TFile | null): string[];
+  tags(query: string): string[];
+  linkNode(file: TFile | null, heading: string | null, embed: boolean | undefined): PMNode | null;
+  icon(el: HTMLElement, name: string, fallback: string): void;
+}
+
+interface SuggestUI { view: EditorView; box: HTMLDivElement | null; items: SuggestItem[]; index: number; }
+
+export const suggestKey = new PluginKey<SuggestTrigger | null>('wmSuggest');
 const LEAF = '￼';
 
 // 游標前面是不是正在打 [[… 或 #…
-export function suggestTrigger(state) {
+export function suggestTrigger(state: EditorState): SuggestTrigger | null {
   const { $from, empty } = state.selection;
   if (!empty || !$from.parent.isTextblock || $from.parent.type.spec.code) return null;
   if ((state.storedMarks || $from.marks()).some(m => m.type.name === 'code')) return null;
@@ -21,10 +65,10 @@ export function suggestTrigger(state) {
   return null;
 }
 
-export function suggestPlugin(ctx) {
-  let ui = null; // { view, box, items, index, active }
+export function suggestPlugin(ctx: SuggestContext): Plugin<SuggestTrigger | null> {
+  let ui: SuggestUI | null = null; // { view, box, items, index, active }
 
-  const itemsFor = active => {
+  const itemsFor = (active: SuggestTrigger): SuggestItem[] => {
     if (active.kind === 'tag') {
       const q = active.query.toLowerCase();
       return ctx.tags(active.query).filter(tag => tag.toLowerCase() !== '#' + q).slice(0, 8).map(tag => ({ label: tag, icon: 'hash', tag }));
@@ -43,7 +87,7 @@ export function suggestPlugin(ctx) {
 
   const close = () => { if (ui && ui.box) { ui.box.remove(); ui.box = null; ui.items = []; } };
 
-  const pick = (view, item) => {
+  const pick = (view: EditorView, item: SuggestItem | undefined) => {
     const active = suggestKey.getState(view.state);
     if (!active || !item) return;
     const state = view.state;
@@ -61,7 +105,7 @@ export function suggestPlugin(ctx) {
     view.focus();
   };
 
-  const render = view => {
+  const render = (view: EditorView) => {
     const active = suggestKey.getState(view.state);
     if (!active || !ctx.enabled()) { close(); return; }
     const items = itemsFor(active);
@@ -73,7 +117,7 @@ export function suggestPlugin(ctx) {
     const box = ui.box;
     box.replaceChildren();
     items.forEach((it, i) => {
-      const row = el('div', 'wm-suggest-item' + (i === ui.index ? ' is-selected' : ''), box);
+      const row = el('div', 'wm-suggest-item' + (i === ui!.index ? ' is-selected' : ''), box);
       const ic = el('span', 'wm-suggest-icon', row); ctx.icon(ic, it.icon, '');
       el('span', 'wm-suggest-label', row, it.label);
       if (it.detail) el('span', 'wm-suggest-detail', row, it.detail);
@@ -91,13 +135,13 @@ export function suggestPlugin(ctx) {
     } catch (e) { /* 測試環境沒有版面資訊 */ }
   };
 
-  return new Plugin({
+  return new Plugin<SuggestTrigger | null>({
     key: suggestKey,
     priority: true, // 排在快速鍵之前，選單開著時 Enter、方向鍵才會先給選單（見 editor.js）
     state: {
       init: () => null,
       apply(tr, old, _o, state) {
-        const meta = tr.getMeta(suggestKey);
+        const meta: { close?: boolean } | undefined = tr.getMeta(suggestKey);
         if (meta && meta.close) return null;
         // 只有打字（文件有變）時才開；只是把游標移到 #標籤 旁邊不會跳出來
         if (tr.docChanged) return ctx.enabled() ? suggestTrigger(state) : null;

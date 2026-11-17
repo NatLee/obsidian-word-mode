@@ -3,21 +3,34 @@
 import { t } from './i18n.js';
 import { el } from './dom.js';
 
-let card = null;
-let timer = null;
-let current = null;
+// 提示卡的內容（attachHint 的 info() 回傳）；demo 是 DEMOS 的名稱
+export interface HintInfo {
+  title: string;
+  keys?: string | null;
+  desc?: string | null;
+  demo?: string | null;
+  reason?: string | null;
+}
+
+// 示意圖：在 box 裡建立會動的小範例
+export type DemoBuilder = (box: HTMLElement) => void;
+
+// timer 一開始是 null；clearTimeout(null) 不會出錯，但型別定義只收 number | undefined，所以呼叫處用 !
+let card: HTMLDivElement | null = null;
+let timer: number | null = null;
+let current: HTMLElement | null = null;
 
 // 示意文字：用一小段文字表示「之前 → 之後」
 const SAMPLE = () => t('這是範例文字');
 
-function textDemo(box, cls, before) {
+function textDemo(box: HTMLElement, cls: string, before?: string) {
   const line = el('div', 'wm-demo-line', box);
   el('span', null, line, before || t('套用在'));
   el('span', 'wm-demo-target ' + cls, line, SAMPLE());
   el('span', null, line, t('上'));
 }
 
-function linesDemo(box, cls, n = 3, widths = [90, 70, 82]) {
+function linesDemo(box: HTMLElement, cls: string, n = 3, widths = [90, 70, 82]): HTMLDivElement {
   const wrap = el('div', 'wm-demo-lines ' + cls, box);
   for (let i = 0; i < n; i++) {
     const l = el('div', 'wm-demo-bar', wrap);
@@ -26,7 +39,7 @@ function linesDemo(box, cls, n = 3, widths = [90, 70, 82]) {
   return wrap;
 }
 
-const DEMOS = {
+const DEMOS: Record<string, DemoBuilder> = {
   bold: b => textDemo(b, 'wm-anim-bold'),
   italic: b => textDemo(b, 'wm-anim-italic'),
   underline: b => textDemo(b, 'wm-anim-underline'),
@@ -83,7 +96,7 @@ const DEMOS = {
   hr: b => { linesDemo(b, '', 1); el('div', 'wm-demo-hr wm-anim-grow', b); linesDemo(b, '', 1); },
   template: b => { const w = linesDemo(b, 'wm-anim-template', 3); w.classList.add('wm-demo-sel'); },
   properties: b => { const p = el('div', 'wm-demo-props wm-anim-pop', b); el('div', null, p, 'tags: #' + t('會議')); el('div', null, p, 'date: 2026-11-17'); },
-  outline: b => { const w = el('div', 'wm-demo-outline', b); [[1, '第一章'], [2, '背景'], [2, '方法'], [1, '第二章']].forEach(([lv, x], i) => { const r = el('div', 'wm-demo-oitem wm-oitem-' + i, w, t(x)); r.style.paddingLeft = (lv - 1) * 12 + 'px'; }); },
+  outline: b => { const w = el('div', 'wm-demo-outline', b); ([[1, '第一章'], [2, '背景'], [2, '方法'], [1, '第二章']] as const).forEach(([lv, x], i) => { const r = el('div', 'wm-demo-oitem wm-oitem-' + i, w, t(x)); r.style.paddingLeft = (lv - 1) * 12 + 'px'; }); },
   fold: b => { el('div', 'wm-demo-target wm-anim-heading-static', b, '▾ ' + t('標題')); linesDemo(b, 'wm-anim-fold', 2); },
   unfold: b => { el('div', 'wm-demo-target wm-anim-heading-static', b, '▸ ' + t('標題')); linesDemo(b, 'wm-anim-unfold', 2); },
   zoom: b => linesDemo(b, 'wm-anim-zoom', 3),
@@ -96,22 +109,22 @@ const DEMOS = {
   wordcount: b => el('div', 'wm-demo-count wm-anim-pop', b, t('1,234 字・5 分鐘')),
 };
 
-function ensureCard() {
+function ensureCard(): HTMLDivElement {
   if (card && card.isConnected) return card;
   card = el('div', 'wm-hint-card', document.body);
   card.setAttribute('role', 'tooltip');
-  card.addEventListener('mouseenter', () => clearTimeout(timer));
+  card.addEventListener('mouseenter', () => clearTimeout(timer!));
   card.addEventListener('mouseleave', hideHint);
   return card;
 }
 
-export function hideHint() {
-  clearTimeout(timer);
+export function hideHint(): void {
+  clearTimeout(timer!);
   current = null;
   if (card) card.classList.remove('is-shown');
 }
 
-function show(btn, info) {
+function show(btn: HTMLElement, info: HintInfo) {
   const c = ensureCard();
   c.replaceChildren();
   const head = el('div', 'wm-hint-head', c);
@@ -136,18 +149,18 @@ function show(btn, info) {
 }
 
 // info: () => { title, keys, desc, demo, reason }
-export function attachHint(btn, info) {
+export function attachHint(btn: HTMLElement, info: () => HintInfo): void {
   btn.addEventListener('mouseenter', () => {
-    clearTimeout(timer);
+    clearTimeout(timer!);
     // 已經有提示卡在顯示：直接換成這個按鈕的（像 Word）；否則等一下再出現
     const wait = card && card.classList.contains('is-shown') ? 80 : 550;
     timer = setTimeout(() => { current = btn; show(btn, info()); }, wait);
   });
   btn.addEventListener('mouseleave', () => {
-    clearTimeout(timer);
+    clearTimeout(timer!);
     timer = setTimeout(() => { if (current === btn) hideHint(); }, 120);
   });
   btn.addEventListener('mousedown', hideHint);
 }
 
-export function hasDemo(kind) { return !!DEMOS[kind]; }
+export function hasDemo(kind: string): boolean { return !!DEMOS[kind]; }

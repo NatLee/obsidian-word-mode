@@ -4,7 +4,7 @@ import { el } from './dom.js';
 // 不依賴 Obsidian；看不懂的 LaTeX 會原樣放在文字格裡，不會遺失。
 
 // ---------------------------------------------------------------- 符號 ⇄ LaTeX 指令
-const SYMBOL_PAIRS = [
+const SYMBOL_PAIRS: [string, string][] = [
   ['\\alpha', 'α'], ['\\beta', 'β'], ['\\gamma', 'γ'], ['\\delta', 'δ'], ['\\epsilon', 'ϵ'], ['\\varepsilon', 'ε'], ['\\zeta', 'ζ'], ['\\eta', 'η'],
   ['\\theta', 'θ'], ['\\iota', 'ι'], ['\\kappa', 'κ'], ['\\lambda', 'λ'], ['\\mu', 'μ'], ['\\nu', 'ν'], ['\\xi', 'ξ'], ['\\pi', 'π'], ['\\rho', 'ρ'],
   ['\\sigma', 'σ'], ['\\tau', 'τ'], ['\\upsilon', 'υ'], ['\\phi', 'ϕ'], ['\\varphi', 'φ'], ['\\chi', 'χ'], ['\\psi', 'ψ'], ['\\omega', 'ω'],
@@ -18,24 +18,25 @@ const SYMBOL_PAIRS = [
   ['\\sum', '∑'], ['\\prod', '∏'], ['\\int', '∫'], ['\\iint', '∬'], ['\\oint', '∮'], ['\\mathbb{R}', 'ℝ'], ['\\mathbb{N}', 'ℕ'], ['\\mathbb{Z}', 'ℤ'], ['\\mathbb{Q}', 'ℚ'], ['\\mathbb{C}', 'ℂ'],
 ];
 const CMD_TO_CHAR = new Map(SYMBOL_PAIRS);
-const CHAR_TO_CMD = new Map();
+const CHAR_TO_CMD = new Map<string, string>();
 for (const [cmd, ch] of SYMBOL_PAIRS) if (!CHAR_TO_CMD.has(ch)) CHAR_TO_CMD.set(ch, cmd);
 const FUNCS = ['arcsin', 'arccos', 'arctan', 'sinh', 'cosh', 'tanh', 'sin', 'cos', 'tan', 'cot', 'sec', 'csc', 'log', 'ln', 'lim', 'max', 'min', 'exp', 'det', 'gcd'];
 const FUNC_SET = new Set(FUNCS);
 
 // LaTeX 文字 → 顯示：\alpha → α、\sin → sin；不認得的指令照原樣顯示
-export function toDisplay(latex) {
-  return latex.replace(/\\mathbb\{([RNZQC])\}|\\([A-Za-z]+) ?/g, (m, bb, name) => {
-    if (bb) return CMD_TO_CHAR.get('\\mathbb{' + bb + '}');
+export function toDisplay(latex: string): string {
+  // bb 與 name 只會有一個有值；bb 有值時前面就先回傳了，所以 name 在後面一定是字串
+  return latex.replace(/\\mathbb\{([RNZQC])\}|\\([A-Za-z]+) ?/g, (m: string, bb: string | undefined, name: string) => {
+    if (bb) return CMD_TO_CHAR.get('\\mathbb{' + bb + '}')!;
     const cmd = '\\' + name;
-    if (CMD_TO_CHAR.has(cmd)) return CMD_TO_CHAR.get(cmd);
+    if (CMD_TO_CHAR.has(cmd)) return CMD_TO_CHAR.get(cmd)!;
     if (FUNC_SET.has(name)) return name + (m.endsWith(' ') ? ' ' : '');
     return m;
   });
 }
 
 // 顯示 → LaTeX：α → \alpha（後面接字母時補一個空白）、獨立的 sin → \sin
-export function fromDisplay(text) {
+export function fromDisplay(text: string): string {
   let out = '';
   const chars = Array.from(text);
   for (let i = 0; i < chars.length; i++) {
@@ -57,20 +58,35 @@ export function fromDisplay(text) {
 //   { t: 'paren', l, r, a }          \left( … \right)
 //   { t: 'env', name, rows }         矩陣、分段函數（rows 是「列」的陣列，每列是「格」的陣列，每格是一列項目）
 //   { t: 'braces', a }               單純的 { … }
+export type MathRow = MathItem[];
+// 結構項目放子列的欄位（a、b、n、rows）：走訪整棵樹時直接用欄位名稱取值，不必先分辨是哪一種項目
+interface MathSlots { a?: MathRow; b?: MathRow; n?: MathRow | null; rows?: MathRow[][]; }
+export interface TextItem { t: 'text'; v: string; }
+export interface FracItem extends MathSlots { t: 'frac'; cmd: string; a: MathRow; b: MathRow; }
+export interface SqrtItem extends MathSlots { t: 'sqrt'; a: MathRow; n: MathRow | null; }
+export interface ScriptItem extends MathSlots { t: 'sup' | 'sub'; a: MathRow; }
+export interface GroupItem extends MathSlots { t: 'group'; cmd: string; a: MathRow; }
+export interface ParenItem extends MathSlots { t: 'paren'; l: string; r: string; a: MathRow; }
+export interface EnvItem extends MathSlots { t: 'env'; name: string; rows: MathRow[][]; }
+export interface BracesItem extends MathSlots { t: 'braces'; a: MathRow; }
+export type MathItem = TextItem | FracItem | SqrtItem | ScriptItem | GroupItem | ParenItem | EnvItem | BracesItem;
 const FRACS = ['\\frac', '\\dfrac', '\\tfrac', '\\binom'];
 export const GROUP_CMDS = ['\\vec', '\\bar', '\\hat', '\\tilde', '\\dot', '\\ddot', '\\overline', '\\underline', '\\mathbf', '\\mathbb', '\\mathrm', '\\mathcal', '\\mathit', '\\text', '\\boldsymbol', '\\overrightarrow'];
 const ENVS = ['matrix', 'bmatrix', 'pmatrix', 'vmatrix', 'Bmatrix', 'Vmatrix', 'cases', 'aligned', 'align', 'array', 'gathered'];
 
 class ParseError extends Error {}
 
-function parseRow(s, pos, stops) {
-  const row = [];
+// parseRow 的結果：解析出的一列，以及停下來的位置（停在 stops 其中一個字串的開頭）
+interface RowResult { row: MathRow; pos: number; }
+
+function parseRow(s: string, pos: number, stops: string[]): RowResult {
+  const row: MathRow = [];
   let text = '';
   const flush = () => { if (text) { row.push({ t: 'text', v: text }); text = ''; } };
-  const at = w => s.startsWith(w, pos);
+  const at = (w: string) => s.startsWith(w, pos);
   const isStop = () => stops.some(w => at(w) && (!/^\\[A-Za-z]+$/.test(w) || !/[A-Za-z]/.test(s[pos + w.length] || '')));
   const skipSpace = () => { while (s[pos] === ' ') pos++; };
-  const group = () => {
+  const group = (): MathRow => {
     skipSpace();
     if (s[pos] !== '{') throw new ParseError('{');
     const r = parseRow(s, pos + 1, ['}']);
@@ -87,7 +103,7 @@ function parseRow(s, pos, stops) {
       flush();
       pos++;
       skipSpace();
-      let a;
+      let a: MathRow;
       if (s[pos] === '{') a = group();
       else {
         const c = command();
@@ -104,7 +120,7 @@ function parseRow(s, pos, stops) {
       if (FRACS.includes(c)) { flush(); pos += c.length; const a = group(); const b = group(); row.push({ t: 'frac', cmd: c, a, b }); continue; }
       if (c === '\\sqrt') {
         flush(); pos += c.length; skipSpace();
-        let n = null;
+        let n: MathRow | null = null;
         if (s[pos] === '[') { const r = parseRow(s, pos + 1, [']']); n = r.row; pos = r.pos + 1; }
         row.push({ t: 'sqrt', a: group(), n });
         continue;
@@ -134,7 +150,7 @@ function parseRow(s, pos, stops) {
         if (!m || !ENVS.includes(m[1])) throw new ParseError('env');
         flush(); pos += m[0].length;
         const end = '\\end{' + m[1] + '}';
-        const rows = [[]];
+        const rows: MathRow[][] = [[]];
         for (;;) {
           const r = parseRow(s, pos, ['&', '\\\\', end]);
           rows[rows.length - 1].push(r.row);
@@ -162,13 +178,13 @@ function parseRow(s, pos, stops) {
 }
 
 // 解析 LaTeX；括號不成對等看不懂的情況，整段當成一格文字（不會遺失內容）
-export function parseLatex(src) {
+export function parseLatex(src?: string | null): MathRow {
   const s = String(src || '');
   try { return normalize(parseRow(s, 0, []).row); } catch (e) { return normalize([{ t: 'text', v: s }]); }
 }
 
-const trimRow = row => toLatex(row).trim();
-export function toLatex(row) {
+const trimRow = (row: MathRow): string => toLatex(row).trim();
+export function toLatex(row: MathRow): string {
   let out = '';
   for (const it of row) {
     if (it.t === 'text') out += it.v;
@@ -185,13 +201,13 @@ export function toLatex(row) {
 }
 
 // 整理：相鄰的文字合併；結構的前後與中間一定有文字格（才點得進去打字）
-export function normalize(row) {
-  const out = [];
+export function normalize(row: MathRow): MathRow {
+  const out: MathRow = [];
   for (const it of row) {
     const last = out[out.length - 1];
     if (it.t === 'text') { if (last && last.t === 'text') last.v += it.v; else out.push(it); continue; }
     if (!last || last.t !== 'text') out.push({ t: 'text', v: '' });
-    for (const k of ['a', 'b', 'n']) if (Array.isArray(it[k])) it[k] = normalize(it[k]);
+    for (const k of ['a', 'b', 'n'] as const) if (Array.isArray(it[k])) it[k] = normalize(it[k]!);
     if (it.rows) it.rows = it.rows.map(r => r.map(normalize));
     out.push(it);
   }
@@ -203,12 +219,26 @@ export function normalize(row) {
 const MARK = '\u0001'; // 插入後游標要停的位置（暫時的記號）
 // \text{…} 等裡面是一般文字：不把 sin 變成 \sin、不把 α 變成 \alpha
 const PLAIN_GROUPS = new Set(['\\text', '\\mathrm', '\\mathit']);
-const DELIM_CHAR = { '\\{': '{', '\\}': '}', '\\|': '‖', '\\langle': '⟨', '\\rangle': '⟩', '\\lfloor': '⌊', '\\rfloor': '⌋', '\\lceil': '⌈', '\\rceil': '⌉', '.': '' };
-const GROUP_LABEL = { '\\text': 'T', '\\mathrm': 'rm', '\\mathit': 'it', '\\mathcal': '𝒞', '\\mathbb': '𝔹', '\\boldsymbol': 'B' };
+const DELIM_CHAR: Record<string, string> = { '\\{': '{', '\\}': '}', '\\|': '‖', '\\langle': '⟨', '\\rangle': '⟩', '\\lfloor': '⌊', '\\rfloor': '⌋', '\\lceil': '⌈', '\\rceil': '⌉', '.': '' };
+const GROUP_LABEL: Record<string, string> = { '\\text': 'T', '\\mathrm': 'rm', '\\mathit': 'it', '\\mathcal': '𝒞', '\\mathbb': '𝔹', '\\boldsymbol': 'B' };
+
+export interface MathFieldOptions {
+  onChange?(latex: string): void;
+  label?(text: string): string; // 翻譯
+}
+// 目前所在的文字格：所在的列、在列裡的位置、對應的 DOM
+export interface MathSlot { row: MathRow; index: number; span: HTMLElement; }
 
 export class MathField {
+  declare host: HTMLElement;
+  declare opts: MathFieldOptions;
+  declare dom: HTMLDivElement;
+  declare model: MathRow;
+  declare active: MathSlot | null;
+  declare byItem: Map<MathItem, HTMLElement>;
+
   // opts: { onChange(latex), label(text) → 翻譯 }
-  constructor(host, opts = {}) {
+  constructor(host: HTMLElement, opts: MathFieldOptions = {}) {
     this.host = host;
     this.opts = opts;
     this.dom = el('div', 'wm-mv', host);
@@ -218,35 +248,35 @@ export class MathField {
     this.render();
   }
 
-  getLatex() { return toLatex(this.model).trim(); }
-  setLatex(src) { this.model = parseLatex(src); this.active = null; this.render(); }
-  isEmpty() { return !this.getLatex(); }
+  getLatex(): string { return toLatex(this.model).trim(); }
+  setLatex(src: string): void { this.model = parseLatex(src); this.active = null; this.render(); }
+  isEmpty(): boolean { return !this.getLatex(); }
 
-  changed() { if (this.opts.onChange) this.opts.onChange(this.getLatex()); }
+  changed(): void { if (this.opts.onChange) this.opts.onChange(this.getLatex()); }
 
-  focus(atEnd = true) {
+  focus(atEnd = true): void {
     const spans = this.spans();
     const span = atEnd ? spans[spans.length - 1] : spans[0];
     if (span) this.place(span, atEnd ? span.textContent.length : 0);
   }
 
-  spans() { return [...this.dom.querySelectorAll('.wm-mv-text')]; }
+  spans(): HTMLElement[] { return [...this.dom.querySelectorAll<HTMLElement>('.wm-mv-text')]; }
 
   // 把游標放進某個文字格
-  place(span, offset) {
+  place(span: HTMLElement, offset: number): void {
     span.focus();
     const sel = span.ownerDocument.getSelection && span.ownerDocument.getSelection();
     if (!sel) return;
     try {
       const r = span.ownerDocument.createRange();
       const node = span.firstChild;
-      if (node) r.setStart(node, Math.max(0, Math.min(offset, node.textContent.length))); else r.setStart(span, 0);
+      if (node) r.setStart(node, Math.max(0, Math.min(offset, node.textContent!.length))); else r.setStart(span, 0);
       r.collapse(true);
       sel.removeAllRanges(); sel.addRange(r);
     } catch (e) { /* 測試環境 */ }
   }
 
-  caret(span) {
+  caret(span: HTMLElement): { start: number; end: number } {
     const sel = span.ownerDocument.getSelection && span.ownerDocument.getSelection();
     if (!sel || !sel.rangeCount || !span.contains(sel.anchorNode)) return { start: span.textContent.length, end: span.textContent.length };
     const r = sel.getRangeAt(0);
@@ -256,14 +286,14 @@ export class MathField {
     return { start, end: start + r.toString().length };
   }
 
-  render(focusItem) {
+  render(focusItem?: MathItem): void {
     this.dom.replaceChildren();
     this.byItem = new Map();
     this.dom.appendChild(this.renderRow(this.model));
-    if (focusItem && this.byItem.get(focusItem)) this.place(this.byItem.get(focusItem), 0);
+    if (focusItem && this.byItem.get(focusItem)) this.place(this.byItem.get(focusItem)!, 0);
   }
 
-  renderRow(row, plain) {
+  renderRow(row: MathRow, plain?: boolean): HTMLSpanElement {
     const box = el('span', 'wm-mv-row');
     row.forEach((it, index) => {
       if (it.t === 'text') box.appendChild(this.renderText(row, index, plain));
@@ -272,8 +302,8 @@ export class MathField {
     return box;
   }
 
-  renderText(row, index, plain) {
-    const it = row[index];
+  renderText(row: MathRow, index: number, plain?: boolean): HTMLSpanElement {
+    const it = row[index] as TextItem; // renderRow 只對文字項目呼叫這裡
     const span = el('span', 'wm-mv-text');
     span.contentEditable = 'true';
     span.spellcheck = false;
@@ -302,8 +332,8 @@ export class MathField {
     return span;
   }
 
-  renderItem(it) {
-    const slot = (cls, row, parent, plain) => { const s = el('span', cls, parent); s.appendChild(this.renderRow(row, plain)); return s; };
+  renderItem(it: MathItem): HTMLSpanElement {
+    const slot = (cls: string, row: MathRow, parent: HTMLElement | null, plain?: boolean): HTMLSpanElement => { const s = el('span', cls, parent); s.appendChild(this.renderRow(row, plain)); return s; };
     if (it.t === 'frac') {
       const f = el('span', 'wm-mv-frac' + (it.cmd === '\\binom' ? ' is-binom' : ''));
       slot('wm-mv-num', it.a, f); slot('wm-mv-den', it.b, f);
@@ -342,7 +372,7 @@ export class MathField {
       }
       const tools = el('span', 'wm-mv-env-tools', f);
       const L = this.opts.label || (x => x);
-      const tool = (text, label, run) => {
+      const tool = (text: string, label: string, run: () => void) => {
         const b = el('button', 'wm-mv-env-btn', tools, L(text));
         b.type = 'button';
         b.setAttribute('aria-label', L(label));
@@ -359,13 +389,13 @@ export class MathField {
     return el('span', 'wm-mv-text', null, '');
   }
 
-  onKey(e, row, index, span) {
-    const it = row[index];
+  onKey(e: KeyboardEvent, row: MathRow, index: number, span: HTMLElement): void {
+    const it = row[index] as TextItem; // 按鍵來自文字格，所以是文字項目
     const text = span.textContent;
     const c = this.caret(span);
     const spans = this.spans();
     const i = spans.indexOf(span);
-    const go = (d, atEnd) => { const next = spans[i + d]; if (next) { e.preventDefault(); this.place(next, atEnd ? next.textContent.length : 0); } };
+    const go = (d: number, atEnd: boolean) => { const next = spans[i + d]; if (next) { e.preventDefault(); this.place(next, atEnd ? next.textContent.length : 0); } };
     if (e.key === 'Enter' && !(e.ctrlKey || e.metaKey)) { e.preventDefault(); return; }
     // Tab／Shift+Tab：下一格／上一格（已經是最後一格就離開方程式）
     if (e.key === 'Tab') { if (spans[i + (e.shiftKey ? -1 : 1)]) { go(e.shiftKey ? -1 : 1, e.shiftKey); e.stopPropagation(); } return; }
@@ -392,7 +422,7 @@ export class MathField {
   }
 
   // 在目前的游標處插入一段 LaTeX（按上方的結構或符號按鈕）
-  insert(latex) {
+  insert(latex: string): void {
     const items = parseLatex(latex).filter(it => !(it.t === 'text' && !it.v));
     if (!items.length) return;
     let a = this.active;
@@ -401,34 +431,35 @@ export class MathField {
     this.insertItems(items, a.row, a.index, a.span);
   }
 
-  findActive(span) {
-    let found = null;
-    const walk = row => row.forEach((it, index) => {
+  findActive(span: HTMLElement): MathSlot | null {
+    // 只在回呼函式裡指定；用 as 寫型別，TS 才不會認定它一直是 null
+    let found = null as MathSlot | null;
+    const walk = (row: MathRow): void => row.forEach((it, index) => {
       if (found) return;
       if (it.t === 'text') { if (this.byItem.get(it) === span) found = { row, index, span }; return; }
-      for (const k of ['a', 'b', 'n']) if (Array.isArray(it[k])) walk(it[k]);
+      for (const k of ['a', 'b', 'n'] as const) if (Array.isArray(it[k])) walk(it[k]!);
       if (it.rows) it.rows.forEach(r => r.forEach(walk));
     });
     walk(this.model);
     return found;
   }
 
-  insertItems(items, row, index, span) {
+  insertItems(items: MathRow, row: MathRow, index: number, span: HTMLElement): void {
     const c = this.caret(span);
     const shown = span.textContent;
-    const conv = span.dataset.plain ? x => x : fromDisplay;
+    const conv = span.dataset.plain ? (x: string) => x : fromDisplay;
     const before = conv(shown.slice(0, c.start));
     const selected = conv(shown.slice(c.start, c.end));
     const after = conv(shown.slice(c.end));
     // 第一個空的格子：有選取文字就放進去；沒有的話游標停在那一格
-    let firstSlot = null;
-    const findSlot = r => {
+    let firstSlot = null as MathRow | null; // 在 findSlot 裡指定
+    const findSlot = (r: MathRow): void => {
       for (const x of r) {
         if (firstSlot) return;
         if (x.t === 'text') continue;
-        for (const k of ['a', 'b', 'n']) {
+        for (const k of ['a', 'b', 'n'] as const) {
           if (firstSlot || !Array.isArray(x[k])) continue;
-          if (!toLatex(x[k]).trim()) firstSlot = x[k]; else findSlot(x[k]);
+          if (!toLatex(x[k]!).trim()) firstSlot = x[k]!; else findSlot(x[k]!);
         }
         if (x.rows) for (const rr of x.rows) for (const cell of rr) { if (!firstSlot && !toLatex(cell).trim()) firstSlot = cell; }
       }
@@ -436,27 +467,28 @@ export class MathField {
     const fresh = normalize(items);
     findSlot(fresh);
     // 用一個看不見的記號標出游標之後要停的位置（整理、合併文字後再找回來）
-    const tail = { t: 'text', v: after };
-    if (firstSlot && !selected) firstSlot[0].v = MARK;
-    else { if (firstSlot) firstSlot[0].v = selected; tail.v = MARK + after; }
+    // 空的格子經過 normalize 後只有一個空的文字項目，所以 firstSlot[0] 是文字項目
+    const tail: TextItem = { t: 'text', v: after };
+    if (firstSlot && !selected) (firstSlot[0] as TextItem).v = MARK;
+    else { if (firstSlot) (firstSlot[0] as TextItem).v = selected; tail.v = MARK + after; }
     row.splice(index, 1, { t: 'text', v: before }, ...fresh, tail);
     const whole = normalize(row);
     row.splice(0, row.length, ...whole);
-    let target = null; let offset = 0;
-    const walk = r => r.forEach(x => {
+    let target = null as TextItem | null; let offset = 0; // 在 walk 裡指定
+    const walk = (r: MathRow): void => r.forEach(x => {
       if (x.t === 'text') {
         const i = x.v.indexOf(MARK);
         if (i >= 0) { target = x; offset = i; x.v = x.v.replace(MARK, ''); }
         return;
       }
-      for (const k of ['a', 'b', 'n']) if (Array.isArray(x[k])) walk(x[k]);
+      for (const k of ['a', 'b', 'n'] as const) if (Array.isArray(x[k])) walk(x[k]!);
       if (x.rows) x.rows.forEach(rr => rr.forEach(walk));
     });
     walk(this.model);
     this.render();
     const sp = target && this.byItem.get(target);
     if (sp) {
-      this.place(sp, sp.dataset.plain ? offset : toDisplay(target.v.slice(0, offset)).length);
+      this.place(sp, sp.dataset.plain ? offset : toDisplay(target!.v.slice(0, offset)).length);
       this.active = this.findActive(sp);
     }
     this.changed();
