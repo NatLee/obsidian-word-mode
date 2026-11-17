@@ -1,0 +1,10 @@
+export { WordModeView } from '../../src/view.js';
+export { MarkdownConverter } from '../../src/markdown.js';
+export * as C from '../../src/commands.js';
+export { schema } from '../../src/schema.js';
+export * as mock from './obsidian-mock.js';
+export { TextSelection, NodeSelection } from 'prosemirror-state';
+export { linkContext } from '../../src/links.js';
+export * as I18N from '../../src/i18n.js';
+export * as MARKS from '../../src/marks.js';
+export { undo, redo } from 'prosemirror-history';
