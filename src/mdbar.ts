@@ -7,15 +7,16 @@ import { CODE_LANGUAGES } from './commands.js';
 import { el } from './dom.js';
 import type { App, Editor, MarkdownViewModeType } from 'obsidian';
 import type WordModePlugin from './main.js';
+import type { I18nKey } from './i18n.js';
 
 // 工具列按鈕的設定（button() 的 spec）：title、label、desc 是還沒翻譯的文字；keys 是快速鍵（例如 'Mod+B'）；
 // always 表示閱讀模式也能用；active() 回傳 true 時按鈕顯示成按下的樣子
 interface MdButtonSpec {
   icon: string;
-  title: string;
+  title: I18nKey;
   keys?: string | null;
-  label?: string;
-  desc?: string;
+  label?: I18nKey;
+  desc?: I18nKey;
   demo?: string;
   big?: boolean;
   always?: boolean;
@@ -212,15 +213,17 @@ export class MarkdownBar {
     const ed = this.editor;
     if (!ed) return;
     const items: MdMenuItem[] = [{ title: t('內文'), run: () => { linePrefix(ed, HEAD_RE, ''); ed.focus(); } }];
-    for (let i = 1; i <= 6; i++) items.push({ title: t('標題 ' + i), run: () => { linePrefix(ed, HEAD_RE, '#'.repeat(i) + ' '); ed.focus(); } });
+    // 字串相加的型別只是 string；i 是 1～6，所以是「標題 1」～「標題 6」這六個鍵
+    for (let i = 1; i <= 6; i++) items.push({ title: t(('標題 ' + i) as `標題 ${1 | 2 | 3 | 4 | 5 | 6}`), run: () => { linePrefix(ed, HEAD_RE, '#'.repeat(i) + ' '); ed.focus(); } });
     this.menu(owner, items);
   }
 
   codeMenu(owner: HTMLElement): void {
     const ed = this.editor;
     if (!ed) return;
+    // label 多半是不翻譯的語言名稱；只有 lang 是空字串時才是介面文字「純文字」，型別分不出來所以轉型
     this.menu(owner, CODE_LANGUAGES.map(([lang, label]) => ({
-      title: lang ? label : t(label),
+      title: lang ? label : t(label as I18nKey),
       run: () => {
         const sel = ed.getSelection();
         const c = ed.getCursor('from');

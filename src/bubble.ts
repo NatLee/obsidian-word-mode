@@ -7,6 +7,7 @@ import type { EditorState } from 'prosemirror-state';
 import type { EditorView } from 'prosemirror-view';
 import type { Attrs } from 'prosemirror-model';
 import type { LinkContext, ImageContext, WikilinkContext, TextLinkContext } from './links.js';
+import type { I18nKey } from './i18n.js';
 
 // 連結在工具列上的顯示方式（view.js 的 describe 產生）
 export interface LinkDescription { icon: string; label: string; title: string; missing: boolean; }
@@ -147,7 +148,8 @@ class Bubble {
     const full = c.pageWidth();
     for (const s of IMAGE_SIZES) {
       const w = Math.round(full * s.pct);
-      const b = el('button', 'wm-bubble-size', this.dom, t(s.label));
+      // IMAGE_SIZES 的 label 是載入時 t() 的結果，不一定是鍵；再翻一次，找不到時 t() 原樣回傳
+      const b = el('button', 'wm-bubble-size', this.dom, t(s.label as I18nKey));
       b.type = 'button';
       b.setAttribute('aria-label', w + ' px');
       if (cur && Math.abs(cur - w) <= 2) b.classList.add('is-active');

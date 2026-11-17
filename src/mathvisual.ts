@@ -1,4 +1,5 @@
 import { el } from './dom.js';
+import type { I18nKey } from './i18n.js';
 // 方程式的簡易視覺化編輯：把 LaTeX 拆成「看得到的結構」（分數上下兩格、根號、上下標、括號、矩陣…），
 // 每一格都可以直接點進去打字，符號顯示成真正的符號（α、≤、∑）。存檔仍是 LaTeX。
 // 不依賴 Obsidian；看不懂的 LaTeX 會原樣放在文字格裡，不會遺失。
@@ -224,7 +225,7 @@ const GROUP_LABEL: Record<string, string> = { '\\text': 'T', '\\mathrm': 'rm', '
 
 export interface MathFieldOptions {
   onChange?(latex: string): void;
-  label?: (text: string) => string; // 翻譯
+  label?: (text: I18nKey) => string; // 翻譯
 }
 // 目前所在的文字格：所在的列、在列裡的位置、對應的 DOM
 export interface MathSlot { row: MathRow; index: number; span: HTMLElement; }
@@ -372,7 +373,7 @@ export class MathField {
       }
       const tools = el('span', 'wm-mv-env-tools', f);
       const L = this.opts.label || (x => x);
-      const tool = (text: string, label: string, run: () => void) => {
+      const tool = (text: I18nKey, label: I18nKey, run: () => void) => {
         const b = el('button', 'wm-mv-env-btn', tools, L(text));
         b.type = 'button';
         b.setAttribute('aria-label', L(label));

@@ -9,6 +9,7 @@ import {
 } from 'prosemirror-tables';
 import type { Command, EditorState, Transaction } from 'prosemirror-state';
 import type { Node as PMNode, Mark, MarkType, NodeType, ResolvedPos } from 'prosemirror-model';
+import type { I18nKey } from './i18n.js';
 import { schema } from './schema.js';
 import { htmlSafeBlock } from './markdown.js';
 import { autoformatEnter, undoAutoformat } from './autoformat.js';
@@ -286,7 +287,7 @@ export function insertCodeBlock(lang: string): Command {
 }
 
 // 螢光色彩：color 為 null 是預設黃色；label 是選單名稱；css 是色塊要顯示的顏色（沒有時用 color）
-export type HighlightColor = [color: string | null, label: string, css?: string];
+export type HighlightColor = [color: string | null, label: I18nKey, css?: string];
 
 // 螢光（醒目提示）色彩：color 為 null 是預設黃色（==文字==），'none' 是移除
 export const HIGHLIGHT_COLORS: HighlightColor[] = [
@@ -361,7 +362,7 @@ export function setAlign(align: Align): Command {
   };
 }
 // 對齊／縮排按鈕停用的原因（顯示在提示裡）
-export function blockFormatBlocked(state: EditorState): string | null {
+export function blockFormatBlocked(state: EditorState): I18nKey | null {
   const $f = state.selection.$from;
   if (isInTable(state)) return null;
   if ($f.parent.type === N.heading) return '標題不能對齊或整段縮排（Markdown 的標題不支援，存成 HTML 會變成不是標題）';
@@ -481,7 +482,7 @@ export function applyMarks(marks: readonly Mark[]): Command {
 // 段落樣式代號：p＝內文、h1～h6＝標題、code＝程式碼區塊
 export type BlockStyleId = 'p' | 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'code';
 // 段落樣式選單的一項
-export interface BlockStyle { id: BlockStyleId; label: string; }
+export interface BlockStyle { id: BlockStyleId; label: I18nKey; }
 
 // ---------------------------------------------------------------- 段落樣式
 
@@ -906,7 +907,7 @@ export function sortTableByColumn(dir: Direction): Command {
 }
 
 // 提示框種類：type 是 [!type] 裡的名稱，label 是選單名稱，icon 是 Obsidian（Lucide）圖示名稱
-export type CalloutType = [type: string, label: string, icon: string];
+export type CalloutType = [type: string, label: I18nKey, icon: string];
 
 // ---------------------------------------------------------------- 提示框（callout）
 

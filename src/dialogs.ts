@@ -7,6 +7,7 @@ import type { App, TFile } from 'obsidian';
 import type { WeirdKindId } from './marks.js';
 import type WordModePlugin from './main.js';
 import type { WordModeView } from './view.js';
+import type { I18nKey } from './i18n.js';
 
 // 原文編輯、輸入框按「套用／確定」後收到輸入的文字
 export type TextCallback = (value: string) => void;
@@ -32,15 +33,16 @@ export type LinkSaveCallback = (result: LinkDialogResult) => void;
 export type FileChooseCallback = (file: TFile) => void;
 
 // 快速鍵說明的一組：分類名稱、圖示、[按鍵組合, 說明] 的列表（文字在顯示時才翻譯）
-export type ShortcutRow = [combo: string, desc: string];
-export type ShortcutGroup = [group: string, icon: string, rows: ShortcutRow[]];
+export type ShortcutRow = [combo: string, desc: I18nKey];
+export type ShortcutGroup = [group: I18nKey, icon: string, rows: ShortcutRow[]];
 // 快速鍵說明視窗裡的一列與一張卡片，搜尋時用來顯示或隱藏
 interface ShortcutRowEl { row: HTMLDivElement; text: string; }
 interface ShortcutCardEl { card: HTMLDivElement; list: ShortcutRowEl[]; group: string; }
 
 // 方程式工具列的一個按鈕：顯示文字、插入的 LaTeX；raw 為 true 表示「最近使用」，原樣插入
-export type MathSnippet = [label: string, snip: string, raw?: boolean];
-export type MathSnippetGroup = [name: string, items: MathSnippet[]];
+// 一般按鈕的 label 是介面文字（翻譯前）；「最近使用」的 label 是使用者輸入過的公式，不翻譯
+export type MathSnippet = [label: I18nKey, snip: string, raw?: undefined] | [label: string, snip: string, raw: true];
+export type MathSnippetGroup = [name: I18nKey, items: MathSnippet[]];
 // 方程式對話框的初始值：src LaTeX 原文、display 是否獨立一行、existing 是否在編輯既有的方程式、onDelete 按「刪除方程式」時呼叫
 export interface EquationInit {
   src?: string;
@@ -270,10 +272,12 @@ function renderKeys(parent: HTMLElement, combo: string): void {
     if (i) box.createSpan({ cls: 'wm-sc-or', text: '/' });
     const parts = alt.split('+');
     const isText = parts.length === 1 && !/^(Tab|Enter|Esc|Shift)$/.test(alt) && !/^[A-Z0-9`\/]$/.test(alt);
-    if (isText) { box.createSpan({ cls: 'wm-sc-text', text: t(alt) }); return; }
+    // alt、p 是從按鍵組合字串切出來的片段：可能是說明文字（例如「按一下」），也可能是按鍵名稱（例如 B、↑），找不到翻譯時 t() 原樣回傳
+    if (isText) { box.createSpan({ cls: 'wm-sc-text', text: t(alt as I18nKey) }); return; }
     parts.forEach((p, j) => {
       if (j) box.createSpan({ cls: 'wm-sc-plus', text: '+' });
-      const name = KEY_NAMES[p] ? KEY_NAMES[p]() : t(p);
+      // 同上：p 可能是按鍵名稱，不一定是鍵
+      const name = KEY_NAMES[p] ? KEY_NAMES[p]() : t(p as I18nKey);
       box.createEl('kbd', { text: name, cls: /[㐀-鿿]/.test(p) ? 'is-mouse' : '' });
     });
   });
@@ -473,7 +477,8 @@ export class ShortcutModal extends Modal {
         const row = card.createDiv('wm-sc-row');
         row.createDiv({ cls: 'wm-sc-desc', text: t(d) });
         renderKeys(row, k);
-        list.push({ row, text: (t(d) + ' ' + t(k) + ' ' + k).toLowerCase() });
+        // k 是按鍵組合（例如 Mod+E），只有少數是說明文字（例如「按一下」）；找不到翻譯時 t() 原樣回傳
+        list.push({ row, text: (t(d) + ' ' + t(k as I18nKey) + ' ' + k).toLowerCase() });
       }
       cards.push({ card, list, group: t(group).toLowerCase() });
     }

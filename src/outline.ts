@@ -4,6 +4,7 @@ import { t } from './i18n.js';
 import type { WorkspaceLeaf } from 'obsidian';
 import type WordModePlugin from './main.js';
 import type { WordModeView } from './view.js';
+import type { I18nKey } from './i18n.js';
 
 export const OUTLINE_TYPE = 'natlee-word-outline';
 
@@ -55,7 +56,7 @@ export class OutlineView extends ItemView {
     const top = c.createDiv('wm-ov-top');
     this.titleEl2 = top.createDiv('wm-ov-file');
     const tools = top.createDiv('wm-ov-tools');
-    const btn = (icon: string, label: string, run: () => void) => {
+    const btn = (icon: string, label: I18nKey, run: () => void) => {
       const b = tools.createEl('button', { cls: 'clickable-icon' });
       b.setAttribute('aria-label', t(label));
       setIcon(b, icon);

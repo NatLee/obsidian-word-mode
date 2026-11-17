@@ -11,6 +11,7 @@ import type { Command, EditorState } from 'prosemirror-state';
 import type { EditorView } from 'prosemirror-view';
 import type { Mark, MarkType } from 'prosemirror-model';
 import type { Align, CaseKind, Direction } from './commands.js';
+import type { I18nKey } from './i18n.js';
 
 // 分頁 id（TABS 的第一欄；也是設定 hiddenTabs 存的值）
 export type TabId = 'home' | 'insert' | 'review' | 'viewtab';
@@ -21,9 +22,9 @@ export type GroupId =
   | 'proofing' | 'stats' | 'comments'
   | 'views' | 'show' | 'zoom' | 'help';
 // [分頁 id, 分頁名稱（翻譯前的原文，顯示時再用 t() 翻譯）]
-export type TabEntry = readonly [id: TabId, label: string];
+export type TabEntry = readonly [id: TabId, label: I18nKey];
 // [群組 id, 所在分頁, 群組名稱（翻譯前的原文）]
-export type GroupEntry = readonly [id: GroupId, tab: TabId, label: string];
+export type GroupEntry = readonly [id: GroupId, tab: TabId, label: I18nKey];
 
 // 設定裡的版面：分頁、全部排成一行、全部自動換行
 export type RibbonLayout = 'tabs' | 'single' | 'wrap';
@@ -108,17 +109,17 @@ export type ButtonClick = (e: MouseEvent, btn: HTMLButtonElement) => void;
 // 一個按鈕的描述；title、label、desc 都是翻譯前的原文
 export interface ButtonSpec {
   // 功能名稱，也是提示的標題；分頁以外的版面用它判斷重複的按鈕
-  title: string;
+  title: I18nKey;
   // Obsidian（Lucide）圖示名稱
   icon?: string;
   // 沒有圖示時顯示的文字
   text?: string;
   // 顯示文字時的按鈕名稱
-  label?: string;
+  label?: I18nKey;
   // 快速鍵，例如 'Mod+B'
   keys?: string | null;
   // 詳細提示的說明
-  desc?: string;
+  desc?: I18nKey;
   // 詳細提示的示意動畫名稱（hints.ts 的 DEMOS）
   demo?: string;
   // 大按鈕：按鈕樣式為「自動」時也顯示文字
@@ -132,7 +133,7 @@ export interface ButtonSpec {
   active?: StateTest;
   enabled?: StateTest;
   // 停用時的原因（翻譯前的原文），沒有原因時回傳 null
-  why?: (state: EditorState) => string | null;
+  why?: (state: EditorState) => I18nKey | null;
   onClick?: ButtonClick;
 }
 
@@ -163,12 +164,12 @@ type DataNumbers = Record<string, string | number | undefined>;
 
 const M = schema.marks;
 
-export const TEXT_COLORS: readonly (readonly [color: string, name: string])[] = [
+export const TEXT_COLORS: readonly (readonly [color: string, name: I18nKey])[] = [
   ['#000000', '黑色'], ['#7f7f7f', '灰色'], ['#c00000', '深紅'], ['#ff0000', '紅色'], ['#ff8c00', '橙色'],
   ['#bf9000', '金色'], ['#00b050', '綠色'], ['#00b0f0', '淺藍'], ['#0070c0', '藍色'], ['#7030a0', '紫色'],
 ];
 
-export const SYMBOLS: readonly (readonly [group: string, chars: string])[] = [
+export const SYMBOLS: readonly (readonly [group: I18nKey, chars: string])[] = [
   ['常用', '©®™°±×÷≈≠≤≥∞✓✗★☆●○■□◆◇※§¶†…‰€£¥'],
   ['中文標點', '「」『』（）【】《》〈〉、。，；：！？—～·‧'],
   ['箭頭', '→←↑↓↔⇒⇐⇔↗↘↖↙➔➜'],
@@ -180,7 +181,7 @@ export const SYMBOLS: readonly (readonly [group: string, chars: string])[] = [
 
 export const DATE_FORMATS: readonly string[] = ['YYYY-MM-DD', 'YYYY/MM/DD', 'YYYY年M月D日', 'YYYY-MM-DD HH:mm', 'HH:mm', 'YYYY-MM-DD dddd'];
 
-const CASE_MENU: readonly (readonly [kind: CaseKind, label: string])[] = [['upper', '全部大寫'], ['lower', '全部小寫'], ['title', '每個英文單字首字大寫'], ['sentence', '句首大寫'], ['half', '轉成半形'], ['full', '轉成全形']];
+const CASE_MENU: readonly (readonly [kind: CaseKind, label: I18nKey])[] = [['upper', '全部大寫'], ['lower', '全部小寫'], ['title', '每個英文單字首字大寫'], ['sentence', '句首大寫'], ['half', '轉成半形'], ['full', '轉成全形']];
 const SHADING = '#9e9e9e59';
 
 // 分頁與群組（設定頁用同一份清單，讓使用者勾選要顯示的項目）
@@ -298,7 +299,7 @@ export class Toolbar {
     } else b.setAttribute('aria-label', text);
   }
 
-  group(panel: HTMLElement | undefined, id: GroupId, label: string): HTMLDivElement | null {
+  group(panel: HTMLElement | undefined, id: GroupId, label: I18nKey): HTMLDivElement | null {
     if (this.hiddenGroups.has(id)) return null;
     const g = el('div', 'wm-group wm-group-' + id, panel);
     g.dataset.group = id;
@@ -349,7 +350,7 @@ export class Toolbar {
   }
 
   // 分割按鈕：主按鈕執行，旁邊的小箭頭開選單
-  arrow(parent: HTMLElement | null | undefined, title: string, onClick: ButtonClick): HTMLButtonElement | null {
+  arrow(parent: HTMLElement | null | undefined, title: I18nKey, onClick: ButtonClick): HTMLButtonElement | null {
     return this.button(parent, { icon: 'chevron-down', title, text: '▾', cls: 'wm-split-arrow', split: true, onClick });
   }
 
@@ -423,7 +424,7 @@ export class Toolbar {
     this.styleBtn = this.button(g, { title: '段落樣式', text: t('內文'), cls: 'wm-style-btn', desc: '把段落改成標題 1～6、內文或程式碼。', demo: 'style', onClick: (e, b) => this.openStylePopup(b) });
 
     g = G.font;
-    const mk = (icon: string, title: string, keys: string | null, cmd: Command, type: MarkType, text: string, demo: string, desc: string) => this.button(g, { icon, title, keys, cmd, text, demo, desc, active: s => C.markActive(s, type) });
+    const mk = (icon: string, title: I18nKey, keys: string | null, cmd: Command, type: MarkType, text: string, demo: string, desc: I18nKey) => this.button(g, { icon, title, keys, cmd, text, demo, desc, active: s => C.markActive(s, type) });
     mk('bold', '粗體', 'Mod+B', C.toggleBold, M.strong, 'B', 'bold', '把選取的文字（或游標所在的詞）變粗體。');
     mk('italic', '斜體', 'Mod+I', C.toggleItalic, M.em, 'I', 'italic', '把文字變斜體。');
     mk('underline', '底線', 'Mod+U', C.toggleUnderline, M.underline, 'U', 'underline', '在文字下方加底線。');
@@ -455,7 +456,7 @@ export class Toolbar {
     this.button(g, { icon: 'list-checks', title: '核取清單', text: '☐', demo: 'task', desc: '變成可以打勾的待辦清單。', cmd: C.toggleList('task'), active: s => C.currentList(s) === 'task' });
     this.button(g, { icon: 'indent-decrease', title: '減少縮排', keys: 'Shift+Tab', text: '←', demo: 'outdent', desc: '整段往左移；清單往上一層。', cmd: C.outdent, enabled: s => C.outdent(s) });
     this.button(g, { icon: 'indent-increase', title: '增加縮排', text: '→', demo: 'indent', desc: '整段往右移；清單變成下一層。', cmd: C.indent, enabled: s => C.indent(s), why: C.blockFormatBlocked });
-    const al = (a: Align, icon: string, title: string, keys: string | null, text: string) => this.button(g, { icon, title, keys, text, demo: a, desc: '設定段落的對齊方式。', cmd: C.setAlign(a), active: st => C.currentAlign(st) === a, enabled: st => C.setAlign(a)(st) || (a === 'left' && C.currentAlign(st) === 'left'), why: C.blockFormatBlocked });
+    const al = (a: Align, icon: string, title: I18nKey, keys: string | null, text: string) => this.button(g, { icon, title, keys, text, demo: a, desc: '設定段落的對齊方式。', cmd: C.setAlign(a), active: st => C.currentAlign(st) === a, enabled: st => C.setAlign(a)(st) || (a === 'left' && C.currentAlign(st) === 'left'), why: C.blockFormatBlocked });
     al('left', 'align-left', '靠左對齊', 'Mod+L', '左');
     al('center', 'align-center', '置中', null, '中');
     al('right', 'align-right', '靠右對齊', null, '右');
@@ -481,7 +482,7 @@ export class Toolbar {
     el('div', 'wm-group-name', tableGroup, t('表格工具'));
     const T = C.table;
     const prevSeen = this.seen; this.seen = new Set();
-    const tb = (icon: string, title: string, cmd: Command, text: string) => this.button(tbody, { icon, title, cmd, text, enabled: s => cmd(s) });
+    const tb = (icon: string, title: I18nKey, cmd: Command, text: string) => this.button(tbody, { icon, title, cmd, text, enabled: s => cmd(s) });
     tb('arrow-up-to-line', '在上方插入列', T.addRowBefore, '↑列');
     tb('arrow-down-to-line', '在下方插入列', T.addRowAfter, '↓列');
     tb('arrow-left-to-line', '在左側插入欄', T.addColumnBefore, '←欄');
@@ -522,8 +523,9 @@ export class Toolbar {
     this.button(g, { icon: 'asterisk', title: '插入註腳', text: '註', label: '註腳', big: true, demo: 'footnote', desc: '在游標處加上註腳編號，內容放在文件最後。滑鼠移到編號上可以看內容。', onClick: () => this.d.footnote() });
     g = G.code;
     this.button(g, { icon: 'code', title: '行內程式碼', keys: 'Mod+`', text: '</>', label: '行內', big: true, demo: 'code', desc: '把文字標成程式碼（等寬字型）。', cmd: C.toggleCode, active: s => C.markActive(s, M.code) });
+    // 選單的 label 多半是不翻譯的語言名稱；只有 lang 是空字串時才是介面文字「純文字」，型別分不出來所以轉型
     this.menuButton(g, { icon: 'square-code', title: '插入程式碼區塊', text: '{ }', label: '程式碼區塊', big: true, demo: 'codeblock', desc: '插入一段程式碼，可以選語言，會自動上色。' },
-      () => C.CODE_LANGUAGES.map(([lang, label]) => ({ title: lang ? label : t(label), run: () => this.run(C.insertCodeBlock(lang)) })));
+      () => C.CODE_LANGUAGES.map(([lang, label]) => ({ title: lang ? label : t(label as I18nKey), run: () => this.run(C.insertCodeBlock(lang)) })));
     this.button(g, { icon: 'keyboard', title: '鍵盤按鍵', text: '⌨', label: '按鍵', big: true, demo: 'kbd', desc: '把文字標成鍵盤按鍵的樣子，例如 Ctrl。', cmd: C.toggleKbd, active: s => C.markActive(s, M.kbd) });
     g = G.text;
     this.button(g, { icon: 'info', title: '插入提示框', text: '框', label: '提示框', big: true, demo: 'callout', desc: '插入有圖示與標題的提示框（Obsidian callout），例如注意、提示、範例。', onClick: (e, b) => this.d.callout(b) });

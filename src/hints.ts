@@ -2,6 +2,7 @@
 // 只有一張提示卡（新的會取代舊的），所以提示不會互相蓋住
 import { t } from './i18n.js';
 import { el } from './dom.js';
+import type { I18nKey } from './i18n.js';
 
 // 提示卡的內容（attachHint 的 info() 回傳）；demo 是 DEMOS 的名稱
 export interface HintInfo {
@@ -77,9 +78,9 @@ const DEMOS: Record<string, DemoBuilder> = {
     const w = el('div', 'wm-demo-sort', b);
     ['C', 'A', 'B'].forEach((x, i) => { const r = el('div', 'wm-demo-sortrow wm-sort-' + i, w); el('span', null, r, x + ' ' + t('項目')); });
   },
-  marks: b => { const l = el('div', 'wm-demo-line wm-anim-marks', b); ['這是', '範例', '文字'].forEach((w, i) => { if (i) el('span', 'wm-demo-dot', l, '·'); el('span', null, l, t(w)); }); el('span', 'wm-demo-para', l, '¶'); },
+  marks: b => { const l = el('div', 'wm-demo-line wm-anim-marks', b); (['這是', '範例', '文字'] satisfies I18nKey[]).forEach((w, i) => { if (i) el('span', 'wm-demo-dot', l, '·'); el('span', null, l, t(w)); }); el('span', 'wm-demo-para', l, '¶'); },
   cleanup: b => { const l = el('div', 'wm-demo-line', b); el('span', null, l, t('殘留')); el('span', 'wm-demo-bad', l, '**'); el('span', null, l, t('的符號')); el('span', 'wm-demo-bad', l, '"'); },
-  find: b => { const l = el('div', 'wm-demo-line', b); ['報表', '的', '報表', '與', '報表'].forEach((w, i) => el('span', i % 2 ? null : 'wm-demo-match wm-match-' + i / 2, l, t(w))); },
+  find: b => { const l = el('div', 'wm-demo-line', b); (['報表', '的', '報表', '與', '報表'] satisfies I18nKey[]).forEach((w, i) => el('span', i % 2 ? null : 'wm-demo-match wm-match-' + i / 2, l, t(w))); },
   replace: b => { const l = el('div', 'wm-demo-line', b); el('span', null, l, t('把')); const s = el('span', 'wm-demo-swap', l); el('span', 'wm-swap-a', s, t('舊字')); el('span', 'wm-swap-b', s, t('新字')); el('span', null, l, t('全部換掉')); },
   selectall: b => { const w = linesDemo(b, 'wm-anim-selectall'); w.classList.add('wm-demo-sel'); },
   undo: b => { const l = el('div', 'wm-demo-line', b); el('span', null, l, t('打錯')); el('span', 'wm-demo-target wm-anim-undo', l, t('的字')); },

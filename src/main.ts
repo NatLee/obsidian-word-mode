@@ -11,7 +11,7 @@ import { TABS, GROUPS } from './toolbar.js';
 import type { App, Command, Editor, MarkdownViewModeType, View, ViewState } from 'obsidian';
 import type { EditorState } from 'prosemirror-state';
 import type { EditorView } from 'prosemirror-view';
-import type { Language } from './i18n.js';
+import type { Language, I18nKey } from './i18n.js';
 import type { DocMeta } from './markdown.js';
 import type { OutlineSource } from './outline.js';
 import type { RibbonLayout, ButtonStyle, TabId, GroupId } from './toolbar.js';
@@ -607,7 +607,7 @@ class WordModeSettings extends PluginSettingTab {
     const S = p.settings;
     const save = async () => { p.applyOptions(); await p.saveSettings(); };
     const toggle = (setting: Setting, k: ToggleKey, after?: (v: boolean) => unknown) => setting.addToggle(tg => tg.setValue(!!(S[k] == null ? DEFAULTS[k] : S[k])).onChange(async v => { S[k] = v; await save(); if (after) after(v); }));
-    const heading = (text: string, icon?: string) => {
+    const heading = (text: I18nKey, icon?: string) => {
       const h = new Setting(c).setName(t(text)).setHeading();
       h.settingEl.addClass('wm-setting-heading');
       if (icon) { const i = h.nameEl.createSpan('wm-setting-icon'); setIcon(i, icon); h.nameEl.prepend(i); }

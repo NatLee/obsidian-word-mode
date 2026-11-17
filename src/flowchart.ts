@@ -1,5 +1,6 @@
 // Mermaid 流程圖 ⇄ 「節點＋連線」的資料（純函式，不依賴 Obsidian，方便測試）。
 // 只處理看得懂的寫法；遇到看不懂的（子圖、A & B --> C、linkStyle…）就回報無法用表單編輯，改用程式碼。
+import type { I18nKey } from './i18n.js';
 
 export interface FlowNode { id: string; text: string | null; shape: string | null; }
 export interface FlowEdge { from: string; to: string; text: string; style: string; }
@@ -13,10 +14,10 @@ export type FlowReason = keyof typeof FLOW_REASONS;
 interface ReadNode extends FlowNode { rest: string; }
 interface ReadLink { style: string; text: string; rest: string; }
 
-export const DIRECTIONS: [string, string][] = [['TD', '由上到下'], ['LR', '由左到右'], ['BT', '由下到上'], ['RL', '由右到左']];
+export const DIRECTIONS: [string, I18nKey][] = [['TD', '由上到下'], ['LR', '由左到右'], ['BT', '由下到上'], ['RL', '由右到左']];
 
 // 形狀：[代號, 名稱, 開頭符號, 結尾符號]（長的符號排前面，解析時先比對）
-export const SHAPES: [string, string, string, string][] = [
+export const SHAPES: [string, I18nKey, string, string][] = [
   ['stadium', '圓角膠囊', '([', '])'],
   ['subroutine', '子流程', '[[', ']]'],
   ['cylinder', '資料庫', '[(', ')]'],
@@ -29,7 +30,7 @@ export const SHAPES: [string, string, string, string][] = [
 ];
 
 // 連線：[代號, 名稱, 沒有文字時的寫法, 有文字時的前半、後半]
-export const LINKS: [string, string, string][] = [
+export const LINKS: [string, I18nKey, string][] = [
   ['arrow', '箭頭', '-->'],
   ['line', '直線', '---'],
   ['dotted', '虛線箭頭', '-.->'],
@@ -179,10 +180,11 @@ export const FLOW_REASONS = {
   multi: '這張圖用了「A & B --> C」的寫法，表單編輯不支援，請用程式碼編輯。',
   syntax: '有表單編輯看不懂的寫法，請用程式碼編輯。',
   roundtrip: '這張圖有表單編輯無法完整保留的內容，請用程式碼編輯。',
-};
+} satisfies Record<string, I18nKey>;
 
 // 常用圖表的範本
-export const MERMAID_TEMPLATES: [string, string][] = [
+// [範本名稱, 範本內容]：兩者都會依介面語言翻譯
+export const MERMAID_TEMPLATES: [I18nKey, I18nKey][] = [
   ['流程圖', 'flowchart TD\n    A[開始] --> B{條件成立？}\n    B -->|是| C[處理]\n    B -->|否| D[結束]\n    C --> D'],
   ['循序圖', 'sequenceDiagram\n    participant 使用者\n    participant 系統\n    使用者->>系統: 送出請求\n    系統-->>使用者: 回覆結果'],
   ['甘特圖', 'gantt\n    title 專案時程\n    dateFormat YYYY-MM-DD\n    section 規劃\n    需求確認 :a1, 2026-01-05, 5d\n    section 開發\n    實作 :after a1, 10d'],

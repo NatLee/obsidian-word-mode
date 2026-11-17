@@ -8,6 +8,7 @@ import type { Selection } from 'prosemirror-state';
 import type { EditorView, NodeView, NodeViewConstructor, ViewMutationRecord } from 'prosemirror-view';
 import type { EmbedHandle, MediaKind } from './embeds.js';
 import type { TextCallback } from './dialogs.js';
+import type { I18nKey } from './i18n.js';
 
 // 右鍵選單的一個項目（ctx.menu 用）
 export interface NodeViewMenuItem { title: string; icon?: string; run: () => void; }
@@ -70,7 +71,7 @@ export interface FrontmatterDom extends HTMLDivElement { wmOpen?: () => void; }
 export type PropValues = Record<string, unknown>;
 
 // 任務狀態：[核取方塊裡的字元, 名稱（翻譯前）, 圖示]
-export type TaskStatus = [ch: string, label: string, icon: string];
+export type TaskStatus = [ch: string, label: I18nKey, icon: string];
 
 // 節點在文件裡的位置；節點顯示元件已經不在畫面上時是 undefined
 type GetPos = () => number | undefined;
@@ -296,7 +297,8 @@ class RawBlockView implements NodeView {
   }
   render(): void {
     const a = this.node.attrs;
-    this.label.textContent = t(RAW_LABEL[a.kind] || RAW_LABEL.raw) + t('（按兩下編輯）');
+    // RAW_LABEL 的值是載入時 t() 的結果或 'HTML'，不一定是鍵；再翻一次，找不到時 t() 原樣回傳
+    this.label.textContent = t((RAW_LABEL[a.kind] || RAW_LABEL.raw) as I18nKey) + t('（按兩下編輯）');
     this.dom.dataset.kind = a.kind;
     this.body.replaceChildren();
     this.dispose();
@@ -322,7 +324,8 @@ class RawBlockView implements NodeView {
     if (fn && this.ctx.editFootnote) { this.ctx.editFootnote(fn[1]); return; }
     const mm = this.node.attrs.kind === 'math' && /^\s*\$\$([\s\S]*?)\$\$\s*$/.exec(this.node.attrs.src);
     if (mm && this.ctx.editMath) { this.ctx.editMath(this.getPos(), mm[1].trim(), true); return; }
-    this.ctx.editSource(t('編輯') + t(RAW_LABEL[this.node.attrs.kind] || RAW_LABEL.raw), this.node.attrs.src, value => {
+    // RAW_LABEL 的值是載入時 t() 的結果或 'HTML'，不一定是鍵；再翻一次，找不到時 t() 原樣回傳
+    this.ctx.editSource(t('編輯') + t((RAW_LABEL[this.node.attrs.kind] || RAW_LABEL.raw) as I18nKey), this.node.attrs.src, value => {
       const pos = this.getPos();
       if (pos == null) return;
       this.view.dispatch(this.view.state.tr.setNodeMarkup(pos, null, Object.assign({}, this.node.attrs, { src: value.replace(/\s+$/, '') })));
@@ -508,7 +511,8 @@ class FrontmatterView implements NodeView {
     const k = el('div', 'wm-prop-key', r);
     const ic = el('span', 'wm-prop-icon', k); this.ctx.icon(ic, TYPE_ICON[type], '');
     el('span', null, k, key);
-    k.setAttribute('aria-label', key + t('（') + t(TYPE_LABEL[type]) + t('）'));
+    // TYPE_LABEL 的值是載入時 t() 的結果，不一定是鍵；再翻一次，找不到時 t() 原樣回傳
+    k.setAttribute('aria-label', key + t('（') + t(TYPE_LABEL[type] as I18nKey) + t('）'));
     const v = el('div', 'wm-prop-value', r);
     const set = (nv: unknown): void => { const o = Object.assign({}, obj); o[key] = nv; this.commit(o); };
     if (type === 'list') {
@@ -556,7 +560,8 @@ class FrontmatterView implements NodeView {
     const r = el('div', 'wm-prop wm-prop-add', body);
     const k = el('input', 'wm-prop-input', r); k.placeholder = t('＋ 新增屬性名稱');
     const tv = el('select', 'wm-prop-type dropdown', r);
-    for (const [val, label] of Object.entries(TYPE_LABEL)) { if (val === 'object') continue; const o = el('option', null, tv, t(label)); o.value = val; }
+    // TYPE_LABEL 的值是載入時 t() 的結果，不一定是鍵；再翻一次，找不到時 t() 原樣回傳
+    for (const [val, label] of Object.entries(TYPE_LABEL)) { if (val === 'object') continue; const o = el('option', null, tv, t(label as I18nKey)); o.value = val; }
     const go = () => {
       const key = k.value.trim();
       if (!key) return;
@@ -737,7 +742,8 @@ class CodeBlockView implements NodeView {
     this.sel.replaceChildren();
     const list = CODE_LANGUAGES.slice();
     if (cur && !list.some(([v]) => v === cur)) list.push([cur, cur]);
-    for (const [v, label] of list) { const o = el('option', null, this.sel, v ? label : t(label)); o.value = v; }
+    // label 是語言名稱或筆記裡寫的語言（不翻譯）；只有 v 是空字串時才是介面文字「純文字」，型別分不出來所以轉型
+    for (const [v, label] of list) { const o = el('option', null, this.sel, v ? label : t(label as I18nKey)); o.value = v; }
     const o = el('option', null, this.sel, t('其他…')); o.value = '__other';
     this.sel.value = cur;
     this.pre.dataset && (this.pre.dataset.lang = cur);

@@ -4,12 +4,13 @@ import { Decoration, DecorationSet } from 'prosemirror-view';
 import type { EditorState, Transaction } from 'prosemirror-state';
 import type { Node as PMNode } from 'prosemirror-model';
 import { t } from './i18n.js';
+import type { I18nKey } from './i18n.js';
 
 // 奇怪符號的種類代號與修正方式
 export type WeirdKindId = 'zw' | 'ctrl' | 'nbsp' | 'repl' | 'md' | 'quote' | 'space';
 export type WeirdFix = 'remove' | 'space' | 'collapse';
 // WEIRD_KINDS 的一筆：def 是清理對話框預設要不要勾選
-export interface WeirdKind { id: WeirdKindId; label: string; fix: WeirdFix; def: boolean; always: boolean; }
+export interface WeirdKind { id: WeirdKindId; label: I18nKey; fix: WeirdFix; def: boolean; always: boolean; }
 // 找到的一個奇怪符號（文件位置）
 export interface WeirdFound { from: number; to: number; kind: WeirdKindId; }
 export type WeirdCounts = Partial<Record<WeirdKindId, number>>;

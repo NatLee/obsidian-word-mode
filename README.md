@@ -137,7 +137,7 @@ Obsidian APIs that aren't public are declared in one place, `src/obsidian-intern
 | `src/footnotes.ts` | Footnote commands. |
 | `src/decoutil.ts`, `src/dom.ts`, `src/textstats.ts` | Shared helpers. |
 | `src/hints.ts` | Detailed button tooltips. |
-| `src/i18n.ts`, `src/i18n-*.ts` | Translations, keyed by the Traditional Chinese text. |
+| `src/i18n.ts`, `src/i18n-*.ts` | Translations, keyed by the Traditional Chinese text. An interface string with no entry in the English dictionary fails the type check. |
 | `src/obsidian-internal.d.ts` | Declarations for the Obsidian APIs the plugin uses that aren't public. |
 | `src/globals.d.ts`, `src/markdown-it-mark.d.ts` | Declarations for globals and for a dependency that ships no types. |
 | `styles/word-mode.css` | Styles. |

@@ -31,7 +31,8 @@ export function setLanguage(setting?: string | null): void {
 export function getLanguage(): string { return lang; }
 
 // t('粗體') → 依語言回傳；{name} 會換成 vars.name
-export function t(s: string, vars?: TranslationVars | null): string {
+export type I18nKey = keyof typeof EN;
+export function t(s: I18nKey, vars?: TranslationVars | null): string {
   const d = DICTS[lang];
   // 日文、韓文沒有翻到的字串用英文
   let out = d && d[s] != null ? d[s] : (lang !== 'zh-TW' && (EN as Record<string, string>)[s] != null ? (EN as Record<string, string>)[s] : s);
@@ -48,6 +49,6 @@ export function key(combo: string): string {
   }).join('+');
 }
 
-export function withKey(label: string, combo: string): string { return t(label) + ' (' + key(combo) + ')'; }
+export function withKey(label: I18nKey, combo: string): string { return t(label) + ' (' + key(combo) + ')'; }
 
 export { isMac };

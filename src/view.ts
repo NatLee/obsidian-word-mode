@@ -48,6 +48,7 @@ import type { PrismLike } from './codehl.js';
 import type { MarksState, WeirdKindId } from './marks.js';
 import type { TextRange } from './commands.js';
 import type { TemplatesInstance } from './obsidian-internal.js';
+import type { I18nKey } from './i18n.js';
 
 export const VIEW_TYPE = 'natlee-word-mode';
 const IMAGE_EXT = /^(png|jpe?g|gif|bmp|svg|webp|avif)$/i;
@@ -471,7 +472,8 @@ export class WordModeView extends TextFileView {
     this.pm.focus();
     let ok = false;
     try { ok = document.execCommand(kind); } catch (e) { ok = false; }
-    if (!ok) new Notice(t(kind === 'cut' ? t('請按 {k} 剪下') : t('請按 {k} 複製'), { k: key(kind === 'cut' ? 'Mod+X' : 'Mod+C') }));
+    // 外層 t() 收到的是已經翻譯過的文字，不一定是鍵；找不到時 t() 原樣回傳，只負責代入 {k}
+    if (!ok) new Notice(t((kind === 'cut' ? t('請按 {k} 剪下') : t('請按 {k} 複製')) as I18nKey, { k: key(kind === 'cut' ? 'Mod+X' : 'Mod+C') }));
   }
 
   // ---------------------------------------------------------- 字數統計與註解
@@ -498,7 +500,8 @@ export class WordModeView extends TextFileView {
     const all = stats(0, st.doc.content.size);
     const sel = st.selection.empty ? null : stats(st.selection.from, st.selection.to);
     const f = (n: number) => n.toLocaleString();
-    const row = (label: string, k: keyof WordStats): WordCountRow => [t(label), f(all[k]), sel ? f(sel[k]) : null];
+    // 呼叫端傳進來的 label 已經用 t() 翻譯過，不一定是鍵；再翻一次，找不到時 t() 原樣回傳
+    const row = (label: string, k: keyof WordStats): WordCountRow => [t(label as I18nKey), f(all[k]), sel ? f(sel[k]) : null];
     const rows: WordCountRow[] = [];
     if (sel) rows.push(['', t('整份文件'), t('選取範圍')]);
     rows.push(row(t('字數'), 'words'), row(t('字元數（不含空白）'), 'chars'), row(t('字元數（含空白）'), 'charsSp'),
