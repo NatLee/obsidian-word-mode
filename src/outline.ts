@@ -172,6 +172,11 @@ export class OutlineView extends ItemView {
     else if (v instanceof MarkdownView && v.getMode() === 'source' && v.editor) at = v.editor.getCursor().line;
     let cur = null;
     if (at != null) for (const h of this.heads!) { const p = v.pm ? h.pos : h.line; if (p! <= at) cur = h; else break; }
-    for (const { h, row } of this.rows) row.toggleClass('is-current', h === cur);
+    for (const { h, row } of this.rows) {
+      const on = h === cur;
+      // 目前的標題換了：捲到看得見的地方
+      if (on && !row.hasClass('is-current') && row.scrollIntoView) row.scrollIntoView({ block: 'nearest' });
+      row.toggleClass('is-current', on);
+    }
   }
 }

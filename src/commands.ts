@@ -376,7 +376,7 @@ export function currentAlign(state: EditorState): Align | null {
   if (isInTable(state)) {
     const $f = state.selection.$from;
     // 儲存格的 align 型別是 string（從網頁貼上時可能帶入其他 CSS text-align 值）；與原本一樣照原值回傳
-    for (let d = $f.depth; d > 0; d--) { const n = $f.node(d); if (n.type === N.table_cell || n.type === N.table_header) return ((n.attrs as TableCellAttrs).align || 'left') as Align; }
+    for (let d = $f.depth; d > 0; d--) { const n = $f.node(d); if (n.type === N.table_cell || n.type === N.table_header) return (n.attrs as TableCellAttrs).align || 'left'; }
   }
   const $f = state.selection.$from;
   if ($f.depth === 1 && $f.parent.type === N.paragraph) return ($f.parent.attrs as BlockFormatAttrs).align || 'left';
