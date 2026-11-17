@@ -1,7 +1,7 @@
 // Obsidian 檢視：以 Word 方式編輯 Markdown 筆記
 import {
   TextFileView, Notice, Menu, MarkdownRenderer, renderMath, finishRenderMath, loadMathJax,
-  setIcon, normalizePath, TFile, TFolder, Platform, Scope, parseYaml, stringifyYaml,
+  setIcon, normalizePath, TFile, TFolder, Vault, Platform, Scope, parseYaml, stringifyYaml,
   Component, MarkdownPreviewRenderer, loadMermaid,
 } from 'obsidian';
 import { EditorView } from 'prosemirror-view';
@@ -1693,7 +1693,7 @@ export class WordModeView extends TextFileView {
     const opts = core && core.enabled !== false && core.instance ? (core.instance.options || {}) : null;
     const folder = opts && opts.folder ? normalizePath(opts.folder) : '';
     if (!folder) { new Notice(t('請先啟用 Templater 外掛，或在 Obsidian 的核心外掛「範本」設定範本資料夾')); return; }
-    const list = this.app.vault.getMarkdownFiles().filter(f => f.path.startsWith(folder + '/')).sort((a, b) => a.path.localeCompare(b.path));
+    const list = this.markdownFilesIn(folder);
     if (!list.length) { new Notice(t('找不到範本（範本資料夾：') + folder + t('）')); return; }
     new FilePicker(this.app, list, t('選擇要套用的範本…'), tf => { void (async () => {
       try {
@@ -1712,14 +1712,22 @@ export class WordModeView extends TextFileView {
     })(); }).open();
   }
 
+  // 某個資料夾（含子資料夾）裡的筆記：只走訪那個資料夾，不列出整個保管庫
+  markdownFilesIn(folder: string): TFile[] {
+    const root = this.app.vault.getAbstractFileByPath(folder);
+    const out: TFile[] = [];
+    if (root instanceof TFolder) Vault.recurseChildren(root, f => { if (f instanceof TFile && f.extension === 'md') out.push(f); });
+    return out.sort((a, b) => a.path.localeCompare(b.path));
+  }
+
   // 套用 Templater 範本：空白筆記直接寫入；已有內容時切到 Markdown 再插入到游標處
   openTemplatePicker(): void {
     if (!this.pm) return;
     const tp = this.app.plugins && this.app.plugins.plugins && this.app.plugins.plugins['templater-obsidian'];
     if (!tp || !tp.templater) { this.openCoreTemplatePicker(); return; }
     const folder = normalizePath(tp.settings.templates_folder || '');
-    const list = this.app.vault.getMarkdownFiles().filter(f => !folder || f.path.startsWith(folder + '/'))
-      .sort((a, b) => a.path.localeCompare(b.path));
+    // Templater 沒有設定範本資料夾時，它自己也是列出整個保管庫的筆記
+    const list = folder ? this.markdownFilesIn(folder) : this.app.vault.getMarkdownFiles().sort((a, b) => a.path.localeCompare(b.path));
     if (!list.length) { new Notice(t('找不到範本（範本資料夾：') + (folder || t('未設定')) + t('）')); return; }
     new FilePicker(this.app, list, t('選擇要套用的範本…'), tf => { void (async () => {
       try {

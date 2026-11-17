@@ -38,7 +38,7 @@ export async function makeEnv(initialFiles = {}, settings = {}) {
       async cachedRead(f) { return files.get(f.path); },
       async modify(f, d) { files.set(f.path, d); },
       async create(p, d) { files.set(p, d); return new mock.TFile(p); },
-      getAbstractFileByPath(p) { if (files.has(p)) return new mock.TFile(p); if ([...files.keys()].some(k => k.startsWith(p + '/'))) return new mock.TFolder(p); return null; },
+      getAbstractFileByPath(p) { if (files.has(p)) return new mock.TFile(p); if ([...files.keys()].some(k => k.startsWith(p + '/'))) return new mock.TFolder(p, [...files.keys()].filter(k => k.startsWith(p + '/')).map(k => new mock.TFile(k))); return null; },
       getResourcePath(f) { return 'app://res/' + f.path; },
       getFiles() { return [...files.keys()].map(p => new mock.TFile(p)); },
       getMarkdownFiles() { return [...files.keys()].filter(p => p.endsWith('.md')).map(p => new mock.TFile(p)); },
