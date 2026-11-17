@@ -76,6 +76,8 @@ Requires Obsidian 1.5.7 or later.
 - **Telemetry**: none.
 - **Accounts and payment**: not required.
 - **Files outside your vault**: never read or written.
+- **File names in your vault**: the plugin lists the files in your vault to offer them in the link, image, and template pickers and in the suggestions after `[[`. The list stays on your device.
+- **Clipboard**: read only when you select **Paste** on the toolbar or in the right-click menu, and written only when you select **Cut**, **Copy**, or a copy button.
 - **Files the plugin creates**: images you paste are saved to your attachment folder. If you choose to keep both versions in a sync conflict, your version is saved as a copy next to the note.
 
 ## Known limitations
@@ -95,8 +97,8 @@ Requires Node.js 22. The source is TypeScript. esbuild bundles it, and `tsc` onl
 | `npm run typecheck` | Check the types with `tsc`. |
 | `npm run lint` | Run ESLint with the rules Obsidian uses to review community plugins. |
 | `npm test` | Check the types, then run the conversion tests and the editing tests, which simulate Obsidian with jsdom. The last line should be `ALL PASS`. |
-| `npm run build` | Build to `dist/` without minifying. |
-| `npm run build:prod` | Build `main.js`, `manifest.json`, and `styles.css` to `dist/`. |
+| `npm run build` | Build `main.js`, `manifest.json`, and `styles.css` to `dist/`. This is the production build. |
+| `npm run dev` | Build to `dist/` without minifying. |
 | `npm run test:vault -- <vault path>` | Round-trip every note in a vault. Read-only. Prints statistics and file paths only. |
 
 After you change `src/markdown.ts` or `src/schema.ts`, run `npm run test:vault` against a real vault and confirm that `notExact` and `lossyBlocks` are both `0`.
@@ -146,19 +148,26 @@ Obsidian APIs that aren't public are declared in one place, `src/obsidian-intern
 | `tsconfig.json` | TypeScript settings. |
 | `build.mjs` | Build script. |
 | `version-bump.mjs` | Syncs the version to `manifest.json` and `versions.json`. |
-| `release-local.mjs` | Publishes a release from your computer. |
+| `release-local.mjs` | Publishes a release from your computer, without attestations. Use it only when GitHub Actions is unavailable. |
 
 ### Releasing
 
 The version number lives in `package.json`. `manifest.json` and `versions.json` are updated from it.
 
-1. Run `npm version patch`, `npm version minor`, or `npm version major`. This updates `package.json`, `manifest.json`, and `versions.json`, then creates a commit and a tag such as `1.2.1`.
-2. Run `git push origin main`.
-3. Run `npm run release:local`. This runs the tests, builds the plugin, pushes the tag, and creates a GitHub release with `main.js`, `manifest.json`, and `styles.css` attached. It requires the [GitHub CLI](https://cli.github.com) and doesn't use GitHub Actions.
+1. Run `npm version patch`, `npm version minor`, or `npm version major`. This updates `package.json`, `manifest.json`, and `versions.json`, then creates a commit and a tag such as `1.3.1`.
+2. Run `git push origin main --follow-tags`.
+
+Pushing the tag starts the release workflow on GitHub Actions. It runs the tests, builds the plugin, creates a [build provenance attestation](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations/using-artifact-attestations-to-establish-provenance-for-builds) for `main.js`, `manifest.json`, and `styles.css`, and attaches them to a GitHub release. Release files are always built there, so anyone can verify that they come from this source:
+
+```sh
+gh attestation verify main.js --repo NatLee/obsidian-word-mode
+```
 
 The tag must match the version exactly, without a `v` prefix, because Obsidian looks for a release with that tag.
 
-The CI and release workflows don't run automatically. To run one, open the **Actions** tab, select the workflow, and then select **Run workflow**. For the release workflow, select the tag to release under **Use workflow from**.
+`npm run build` is the production build, and it is the build the Obsidian community directory runs to check a release against the source.
+
+The CI workflow doesn't run automatically. To run it, open the **Actions** tab, select **CI**, and then select **Run workflow**.
 
 ## Credits
 
