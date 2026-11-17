@@ -95,11 +95,12 @@ Word Mode 替 `.md` 筆記多加一種編輯器。畫面上看到的是排版好
 版本號寫在 `package.json`，`manifest.json` 與 `versions.json` 會跟著更新。
 
 1. 執行 `npm version patch`、`npm version minor` 或 `npm version major`。這會更新 `package.json`、`manifest.json`、`versions.json`，並建立 commit 與 tag（例如 `1.2.1`）。
-2. 執行 `git push origin main --follow-tags`。
+2. 執行 `git push origin main`。
+3. 執行 `npm run release:local`。這會跑測試、建置外掛、推 tag，並建立附有 `main.js`、`manifest.json`、`styles.css` 的 GitHub Release。需要 [GitHub CLI](https://cli.github.com)，不使用 GitHub Actions。
 
-接著 release workflow 會跑測試、建置外掛，並把 `main.js`、`manifest.json`、`styles.css` 附到 GitHub Release。tag 必須與版本號完全相同，前面不加 `v`，因為 Obsidian 會找這個 tag 的 Release。
+tag 必須與版本號完全相同，前面不加 `v`，因為 Obsidian 會找這個 tag 的 Release。
 
-CI workflow 不會在 push 時自動執行。要執行時，到 **Actions** 分頁選 **CI**，再選 **Run workflow**。
+CI 與 release workflow 都不會自動執行。要執行時，到 **Actions** 分頁選擇 workflow，再選 **Run workflow**。release workflow 要在「Use workflow from」選擇要發佈的 tag。
 
 ## 致謝
 
@@ -111,4 +112,4 @@ Word Mode 打包了這些開放原始碼函式庫：
 
 ## 授權
 
-尚未選定授權，保留所有權利。
+[MIT 授權](LICENSE)。

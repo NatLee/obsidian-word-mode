@@ -4,7 +4,7 @@
   "private": true,
   "description": "Obsidian plugin that lets you edit Markdown notes like a Word document while keeping the files clean Markdown.",
   "author": "NatLee",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "type": "module",
   "repository": {
     "type": "git",
@@ -15,6 +15,7 @@
     "build:prod": "node build.mjs --prod",
     "test": "node tests/basic.mjs && node tests/view/build-test.mjs && node tests/view/test.mjs",
     "test:vault": "node tests/vault-check.mjs",
+    "release:local": "node release-local.mjs",
     "version": "node version-bump.mjs && git add manifest.json versions.json"
   },
   "dependencies": {

@@ -115,17 +115,19 @@ Don't keep this folder or `node_modules` inside a folder that a sync client watc
 | `tests/` | Conversion tests, editing tests, and the vault round-trip check. |
 | `build.mjs` | Build script. |
 | `version-bump.mjs` | Syncs the version to `manifest.json` and `versions.json`. |
+| `release-local.mjs` | Publishes a release from your computer. |
 
 ### Releasing
 
 The version number lives in `package.json`. `manifest.json` and `versions.json` are updated from it.
 
 1. Run `npm version patch`, `npm version minor`, or `npm version major`. This updates `package.json`, `manifest.json`, and `versions.json`, then creates a commit and a tag such as `1.2.1`.
-2. Run `git push origin main --follow-tags`.
+2. Run `git push origin main`.
+3. Run `npm run release:local`. This runs the tests, builds the plugin, pushes the tag, and creates a GitHub release with `main.js`, `manifest.json`, and `styles.css` attached. It requires the [GitHub CLI](https://cli.github.com) and doesn't use GitHub Actions.
 
-The release workflow then runs the tests, builds the plugin, and attaches `main.js`, `manifest.json`, and `styles.css` to a GitHub release. The tag must match the version exactly, without a `v` prefix, because Obsidian looks for a release with that tag.
+The tag must match the version exactly, without a `v` prefix, because Obsidian looks for a release with that tag.
 
-The CI workflow doesn't run on push. To run it, open the **Actions** tab, select **CI**, and then select **Run workflow**.
+The CI and release workflows don't run automatically. To run one, open the **Actions** tab, select the workflow, and then select **Run workflow**. For the release workflow, select the tag to release under **Use workflow from**.
 
 ## Credits
 
@@ -137,4 +139,4 @@ Word Mode bundles these open source libraries:
 
 ## License
 
-No license has been chosen yet. All rights reserved.
+[MIT License](LICENSE).
