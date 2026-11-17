@@ -557,6 +557,7 @@
 .wm-demo-target { border-radius: 2px; }
 .wm-demo-lines { display: flex; flex-direction: column; gap: 6px; }
 .wm-demo-bar { height: 6px; border-radius: 3px; background: var(--text-faint); opacity: .7; }
+.wm-demo-bar-wide { width: 80%; }
 @keyframes wm-fmt { 0%, 22% { --x: 0; } 40%, 85% { --x: 1; } 100% { --x: 0; } }
 @keyframes wm-bold { 0%, 25%, 100% { font-weight: 400; } 40%, 85% { font-weight: 700; } }
 @keyframes wm-italic { 0%, 25%, 100% { font-style: normal; } 40%, 85% { font-style: italic; } }

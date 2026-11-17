@@ -420,6 +420,35 @@ await fresh('> [!note]- 預設收合\n> 內容\n\n> [!tip] 一般\n> 內容\n');
   assert(/^開頭\n\n## 測試 的會議\n\n日期：\d{4}|^開頭## 測試/.test(out()) && !out().includes('tags'), '插入範本：{{title}}、{{date}} 會換成內容，範本的屬性不插入：' + JSON.stringify(out()));
 }
 
+// ======== 編輯器還沒載入時，工具列與尋找列的動作不應該出錯 ========
+// 開啟分頁到筆記載入完成之間，以及筆記解析失敗時，view.pm 是 null，但工具列已經可以按。
+{
+  const { view } = await makeEnv();
+  assert(view.pm == null, '還沒開啟筆記時沒有編輯器');
+  const btn = document.createElement('button');
+  document.body.appendChild(btn);
+  const d = view.toolbar.ctx.dialogs;
+  const tb = view.toolbar;
+  const fb = view.findBar;
+  const actions = {
+    find: () => d.find(), replace: () => d.replace(), paste: () => d.paste('text'), clip: () => d.clip('copy'),
+    toggleMarks: () => d.toggleMarks(), image: () => d.image(btn), equation: () => d.equation(), mermaid: () => d.mermaid(),
+    link: () => d.link(), noteLink: () => d.noteLink(), footnote: () => d.footnote(), callout: () => d.callout(btn),
+    comment: () => d.comment(), template: () => d.template && d.template(), properties: () => d.properties(),
+    cleanup: () => d.cleanup(), wordCount: () => d.wordCount(), outline: () => d.outline(btn), foldAll: () => d.foldAll(true),
+    scrollTo: () => d.scrollTo(1),
+    sort: () => tb.sortCmd(1), stylePopup: () => tb.openStylePopup(btn), tablePopup: () => tb.openTablePopup(btn),
+    findStep: () => fb.step(1), findReveal: () => fb.reveal(), findReplaceOne: () => fb.replaceOne(), findReplaceAll: () => fb.replaceAll(),
+    findCase: () => fb.caseBtn.click(), findWord: () => fb.wordBtn.click(), findRegex: () => fb.regexBtn.click(),
+  };
+  const failed = [];
+  for (const [name, run] of Object.entries(actions)) {
+    try { await run(); } catch (e) { failed.push(name + '（' + e.message + '）'); }
+  }
+  assert(failed.length === 0, '編輯器還沒載入時按工具列與尋找列不會出錯' + (failed.length ? '：' + failed.join('、') : ''));
+  btn.remove();
+}
+
 //@@MORE@@
 
 finish();

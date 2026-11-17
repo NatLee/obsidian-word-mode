@@ -4,13 +4,19 @@
 
 Edit Markdown notes in [Obsidian](https://obsidian.md) like a Word document, with a ribbon toolbar, tables, and images. Notes are still saved as clean Markdown.
 
+![The same note as plain Markdown on disk and as formatted text in Word mode (illustration)](docs/images/overview.en.svg)
+
 ## What it does
 
 Word Mode adds a second editor for `.md` notes. You see formatted text instead of Markdown syntax, and you format with toolbar buttons and the keyboard shortcuts you know from a word processor.
 
 Your files stay plain Markdown. When you edit a note, only the blocks you changed are written again. Everything else is kept exactly as it was, character for character.
 
+![When you change one paragraph, only that block is rewritten in the saved file (illustration)](docs/images/saving.en.svg)
+
 ## Features
+
+![The Insert tab of the ribbon toolbar (illustration)](docs/images/ribbon.en.svg)
 
 - **Ribbon toolbar** with Home, Insert, Review, and View tabs.
 - **Tables** you edit in place: add and remove rows and columns, set alignment, and paste cells from a spreadsheet.
@@ -81,53 +87,63 @@ Requires Obsidian 1.5.7 or later.
 
 ## Development
 
-Requires Node.js 22.
+Requires Node.js 22. The source is TypeScript. esbuild bundles it, and `tsc` only checks the types.
 
 | Command | Description |
 | --- | --- |
 | `npm install` | Install dependencies. |
-| `npm test` | Run the conversion tests and the editing tests, which simulate Obsidian with jsdom. The last line should be `ALL PASS`. |
+| `npm run typecheck` | Check the types with `tsc`. |
+| `npm run lint` | Run ESLint with the rules Obsidian uses to review community plugins. |
+| `npm test` | Check the types, then run the conversion tests and the editing tests, which simulate Obsidian with jsdom. The last line should be `ALL PASS`. |
 | `npm run build` | Build to `dist/` without minifying. |
 | `npm run build:prod` | Build `main.js`, `manifest.json`, and `styles.css` to `dist/`. |
 | `npm run test:vault -- <vault path>` | Round-trip every note in a vault. Read-only. Prints statistics and file paths only. |
 
-After you change `src/markdown.js` or `src/schema.js`, run `npm run test:vault` against a real vault and confirm that `notExact` and `lossyBlocks` are both `0`.
+After you change `src/markdown.ts` or `src/schema.ts`, run `npm run test:vault` against a real vault and confirm that `notExact` and `lossyBlocks` are both `0`.
 
 Don't keep this folder or `node_modules` inside a folder that a sync client watches, such as Synology Drive.
+
+The `obsidian` typings are pinned to the version in `minAppVersion`, so using an Obsidian API newer than the plugin supports fails the type check. To raise the minimum version, update `minAppVersion` in `manifest.json` and install the matching `obsidian` package.
+
+Obsidian APIs that aren't public are declared in one place, `src/obsidian-internal.d.ts`, each as optional. Check that a member exists before you call it.
 
 ### Project structure
 
 | Path | Contents |
 | --- | --- |
-| `src/main.js` | Plugin entry point and settings tab. |
-| `src/view.js` | The Word mode view (`TextFileView`). |
-| `src/markdown.js` | Conversion between Markdown and the document model. |
-| `src/schema.js` | Document model (ProseMirror schema). |
-| `src/editor.js` | Editor state setup. |
-| `src/commands.js` | Editing commands. Pure ProseMirror, no Obsidian dependency. |
-| `src/toolbar.js` | Ribbon toolbar. |
-| `src/mdbar.js` | Toolbar shown in Markdown and reading mode. |
-| `src/bubble.js` | Floating toolbar for links and images. |
-| `src/nodeviews.js` | Rendering of links, images, tables, and raw blocks. |
-| `src/links.js` | Link and image detection. |
-| `src/paste.js` | Paste handling for spreadsheets and Markdown text. |
-| `src/find.js` | Find and replace. |
-| `src/fold.js` | Heading folding. |
-| `src/outline.js` | Outline sidebar. |
-| `src/marks.js` | Formatting marks and stray-character cleanup. |
-| `src/codehl.js` | Syntax highlighting for code blocks. |
-| `src/autoformat.js` | Formatting as you type. |
-| `src/suggest.js`, `src/complete.js` | Suggestions for notes, headings, and tags. |
-| `src/dialogs.js` | Dialogs: links, equations, shortcuts, cleanup, word count. |
-| `src/mathvisual.js` | Visual equation editor. |
-| `src/mermaid.js`, `src/flowchart.js` | Diagram editor, and the flowchart parser behind its form. |
-| `src/embeds.js` | Embedded notes, media, and PDFs. |
-| `src/footnotes.js` | Footnote commands. |
-| `src/decoutil.js`, `src/dom.js`, `src/textstats.js` | Shared helpers. |
-| `src/hints.js` | Detailed button tooltips. |
-| `src/i18n.js`, `src/i18n-*.js` | Translations, keyed by the Traditional Chinese text. |
+| `src/main.ts` | Plugin entry point and settings tab. |
+| `src/view.ts` | The Word mode view (`TextFileView`). |
+| `src/markdown.ts` | Conversion between Markdown and the document model. |
+| `src/schema.ts` | Document model (ProseMirror schema). |
+| `src/editor.ts` | Editor state setup. |
+| `src/commands.ts` | Editing commands. Pure ProseMirror, no Obsidian dependency. |
+| `src/toolbar.ts` | Ribbon toolbar. |
+| `src/mdbar.ts` | Toolbar shown in Markdown and reading mode. |
+| `src/bubble.ts` | Floating toolbar for links and images. |
+| `src/nodeviews.ts` | Rendering of links, images, tables, and raw blocks. |
+| `src/links.ts` | Link and image detection. |
+| `src/paste.ts` | Paste handling for spreadsheets and Markdown text. |
+| `src/find.ts` | Find and replace. |
+| `src/fold.ts` | Heading folding. |
+| `src/outline.ts` | Outline sidebar. |
+| `src/marks.ts` | Formatting marks and stray-character cleanup. |
+| `src/codehl.ts` | Syntax highlighting for code blocks. |
+| `src/autoformat.ts` | Formatting as you type. |
+| `src/suggest.ts`, `src/complete.ts` | Suggestions for notes, headings, and tags. |
+| `src/dialogs.ts` | Dialogs: links, equations, shortcuts, cleanup, word count. |
+| `src/mathvisual.ts` | Visual equation editor. |
+| `src/mermaid.ts`, `src/flowchart.ts` | Diagram editor, and the flowchart parser behind its form. |
+| `src/embeds.ts` | Embedded notes, media, and PDFs. |
+| `src/footnotes.ts` | Footnote commands. |
+| `src/decoutil.ts`, `src/dom.ts`, `src/textstats.ts` | Shared helpers. |
+| `src/hints.ts` | Detailed button tooltips. |
+| `src/i18n.ts`, `src/i18n-*.ts` | Translations, keyed by the Traditional Chinese text. An interface string with no entry in the English dictionary fails the type check. |
+| `src/obsidian-internal.d.ts` | Declarations for the Obsidian APIs the plugin uses that aren't public. |
+| `src/globals.d.ts`, `src/markdown-it-mark.d.ts` | Declarations for globals and for a dependency that ships no types. |
 | `styles/word-mode.css` | Styles. |
-| `tests/` | Conversion tests, editing tests, and the vault round-trip check. |
+| `tests/` | Conversion tests, editing tests, and the vault round-trip check. `tests/run.mjs` bundles a test with esbuild before running it. |
+| `docs/images/` | The illustrations in the READMEs. `node docs/images/generate.mjs` redraws them in all four languages from the plugin's interface text. |
+| `tsconfig.json` | TypeScript settings. |
 | `build.mjs` | Build script. |
 | `version-bump.mjs` | Syncs the version to `manifest.json` and `versions.json`. |
 | `release-local.mjs` | Publishes a release from your computer. |

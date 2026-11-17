@@ -4,13 +4,19 @@
 
 把 [Obsidian](https://obsidian.md) 的 Markdown 筆記變成像 Word 一樣編輯：有工具列、表格、圖片，存檔仍然是乾淨的 Markdown。
 
+![同一份筆記：磁碟上是純 Markdown，Word 模式裡是排版好的文字（示意圖）](docs/images/overview.zh-TW.svg)
+
 ## 這個外掛做什麼
 
 Word Mode 替 `.md` 筆記多加一種編輯器。畫面上看到的是排版好的文字，不是 Markdown 符號；用工具列按鈕和文書軟體常見的快速鍵就能設定格式。
 
 檔案仍然是純 Markdown。編輯筆記時，只有修改過的區塊會重新輸出，其餘部分一字不差保留原文。
 
+![修改一個段落後，存檔只重新輸出那個區塊（示意圖）](docs/images/saving.zh-TW.svg)
+
 ## 功能
+
+![功能區工具列的「插入」分頁（示意圖）](docs/images/ribbon.zh-TW.svg)
 
 - **功能區工具列**：常用、插入、校閱、檢視四個分頁。
 - **表格**：直接在表格裡編輯，可以增刪列與欄、設定對齊，也可以從試算表貼上儲存格。
@@ -81,19 +87,25 @@ Word Mode 替 `.md` 筆記多加一種編輯器。畫面上看到的是排版好
 
 ## 開發
 
-需要 Node.js 22。
+需要 Node.js 22。原始碼是 TypeScript，由 esbuild 打包，`tsc` 只負責檢查型別。
 
 | 指令 | 說明 |
 | --- | --- |
 | `npm install` | 安裝相依套件。 |
-| `npm test` | 執行轉換測試與編輯測試（以 jsdom 模擬 Obsidian）。最後一行應是 `ALL PASS`。 |
+| `npm run typecheck` | 用 `tsc` 檢查型別。 |
+| `npm run lint` | 執行 ESLint，使用 Obsidian 審查社群外掛的同一套規則。 |
+| `npm test` | 先檢查型別，再執行轉換測試與編輯測試（以 jsdom 模擬 Obsidian）。最後一行應是 `ALL PASS`。 |
 | `npm run build` | 建置到 `dist/`，不壓縮。 |
 | `npm run build:prod` | 建置 `main.js`、`manifest.json`、`styles.css` 到 `dist/`。 |
 | `npm run test:vault -- <vault 路徑>` | 對 vault 裡每一份筆記做往返檢查。唯讀，只輸出統計與檔案路徑。 |
 
-修改 `src/markdown.js` 或 `src/schema.js` 之後，請對真實的 vault 執行 `npm run test:vault`，確認 `notExact` 與 `lossyBlocks` 都是 `0`。
+修改 `src/markdown.ts` 或 `src/schema.ts` 之後，請對真實的 vault 執行 `npm run test:vault`，確認 `notExact` 與 `lossyBlocks` 都是 `0`。
 
 不要把這個資料夾或 `node_modules` 放在同步軟體監看的資料夾裡，例如 Synology Drive。
+
+`obsidian` 的型別套件鎖在 `minAppVersion` 的版本，所以用到比外掛支援版本更新的 Obsidian API 時，型別檢查會失敗。要提高最低版本時，請更新 `manifest.json` 的 `minAppVersion`，並安裝對應版本的 `obsidian` 套件。
+
+Obsidian 沒有公開的 API 集中宣告在 `src/obsidian-internal.d.ts`，全部標成可能不存在。呼叫之前請先檢查該成員是否存在。
 
 程式結構請看[英文版 README](README.md#project-structure)。
 

@@ -15,6 +15,11 @@ if (out('git', ['rev-parse', '--abbrev-ref', 'HEAD']) !== 'main') fail('請在 m
 run('git', ['fetch', '--quiet', 'origin', 'main']);
 if (out('git', ['rev-parse', 'HEAD']) !== out('git', ['rev-parse', 'origin/main'])) fail('本機的 main 與 origin/main 不同，請先 push 或 pull。');
 
+// tag 已經存在時，必須指向現在要發佈的這個 commit；否則 Release 的檔案會跟 tag 的原始碼對不上
+if (out('git', ['tag', '--list', version]) === version && out('git', ['rev-list', '-n', '1', version]) !== out('git', ['rev-parse', 'HEAD'])) {
+  fail(`tag ${version} 已經存在，但指向的不是目前的 commit。請先升版（npm version），或確認要發佈的是哪一個 commit。`);
+}
+
 run('npm', ['test']);
 run('npm', ['run', 'build:prod']);
 

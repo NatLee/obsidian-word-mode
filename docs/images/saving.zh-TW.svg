@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 430" width="1200" height="430" role="img" aria-label="只有修改過的區塊會重新輸出，其餘部分一字不差保留原文。">
+<title>只有修改過的區塊會重新輸出，其餘部分一字不差保留原文。</title>
+<rect x="0.5" y="0.5" width="1199" height="429" rx="10" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1"/>
+<text x="30" y="44" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="15" fill="#1f2328" font-weight="600">Markdown 檔案</text>
+<text x="435" y="44" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="15" fill="#1f2328" font-weight="600">在 Word 模式改了一個段落</text>
+<text x="840" y="44" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="15" fill="#1f2328" font-weight="600">存檔後的檔案</text>
+<rect x="30" y="66" width="330" height="56" rx="7" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+<text x="46" y="100" font-family="ui-monospace, 'Cascadia Mono', Consolas, 'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', monospace" font-size="13" fill="#1f2328"># 週會紀錄</text>
+<rect x="30" y="134" width="330" height="56" rx="7" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+<text x="46" y="168" font-family="ui-monospace, 'Cascadia Mono', Consolas, 'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', monospace" font-size="13" fill="#1f2328">本週**重點**：完成第一版。</text>
+<rect x="30" y="202" width="330" height="56" rx="7" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+<text x="46" y="236" font-family="ui-monospace, 'Cascadia Mono', Consolas, 'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', monospace" font-size="13" fill="#1f2328">- [x] 更新文件  …</text>
+<rect x="30" y="270" width="330" height="56" rx="7" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+<text x="46" y="304" font-family="ui-monospace, 'Cascadia Mono', Consolas, 'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', monospace" font-size="13" fill="#1f2328">| 項目 | 負責人 |  …</text>
+<rect x="435" y="66" width="330" height="260" rx="7" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+<text x="457" y="108" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="21" fill="#1f2328" font-weight="700">週會紀錄</text>
+<rect x="447" y="136" width="306" height="52" rx="6" fill="#fff1e0" stroke="#f0a54a" stroke-width="1"/>
+<text x="457" y="169" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="14" fill="#1f2328" xml:space="preserve"><tspan>本週</tspan><tspan font-weight="700">重點</tspan><tspan>：</tspan><tspan fill="#b35900" font-weight="600">週五前</tspan><tspan>完成第一版。</tspan></text>
+<rect x="458" y="223" width="14" height="14" rx="3" fill="#6f52d9"/>
+<path d="M461 230.5l3 3 5-6" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="481" y="236" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="14" fill="#656d76" text-decoration="line-through">更新文件</text>
+<rect x="457" y="278" width="200" height="20" rx="0" fill="#f3f4f6"/>
+<text x="465" y="292.5" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="12" fill="#1f2328" font-weight="600">項目</text>
+<text x="565" y="292.5" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="12" fill="#1f2328" font-weight="600">負責人</text>
+<text x="465" y="312.5" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="12" fill="#1f2328">測試</text>
+<text x="565" y="312.5" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="12" fill="#1f2328">小明</text>
+<line x1="457" y1="278" x2="657" y2="278" stroke="#c9d1d9" stroke-width="1"/>
+<line x1="457" y1="298" x2="657" y2="298" stroke="#c9d1d9" stroke-width="1"/>
+<line x1="457" y1="318" x2="657" y2="318" stroke="#c9d1d9" stroke-width="1"/>
+<line x1="457" y1="278" x2="457" y2="318" stroke="#c9d1d9" stroke-width="1"/>
+<line x1="557" y1="278" x2="557" y2="318" stroke="#c9d1d9" stroke-width="1"/>
+<line x1="657" y1="278" x2="657" y2="318" stroke="#c9d1d9" stroke-width="1"/>
+<rect x="840" y="66" width="330" height="56" rx="7" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+<text x="856" y="90" font-family="ui-monospace, 'Cascadia Mono', Consolas, 'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', monospace" font-size="13" fill="#1f2328"># 週會紀錄</text>
+<path d="M857 107l3 3 5.5-6.5" fill="none" stroke="#1a7f37" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="872" y="112" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="11.5" fill="#1a7f37" font-weight="600">原樣保留</text>
+<rect x="840" y="134" width="330" height="56" rx="7" fill="#fff1e0" stroke="#f0a54a" stroke-width="1"/>
+<text x="856" y="158" font-family="ui-monospace, 'Cascadia Mono', Consolas, 'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', monospace" font-size="13" fill="#1f2328">本週**重點**：週五前完成第一版。</text>
+<path d="M857 179l8-8M862 171h3v3" fill="none" stroke="#b35900" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="872" y="180" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="11.5" fill="#b35900" font-weight="600">重新輸出</text>
+<rect x="840" y="202" width="330" height="56" rx="7" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+<text x="856" y="226" font-family="ui-monospace, 'Cascadia Mono', Consolas, 'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', monospace" font-size="13" fill="#1f2328">- [x] 更新文件  …</text>
+<path d="M857 243l3 3 5.5-6.5" fill="none" stroke="#1a7f37" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="872" y="248" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="11.5" fill="#1a7f37" font-weight="600">原樣保留</text>
+<rect x="840" y="270" width="330" height="56" rx="7" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+<text x="856" y="294" font-family="ui-monospace, 'Cascadia Mono', Consolas, 'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', monospace" font-size="13" fill="#1f2328">| 項目 | 負責人 |  …</text>
+<path d="M857 311l3 3 5.5-6.5" fill="none" stroke="#1a7f37" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="872" y="316" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="11.5" fill="#1a7f37" font-weight="600">原樣保留</text>
+<line x1="376" y1="196" x2="412" y2="196" stroke="#8c959f" stroke-width="2" stroke-linecap="round"/><path d="M410 190 L419 196 L410 202" fill="none" stroke="#8c959f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="781" y1="196" x2="817" y2="196" stroke="#8c959f" stroke-width="2" stroke-linecap="round"/><path d="M815 190 L824 196 L815 202" fill="none" stroke="#8c959f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="600" y="384" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="14" fill="#1f2328" text-anchor="middle">只有修改過的區塊會重新輸出，其餘部分一字不差保留原文。</text>
+<text x="1172" y="414" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="11.5" fill="#8c959f" text-anchor="end">示意圖</text>
+</svg>
