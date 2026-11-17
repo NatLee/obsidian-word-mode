@@ -376,7 +376,7 @@ export function currentAlign(state: EditorState): Align | null {
   if (isInTable(state)) {
     const $f = state.selection.$from;
     // 儲存格的 align 型別是 string（從網頁貼上時可能帶入其他 CSS text-align 值）；與原本一樣照原值回傳
-    for (let d = $f.depth; d > 0; d--) { const n = $f.node(d); if (n.type === N.table_cell || n.type === N.table_header) return ((n.attrs as TableCellAttrs).align || 'left') as Align; }
+    for (let d = $f.depth; d > 0; d--) { const n = $f.node(d); if (n.type === N.table_cell || n.type === N.table_header) return (n.attrs as TableCellAttrs).align || 'left'; }
   }
   const $f = state.selection.$from;
   if ($f.depth === 1 && $f.parent.type === N.paragraph) return ($f.parent.attrs as BlockFormatAttrs).align || 'left';
@@ -843,6 +843,8 @@ export function moveBlock(dir: Direction): Command {
     const target = index + dir;
     if (target < 0 || target >= parent.childCount) return false;
     const node = $from.node(d);
+    // 表格的標題列固定在最上面：標題列不能搬，其他列也不能搬到它上面
+    if (node.type === N.table_row && (index === 0 || target === 0)) return false;
     const start = $from.before(d);
     const end = $from.after(d);
     if ($to.pos > end) return false;
@@ -905,6 +907,44 @@ export function sortTableByColumn(dir: Direction): Command {
       const tr = state.tr.replaceWith(pos, pos + table.nodeSize, node);
       try { tr.setSelection(TextSelection.near(tr.doc.resolve(Math.min(state.selection.from, tr.doc.content.size)))); } catch { /* 保持預設 */ }
       dispatch(tr);
+    }
+    return true;
+  };
+}
+
+// 把游標所在的欄與左邊／右邊的欄交換（每一列都換，對齊跟著欄走）
+export function moveTableColumn(dir: Direction): Command {
+  return (state, dispatch) => {
+    const $from = state.selection.$from;
+    let tDepth: number | null = null;
+    for (let i = $from.depth; i > 0; i--) if ($from.node(i).type === N.table) { tDepth = i; break; }
+    if (tDepth == null || $from.depth < tDepth + 2) return false;
+    const table = $from.node(tDepth);
+    const rowIndex = $from.index(tDepth);
+    const col = $from.index(tDepth + 1);
+    const to = col + dir;
+    if (to < 0 || to >= table.child(rowIndex).childCount) return false;
+    if (dispatch) {
+      const rows: PMNode[] = [];
+      table.forEach(r => {
+        // 格數不夠的列（不整齊的表格）不動
+        if (r.childCount <= Math.max(col, to)) { rows.push(r); return; }
+        const cells: PMNode[] = [];
+        r.forEach(c => cells.push(c));
+        [cells[col], cells[to]] = [cells[to], cells[col]];
+        rows.push(r.type.create(r.attrs, cells));
+      });
+      const pos = $from.before(tDepth);
+      const node = table.type.create(table.attrs, rows);
+      const tr = state.tr.replaceWith(pos, pos + table.nodeSize, node);
+      // 游標跟著搬過去的儲存格：算出它在新表格裡的位置，加上游標原本在儲存格裡的偏移
+      let cellPos = pos + 1;
+      for (let r = 0; r < rowIndex; r++) cellPos += node.child(r).nodeSize;
+      cellPos += 1;
+      for (let c = 0; c < to; c++) cellPos += node.child(rowIndex).child(c).nodeSize;
+      const offset = $from.pos - $from.before(tDepth + 2);
+      try { tr.setSelection(TextSelection.near(tr.doc.resolve(cellPos + offset))); } catch { /* 保持預設 */ }
+      dispatch(tr.scrollIntoView());
     }
     return true;
   };

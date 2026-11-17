@@ -3,6 +3,8 @@ import { CALLOUT_TYPES, calloutIcon, CODE_LANGUAGES } from './commands.js';
 import { t, key } from './i18n.js';
 import { FOOTNOTE_DEF, FOOTNOTE_REF, footnoteBody } from './footnotes.js';
 import { el } from './dom.js';
+import { propType, isTagKey, summarize, propLink, convertProp, renameProp, propsSummary } from './props.js';
+import type { PropType } from './props.js';
 import type { Attrs, Node as PMNode } from 'prosemirror-model';
 import type { Selection } from 'prosemirror-state';
 import type { EditorView, NodeView, NodeViewConstructor, ViewMutationRecord } from 'prosemirror-view';
@@ -39,6 +41,8 @@ export interface NodeViewContext {
   renderMath(src: string, el: HTMLElement, display: boolean): void;
   // 這個語言（程式碼區塊的 params）在 Obsidian 會不會顯示成結果
   canPreview?(lang: string): boolean;
+  // 程式碼區塊要不要顯示行號
+  lineNumbers?(): boolean;
   // ---- 對話框、選單、通知
   editSource(title: string, src: string, onSave: TextCallback): void;
   prompt(title: string, value: string, placeholder: string, onSave: TextCallback): void;
@@ -439,20 +443,12 @@ class RawInlineView implements NodeView {
   ignoreMutation(): boolean { return true; }
 }
 
-// 文件屬性（frontmatter / metadata）：像 Word 的「摘要資訊」，以表單編輯，存回 YAML
-const LIST_KEYS = /^(tags|aliases|cssclasses|cssclass|alias|tag)$/i;
-type PropType = 'text' | 'list' | 'number' | 'checkbox' | 'date' | 'datetime' | 'object';
-function propType(key: string, value: unknown, hint?: string | null): PropType {
-  if (hint === 'multitext' || hint === 'tags' || hint === 'aliases' || Array.isArray(value) || LIST_KEYS.test(key)) return 'list';
-  if (hint === 'checkbox' || typeof value === 'boolean') return 'checkbox';
-  if (hint === 'number' || typeof value === 'number') return 'number';
-  if (hint === 'date' || (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value))) return 'date';
-  if (hint === 'datetime' || (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value))) return 'datetime';
-  if (value && typeof value === 'object') return 'object';
-  return 'text';
-}
+// 文件屬性（frontmatter / metadata）：像 Word 的「摘要資訊」，以表單編輯，存回 YAML。
+// 類型的判斷與轉換在 props.ts。
 const TYPE_LABEL: Record<PropType, string> = { text: t('文字'), list: t('清單'), number: t('數字'), checkbox: t('核取方塊'), date: t('日期'), datetime: t('日期時間'), object: t('其他') };
 const TYPE_ICON: Record<PropType, string> = { text: 'text', list: 'list', number: 'binary', checkbox: 'check-square', date: 'calendar', datetime: 'clock', object: 'braces' };
+// 可以從選單換成的類型（巢狀資料只能用原文編輯）
+const EDITABLE_TYPES: Exclude<PropType, 'object'>[] = ['text', 'list', 'number', 'checkbox', 'date', 'datetime'];
 
 class FrontmatterView implements NodeView {
   declare node: PMNode;
@@ -505,11 +501,14 @@ class FrontmatterView implements NodeView {
     const open = this.ctx.propsOpen();
     const d = this.dom;
     d.replaceChildren();
+    d.classList.toggle('is-collapsed', !open);
     const obj = this.data();
     const head = el('div', 'wm-props-head', d);
     const chev = el('span', 'wm-props-chev', head); this.ctx.icon(chev, open ? 'chevron-down' : 'chevron-right', open ? '▾' : '▸');
     el('span', 'wm-props-title', head, t('文件屬性'));
-    el('span', 'wm-props-count', head, obj ? Object.keys(obj).length + ' 項' : 'YAML');
+    // 收合時在標題列顯示內容摘要，不用展開也看得到重點
+    const count = obj ? t('{n} 個屬性', { n: Object.keys(obj).length }) : 'YAML';
+    el('span', 'wm-props-count', head, obj && !open ? (propsSummary(obj) || count) : count);
     head.addEventListener('mousedown', e => { e.preventDefault(); this.ctx.setPropsOpen(!this.ctx.propsOpen()); this.render(); });
     const raw = el('button', 'wm-props-raw', head); raw.type = 'button'; raw.setAttribute('aria-label', t('編輯 YAML 原文')); this.ctx.icon(raw, 'code-2', t('原文'));
     raw.addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); this.editRaw(); });
@@ -528,18 +527,27 @@ class FrontmatterView implements NodeView {
   row(body: HTMLElement, obj: PropValues, key: string): void {
     const value = obj[key];
     const type = propType(key, value, this.ctx.propertyType && this.ctx.propertyType(key));
-    const r = el('div', 'wm-prop', body);
+    const r = el('div', 'wm-prop wm-prop-' + type, body);
     const k = el('div', 'wm-prop-key', r);
-    const ic = el('span', 'wm-prop-icon', k); this.ctx.icon(ic, TYPE_ICON[type], '');
-    el('span', null, k, key);
-    // TYPE_LABEL 的值是載入時 t() 的結果，不一定是鍵；再翻一次，找不到時 t() 原樣回傳
-    k.setAttribute('aria-label', key + t('（') + t(TYPE_LABEL[type] as I18nKey) + t('）'));
-    const v = el('div', 'wm-prop-value', r);
     const set = (nv: unknown): void => { const o = Object.assign({}, obj); o[key] = nv; this.commit(o); };
+    // 類型圖示：點一下換類型或改名
+    const ic = el('button', 'wm-prop-icon', k); ic.type = 'button'; this.ctx.icon(ic, TYPE_ICON[type], '');
+    ic.setAttribute('aria-label', t('變更類型或重新命名'));
+    ic.addEventListener('mousedown', e => { e.preventDefault(); this.keyMenu(e, obj, key, type); });
+    const name = el('span', 'wm-prop-name', k, key);
+    name.addEventListener('dblclick', e => { e.preventDefault(); this.rename(obj, key); });
+    // TYPE_LABEL 的值是載入時 t() 的結果，不一定是鍵；再翻一次，找不到時 t() 原樣回傳
+    name.setAttribute('aria-label', key + t('（') + t(TYPE_LABEL[type] as I18nKey) + t('）'));
+    const v = el('div', 'wm-prop-value', r);
     if (type === 'list') {
       const arr: unknown[] = Array.isArray(value) ? value.slice() : (value == null || value === '' ? [] : [value]);
+      const tag = isTagKey(key);
       arr.forEach((item, i) => {
-        const chip = el('span', 'wm-chip', v, String(item));
+        const link = propLink(item);
+        const chip = el('span', 'wm-chip' + (tag ? ' wm-chip-tag' : '') + (link ? ' wm-chip-link' : ''), v);
+        const text = summarize(item);
+        const label = el('span', 'wm-chip-text', chip, link ? link.text : (tag && !text.startsWith('#') ? '#' : '') + text);
+        if (link) this.linkify(label, link.target);
         const x = el('span', 'wm-chip-x', chip, '×');
         x.setAttribute('aria-label', t('移除'));
         x.addEventListener('mousedown', e => { e.preventDefault(); const a = arr.slice(); a.splice(i, 1); set(a); });
@@ -549,7 +557,8 @@ class FrontmatterView implements NodeView {
       const add = () => {
         const tv = inp.value.trim().replace(/^#/, '');
         if (!tv) return;
-        set(arr.concat(tv.split(/[,，]\s*/).filter(Boolean)));
+        // [[筆記|別名]] 裡的逗號不是分隔
+        set(arr.concat(/^\[\[.*\]\]$/.test(tv) ? [tv] : tv.split(/[,，]\s*/).filter(Boolean)));
       };
       inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); add(); } });
       inp.addEventListener('blur', add);
@@ -557,7 +566,8 @@ class FrontmatterView implements NodeView {
       const cb = el('input', 'wm-prop-check', v); cb.type = 'checkbox'; cb.checked = !!value;
       cb.addEventListener('change', () => set(cb.checked));
     } else if (type === 'object') {
-      el('code', 'wm-prop-object', v, JSON.stringify(value));
+      // 巢狀資料：照結構一層一層列出來（唯讀），要改請用「原文」
+      this.tree(v, value);
       v.setAttribute('aria-label', t('巢狀資料請用「原文」編輯'));
     } else {
       const inp = el('input', 'wm-prop-input', v);
@@ -575,9 +585,49 @@ class FrontmatterView implements NodeView {
       };
       inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); inp.blur(); } });
       inp.addEventListener('change', save);
+      // 值是 [[筆記]] 或網址：旁邊放一個開啟的按鈕
+      const link = type === 'text' ? propLink(value) : null;
+      if (link) {
+        const open = el('button', 'wm-prop-open', v); open.type = 'button'; this.ctx.icon(open, 'external-link', '↗');
+        open.setAttribute('aria-label', t('開啟連結'));
+        this.linkify(open, link.target);
+      }
     }
     const del = el('button', 'wm-prop-del', r); del.type = 'button'; del.setAttribute('aria-label', t('刪除這個屬性')); this.ctx.icon(del, 'x', '×');
     del.addEventListener('mousedown', e => { e.preventDefault(); const o = Object.assign({}, obj); delete o[key]; this.commit(o); });
+  }
+  // 點一下開啟連結（Ctrl／Cmd 或 Shift 開在新分頁）
+  linkify(target: HTMLElement, link: string): void {
+    target.addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); this.ctx.openLink(link, isMod(e) || e.shiftKey); });
+  }
+  // 巢狀資料的唯讀樹狀顯示
+  tree(parent: HTMLElement, value: unknown): void {
+    const box = el('div', 'wm-prop-tree', parent);
+    const entries: [string, unknown][] = Array.isArray(value) ? value.map((item, i): [string, unknown] => [String(i + 1), item]) : Object.entries(value as PropValues);
+    for (const [k, item] of entries) {
+      const row = el('div', 'wm-prop-tree-row', box);
+      el('span', 'wm-prop-tree-key', row, k);
+      if (item && typeof item === 'object' && !(item instanceof Date)) this.tree(row, item);
+      else el('span', 'wm-prop-tree-value', row, summarize(item));
+    }
+  }
+  // 類型圖示的選單：換類型（內容盡量保留）、重新命名
+  keyMenu(e: MouseEvent, obj: PropValues, key: string, type: PropType): void {
+    const items: NodeViewMenuItem[] = [];
+    if (type !== 'object') {
+      for (const ty of EDITABLE_TYPES) {
+        items.push({
+          // TYPE_LABEL 的值是載入時 t() 的結果，不一定是鍵；再翻一次，找不到時 t() 原樣回傳
+          title: t(TYPE_LABEL[ty] as I18nKey) + (ty === type ? '  ✓' : ''), icon: TYPE_ICON[ty],
+          run: () => { if (ty === type) return; const o = Object.assign({}, obj); o[key] = convertProp(obj[key], ty); this.commit(o); },
+        });
+      }
+    }
+    items.push({ title: t('重新命名…'), icon: 'pencil', run: () => this.rename(obj, key) });
+    this.ctx.menu(e, items);
+  }
+  rename(obj: PropValues, key: string): void {
+    this.ctx.prompt(t('重新命名屬性'), key, '', value => { const o = renameProp(obj, key, value); if (o) this.commit(o); });
   }
   addRow(body: HTMLElement, obj: PropValues): void {
     const r = el('div', 'wm-prop wm-prop-add', body);
@@ -686,6 +736,9 @@ class CodeBlockView implements NodeView {
   declare editBtn: HTMLButtonElement;
   declare srcBtn: HTMLButtonElement;
   declare copy: HTMLButtonElement;
+  declare body: HTMLDivElement;
+  declare gutter: HTMLDivElement;
+  declare lines: number | undefined;
   declare pre: HTMLPreElement;
   declare contentDOM: HTMLElement;
   declare preview: HTMLDivElement;
@@ -723,7 +776,12 @@ class CodeBlockView implements NodeView {
       }
       this.setLang(this.sel.value);
     });
-    this.pre = el('pre', 'wm-code', this.dom);
+    // 行號放在程式碼左邊的欄；開啟行號時程式碼不自動換行，行號才對得上
+    this.body = el('div', 'wm-code-body', this.dom);
+    this.gutter = el('div', 'wm-code-gutter', this.body);
+    this.gutter.contentEditable = 'false';
+    this.gutter.setAttribute('aria-hidden', 'true');
+    this.pre = el('pre', 'wm-code', this.body);
     this.contentDOM = el('code', null, this.pre);
     this.preview = el('div', 'wm-code-preview', this.dom);
     this.preview.contentEditable = 'false';
@@ -739,6 +797,7 @@ class CodeBlockView implements NodeView {
     });
     this.preview.addEventListener('click', e => { if ((e.target as Element).closest && (e.target as Element).closest('a')) e.preventDefault(); }, true);
     this.syncSelect();
+    this.syncLines();
     this.syncPreview(true);
   }
   lang(): string { return ((this.node.attrs as CodeBlockAttrs).params || '').trim().split(/\s+/)[0].toLowerCase(); }
@@ -770,6 +829,15 @@ class CodeBlockView implements NodeView {
     const o = el('option', null, this.sel, t('其他…')); o.value = '__other';
     this.sel.value = cur;
     this.pre.dataset && (this.pre.dataset.lang = cur);
+  }
+  syncLines(): void {
+    const on = !!(this.ctx.lineNumbers && this.ctx.lineNumbers());
+    this.dom.classList.toggle('has-lines', on);
+    if (!on) return;
+    const n = this.node.textContent.split('\n').length;
+    if (n === this.lines) return;
+    this.lines = n;
+    this.gutter.textContent = Array.from({ length: n }, (_, i) => String(i + 1)).join('\n');
   }
   dispose(): void {
     window.clearTimeout(this.timer);
@@ -803,13 +871,14 @@ class CodeBlockView implements NodeView {
     const changed = node.attrs.params !== this.node.attrs.params;
     this.node = node;
     if (changed) this.syncSelect();
+    this.syncLines();
     this.syncPreview(false);
     return true;
   }
   destroy(): void { this.dispose(); }
   stopEvent(e: Event): boolean { return this.head.contains(e.target as Node | null) || this.preview.contains(e.target as Node | null); }
   ignoreMutation(m: ViewMutationRecord): boolean {
-    return this.head.contains(m.target) || this.preview.contains(m.target) || (m.target === this.dom && m.type === 'attributes');
+    return this.head.contains(m.target) || this.preview.contains(m.target) || this.gutter.contains(m.target) || (m.target === this.dom && m.type === 'attributes');
   }
 }
 

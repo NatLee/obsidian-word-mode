@@ -449,6 +449,97 @@ await fresh('> [!note]- 預設收合\n> 內容\n\n> [!tip] 一般\n> 內容\n');
   btn.remove();
 }
 
+// ======== 文件屬性：連結、標籤、換類型、改名、收合時的摘要 ========
+await fresh('---\ntags:\n  - 會議\nrelated:\n  - [[其他筆記]]\n  - https://example.com/a\nsite: https://example.com\ncount: 3\n---\n內文\n');
+{
+  const q = sel => [...view.pm.dom.querySelectorAll(sel)];
+  const down = el => el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+  assert(q('.wm-chip-tag .wm-chip-text').map(e => e.textContent).join() === '#會議', '標籤顯示成 #標籤：' + q('.wm-chip-tag .wm-chip-text').map(e => e.textContent).join());
+  const links = q('.wm-chip-link .wm-chip-text');
+  assert(links.length === 2 && links[0].textContent === '其他筆記' && links[1].textContent === 'example.com/a', '清單裡的 [[筆記]] 與網址顯示成連結：' + links.map(e => e.textContent).join());
+  const before = app.workspace.opened.length;
+  down(links[0]);
+  assert(app.workspace.opened.length === before + 1 && String(app.workspace.opened[before]).includes('其他筆記'), '點一下屬性裡的筆記連結會開啟：' + app.workspace.opened.slice(before).join());
+  assert(out().includes('  - [[其他筆記]]\n'), '點連結不會改到內容');
+  assert(q('.wm-prop-open').length === 1, '文字屬性的值是網址時，旁邊有開啟按鈕');
+  // 換類型：文字 → 清單
+  const rowOf = name => q('.wm-prop').find(r => r.querySelector('.wm-prop-name') && r.querySelector('.wm-prop-name').textContent === name);
+  down(rowOf('site').querySelector('.wm-prop-icon'));
+  let items = mock.Menu.last.items;
+  assert(items.length === 7 && items.some(i => i.title.includes('✓') && i.title.includes('文字')), '類型選單：六種類型（目前的打勾）＋重新命名：' + items.map(i => i.title).join('|'));
+  items.find(i => i.title.startsWith('清單')).fn();
+  assert(out().includes('site:\n  - https://example.com\n'), '文字換成清單，內容保留：' + JSON.stringify(out()));
+  // 換類型：數字 → 核取方塊
+  down(rowOf('count').querySelector('.wm-prop-icon'));
+  mock.Menu.last.items.find(i => i.title.startsWith('核取方塊')).fn();
+  assert(out().includes('count: true\n'), '數字換成核取方塊：' + JSON.stringify(out()));
+  // 改名：位置不變
+  down(rowOf('related').querySelector('.wm-prop-icon'));
+  items = mock.Menu.last.items;
+  items[items.length - 1].fn();
+  const pm1 = mock.Modal.last;
+  pm1.contentEl.querySelector('input').value = '相關';
+  pm1.contentEl.querySelector('button.mod-cta').click();
+  assert(/^---\ntags:\n {2}- 會議\n相關:\n {2}- \[\[其他筆記\]\]/.test(out()), '重新命名屬性，位置不變：' + JSON.stringify(out()));
+  // 改成已經有的名稱：不變
+  down(rowOf('相關').querySelector('.wm-prop-icon'));
+  items = mock.Menu.last.items;
+  items[items.length - 1].fn();
+  const pm2 = mock.Modal.last;
+  const same = out();
+  pm2.contentEl.querySelector('input').value = 'tags';
+  pm2.contentEl.querySelector('button.mod-cta').click();
+  assert(out() === same, '改成已經存在的名稱時不動');
+  // 收合：標題列顯示摘要
+  down(view.pm.dom.querySelector('.wm-props-head'));
+  const sum = view.pm.dom.querySelector('.wm-props-count').textContent;
+  assert(view.pm.dom.querySelector('.wm-props').classList.contains('is-collapsed') && sum.includes('tags: 會議') && !view.pm.dom.querySelector('.wm-prop'), '收合時標題列顯示內容摘要：' + sum);
+  down(view.pm.dom.querySelector('.wm-props-head'));
+  assert(/^\d+ 個屬性$/.test(view.pm.dom.querySelector('.wm-props-count').textContent), '展開時顯示屬性數量：' + view.pm.dom.querySelector('.wm-props-count').textContent);
+}
+
+// ======== 程式碼區塊的行號 ========
+{
+  await fresh('```python\nx = 0\n```\n');
+  let block = view.pm.dom.querySelector('.wm-codeblock');
+  assert(!block.classList.contains('has-lines') && block.querySelector('.wm-code-gutter').textContent === '', '預設不顯示行號');
+  plugin.settings.codeLineNumbers = true;
+  await fresh('```python\na = 1\nb = 2\nc = 3\n```\n\n後面\n');
+  block = view.pm.dom.querySelector('.wm-codeblock');
+  assert(block.classList.contains('has-lines') && block.querySelector('.wm-code-gutter').textContent === '1\n2\n3', '開啟設定後顯示行號：' + JSON.stringify(block.querySelector('.wm-code-gutter').textContent));
+  const st = view.pm.state;
+  view.pm.dispatch(st.tr.insertText('\nd = 4', st.doc.firstChild.nodeSize - 1));
+  assert(view.pm.dom.querySelector('.wm-code-gutter').textContent === '1\n2\n3\n4', '加一行後行號跟著增加：' + JSON.stringify(view.pm.dom.querySelector('.wm-code-gutter').textContent));
+  assert(out() === '```python\na = 1\nb = 2\nc = 3\nd = 4\n```\n\n後面\n', '行號不會寫進檔案：' + JSON.stringify(out()));
+  plugin.settings.codeLineNumbers = false;
+}
+
+// ======== 表格：搬移列與欄 ========
+{
+  const cellAt = text => { let p = -1; view.pm.state.doc.descendants((n, pos) => { if (p < 0 && n.isText && n.text === text) p = pos; }); return p; };
+  const put = text => { const p = cellAt(text); view.pm.dispatch(view.pm.state.tr.setSelection(TextSelection.create(view.pm.state.doc, p + 1))); };
+  const run = c => c(view.pm.state, tr => view.pm.dispatch(tr), view.pm);
+  await fresh('| 甲 | 乙 | 丙 |\n| :--- | :---: | ---: |\n| a1 | b1 | c1 |\n| a2 | b2 | c2 |\n');
+  put('b1');
+  assert(run(B.C.moveTableColumn(1)), '欄右移：可以執行');
+  assert(out() === '| 甲 | 丙 | 乙 |\n| :--- | ---: | :---: |\n| a1 | c1 | b1 |\n| a2 | c2 | b2 |\n', '欄右移：整欄（含標題與對齊）一起搬：' + JSON.stringify(out()));
+  assert(view.pm.state.selection.$from.parent.textContent === 'b1' && view.pm.state.selection.$from.parentOffset === 1, '欄右移後游標還在同一格、同一個位置');
+  assert(!run(B.C.moveTableColumn(1)), '已經在最右邊：不能再右移');
+  run(B.C.moveTableColumn(-1)); run(B.C.moveTableColumn(-1));
+  assert(out() === '| 乙 | 甲 | 丙 |\n| :---: | :--- | ---: |\n| b1 | a1 | c1 |\n| b2 | a2 | c2 |\n', '欄左移兩次：' + JSON.stringify(out()));
+  assert(!run(B.C.moveTableColumn(-1)), '已經在最左邊：不能再左移');
+  undo(); undo(); undo();
+  assert(out() === '| 甲 | 乙 | 丙 |\n| :--- | :---: | ---: |\n| a1 | b1 | c1 |\n| a2 | b2 | c2 |\n', '搬移欄可以復原：' + JSON.stringify(out()));
+  // 列：標題列固定在最上面
+  put('a1');
+  assert(!run(B.C.moveBlock(-1)), '第一列資料不能搬到標題列上面');
+  assert(run(B.C.moveBlock(1)) && out().endsWith('| a2 | b2 | c2 |\n| a1 | b1 | c1 |\n'), '列下移：' + JSON.stringify(out()));
+  put('甲');
+  assert(!run(B.C.moveBlock(1)), '標題列不能往下搬');
+  const first = view.pm.state.doc.firstChild.firstChild;
+  assert(first.firstChild.type.name === 'table_header' && first.textContent === '甲乙丙', '標題列還是標題列');
+}
+
 //@@MORE@@
 
 finish();

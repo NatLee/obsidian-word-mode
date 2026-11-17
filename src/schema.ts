@@ -24,8 +24,8 @@ export interface ListItemAttrs { readonly checked: boolean | null; readonly stat
 // kind：raw、html、math、comment、footnote 等
 export interface RawBlockAttrs extends BidAttrs { readonly src: string; readonly kind: string; }
 export interface FrontmatterAttrs extends BidAttrs { readonly src: string; }
-// 表格儲存格：colspan、rowspan、colwidth 是 prosemirror-tables 的屬性；align 從網頁貼上時可能是其他 CSS text-align 值
-export interface TableCellAttrs { readonly colspan: number; readonly rowspan: number; readonly colwidth: number[] | null; readonly align: string | null; }
+// 表格儲存格：colspan、rowspan、colwidth 是 prosemirror-tables 的屬性；align 只有 Markdown 寫得出來的三種（見 normalizeCellAlign）
+export interface TableCellAttrs { readonly colspan: number; readonly rowspan: number; readonly colwidth: number[] | null; readonly align: 'left' | 'center' | 'right' | null; }
 // width：寬度（像素數字的字串，例如 300 或 300x200）；wiki：是否為 ![[圖片]] 寫法
 export interface ImageAttrs { readonly src: string; readonly alt: string | null; readonly title: string | null; readonly wiki: boolean; readonly width: string | null; }
 export interface WikilinkAttrs { readonly target: string; readonly alias: string | null; readonly embed: boolean; }
@@ -55,13 +55,20 @@ function readBlockFormat(dom: HTMLElement): Attrs {
   };
 }
 
+// 表格儲存格的對齊：Markdown 只寫得出靠左、置中、靠右，其餘的值（start、justify…）當成沒有設定
+export function normalizeCellAlign(value: string | null | undefined): 'left' | 'center' | 'right' | null {
+  const v = (value || '').trim().toLowerCase().replace(/^-(webkit|moz)-/, '');
+  if (v === 'left' || v === 'center' || v === 'right') return v;
+  return v === 'end' ? 'right' : null;
+}
+
 const tables = tableNodes({
   tableGroup: 'block',
   cellContent: 'paragraph',
   cellAttributes: {
     align: {
       default: null,
-      getFromDOM: (dom) => dom.style.textAlign || null,
+      getFromDOM: (dom) => normalizeCellAlign(dom.style.textAlign || dom.getAttribute('align')),
       setDOMAttr: (value, attrs) => { if (value) attrs.style = ((attrs.style as string | undefined) || '') + `text-align: ${value as string};`; },
     },
   },
@@ -182,7 +189,7 @@ export const schema = new Schema({
   marks: {
     link: {
       attrs: { href: {}, title: { default: null } }, inclusive: false,
-      parseDOM: [{ tag: 'a[href]', getAttrs: d => ({ href: d.getAttribute('href'), title: d.getAttribute('title') }) }],
+      parseDOM: [{ tag: 'a[href]', getAttrs: d => ((d.getAttribute('href') || '').trim() ? { href: d.getAttribute('href'), title: d.getAttribute('title') } : false) }],
       toDOM: m => ['a', { href: (m.attrs as LinkAttrs).href, class: 'wm-link' }, 0],
     },
     em: { parseDOM: [{ tag: 'i' }, { tag: 'em' }], toDOM: () => ['em', 0] },

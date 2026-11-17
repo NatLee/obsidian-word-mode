@@ -661,11 +661,14 @@ export function createSerializer(): MarkdownSerializer {
       close: '</span>', mixable: true, expelEnclosingWhitespace: true,
     },
     link: {
+      // 沒有目標的連結（例如從網頁貼上的 <a href="">）寫成純文字：[文字]() 讀回來不是連結
       open(state, mark, parent, index) {
+        if (!(mark.attrs as LinkAttrs).href.trim()) return '';
         (state as SerializerState).inAutolink = isPlainURL(mark, parent, index);
         return (state as SerializerState).inAutolink ? '<' : '[';
       },
       close(state, mark) {
+        if (!(mark.attrs as LinkAttrs).href.trim()) return '';
         const { inAutolink } = state as SerializerState;
         (state as SerializerState).inAutolink = undefined;
         if (inAutolink) return '>';
