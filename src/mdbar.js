@@ -4,14 +4,7 @@ import { MarkdownView, setIcon, Menu } from 'obsidian';
 import { t, key } from './i18n.js';
 import { attachHint, hideHint } from './hints.js';
 import { CODE_LANGUAGES } from './commands.js';
-
-function el(tag, cls, parent, text) {
-  const e = document.createElement(tag);
-  if (cls) e.className = cls;
-  if (text != null) e.textContent = text;
-  if (parent) parent.appendChild(e);
-  return e;
-}
+import { el } from './dom.js';
 
 // 在選取文字前後加上（或拿掉）符號
 function wrap(editor, open, close = open) {
@@ -74,15 +67,13 @@ export class MarkdownBar {
     this.items = [];
     this.mode = this.isReading() ? 'preview' : 'source';
     const bar = el('div', 'wm-toolbar', this.dom);
-    const chip = el('div', 'wm-mdbar-mode', bar, this.mode === 'preview' ? t('閱讀模式') : t('Markdown 編輯'));
-    chip.classList.toggle('is-reading', this.mode === 'preview');
     const group = id => (this.hidden.has(id) ? null : el('div', 'wm-group wm-group-' + id, bar));
     const E = fn => () => { const ed = this.editor; if (ed) { fn(ed); ed.focus(); } };
 
     let g = group('views');
-    this.button(g, { icon: 'file-text', title: '切換到 Word 模式', keys: this.plugin.settings.ctrlE !== false ? 'Mod+E' : null, label: 'Word 模式', big: true, demo: 'markdown', desc: '用 Word 模式編輯這份筆記。', run: () => this.plugin.switchToWord(this.view.leaf), always: true });
-    this.button(g, { icon: 'code-2', title: 'Markdown 編輯', label: 'Markdown', big: true, active: () => this.mode === 'source', run: () => this.setMode('source'), always: true });
-    this.button(g, { icon: 'book-open', title: '閱讀模式', label: '閱讀', big: true, demo: 'reading', active: () => this.mode === 'preview', run: () => this.setMode('preview'), always: true });
+    this.button(g, { icon: 'file-text', title: '切換到 Word 模式', keys: this.plugin.settings.ctrlE !== false ? 'Mod+E' : null, label: 'Word 模式', demo: 'markdown', desc: '用 Word 模式編輯這份筆記。', run: () => this.plugin.switchToWord(this.view.leaf), always: true });
+    this.button(g, { icon: 'code-2', title: 'Markdown 編輯', label: 'Markdown', active: () => this.mode === 'source', run: () => this.setMode('source'), always: true });
+    this.button(g, { icon: 'book-open', title: '閱讀模式', label: '閱讀', demo: 'reading', active: () => this.mode === 'preview', run: () => this.setMode('preview'), always: true });
 
     g = group('undo');
     this.button(g, { icon: 'undo-2', title: '復原', keys: 'Mod+Z', run: E(ed => ed.undo()) });

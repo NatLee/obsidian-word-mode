@@ -1,18 +1,11 @@
 // 詳細提示：滑鼠停在按鈕上時，顯示功能名稱、快速鍵、說明，以及會動的示意圖
 // 只有一張提示卡（新的會取代舊的），所以提示不會互相蓋住
 import { t } from './i18n.js';
+import { el } from './dom.js';
 
 let card = null;
 let timer = null;
 let current = null;
-
-function el(tag, cls, parent, text) {
-  const e = document.createElement(tag);
-  if (cls) e.className = cls;
-  if (text != null) e.textContent = text;
-  if (parent) parent.appendChild(e);
-  return e;
-}
 
 // 示意文字：用一小段文字表示「之前 → 之後」
 const SAMPLE = () => t('這是範例文字');

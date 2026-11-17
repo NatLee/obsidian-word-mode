@@ -2,36 +2,70 @@
 import { Plugin, PluginKey, TextSelection } from 'prosemirror-state';
 import { t, withKey, key } from './i18n.js';
 import { Decoration, DecorationSet } from 'prosemirror-view';
+import { el } from './dom.js';
 
 export const findKey = new PluginKey('wmFind');
 
-export function findMatches(doc, query, caseSensitive) {
+const OBJ = '￼'; // 代表圖片、連結等非文字節點
+const WORD = '\\p{L}\\p{N}_';
+
+// 把搜尋字串變成正規表示式；opts: { caseSensitive, regex, wholeWord }。寫錯的正規表示式回傳 { error }
+export function buildMatcher(query, opts = {}) {
+  if (!query) return null;
+  let src = opts.regex ? query : query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // 全字相符：前後不能是字母或數字（不用 lookbehind，前一個字元放在第 1 組）
+  const whole = !!opts.wholeWord && !opts.regex;
+  if (whole) src = '(^|[^' + WORD + '])(?:' + src + ')(?=$|[^' + WORD + '])';
+  const flags = 'g' + (opts.caseSensitive ? '' : 'i');
+  try { return { re: new RegExp(src, flags + 'u'), whole }; } catch (e) {
+    if (!opts.regex) return { error: true };
+    try { return { re: new RegExp(src, flags), whole }; } catch (e2) { return { error: true }; }
+  }
+}
+
+// opts 可以是布林值（是否區分大小寫，舊的呼叫方式）或 { caseSensitive, regex, wholeWord }
+export function findMatches(doc, query, opts) {
   const out = [];
-  if (!query) return out;
-  const q = caseSensitive ? query : query.toLowerCase();
+  const o = typeof opts === 'object' && opts ? opts : { caseSensitive: !!opts };
+  const mt = buildMatcher(query, o);
+  if (!mt || mt.error) return out;
   doc.descendants((node, pos) => {
     if (!node.isTextblock) return true;
     let text = '';
-    node.forEach(child => { text += child.isText ? child.text : '￼'; });
-    const hay = caseSensitive ? text : text.toLowerCase();
-    let i = hay.indexOf(q);
-    while (i >= 0) {
-      out.push({ from: pos + 1 + i, to: pos + 1 + i + q.length });
-      i = hay.indexOf(q, i + Math.max(1, q.length));
+    node.forEach(child => { text += child.isText ? child.text : OBJ.repeat(child.nodeSize); });
+    mt.re.lastIndex = 0;
+    let m;
+    while ((m = mt.re.exec(text))) {
+      const lead = mt.whole ? m[1].length : 0;
+      const start = m.index + lead;
+      const len = m[0].length - lead;
+      if (len <= 0) { mt.re.lastIndex = m.index + 1; if (mt.re.lastIndex > text.length) break; continue; }
+      out.push({ from: pos + 1 + start, to: pos + 1 + start + len });
+      mt.re.lastIndex = start + len;
+      if (out.length > 5000) return false;
     }
     return false;
   });
   return out;
 }
 
+// 取代的文字：正規表示式模式可以用 $1、$2 代表括號裡找到的內容
+export function replacementFor(matched, query, opts, replacement) {
+  if (!opts.regex) return replacement;
+  const mt = buildMatcher(query, opts);
+  if (!mt || mt.error) return replacement;
+  try { return matched.replace(new RegExp(mt.re.source, mt.re.flags.replace('g', '')), replacement); } catch (e) { return replacement; }
+}
+
 function compute(doc, s) {
-  return Object.assign({}, s, { matches: findMatches(doc, s.query, s.caseSensitive) });
+  const mt = buildMatcher(s.query, s);
+  return Object.assign({}, s, { matches: findMatches(doc, s.query, s), error: !!(mt && mt.error) });
 }
 
 export const findPlugin = new Plugin({
   key: findKey,
   state: {
-    init: () => ({ query: '', caseSensitive: false, matches: [], current: -1 }),
+    init: () => ({ query: '', caseSensitive: false, regex: false, wholeWord: false, matches: [], current: -1, error: false }),
     apply(tr, old) {
       const meta = tr.getMeta(findKey);
       let s = old;
@@ -45,19 +79,14 @@ export const findPlugin = new Plugin({
     decorations(state) {
       const s = findKey.getState(state);
       if (!s.query || !s.matches.length) return null;
-      return DecorationSet.create(state.doc, s.matches.map((m, i) =>
+      if (s.decos && s.decos.doc === state.doc && s.decos.current === s.current) return s.decos.set;
+      const set = DecorationSet.create(state.doc, s.matches.map((m, i) =>
         Decoration.inline(m.from, m.to, { class: 'wm-find-match' + (i === s.current ? ' is-current' : '') })));
+      s.decos = { doc: state.doc, current: s.current, set }; // 同一份文件、同一個目前結果時沿用，不用每次重建
+      return set;
     },
   },
 });
-
-function el(tag, cls, parent, text) {
-  const e = document.createElement(tag);
-  if (cls) e.className = cls;
-  if (text != null) e.textContent = text;
-  if (parent) parent.appendChild(e);
-  return e;
-}
 
 // 尋找列（顯示在工具列下方）
 export class FindBar {
@@ -73,6 +102,8 @@ export class FindBar {
     this.btn(row1, 'arrow-up', t('上一個 (Shift+Enter)'), () => this.step(-1));
     this.btn(row1, 'arrow-down', t('下一個 (Enter)'), () => this.step(1));
     this.caseBtn = this.btn(row1, 'case-sensitive', t('區分大小寫'), () => this.setCase(!this.state().caseSensitive), 'Aa');
+    this.wordBtn = this.btn(row1, 'whole-word', t('全字相符（前後不是字母或數字）'), () => this.setOption('wholeWord', !this.state().wholeWord), 'ab');
+    this.regexBtn = this.btn(row1, 'regex', t('使用正規表示式（取代時可用 $1、$2）'), () => this.setOption('regex', !this.state().regex), '.*');
     this.replToggle = this.btn(row1, 'replace', withKey('取代', 'Mod+H'), () => this.showReplace(!this.replacing));
     this.btn(row1, 'x', t('關閉 (Esc)'), () => this.close());
     this.row2 = el('div', 'wm-find-row', this.dom);
@@ -148,21 +179,28 @@ export class FindBar {
     if (this.ctx.onChange) this.ctx.onChange();
   }
 
-  setCase(on) {
-    this.caseBtn.classList.toggle('is-active', on);
-    this.search(this.input.value, on);
+  setCase(on) { this.setOption('caseSensitive', on); }
+
+  // 區分大小寫、全字相符、正規表示式
+  setOption(name, on) {
+    const btn = { caseSensitive: this.caseBtn, wholeWord: this.wordBtn, regex: this.regexBtn }[name];
+    btn.classList.toggle('is-active', on);
+    // 正規表示式自己可以寫 \b，開啟時「全字相符」不作用
+    if (name === 'regex') this.wordBtn.classList.toggle('is-disabled', on);
+    this.search(this.input.value, { [name]: on });
   }
 
   // 搜尋：預設跳到游標之後的第一個結果
-  search(query, caseSensitive) {
+  search(query, change) {
     const v = this.view;
     if (!v) return;
-    const cs = caseSensitive != null ? caseSensitive : this.state().caseSensitive;
-    const matches = findMatches(v.state.doc, query, cs);
+    const s = this.state();
+    const opts = Object.assign({ caseSensitive: s.caseSensitive, wholeWord: s.wholeWord, regex: s.regex }, change || {});
+    const matches = findMatches(v.state.doc, query, opts);
     const from = v.state.selection.from;
     let cur = matches.findIndex(m => m.from >= from);
     if (cur < 0) cur = matches.length ? 0 : -1;
-    v.dispatch(v.state.tr.setMeta(findKey, { query, caseSensitive: cs, current: cur }));
+    v.dispatch(v.state.tr.setMeta(findKey, Object.assign({ query, current: cur }, opts)));
     this.reveal();
   }
 
@@ -179,7 +217,7 @@ export class FindBar {
   reveal() {
     const v = this.view;
     const s = this.state();
-    this.count.textContent = s.query ? (s.matches.length ? `${s.current + 1}/${s.matches.length}` : t('找不到')) : '';
+    this.count.textContent = s.query ? (s.error ? t('正規表示式有誤') : s.matches.length ? `${s.current + 1}/${s.matches.length}` : t('找不到')) : '';
     this.count.classList.toggle('is-empty', !!s.query && !s.matches.length);
     const m = s.matches[s.current];
     if (!m) return;
@@ -191,10 +229,11 @@ export class FindBar {
     const s = this.state();
     const m = s.matches[s.current];
     if (!m) return;
-    const tr = v.state.tr.insertText(this.replInput.value, m.from, m.to);
+    const text = replacementFor(v.state.doc.textBetween(m.from, m.to, null, OBJ), s.query, s, this.replInput.value);
+    const tr = v.state.tr.insertText(text, m.from, m.to);
     v.dispatch(tr);
     const after = this.state();
-    const next = after.matches.findIndex(x => x.from >= m.from + this.replInput.value.length);
+    const next = after.matches.findIndex(x => x.from >= m.from + text.length);
     v.dispatch(v.state.tr.setMeta(findKey, { current: next >= 0 ? next : (after.matches.length ? 0 : -1) }));
     this.reveal();
   }
@@ -204,7 +243,9 @@ export class FindBar {
     const s = this.state();
     if (!s.matches.length) return;
     const tr = v.state.tr;
-    for (const m of s.matches.slice().reverse()) tr.insertText(this.replInput.value, m.from, m.to);
+    for (const m of s.matches.slice().reverse()) {
+      tr.insertText(replacementFor(v.state.doc.textBetween(m.from, m.to, null, OBJ), s.query, s, this.replInput.value), m.from, m.to);
+    }
     const n = s.matches.length;
     v.dispatch(tr);
     this.reveal();

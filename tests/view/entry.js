@@ -8,3 +8,4 @@ export { linkContext } from '../../src/links.js';
 export * as I18N from '../../src/i18n.js';
 export * as MARKS from '../../src/marks.js';
 export { undo, redo } from 'prosemirror-history';
+export * as AUTO from '../../src/autoformat.js';

@@ -128,10 +128,11 @@ function obsidianCore(state) {
     if (t.type === 'list_item_open' && tokens[i + 1] && tokens[i + 1].type === 'paragraph_open'
       && tokens[i + 2] && tokens[i + 2].type === 'inline') {
       const inl = tokens[i + 2];
-      const m = inl.content.match(/^\[([ xX])\][ \t]/);
+      // 任何單一字元都算任務狀態（- [/]、- [-]、- [>] 等自訂狀態，Tasks 外掛與佈景主題會用）
+      const m = inl.content.match(/^\[([^\[\]\n])\][ \t]/);
       const first = inl.children && inl.children[0];
       if (m && first && first.type === 'text' && first.content.startsWith(m[0])) {
-        t.meta = Object.assign({}, t.meta, { checked: m[1] !== ' ' });
+        t.meta = Object.assign({}, t.meta, { checked: m[1] !== ' ', status: m[1] === ' ' || m[1] === 'x' ? null : m[1] });
         first.content = first.content.slice(m[0].length);
         inl.content = inl.content.slice(m[0].length);
       }
@@ -187,7 +188,7 @@ export function createParser(tokenizer) {
   return new MarkdownParser(schema, tokenizer, {
     blockquote: { block: 'blockquote' },
     paragraph: { block: 'paragraph' },
-    list_item: { block: 'list_item', getAttrs: tok => ({ checked: tok.meta && tok.meta.checked != null ? tok.meta.checked : null }) },
+    list_item: { block: 'list_item', getAttrs: tok => ({ checked: tok.meta && tok.meta.checked != null ? tok.meta.checked : null, status: (tok.meta && tok.meta.status) || null }) },
     bullet_list: { block: 'bullet_list', getAttrs: (tok, tokens, i) => ({ tight: listIsTight(tokens, i), bullet: tok.markup || '-' }) },
     ordered_list: { block: 'ordered_list', getAttrs: (tok, tokens, i) => ({ order: +tok.attrGet('start') || 1, tight: listIsTight(tokens, i) }) },
     heading: { block: 'heading', getAttrs: tok => ({ level: +tok.tag.slice(1) }) },
@@ -493,7 +494,7 @@ export function createSerializer() {
       });
     },
     list_item(state, node) {
-      if (node.attrs.checked != null) state.write(node.attrs.checked ? '[x] ' : '[ ] ');
+      if (node.attrs.checked != null) state.write('[' + (node.attrs.checked ? (node.attrs.status || 'x') : ' ') + '] ');
       node.forEach((child, _, i) => {
         if (i && state.inTightList) state.flushClose(1);
         state.render(child, node, i);
@@ -647,6 +648,90 @@ function liftCallouts(node, serializeInline) {
   return node.copy(Fragment.from(children));
 }
 
+// 中間有空行的 %%註解%% 與 $$數學式$$：markdown-it 會在空行把它切成兩段，後半段就變成一般文字
+// （編輯後結尾還會被跳脫成 \%\%）。這裡先找出這種範圍，整段保留為原文區塊。
+function protectedRanges(lines, from) {
+  const out = [];
+  let fence = null;
+  for (let i = from; i < lines.length; i++) {
+    const l = stripEol(lines[i]);
+    const fm = l.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
+    if (fence) {
+      if (fm && fm[1][0] === fence[0] && fm[1].length >= fence.length && !fm[2].trim()) fence = null;
+      continue;
+    }
+    if (fm) { fence = fm[1]; continue; }
+    const m = l.match(/^ {0,3}(%%|\$\$)/);
+    if (!m) continue;
+    const mark = m[1];
+    if (l.slice(m[0].length).includes(mark)) continue; // 同一行就結束了
+    let j = i + 1;
+    let blank = false;
+    while (j < lines.length && !stripEol(lines[j]).includes(mark)) { if (isBlank(lines[j])) blank = true; j++; }
+    if (j >= lines.length) continue; // 沒有結尾：照一般文字處理
+    if (blank) out.push({ start: i, end: j + 1, kind: mark === '%%' ? 'comment' : 'math' });
+    i = j;
+  }
+  return out;
+}
+
+// 把保護範圍從原本的區塊切出來（只處理頂層的段落、原文與 HTML 區塊；清單、引文、表格、程式碼裡的不動）
+function carveProtected(ranges, prot) {
+  let out = ranges;
+  for (const p of prot) {
+    const hit = out.filter(r => r.start < p.end && r.end > p.start);
+    if (hit.some(r => r.kind === 'frontmatter' || (r.kind === 'md' && !/^(paragraph_open|html_block)$/.test(r.token.type)))) continue;
+    const next = [];
+    let placed = false;
+    for (const r of out) {
+      if (r.end <= p.start) { next.push(r); continue; }
+      if (r.start >= p.end) { if (!placed) { next.push(p); placed = true; } next.push(r); continue; }
+      if (r.start < p.start) next.push(Object.assign({}, r, { end: p.start }));
+      if (!placed) { next.push(p); placed = true; }
+      if (r.end > p.end) next.push(Object.assign({}, r, { start: p.end }));
+    }
+    if (!placed) next.push(p);
+    out = next;
+  }
+  return out;
+}
+
+// 註腳定義（[^1]: 內容）：每一個定義各自成為一個原文區塊，Word 模式才能把它顯示成註腳、個別編輯
+const FOOTNOTE_DEF_LINE = /^\[\^[^\]\s]+\]:/;
+function splitFootnotes(ranges, lines) {
+  const out = [];
+  for (const r of ranges) {
+    const plain = r.kind === 'raw' || (r.kind === 'md' && r.token.type === 'paragraph_open');
+    if (!plain || !FOOTNOTE_DEF_LINE.test(stripEol(lines[r.start]))) { out.push(r); continue; }
+    let s = r.start;
+    for (let i = r.start + 1; i <= r.end; i++) {
+      if (i === r.end || FOOTNOTE_DEF_LINE.test(stripEol(lines[i]))) { out.push({ start: s, end: i, kind: 'footnote' }); s = i; }
+    }
+  }
+  return out;
+}
+
+// 表格的每一列有幾格（只認沒有跳脫的 |，與 markdown-it 相同）
+function rowCells(line) {
+  let s = line.trim();
+  if (s.startsWith('|')) s = s.slice(1);
+  // 不用 regex lookbehind（iOS 16.4 以前不支援）：前一個字元是反斜線的 | 算跳脫，其餘才是分隔
+  if (/(^|[^\\])\|$/.test(s)) s = s.slice(0, -1);
+  return (s.match(/\\\||\|/g) || []).filter(m => m === '|').length + 1;
+}
+// 有任何一列的格數比標題列多：markdown-it 會丟掉多出來的內容，重新輸出就會遺失
+function tableHasExtraCells(src) {
+  const ls = src.split('\n').filter(l => l.trim());
+  if (ls.length < 3) return false;
+  const n = rowCells(ls[0]);
+  return ls.slice(2).some(l => rowCells(l) > n);
+}
+
+// 文件屬性裡沒有任何內容（只有 --- 與 ---）
+export function emptyFrontmatter(src) {
+  return !String(src).replace(/^---[^\n]*\r?\n?/, '').replace(/\r?\n?(---|\.\.\.)\s*$/, '').trim();
+}
+
 function withBid(node, bid) {
   if (!('bid' in (node.type.spec.attrs || {}))) return node;
   return node.type.create(Object.assign({}, node.attrs, { bid }), node.content, node.marks);
@@ -682,7 +767,7 @@ export class MarkdownConverter {
       eol: eolMatch ? eolMatch[0] : '\n',
       endsWithNewline: /(\r\n|\n|\r)$/.test(text) || text === '',
     };
-    const ranges = []; // {start, end, kind}
+    let ranges = []; // {start, end, kind}
     let bodyStart = 0;
 
     // frontmatter
@@ -720,6 +805,8 @@ export class MarkdownConverter {
     }
     if (cursor < lines.length) pushGapRaw(cursor, lines.length);
     ranges.sort((a, b) => a.start - b.start);
+    ranges = splitFootnotes(ranges, lines);
+    ranges = carveProtected(ranges, protectedRanges(lines, bodyStart));
 
     // 每段建立節點
     const nodes = [];
@@ -747,7 +834,14 @@ export class MarkdownConverter {
         segNodes = [schema.nodes.frontmatter.create({ src, bid: idx })];
       } else if (kind === 'md') {
         try {
-          const d = this.parser.parse(src, Object.assign({}, env));
+          let psrc = src;
+          if (r.token.type === 'table_open') {
+            // 表格裡 [[筆記|別名]] 沒有跳脫的 |：當成同一格（重新輸出時會寫成 \|）
+            psrc = src.replace(/!?\[\[[^\[\]\n]*\]\]/g, w => w.replace(/\\\||\|/g, m => (m === '|' ? '\\|' : m)));
+            if (tableHasExtraCells(psrc)) throw new Error('表格的格數比標題列多，保留原文');
+          }
+          const d = this.parser.parse(psrc, Object.assign({}, env));
+          if (r.token.type === 'table_open' && !(d.childCount === 1 && d.firstChild.type === schema.nodes.table)) throw new Error('不是單純的表格，保留原文');
           segNodes = [];
           const inl = nodes2 => this.serializeNodes([schema.nodes.paragraph.create(null, nodes2)]);
           d.forEach(n => segNodes.push(withBid(liftCallouts(n, inl), idx)));
@@ -796,6 +890,12 @@ export class MarkdownConverter {
     for (const run of runs) {
       const ser = this.serializeNodes(run.nodes);
       const seg = run.bid != null && !used.has(run.bid) ? meta.segments[run.bid] : null;
+      // 沒有任何屬性的文件屬性區塊（剛新增還沒填、或屬性被刪光）：不寫進檔案；原本就在檔案裡且沒動過的照舊
+      if (run.nodes.length === 1 && run.nodes[0].type === schema.nodes.frontmatter && emptyFrontmatter(run.nodes[0].attrs.src)
+        && !(seg && ser === seg.canon)) {
+        if (seg) { used.add(run.bid); lastModified = true; }
+        continue;
+      }
       const follows = seg && run.bid === prevSeg + 1;
       const sep = follows ? (pending != null ? pending : '') + seg.gapBefore : defaultSep();
       pending = null;

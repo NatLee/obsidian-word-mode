@@ -9,6 +9,7 @@ import { gapCursor } from 'prosemirror-gapcursor';
 import { tableEditing, fixTables } from 'prosemirror-tables';
 import { buildKeymap, baseKeymap, compatPlugin } from './commands.js';
 import { bareUrlPlugin } from './links.js';
+import { autoformatPlugin } from './autoformat.js';
 
 // 文件是空的時候顯示提示文字
 const placeholder = new Plugin({
@@ -22,7 +23,11 @@ const placeholder = new Plugin({
 });
 
 export function buildPlugins(extraPlugins = []) {
+  // spec.priority 的外掛（自動完成選單）要排在快速鍵之前，才攔得到 Enter 與方向鍵
+  const first = extraPlugins.filter(p => p.spec.priority);
+  const rest = extraPlugins.filter(p => !p.spec.priority);
   return [
+    ...first,
     history({ depth: 300, newGroupDelay: 600 }),
     keymap(buildKeymap()),
     keymap(baseKeymap),
@@ -32,7 +37,8 @@ export function buildPlugins(extraPlugins = []) {
     placeholder,
     bareUrlPlugin,
     compatPlugin,
-    ...extraPlugins,
+    autoformatPlugin,
+    ...rest,
   ];
 }
 

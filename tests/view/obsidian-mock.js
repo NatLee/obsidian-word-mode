@@ -114,3 +114,22 @@ export const FakePrism = {
 };
 export async function loadPrism() { return FakePrism; }
 export class ItemView {}
+
+// 模糊搜尋的簡化版：包含就算符合，越前面分數越高
+export function prepareFuzzySearch(q) { const s = q.toLowerCase(); return text => { const i = text.toLowerCase().indexOf(s); return i < 0 ? null : { score: -i, matches: [] }; }; }
+export function getAllTags(cache) { return (cache.tags || []).map(x => x.tag); }
+
+export class Component { constructor() { this.children = []; } load() { this.loaded = true; } unload() { this.loaded = false; Component.unloaded = (Component.unloaded || 0) + 1; } addChild(c) { this.children.push(c); c.load(); return c; } removeChild(c) { c.unload(); return c; } }
+// 其他外掛註冊的程式碼區塊（測試用：假裝有 dataview）
+export const MarkdownPreviewRenderer = { codeBlockPostProcessors: { dataview() {} } };
+export async function loadMermaid() { return { parse: async s => { if (/語法錯誤/.test(s)) throw new Error('Parse error on line 2'); } }; }
+
+// 標題底下的內容：從該標題開始，到下一個同級或更高層級的標題之前
+export function resolveSubpath(cache, subpath) {
+  const name = subpath.replace(/^#/, '').split('#').pop();
+  const hs = cache.headings || [];
+  const i = hs.findIndex(h => h.heading === name);
+  if (i < 0) return null;
+  const next = hs.slice(i + 1).find(h => h.level <= hs[i].level);
+  return { type: 'heading', current: hs[i], next: next || null, start: hs[i].position.start, end: next ? next.position.start : null };
+}

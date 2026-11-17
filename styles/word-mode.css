@@ -699,8 +699,6 @@
 /* Markdown／閱讀模式的工具列 */
 .wm-mdbar { flex: 0 0 auto; border-bottom: 1px solid var(--background-modifier-border); }
 .wm-mdbar .wm-toolbar { border-bottom: none; }
-.wm-mdbar-mode { font-size: var(--font-ui-smaller); padding: 2px 8px; border-radius: 10px; background: var(--background-modifier-hover); color: var(--text-muted); white-space: nowrap; align-self: center; }
-.wm-mdbar-mode.is-reading { background: rgba(var(--interactive-accent-rgb, 72, 54, 153), .15); color: var(--text-accent); }
 .wm-mdbar .wm-group { flex-direction: row; align-items: center; }
 .is-mobile .wm-mdbar .wm-toolbar { flex-wrap: nowrap; overflow-x: auto; }
 .is-mobile .wm-mdbar button.wm-btn { min-width: 36px; height: 36px; }
@@ -758,3 +756,134 @@
 .wm-settings-ctx-item { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--background-modifier-border); border-radius: 6px; }
 .wm-settings-ctx-item input { margin-top: 3px; }
 .is-mobile .wm-eq-btn { min-height: 38px; min-width: 40px; }
+
+/* ---------- 文件屬性：選取與移除 ---------- */
+.wm-props.ProseMirror-selectednode { outline: 2px solid var(--interactive-accent); }
+.wm-props button.wm-props-remove:hover { color: var(--text-error); }
+
+/* 自訂任務狀態（- [/]、- [-]、- [>] 等）：只有一般的完成（x）才加刪除線，其餘交給佈景主題 */
+.wm-editor li.wm-task.is-checked:not([data-task="x"]):not([data-task="X"]) > .wm-li-content { color: inherit; text-decoration: none; }
+
+/* ---------- #標籤、^區塊參照 ---------- */
+.wm-editor .wm-tag { color: var(--tag-color, var(--text-accent)); background: var(--tag-background, hsla(var(--interactive-accent-hsl), .1)); border-radius: var(--tag-radius, 2em); padding: var(--tag-padding-y, .15em) var(--tag-padding-x, .55em); font-size: var(--tag-size, .875em); }
+.wm-editor .wm-block-id { color: var(--text-faint); font-size: .85em; }
+
+/* ---------- 自動完成選單（[[ 筆記、# 標籤） ---------- */
+.wm-suggest { padding: 4px; min-width: 240px; max-width: 420px; }
+.wm-suggest-item { display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: var(--font-ui-small); }
+.wm-suggest-item.is-selected, .wm-suggest-item:hover { background: var(--background-modifier-hover); }
+.wm-suggest-icon { display: inline-flex; color: var(--text-muted); }
+.wm-suggest-icon svg { width: 14px; height: 14px; }
+.wm-suggest-label { flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wm-suggest-detail { color: var(--text-faint); font-size: var(--font-ui-smaller); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
+.wm-suggest-hint { padding: 4px 8px 2px; color: var(--text-faint); font-size: var(--font-ui-smaller); border-top: 1px solid var(--background-modifier-border); margin-top: 4px; }
+
+/* ---------- 尋找列 ---------- */
+.wm-find-btn.is-disabled { opacity: .4; pointer-events: none; }
+
+/* ---------- 程式碼區塊顯示成結果（mermaid、dataview 等） ---------- */
+.wm-code-head [hidden] { display: none; }
+.wm-code-head button.is-active { color: var(--text-accent); }
+.wm-code-preview { display: none; padding: 8px 12px; overflow-x: auto; cursor: default; }
+.wm-codeblock.has-preview { background: transparent; }
+.wm-codeblock.has-preview .wm-code-preview { display: block; }
+.wm-codeblock.has-preview pre.wm-code { background: var(--code-background); }
+.wm-codeblock.has-preview:not(.wm-code-active):not(.show-code):not(.is-empty) pre.wm-code { display: none; }
+.wm-codeblock.has-preview.wm-code-active .wm-code-preview, .wm-codeblock.has-preview.show-code .wm-code-preview { border-top: 1px dashed var(--background-modifier-border); }
+.wm-code-preview .mermaid { text-align: center; }
+
+/* ---------- Mermaid 圖表編輯器 ---------- */
+.wm-mmd-modal { width: min(1100px, 94vw); }
+.wm-mmd-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.wm-mmd-template { height: 28px; font-size: var(--font-ui-small); }
+.wm-mmd-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; min-height: 360px; }
+.wm-mmd-edit { max-height: 60vh; overflow-y: auto; padding-right: 4px; }
+.wm-mmd-input { width: 100%; min-height: 340px; font-family: var(--font-monospace); font-size: var(--font-ui-small); resize: vertical; tab-size: 4; }
+.wm-mmd-preview { border: 1px solid var(--background-modifier-border); border-radius: 6px; padding: 10px; min-height: 320px; max-height: 60vh; overflow: auto; text-align: center; }
+.wm-mmd-preview g.node { cursor: pointer; }
+.wm-mmd-section { font-weight: 600; margin: 10px 0 4px; font-size: var(--font-ui-small); }
+.wm-mmd-dir { display: flex; align-items: center; gap: 8px; font-size: var(--font-ui-small); }
+.wm-mmd-row { display: flex; align-items: center; gap: 4px; padding: 2px; border-radius: 4px; }
+.wm-mmd-row.is-current { background: var(--background-modifier-hover); }
+.wm-mmd-row .wm-mmd-text { flex: 1 1 120px; min-width: 80px; height: 28px; }
+.wm-mmd-row select { height: 28px; max-width: 150px; font-size: var(--font-ui-smaller); }
+.wm-mmd-edge select.wm-mmd-from, .wm-mmd-edge select.wm-mmd-to { flex: 1 1 90px; min-width: 70px; }
+.wm-mmd-iconbtn svg { width: 15px; height: 15px; }
+.wm-mmd-add { margin-top: 4px; height: 28px; font-size: var(--font-ui-small); }
+.wm-mmd-note { color: var(--text-muted); font-size: var(--font-ui-small); margin: 8px 0; }
+@media (max-width: 700px) { .wm-mmd-body { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---------- 內嵌（![[筆記]]、影片、錄音、PDF、YouTube） ---------- */
+.wm-editor .wm-wikilink.wm-embed, .wm-editor .wm-image.wm-embed { display: block; margin: .5em 0; padding: 6px 10px; border-left: 2px solid var(--interactive-accent); background: var(--background-secondary); border-radius: 0 6px 6px 0; cursor: default; white-space: normal; color: var(--text-normal); text-decoration: none; }
+.wm-editor .wm-image.wm-embed > img, .wm-editor .wm-image.wm-embed > .wm-image-handle, .wm-editor .wm-image.wm-embed > .wm-image-badge, .wm-editor .wm-image.wm-embed > .wm-image-missing { display: none; }
+.wm-embed-host { display: none; }
+.wm-image.wm-embed > .wm-embed-host { display: block; }
+.wm-embed-title { display: flex; align-items: center; gap: 6px; font-size: var(--font-ui-small); color: var(--text-muted); margin-bottom: 4px; }
+.wm-embed-title svg, .wm-embed-note svg { width: 14px; height: 14px; }
+.wm-embed-body { display: block; }
+.wm-embed-body.is-missing, .wm-embed-note.is-missing { color: var(--text-error); }
+.wm-embed-note { display: flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: var(--font-ui-small); }
+.wm-embed-media { display: block; max-width: 100%; }
+video.wm-embed-media { max-height: 480px; }
+audio.wm-embed-media { width: 100%; }
+.wm-embed-frame { display: block; width: 100%; max-width: 640px; aspect-ratio: 16 / 9; border: none; border-radius: 6px; }
+.wm-editor .wm-embed.ProseMirror-selectednode { outline: 2px solid var(--interactive-accent); }
+
+/* ---------- 註腳 ---------- */
+.wm-editor .wm-raw-inline.is-footnote { vertical-align: super; font-size: .75em; color: var(--text-accent); cursor: pointer; padding: 0 1px; background: none; border: none; }
+.wm-editor .wm-raw-inline.is-footnote.is-missing { color: var(--text-error); }
+.wm-editor .wm-raw-block[data-kind="footnote"] { font-size: var(--footnote-size, .875em); border-left: 2px solid var(--background-modifier-border); padding-left: 10px; }
+.wm-editor .wm-raw-block[data-kind="footnote"] .wm-raw-body > p:first-child { margin-top: 0; }
+.wm-editor .wm-raw-block[data-kind="footnote"] .wm-raw-body > p:last-child { margin-bottom: 0; }
+
+/* ---------- 方程式的視覺化編輯 ---------- */
+.wm-eq-modes { margin-left: 8px; }
+.wm-eq-visual { min-height: 64px; padding: 12px; border: 1px solid var(--background-modifier-border); border-radius: 6px; background: var(--background-primary); font-size: 1.25em; font-family: 'Cambria Math', 'STIX Two Math', 'Latin Modern Math', var(--font-text); overflow-x: auto; cursor: text; }
+.wm-eq-visual-hint { font-size: var(--font-ui-smaller); color: var(--text-faint); margin-top: 4px; }
+.wm-mv { display: flex; align-items: center; min-height: 40px; }
+.wm-mv-row { display: inline-flex; align-items: center; flex-wrap: nowrap; }
+.wm-mv-text { display: inline-block; min-width: 4px; padding: 1px; outline: none; white-space: pre; border-radius: 2px; }
+.wm-mv-text:focus { background: var(--background-modifier-hover); }
+.wm-mv-text.is-slot { min-width: .9em; min-height: 1.1em; border: 1px dashed var(--text-faint); }
+.wm-mv-frac { display: inline-flex; flex-direction: column; align-items: center; margin: 0 3px; }
+.wm-mv-num { display: flex; justify-content: center; align-self: stretch; padding: 0 4px 1px; border-bottom: 1px solid currentColor; }
+.wm-mv-den { display: flex; justify-content: center; padding: 1px 4px 0; }
+.wm-mv-frac.is-binom { border-left: 1px solid currentColor; border-right: 1px solid currentColor; border-radius: 8px; padding: 0 2px; }
+.wm-mv-frac.is-binom .wm-mv-num { border-bottom: none; }
+.wm-mv-sqrt { display: inline-flex; align-items: stretch; margin: 0 2px; }
+.wm-mv-root { font-size: .65em; align-self: flex-start; margin-right: -2px; }
+.wm-mv-radical { font-size: 1.2em; line-height: 1; align-self: center; user-select: none; }
+.wm-mv-radicand { display: inline-flex; align-items: center; padding: 1px 3px 0; border-top: 1px solid currentColor; }
+.wm-mv-sup, .wm-mv-sub { display: inline-flex; font-size: .72em; }
+.wm-mv-sup { align-self: flex-start; margin-top: -.4em; }
+.wm-mv-sub { align-self: flex-end; margin-bottom: -.4em; }
+.wm-mv-group { display: inline-flex; align-items: center; position: relative; margin: 0 1px; }
+.wm-mv-inner, .wm-mv-braces { display: inline-flex; align-items: center; }
+.wm-mv-group[data-cmd="bar"] > .wm-mv-inner, .wm-mv-group[data-cmd="overline"] > .wm-mv-inner, .wm-mv-group[data-cmd="vec"] > .wm-mv-inner, .wm-mv-group[data-cmd="overrightarrow"] > .wm-mv-inner { border-top: 1px solid currentColor; }
+.wm-mv-group[data-cmd="underline"] > .wm-mv-inner { border-bottom: 1px solid currentColor; }
+.wm-mv-group[data-cmd="vec"]::before, .wm-mv-group[data-cmd="overrightarrow"]::before, .wm-mv-group[data-cmd="hat"]::before, .wm-mv-group[data-cmd="tilde"]::before, .wm-mv-group[data-cmd="dot"]::before, .wm-mv-group[data-cmd="ddot"]::before { position: absolute; top: -.8em; right: 0; left: 0; text-align: center; font-size: .7em; pointer-events: none; }
+.wm-mv-group[data-cmd="vec"]::before, .wm-mv-group[data-cmd="overrightarrow"]::before { content: '→'; text-align: right; }
+.wm-mv-group[data-cmd="hat"]::before { content: '^'; }
+.wm-mv-group[data-cmd="tilde"]::before { content: '~'; }
+.wm-mv-group[data-cmd="dot"]::before { content: '˙'; }
+.wm-mv-group[data-cmd="ddot"]::before { content: '¨'; }
+.wm-mv-group[data-cmd="mathbf"] .wm-mv-text, .wm-mv-group[data-cmd="boldsymbol"] .wm-mv-text { font-weight: 700; }
+.wm-mv-group[data-cmd="text"] .wm-mv-text, .wm-mv-group[data-cmd="mathrm"] .wm-mv-text { font-family: var(--font-interface); }
+.wm-mv-tag { align-self: flex-start; margin-right: 1px; font-size: .5em; color: var(--text-faint); user-select: none; }
+.wm-mv-paren { display: inline-flex; align-items: stretch; }
+.wm-mv-delim { display: inline-flex; align-items: center; font-size: 1.3em; color: var(--text-muted); user-select: none; }
+.wm-mv-env { display: inline-flex; align-items: center; gap: 4px; margin: 0 3px; }
+.wm-mv-grid { display: inline-flex; flex-direction: column; gap: 2px; padding: 2px 6px; border-right: 2px solid var(--text-muted); border-left: 2px solid var(--text-muted); border-radius: 4px; }
+.wm-mv-env[data-env="cases"] .wm-mv-grid { border-right: none; border-radius: 8px 0 0 8px; }
+.wm-mv-env[data-env="aligned"] .wm-mv-grid, .wm-mv-env[data-env="align"] .wm-mv-grid, .wm-mv-env[data-env="gathered"] .wm-mv-grid, .wm-mv-env[data-env="array"] .wm-mv-grid, .wm-mv-env[data-env="matrix"] .wm-mv-grid { border: none; }
+.wm-mv-grid-row { display: flex; gap: 10px; justify-content: center; }
+.wm-mv-cell { display: inline-flex; min-width: 1em; justify-content: center; }
+.wm-mv-env-tools { display: inline-flex; flex-direction: column; gap: 1px; opacity: 0; transition: opacity .1s; }
+.wm-mv-env:hover .wm-mv-env-tools, .wm-mv-env:focus-within .wm-mv-env-tools { opacity: 1; }
+.wm-mv-env-tools button.wm-mv-env-btn { height: 16px; padding: 0 3px; font-size: 10px; line-height: 1; box-shadow: none; background: var(--background-modifier-hover); }
+
+/* ---------- 可摺疊的提示框 ---------- */
+.wm-callout .callout-fold { display: flex; align-items: center; cursor: pointer; }
+.wm-callout .callout-fold[hidden] { display: none; }
+.wm-callout .callout-fold svg { width: 16px; height: 16px; }
+.wm-callout.is-collapsed > .callout-content { display: none; }

@@ -95,7 +95,8 @@ export const schema = new Schema({
 
     list_item: {
       content: 'block+', defining: true,
-      attrs: { checked: { default: null } },
+      // checked：null＝一般項目、false／true＝任務；status：自訂任務狀態的字元（- [/] 的「/」），一般的 x 為 null
+      attrs: { checked: { default: null }, status: { default: null } },
       parseDOM: [{ tag: 'li' }],
       toDOM: n => ['li', n.attrs.checked == null ? {} : { 'data-checked': String(n.attrs.checked), class: 'wm-task' }, 0],
     },

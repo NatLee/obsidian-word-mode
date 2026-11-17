@@ -9,6 +9,7 @@ import {
 } from 'prosemirror-tables';
 import { schema } from './schema.js';
 import { htmlSafeBlock } from './markdown.js';
+import { autoformatEnter, undoAutoformat } from './autoformat.js';
 
 const N = schema.nodes;
 const M = schema.marks;
@@ -532,7 +533,7 @@ export function toggleList(kind) {
         }
         l.node.forEach((child, offset) => {
           const checked = kind === 'task' ? (child.attrs.checked != null ? child.attrs.checked : false) : null;
-          tr = tr.setNodeMarkup(l.pos + 1 + offset, null, Object.assign({}, child.attrs, { checked }));
+          tr = tr.setNodeMarkup(l.pos + 1 + offset, null, Object.assign({}, child.attrs, { checked, status: checked ? child.attrs.status : null }));
         });
         dispatch(tr);
       }
@@ -604,7 +605,7 @@ export function toggleTaskAt(pos) {
   return (state, dispatch) => {
     const node = state.doc.nodeAt(pos);
     if (!node || node.type !== N.list_item) return false;
-    if (dispatch) dispatch(state.tr.setNodeMarkup(pos, null, Object.assign({}, node.attrs, { checked: !node.attrs.checked })));
+    if (dispatch) dispatch(state.tr.setNodeMarkup(pos, null, Object.assign({}, node.attrs, { checked: !node.attrs.checked, status: null })));
     return true;
   };
 }
@@ -905,6 +906,19 @@ const backspaceLift = (state, dispatch) => {
   return liftListItem(N.list_item)(state, dispatch);
 };
 
+// 段落開頭按 Backspace、前面是文件屬性或原文區塊（方程式、HTML、註解…）：先選取它，再按一次才刪除。
+// 避免一個按鍵就把整個屬性區塊或方程式刪掉而沒發現
+const selectAtomBefore = (state, dispatch) => {
+  const { $from, empty } = state.selection;
+  if (!empty || $from.parentOffset > 0 || $from.depth !== 1) return false;
+  const index = $from.index(0);
+  if (index === 0) return false;
+  const before = state.doc.child(index - 1);
+  if (before.type !== N.frontmatter && before.type !== N.raw_block) return false;
+  if (dispatch) dispatch(state.tr.setSelection(NodeSelection.create(state.doc, $from.before(1) - before.nodeSize)).scrollIntoView());
+  return true;
+};
+
 // 標題行尾按 Enter：下一段回到內文
 const enterAfterHeading = (state, dispatch) => {
   const { $from, empty } = state.selection;
@@ -939,13 +953,14 @@ export function buildKeymap() {
     'Shift-Enter': chainCommands(insertHardBreak, (s, d) => (s.selection.$from.parent.type === N.heading ? enterAfterHeading(s, d) || baseKeymap.Enter(s, d) : false)),
     'Mod-Enter': chainCommands(exitCode, insertHardBreak),
     Enter: chainCommands(
+      autoformatEnter,
       (s, d) => (inTableCell(s) ? insertHardBreak(s, d) : false),
       splitListItem(N.list_item),
       enterAfterHeading,
     ),
     Tab: chainCommands(tabInTable, sinkListItem(N.list_item), (s) => !!currentList(s), tabInText),
     'Shift-Tab': chainCommands(goToNextCell(-1), liftListItem(N.list_item), paragraphIndent(-1), () => true),
-    Backspace: backspaceLift,
+    Backspace: chainCommands(undoAutoformat, backspaceLift, selectAtomBefore),
     'Alt-ArrowUp': moveBlock(-1),
     'Alt-ArrowDown': moveBlock(1),
   };

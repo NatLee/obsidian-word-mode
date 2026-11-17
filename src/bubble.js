@@ -2,14 +2,7 @@
 import { Plugin } from 'prosemirror-state';
 import { t, withKey, key } from './i18n.js';
 import { linkContext } from './links.js';
-
-function el(tag, cls, parent, text) {
-  const e = document.createElement(tag);
-  if (cls) e.className = cls;
-  if (text != null) e.textContent = text;
-  if (parent) parent.appendChild(e);
-  return e;
-}
+import { el } from './dom.js';
 
 export const IMAGE_SIZES = [
   { label: t('小'), pct: 0.25 }, { label: t('中'), pct: 0.5 }, { label: t('大'), pct: 0.75 }, { label: t('滿版'), pct: 1 },

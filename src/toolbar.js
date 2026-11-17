@@ -6,6 +6,7 @@ import { schema } from './schema.js';
 import { t, key } from './i18n.js';
 import { marksOn } from './marks.js';
 import { attachHint, hideHint } from './hints.js';
+import { el } from './dom.js';
 
 const M = schema.marks;
 
@@ -39,14 +40,6 @@ export const GROUPS = [
   ['proofing', 'review', '校對'], ['stats', 'review', '統計'], ['comments', 'review', '註解'],
   ['views', 'viewtab', '檢視模式'], ['show', 'viewtab', '顯示'], ['zoom', 'viewtab', '縮放'], ['help', 'viewtab', '說明'],
 ];
-
-function el(tag, cls, parent, text) {
-  const e = document.createElement(tag);
-  if (cls) e.className = cls;
-  if (text != null) e.textContent = text;
-  if (parent) parent.appendChild(e);
-  return e;
-}
 
 // 不讓編輯區失去焦點（手機上鍵盤才不會收起來）
 function keepFocus(b) {
@@ -333,10 +326,12 @@ export class Toolbar {
     let g = G.illustrations;
     this.button(g, { icon: 'image', title: '插入圖片', text: '圖', label: '圖片', big: true, demo: 'image', desc: '插入保管庫裡的圖片、電腦上的圖片或網路圖片。', onClick: (e, b) => this.d.image(b) });
     this.button(g, { icon: 'sigma', title: '插入方程式', text: '∑', label: '方程式', big: true, demo: 'equation', desc: '用方程式編輯器輸入數學式，即時預覽。', onClick: () => this.d.equation() });
+    this.button(g, { icon: 'workflow', title: '插入圖表（Mermaid）', text: '圖表', label: '圖表', big: true, demo: 'mermaid', desc: '插入流程圖、循序圖、甘特圖等圖表。流程圖可以用表單編輯步驟與連線，右邊即時預覽。', onClick: () => this.d.mermaid() });
     this.button(g, { icon: 'omega', title: '插入符號', text: 'Ω', label: '符號', big: true, demo: 'symbol', desc: '插入中文標點、箭頭、希臘字母、單位等符號。', onClick: (e, b) => this.openSymbolPopup(b) });
     g = G.links;
     this.button(g, { icon: 'link', title: '超連結', keys: 'Mod+K', text: '連', label: '連結', big: true, demo: 'link', desc: '把文字連到網址或保管庫裡的筆記。', onClick: () => this.d.link() });
     this.button(g, { icon: 'file-symlink', title: '連結到筆記', text: '[[', label: '筆記', big: true, demo: 'notelink', desc: '搜尋並插入另一份筆記的連結。', onClick: () => this.d.noteLink() });
+    this.button(g, { icon: 'asterisk', title: '插入註腳', text: '註', label: '註腳', big: true, demo: 'footnote', desc: '在游標處加上註腳編號，內容放在文件最後。滑鼠移到編號上可以看內容。', onClick: () => this.d.footnote() });
     g = G.code;
     this.button(g, { icon: 'code', title: '行內程式碼', keys: 'Mod+`', text: '</>', label: '行內', big: true, demo: 'code', desc: '把文字標成程式碼（等寬字型）。', cmd: C.toggleCode, active: s => C.markActive(s, M.code) });
     this.menuButton(g, { icon: 'square-code', title: '插入程式碼區塊', text: '{ }', label: '程式碼區塊', big: true, demo: 'codeblock', desc: '插入一段程式碼，可以選語言，會自動上色。' },

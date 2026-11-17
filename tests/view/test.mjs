@@ -631,7 +631,25 @@ assert(!view.getViewData().includes('tags:'), '刪除屬性');
 assert(view.getViewData().endsWith('---\n內文\n'), '內文不受影響');
 view.setViewData('沒有屬性\n', true);
 view.openProperties();
-assert(view.getViewData().startsWith('---\n---\n'), '沒有屬性的筆記可以新增文件屬性：' + JSON.stringify(view.getViewData()));
+assert(view.pm.dom.querySelector('.wm-props') && view.getViewData() === '沒有屬性\n', '新增文件屬性：顯示屬性區塊，還沒填內容時不寫進檔案：' + JSON.stringify(view.getViewData()));
+{
+  const k2 = view.pm.dom.querySelector('.wm-prop-add input');
+  k2.value = '狀態';
+  k2.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  assert(view.getViewData().startsWith('---\n狀態:') && view.getViewData().endsWith('---\n\n沒有屬性\n'), '填了屬性才寫進檔案：' + JSON.stringify(view.getViewData()));
+  view.pm.dom.querySelector('.wm-prop-del').dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+  assert(view.getViewData() === '沒有屬性\n', '屬性刪光後檔案不留下空的 ---：' + JSON.stringify(view.getViewData()));
+  view.setViewData('---\ntags:\n  - a\n---\n\n內文\n', true);
+  view.pm.dom.querySelector('.wm-props-remove').dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+  assert(!view.pm.dom.querySelector('.wm-props') && view.getViewData() === '內文\n', '移除文件屬性按鈕：整個區塊移除：' + JSON.stringify(view.getViewData()));
+  B.undo(view.pm.state, view.pm.dispatch);
+  assert(view.getViewData() === '---\ntags:\n  - a\n---\n\n內文\n', '移除後可以復原：' + JSON.stringify(view.getViewData()));
+  // 段落開頭按 Backspace：先選取屬性區塊，不會直接刪掉
+  const bs = () => view.pm.someProp('handleKeyDown', f => f(view.pm, new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true })));
+  view.pm.dispatch(view.pm.state.tr.setSelection(TextSelection.create(view.pm.state.doc, view.pm.state.doc.firstChild.nodeSize + 1)));
+  bs();
+  assert(view.pm.state.doc.firstChild.type.name === 'frontmatter' && view.pm.state.selection.node && view.pm.state.selection.node.type.name === 'frontmatter', '段落開頭按 Backspace：只選取文件屬性，不刪除');
+}
 
 // ======== 下方狀態列、縮放、快速鍵 ========
 view.buildBottomBar(document.body.appendChild(document.createElement('div')), false);

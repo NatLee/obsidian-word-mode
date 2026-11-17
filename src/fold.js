@@ -5,61 +5,77 @@ import { t } from './i18n.js';
 
 export const foldKey = new PluginKey('wmFold');
 
+function buildDecos(doc, folded, ctx) {
+  const decos = [];
+  let hideUntilLevel = null;
+  doc.forEach((node, pos) => {
+    const isHeading = node.type.name === 'heading';
+    if (hideUntilLevel != null) {
+      if (isHeading && node.attrs.level <= hideUntilLevel) hideUntilLevel = null;
+      else { decos.push(Decoration.node(pos, pos + node.nodeSize, { class: 'wm-fold-hidden' })); return; }
+    }
+    if (!isHeading) return;
+    const isFolded = folded.includes(pos);
+    decos.push(Decoration.widget(pos + 1, view => {
+      const b = document.createElement('span');
+      b.className = 'wm-fold-toggle' + (isFolded ? ' is-folded' : '');
+      b.contentEditable = 'false';
+      b.setAttribute('aria-label', isFolded ? t('展開') : t('摺疊'));
+      ctx.icon(b, isFolded ? 'chevron-right' : 'chevron-down', isFolded ? '▸' : '▾');
+      // 位置在按下時才從畫面算（裝飾會跟著文件位移，建立時的位置之後可能已經不對）
+      const toggle = e => {
+        e.preventDefault(); e.stopPropagation();
+        let at;
+        try { at = view.state.doc.resolve(view.posAtDOM(b, 0)).before(1); } catch (err) { return; }
+        view.dispatch(view.state.tr.setMeta(foldKey, { toggle: at }));
+      };
+      b.addEventListener('mousedown', toggle);
+      return b;
+    }, { side: -1, key: 'fold-' + isFolded, ignoreSelection: true }));
+    if (isFolded) {
+      decos.push(Decoration.node(pos, pos + node.nodeSize, { class: 'wm-heading-folded' }));
+      hideUntilLevel = node.attrs.level;
+    }
+  });
+  return DecorationSet.create(doc, decos);
+}
+
+// 最上層的區塊結構有沒有變（新增／刪除區塊、標題變成段落、標題層級改變）。
+// 只是在某個區塊裡打字時結構不變，裝飾跟著位移就好，不用重建
+function structureChanged(a, b) {
+  if (a.childCount !== b.childCount) return true;
+  for (let i = 0; i < a.childCount; i++) {
+    const x = a.child(i); const y = b.child(i);
+    if (x === y) continue;
+    if (x.type !== y.type || x.attrs.level !== y.attrs.level) return true;
+  }
+  return false;
+}
+
 export function foldPlugin(ctx) {
   return new Plugin({
     key: foldKey,
     state: {
-      init: () => [],
-      apply(tr, folded, oldState, newState) {
-        let list = folded;
-        if (tr.docChanged) {
-          list = folded.map(p => tr.mapping.mapResult(p)).filter(r => !r.deleted).map(r => r.pos);
-        }
+      init: (_, state) => ({ folded: [], set: buildDecos(state.doc, [], ctx) }),
+      apply(tr, old, oldState, newState) {
         const meta = tr.getMeta(foldKey);
-        if (meta && meta.toggle != null) {
-          list = list.includes(meta.toggle) ? list.filter(p => p !== meta.toggle) : list.concat(meta.toggle);
-        }
+        if (!tr.docChanged && !meta) return old;
+        let list = old.folded;
+        if (tr.docChanged) list = list.map(p => tr.mapping.mapResult(p)).filter(r => !r.deleted).map(r => r.pos);
+        if (meta && meta.toggle != null) list = list.includes(meta.toggle) ? list.filter(p => p !== meta.toggle) : list.concat(meta.toggle);
         if (meta && meta.clear) list = [];
         // 全部摺疊：收起每個頂層標題
         if (meta && meta.all) { list = []; newState.doc.forEach((n, pos) => { if (n.type.name === 'heading') list.push(pos); }); }
         // 只保留仍是頂層標題的位置
-        return list.filter((p, i, a) => a.indexOf(p) === i && (() => {
+        list = list.filter((p, i, a) => {
+          if (a.indexOf(p) !== i) return false;
           const n = newState.doc.nodeAt(p);
-          return n && n.type.name === 'heading' && newState.doc.resolve(p).depth === 0;
-        })());
-      },
-    },
-    props: {
-      decorations(state) {
-        const folded = foldKey.getState(state);
-        const decos = [];
-        const doc = state.doc;
-        let hideUntilLevel = null;
-        doc.forEach((node, pos) => {
-          const isHeading = node.type.name === 'heading';
-          if (hideUntilLevel != null) {
-            if (isHeading && node.attrs.level <= hideUntilLevel) hideUntilLevel = null;
-            else { decos.push(Decoration.node(pos, pos + node.nodeSize, { class: 'wm-fold-hidden' })); return; }
-          }
-          if (!isHeading) return;
-          const isFolded = folded.includes(pos);
-          decos.push(Decoration.widget(pos + 1, view => {
-            const b = document.createElement('span');
-            b.className = 'wm-fold-toggle' + (isFolded ? ' is-folded' : '');
-            b.contentEditable = 'false';
-            b.setAttribute('aria-label', t(isFolded ? t('展開') : t('摺疊')));
-            ctx.icon(b, isFolded ? 'chevron-right' : 'chevron-down', isFolded ? '▸' : '▾');
-            const toggle = e => { e.preventDefault(); e.stopPropagation(); view.dispatch(view.state.tr.setMeta(foldKey, { toggle: pos })); };
-            b.addEventListener('mousedown', toggle);
-            return b;
-          }, { side: -1, key: 'fold-' + pos + '-' + isFolded, ignoreSelection: true }));
-          if (isFolded) {
-            decos.push(Decoration.node(pos, pos + node.nodeSize, { class: 'wm-heading-folded' }));
-            hideUntilLevel = node.attrs.level;
-          }
+          return !!n && n.type.name === 'heading' && newState.doc.resolve(p).depth === 0;
         });
-        return DecorationSet.create(doc, decos);
+        if (!meta && !structureChanged(oldState.doc, newState.doc)) return { folded: list, set: old.set.map(tr.mapping, tr.doc) };
+        return { folded: list, set: buildDecos(newState.doc, list, ctx) };
       },
     },
+    props: { decorations(state) { return foldKey.getState(state).set; } },
   });
 }

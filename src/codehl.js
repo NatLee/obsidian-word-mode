@@ -68,6 +68,21 @@ function update(tr, set, getPrism) {
   return set;
 }
 
+// 游標所在的程式碼區塊加上 wm-code-active：會顯示結果的區塊（mermaid、dataview…）在游標進去時才顯示程式碼
+export const codeActivePlugin = new Plugin({
+  props: {
+    decorations(state) {
+      const { $from } = state.selection;
+      for (let d = $from.depth; d > 0; d--) {
+        if ($from.node(d).type.name === 'code_block') {
+          return DecorationSet.create(state.doc, [Decoration.node($from.before(d), $from.after(d), { class: 'wm-code-active' })]);
+        }
+      }
+      return null;
+    },
+  },
+});
+
 export function codePlugin(getPrism) {
   return new Plugin({
     key: codeKey,
