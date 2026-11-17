@@ -24,7 +24,8 @@ export const log = [];
 export class TFile {
   constructor(path) { this.path = path; this.name = path.split('/').pop(); this.basename = this.name.replace(/\.[^.]+$/, ''); this.extension = this.name.split('.').pop(); this.parent = { path: path.split('/').slice(0, -1).join('/') }; this.stat = { size: 10 }; }
 }
-export class TFolder { constructor(path) { this.path = path; this.name = path.split('/').pop(); } }
+export class TFolder { constructor(path, children = []) { this.path = path; this.name = path.split('/').pop(); this.children = children; } }
+export class Vault { static recurseChildren(root, cb) { cb(root); for (const c of root.children || []) { if (c instanceof TFolder) Vault.recurseChildren(c, cb); else cb(c); } } }
 export class Notice { constructor(m) { log.push(['notice', m]); } }
 export class Menu {
   constructor() { this.items = []; }
