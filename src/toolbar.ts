@@ -155,6 +155,8 @@ interface ToolbarItem extends Pick<ButtonSpec, 'cmd' | 'active' | 'enabled' | 'w
 
 // 大綱下拉選單的一個標題
 interface OutlineHead { level: number; text: string; pos: number; }
+// heading 節點的屬性（見 schema.ts）；這裡只讀 level（1～6）
+interface HeadingAttrs { readonly level: number; }
 
 // 各群組放按鈕的容器；群組被隱藏時是 null，所在分頁被隱藏時沒有這一項
 type GroupBodies = Partial<Record<GroupId, HTMLDivElement | null>>;
@@ -690,7 +692,7 @@ export class Toolbar {
     if (!v) return;
     const heads: OutlineHead[] = [];
     v.state.doc.descendants((n, pos) => {
-      if (n.type.name === 'heading') heads.push({ level: n.attrs.level, text: n.textContent || t('（無標題）'), pos });
+      if (n.type.name === 'heading') heads.push({ level: (n.attrs as HeadingAttrs).level, text: n.textContent || t('（無標題）'), pos });
       return !n.isTextblock;
     });
     this.openPopup(owner, p => {

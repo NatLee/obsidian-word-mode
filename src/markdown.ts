@@ -10,6 +10,10 @@ import type { Mark, Node as PMNode } from 'prosemirror-model';
 import type { MarkdownIt as MarkdownItInstance, StateCore, StateInline, Token } from 'markdown-it';
 import type { ParseSpec } from 'prosemirror-markdown';
 import { schema } from './schema.js';
+import type {
+  BidAttrs, CalloutAttrs, FrontmatterAttrs, HeadingAttrs, HorizontalRuleAttrs, ImageAttrs, LinkAttrs, ListItemAttrs,
+  OrderedListAttrs, RawBlockAttrs, RawInlineAttrs, TableCellAttrs, WikilinkAttrs,
+} from './schema.js';
 
 // ---------------------------------------------------------------------------
 // 型別
@@ -266,7 +270,8 @@ export function createParser(tokenizer: MarkdownItInstance): MarkdownParser {
   return new MarkdownParser(schema, tokenizer, {
     blockquote: { block: 'blockquote' },
     paragraph: { block: 'paragraph' },
-    list_item: { block: 'list_item', getAttrs: tok => ({ checked: tok.meta && tok.meta.checked != null ? tok.meta.checked : null, status: (tok.meta && tok.meta.status) || null }) },
+    // tok.meta 是 obsidianCore 為任務項目記下的 { checked, status }；一般項目是 null
+    list_item: { block: 'list_item', getAttrs: tok => { const meta = tok.meta as ListItemAttrs | null; return { checked: meta && meta.checked != null ? meta.checked : null, status: (meta && meta.status) || null }; } },
     bullet_list: { block: 'bullet_list', getAttrs: (tok, tokens, i) => ({ tight: listIsTight(tokens, i), bullet: tok.markup || '-' }) },
     ordered_list: { block: 'ordered_list', getAttrs: (tok, tokens, i) => ({ order: +tok.attrGet('start')! || 1, tight: listIsTight(tokens, i) }) },
     heading: { block: 'heading', getAttrs: tok => ({ level: +tok.tag.slice(1) }) },
@@ -304,8 +309,9 @@ export function createParser(tokenizer: MarkdownItInstance): MarkdownParser {
     td: { block: 'table_cell', getAttrs: alignAttr },
     html_block: { node: 'raw_block', getAttrs: tok => ({ src: tok.content.replace(/\n$/, ''), kind: 'html' }) },
     html_inline: { node: 'raw_inline', getAttrs: tok => ({ src: tok.content }) },
-    wikilink: { node: 'wikilink', getAttrs: tok => tok.meta },
-    wiki_image: { node: 'image', getAttrs: tok => tok.meta },
+    // tok.meta 是 wikilinkRule 建立的節點屬性
+    wikilink: { node: 'wikilink', getAttrs: tok => tok.meta as WikilinkAttrs },
+    wiki_image: { node: 'image', getAttrs: tok => tok.meta as ImageAttrs },
     raw_md: { node: 'raw_inline', getAttrs: tok => ({ src: tok.content }) },
   });
 }
@@ -396,7 +402,7 @@ export function htmlSafeBlock(node: PMNode): boolean {
   node.forEach(c => {
     if (!ok) return;
     if (c.isText || c.type.name === 'hard_break') {
-      for (const m of c.marks) if (m.type.name === 'link' && !/^[a-z][a-z0-9+.-]*:/i.test(m.attrs.href || '')) ok = false;
+      for (const m of c.marks) if (m.type.name === 'link' && !/^[a-z][a-z0-9+.-]*:/i.test((m.attrs as LinkAttrs).href || '')) ok = false;
     } else ok = false;
   });
   return ok;
@@ -433,12 +439,12 @@ export function inlineToHtml(node: PMNode): string {
     if (child.isText) inner = escHtml(child.text);
     else if (child.type.name === 'hard_break') inner = '<br>';
     else if (child.type.name === 'wikilink') {
-      const a = child.attrs;
+      const a = child.attrs as WikilinkAttrs;
       inner = `<a class="internal-link" data-href="${escHtml(a.target)}" href="${escHtml(a.target)}">${escHtml(a.alias || a.target.replace(/\.md$/i, ''))}</a>`;
     } else if (child.type.name === 'image') {
-      const a = child.attrs;
+      const a = child.attrs as ImageAttrs;
       inner = `<img src="${escHtml(a.src)}"${a.alt ? ` alt="${escHtml(a.alt)}"` : ''}${a.width ? ` width="${escHtml(String(a.width).split('x')[0])}"` : ''}${a.wiki ? ' data-wiki="1"' : ''}>`;
-    } else if (child.type.name === 'raw_inline') inner = child.attrs.src;
+    } else if (child.type.name === 'raw_inline') inner = (child.attrs as RawInlineAttrs).src;
     else inner = escHtml(child.textContent);
     const marks = child.marks.slice();
     for (let i = marks.length - 1; i >= 0; i--) {
@@ -541,7 +547,7 @@ export function createSerializer(): MarkdownSerializer {
   return new MarkdownSerializer({
     blockquote(state, node) { state.wrapBlock('> ', null, node, () => state.renderContent(node)); },
     callout(state, node) {
-      const a = node.attrs;
+      const a = node.attrs as CalloutAttrs;
       state.wrapBlock('> ', null, node, () => {
         state.write('[!' + a.type + ']' + (a.fold || '') + (a.title ? ' ' + a.title : ''));
         const only = node.childCount === 1 && node.firstChild!.type.name === 'paragraph' && node.firstChild!.content.size === 0;
@@ -559,14 +565,15 @@ export function createSerializer(): MarkdownSerializer {
       state.closeBlock(node);
     },
     heading(state, node) {
-      state.write(state.repeat('#', node.attrs.level) + ' ');
+      state.write(state.repeat('#', (node.attrs as HeadingAttrs).level) + ' ');
       state.renderInline(node, false);
       state.closeBlock(node);
     },
-    horizontal_rule(state, node) { state.write(node.attrs.markup || '---'); state.closeBlock(node); },
+    horizontal_rule(state, node) { state.write((node.attrs as HorizontalRuleAttrs).markup || '---'); state.closeBlock(node); },
     bullet_list(state, node) { state.renderList(node, '  ', () => (node.attrs.bullet || '-') + ' '); },
     ordered_list(state, node) {
-      const start = node.attrs.order == null ? 1 : node.attrs.order;
+      const a = node.attrs as OrderedListAttrs;
+      const start = a.order == null ? 1 : a.order;
       const maxW = String(start + node.childCount - 1).length;
       const space = state.repeat(' ', maxW + 2);
       state.renderList(node, space, i => {
@@ -586,7 +593,7 @@ export function createSerializer(): MarkdownSerializer {
       state.renderInline(node); state.closeBlock(node);
     },
     image(state, node) {
-      const a = node.attrs;
+      const a = node.attrs as ImageAttrs;
       if (a.wiki) {
         const sep = (state as SerializerState).inTable ? '\\|' : '|';
         const extra = [a.alt, a.width].filter(x => x != null && x !== '').join(sep);
@@ -598,12 +605,12 @@ export function createSerializer(): MarkdownSerializer {
       }
     },
     wikilink(state, node) {
-      const a = node.attrs;
+      const a = node.attrs as WikilinkAttrs;
       state.write((a.embed ? '!' : '') + '[[' + a.target + (a.alias != null ? ((state as SerializerState).inTable ? '\\|' : '|') + a.alias : '') + ']]');
     },
-    raw_inline(state, node) { state.text(node.attrs.src, false); },
-    raw_block(state, node) { state.text(node.attrs.src, false); state.closeBlock(node); },
-    frontmatter(state, node) { state.text(node.attrs.src, false); state.closeBlock(node); },
+    raw_inline(state, node) { state.text((node.attrs as RawInlineAttrs).src, false); },
+    raw_block(state, node) { state.text((node.attrs as RawBlockAttrs).src, false); state.closeBlock(node); },
+    frontmatter(state, node) { state.text((node.attrs as FrontmatterAttrs).src, false); state.closeBlock(node); },
     hard_break(state, node, parent, index) {
       for (let i = index + 1; i < parent.childCount; i++) {
         if (parent.child(i).type !== node.type) {
@@ -622,7 +629,7 @@ export function createSerializer(): MarkdownSerializer {
       const rows: TableCellOut[][] = [];
       node.forEach(row => {
         const cells: TableCellOut[] = [];
-        row.forEach(cell => cells.push({ text: renderCell(state as SerializerState, cell), align: cell.attrs.align }));
+        row.forEach(cell => cells.push({ text: renderCell(state as SerializerState, cell), align: (cell.attrs as TableCellAttrs).align }));
         rows.push(cells);
       });
       const cols = Math.max(1, ...rows.map(r => r.length));
@@ -662,8 +669,9 @@ export function createSerializer(): MarkdownSerializer {
         const { inAutolink } = state as SerializerState;
         (state as SerializerState).inAutolink = undefined;
         if (inAutolink) return '>';
-        const href = /[\s]/.test(mark.attrs.href) && !/^<.*>$/.test(mark.attrs.href) ? '<' + mark.attrs.href + '>' : mark.attrs.href.replace(/[()]/g, '\\$&');
-        return '](' + href + (mark.attrs.title ? ` "${mark.attrs.title.replace(/"/g, '\\"')}"` : '') + ')';
+        const a = mark.attrs as LinkAttrs;
+        const href = /[\s]/.test(a.href) && !/^<.*>$/.test(a.href) ? '<' + a.href + '>' : a.href.replace(/[()]/g, '\\$&');
+        return '](' + href + (a.title ? ` "${a.title.replace(/"/g, '\\"')}"` : '') + ')';
       },
       mixable: true,
     },
@@ -684,7 +692,7 @@ function backticksFor(node: PMNode, side: number): string {
   return r;
 }
 function isPlainURL(link: Mark, parent: PMNode, index: number): boolean {
-  if (link.attrs.title || !/^\w+:/.test(link.attrs.href)) return false;
+  if (link.attrs.title || !/^\w+:/.test((link.attrs as LinkAttrs).href)) return false;
   const c = parent.child(index);
   if (!c.isText || c.text !== link.attrs.href || c.marks[c.marks.length - 1] !== link) return false;
   return index === parent.childCount - 1 || !link.isInSet(parent.child(index + 1).marks);
@@ -725,7 +733,7 @@ function liftCallouts(node: PMNode, serializeInline: (nodes: PMNode[]) => string
     if (bodyInline.length) content.push(schema.nodes.paragraph.create(null, bodyInline));
     content.push(...children.slice(1));
     if (!content.length) content.push(schema.nodes.paragraph.create());
-    return schema.nodes.callout.create({ type: m[1], fold: m[2] || '', title: title || null, bid: node.attrs.bid }, content);
+    return schema.nodes.callout.create({ type: m[1], fold: m[2] || '', title: title || null, bid: (node.attrs as BidAttrs).bid }, content);
   }
   return node.copy(Fragment.from(children));
 }
@@ -962,7 +970,9 @@ export class MarkdownConverter {
     const eol = meta.eol || '\n';
     const runs: { bid: number | null; nodes: PMNode[] }[] = [];
     doc.forEach(node => {
-      const b = node.attrs && node.attrs.bid != null ? node.attrs.bid : null;
+      // 頂層節點都有 bid 屬性（見 schema.ts）；沒有時與 null 相同
+      const a = node.attrs as Partial<BidAttrs>;
+      const b = a && a.bid != null ? a.bid : null;
       const last = runs[runs.length - 1];
       if (last && b != null && last.bid === b) last.nodes.push(node);
       else runs.push({ bid: b, nodes: [node] });
@@ -978,7 +988,7 @@ export class MarkdownConverter {
       const ser = this.serializeNodes(run.nodes);
       const seg = run.bid != null && !used.has(run.bid) ? meta.segments[run.bid] : null;
       // 沒有任何屬性的文件屬性區塊（剛新增還沒填、或屬性被刪光）：不寫進檔案；原本就在檔案裡且沒動過的照舊
-      if (run.nodes.length === 1 && run.nodes[0].type === schema.nodes.frontmatter && emptyFrontmatter(run.nodes[0].attrs.src)
+      if (run.nodes.length === 1 && run.nodes[0].type === schema.nodes.frontmatter && emptyFrontmatter((run.nodes[0].attrs as FrontmatterAttrs).src)
         && !(seg && ser === seg.canon)) {
         if (seg) { used.add(run.bid); lastModified = true; }
         continue;

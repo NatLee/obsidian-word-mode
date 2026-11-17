@@ -94,7 +94,7 @@ export const findPlugin = new Plugin<FindState>({
   state: {
     init: () => ({ query: '', caseSensitive: false, regex: false, wholeWord: false, matches: [], current: -1, error: false }),
     apply(tr, old) {
-      const meta: FindMeta | undefined = tr.getMeta(findKey);
+      const meta = tr.getMeta(findKey) as FindMeta | undefined;
       let s = old;
       if (meta) s = compute(tr.doc, Object.assign({}, old, meta));
       else if (tr.docChanged && old.query) s = compute(tr.doc, old);

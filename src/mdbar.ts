@@ -106,9 +106,9 @@ export class MarkdownBar {
     const E = (fn: (ed: Editor) => void) => () => { const ed = this.editor; if (ed) { fn(ed); ed.focus(); } };
 
     let g = group('views');
-    this.button(g, { icon: 'file-text', title: '切換到 Word 模式', keys: this.plugin.settings.ctrlE !== false ? 'Mod+E' : null, label: 'Word 模式', demo: 'markdown', desc: '用 Word 模式編輯這份筆記。', run: () => this.plugin.switchToWord(this.view.leaf), always: true });
-    this.button(g, { icon: 'code-2', title: 'Markdown 編輯', label: 'Markdown', active: () => this.mode === 'source', run: () => this.setMode('source'), always: true });
-    this.button(g, { icon: 'book-open', title: '閱讀模式', label: '閱讀', demo: 'reading', active: () => this.mode === 'preview', run: () => this.setMode('preview'), always: true });
+    this.button(g, { icon: 'file-text', title: '切換到 Word 模式', keys: this.plugin.settings.ctrlE !== false ? 'Mod+E' : null, label: 'Word 模式', demo: 'markdown', desc: '用 Word 模式編輯這份筆記。', run: () => { void this.plugin.switchToWord(this.view.leaf); }, always: true });
+    this.button(g, { icon: 'code-2', title: 'Markdown 編輯', label: 'Markdown', active: () => this.mode === 'source', run: () => { void this.setMode('source'); }, always: true });
+    this.button(g, { icon: 'book-open', title: '閱讀模式', label: '閱讀', demo: 'reading', active: () => this.mode === 'preview', run: () => { void this.setMode('preview'); }, always: true });
 
     g = group('undo');
     this.button(g, { icon: 'undo-2', title: '復原', keys: 'Mod+Z', run: E(ed => ed.undo()) });
@@ -151,7 +151,7 @@ export class MarkdownBar {
     this.button(g, { icon: 'replace', title: '取代', keys: 'Mod+H', demo: 'replace', run: this.cmd('editor:open-search-replace') });
 
     g = group('show');
-    this.button(g, { icon: 'list-tree', title: '大綱', demo: 'outline', run: () => this.plugin.toggleOutline(), active: () => this.plugin.outlineOpen(), always: true });
+    this.button(g, { icon: 'list-tree', title: '大綱', demo: 'outline', run: () => { void this.plugin.toggleOutline(); }, active: () => this.plugin.outlineOpen(), always: true });
     this.button(g, { icon: 'chevrons-down-up', title: '摺疊全部標題', demo: 'fold', run: this.cmd('editor:fold-all') });
     this.button(g, { icon: 'chevrons-up-down', title: '展開全部標題', demo: 'unfold', run: this.cmd('editor:unfold-all') });
     g = group('help');
@@ -194,7 +194,7 @@ export class MarkdownBar {
   }
 
   async setMode(mode: MarkdownViewModeType): Promise<void> {
-    const st: Record<string, unknown> = this.view.getState();
+    const st = this.view.getState() as Record<string, unknown>;
     st.mode = mode;
     if (mode === 'source') st.source = false;
     await this.view.setState(st, { history: false });

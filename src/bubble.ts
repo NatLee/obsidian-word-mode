@@ -35,6 +35,9 @@ export interface BubbleContext {
 // nodeDOM 可能是文字節點（沒有 getBoundingClientRect），所以 position() 先檢查再呼叫
 type MaybeElement = Node & Partial<Pick<Element, 'getBoundingClientRect'>>;
 
+// wikilink 節點的屬性（見 schema.ts）；這裡只讀 target（連到的筆記）
+interface WikilinkAttrs { readonly target: string; }
+
 export const IMAGE_SIZES = [
   { label: t('小'), pct: 0.25 }, { label: t('中'), pct: 0.5 }, { label: t('大'), pct: 0.75 }, { label: t('滿版'), pct: 1 },
 ];
@@ -118,7 +121,7 @@ class Bubble {
     this.dom.dataset.kind = info.kind;
     if (info.kind === 'image') { this.renderImage(info); return; }
 
-    const target = info.kind === 'wikilink' ? info.node.attrs.target : info.href;
+    const target = info.kind === 'wikilink' ? (info.node.attrs as WikilinkAttrs).target : info.href;
     const d = c.describe(target, info.kind === 'wikilink');
     const link = el('a', 'wm-bubble-url' + (d.missing ? ' is-missing' : ''), this.dom);
     const ic = el('span', 'wm-bubble-icon', link);
@@ -134,7 +137,7 @@ class Bubble {
       return;
     }
     this.btn(this.dom, 'pencil', withKey('編輯連結', 'Mod+K'), i => c.edit(i));
-    this.btn(this.dom, 'copy', t('複製連結'), (i: WikilinkContext | TextLinkContext) => c.copy(i.kind === 'wikilink' ? i.node.attrs.target : i.href));
+    this.btn(this.dom, 'copy', t('複製連結'), (i: WikilinkContext | TextLinkContext) => c.copy(i.kind === 'wikilink' ? (i.node.attrs as WikilinkAttrs).target : i.href));
     this.btn(this.dom, 'unlink', t('移除連結（保留文字）'), i => c.unlink(i));
   }
 

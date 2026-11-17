@@ -19,6 +19,14 @@ import type { EquationEditMode } from './dialogs.js';
 import type { MermaidTab } from './mermaid.js';
 import type { CommandManager } from './obsidian-internal.js';
 
+// 1.5.7 的型別定義裡 Plugin 沒有宣告 onload（繼承 Component 的 onload(): void），
+// 但 Obsidian 載入外掛時會等待 onload 回傳的 Promise；1.7.2 起官方型別也宣告成 Promise<void> | void，這裡照新版補上
+declare module 'obsidian' {
+  interface Plugin {
+    onload(): Promise<void> | void;
+  }
+}
+
 // 介面語言設定：auto＝跟隨 Obsidian 的語言
 export type LanguageSetting = 'auto' | Language;
 // 工具列位置：auto＝手機放下方、平板與電腦放上方
@@ -173,7 +181,8 @@ export default class WordModePlugin extends Plugin {
   declare restoreSetViewState?: () => void;
 
   async onload(): Promise<void> {
-    this.settings = Object.assign({}, DEFAULTS, await this.loadData());
+    // data.json 不存在時 loadData() 回傳 null
+    this.settings = Object.assign({}, DEFAULTS, await this.loadData() as Partial<Settings> | null);
     if (this.settings.ribbonLabels === false && !this.settings.buttonStyleSet) this.settings.buttonStyle = 'icon';
     delete this.settings.ribbonLabels;
     if (this.settings.outlineSidebar === false) this.settings.outlinePlace = 'popup';
@@ -514,14 +523,14 @@ export default class WordModePlugin extends Plugin {
       setIcon(b, icon);
       b.addEventListener('click', run);
     };
-    btn('file-text', this.settings.ctrlE !== false ? withKey('Word 模式', 'Mod+E') : t('Word 模式'), false, () => this.switchToWord(md.leaf));
-    btn('code-2', t('Markdown 編輯') + (mode === 'source' ? t('（目前）') : ''), mode === 'source', () => this.setMarkdownMode(md, 'source'));
-    btn('book-open', t('閱讀模式') + (mode === 'preview' ? t('（目前）') : ''), mode === 'preview', () => this.setMarkdownMode(md, 'preview'));
+    btn('file-text', this.settings.ctrlE !== false ? withKey('Word 模式', 'Mod+E') : t('Word 模式'), false, () => { void this.switchToWord(md.leaf); });
+    btn('code-2', t('Markdown 編輯') + (mode === 'source' ? t('（目前）') : ''), mode === 'source', () => { void this.setMarkdownMode(md, 'source'); });
+    btn('book-open', t('閱讀模式') + (mode === 'preview' ? t('（目前）') : ''), mode === 'preview', () => { void this.setMarkdownMode(md, 'preview'); });
   }
 
   // 切換 Obsidian 的 Markdown 編輯／閱讀模式
   async setMarkdownMode(view: MarkdownView, mode: MarkdownViewModeType): Promise<void> {
-    const st: Record<string, unknown> = view.getState();
+    const st = view.getState() as Record<string, unknown>;
     st.mode = mode;
     if (mode === 'source') st.source = false;
     await view.setState(st, { history: false });
@@ -557,8 +566,10 @@ export default class WordModePlugin extends Plugin {
     const orig = proto.setViewState;
     const patched = function (this: WorkspaceLeaf, state: ViewState, eState?: unknown): Promise<void> {
       try {
-        if (!plugin.unloaded && plugin.settings.openByDefault && state && state.type === 'markdown' && state.state && typeof state.state.file === 'string') {
-          const file: string = state.state.file;
+        // ViewState.state 的型別是 any；這裡只讀 file
+        const viewState = state && (state.state as { file?: unknown } | null | undefined);
+        if (!plugin.unloaded && plugin.settings.openByDefault && state && state.type === 'markdown' && viewState && typeof viewState.file === 'string') {
+          const file: string = viewState.file;
           const forced = plugin.forceMarkdown.get(this);
           if (forced !== file && plugin.eligible(file)) {
             plugin.forceMarkdown.delete(this);
@@ -707,19 +718,19 @@ class WordModeSettings extends PluginSettingTab {
         gcb.disabled = !tcb.checked;
         gl.createSpan({ text: t(gLabel) });
         inner.push(gcb);
-        gcb.addEventListener('change', async () => {
+        gcb.addEventListener('change', () => {
           const set = new Set(S.hiddenGroups || []);
           if (gcb.checked) set.delete(gid); else set.add(gid);
           S.hiddenGroups = [...set];
-          await rebuild();
+          void rebuild();
         });
       }
-      tcb.addEventListener('change', async () => {
+      tcb.addEventListener('change', () => {
         const set = new Set(S.hiddenTabs || []);
         if (tcb.checked) set.delete(tab); else set.add(tab);
         S.hiddenTabs = [...set];
         for (const x of inner) x.disabled = !tcb.checked;
-        await rebuild();
+        void rebuild();
       });
     }
 
@@ -744,11 +755,11 @@ class WordModeSettings extends PluginSettingTab {
       const tx = l.createDiv();
       tx.createDiv({ cls: 'wm-settings-tab', text: t(label) });
       tx.createDiv({ cls: 'setting-item-description', text: t(desc) });
-      cb.addEventListener('change', async () => {
+      cb.addEventListener('change', () => {
         const set = new Set(S.hiddenCtx || []);
         if (cb.checked) set.delete(id); else set.add(id);
         S.hiddenCtx = [...set];
-        await save();
+        void save();
       });
     }
     new Setting(c).setName(t('方程式編輯器預設的編輯方式'))

@@ -26,6 +26,9 @@ export interface OutlineHeading {
 
 interface OutlineRow { h: OutlineHeading; row: HTMLDivElement; }
 
+// heading 節點的屬性（見 schema.ts）；這裡只讀 level（1～6）
+interface HeadingAttrs { readonly level: number; }
+
 export class OutlineView extends ItemView {
   declare plugin: WordModePlugin;
   declare collapsed: Set<string>;
@@ -86,7 +89,7 @@ export class OutlineView extends ItemView {
     const out: OutlineHeading[] = [];
     if (v.pm) {
       v.pm.state.doc.forEach((n, pos) => {
-        if (n.type.name === 'heading') out.push({ level: n.attrs.level, text: n.textContent || t('（無標題）'), pos } as OutlineHeading);
+        if (n.type.name === 'heading') out.push({ level: (n.attrs as HeadingAttrs).level, text: n.textContent || t('（無標題）'), pos } as OutlineHeading);
       });
     } else {
       const cache = this.app.metadataCache.getFileCache(v.file);

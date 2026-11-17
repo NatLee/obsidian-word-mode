@@ -383,7 +383,7 @@ export class EquationModal extends Modal {
     const copy = lab.createEl('button', { cls: 'clickable-icon wm-eq-copy' });
     copy.setAttribute('aria-label', t('複製 LaTeX'));
     setIcon(copy, 'copy');
-    copy.addEventListener('click', () => navigator.clipboard && navigator.clipboard.writeText(this.ta.value.trim()).then(() => new Notice(t('已複製：') + this.ta.value.trim())));
+    copy.addEventListener('click', () => { if (navigator.clipboard) void navigator.clipboard.writeText(this.ta.value.trim()).then(() => new Notice(t('已複製：') + this.ta.value.trim())); });
     this.prev = c.createDiv('wm-eq-preview');
     const bar = c.createDiv('modal-button-container');
     if (this.init.existing && this.init.onDelete) {

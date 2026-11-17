@@ -8,6 +8,9 @@ export interface FootnoteRef { id: string; pos: number; }
 export interface FootnoteDef { id: string; pos: number; node: PMNode; }
 export interface Footnotes { refs: FootnoteRef[]; defs: FootnoteDef[]; }
 
+// raw_inline 與 raw_block 節點的屬性（見 schema.ts）；這裡只讀 src（原文）
+interface RawSrcAttrs { readonly src: string; }
+
 const N = schema.nodes;
 export const FOOTNOTE_REF = /^\[\^([^\]\s]+)\]$/;
 export const FOOTNOTE_DEF = /^\[\^([^\]\s]+)\]:[ \t]?/;
@@ -16,8 +19,8 @@ export const FOOTNOTE_DEF = /^\[\^([^\]\s]+)\]:[ \t]?/;
 export function footnotes(doc: PMNode): Footnotes {
   const refs: FootnoteRef[] = []; const defs: FootnoteDef[] = [];
   doc.descendants((node, pos) => {
-    if (node.type === N.raw_inline) { const m = FOOTNOTE_REF.exec(node.attrs.src); if (m) refs.push({ id: m[1], pos }); return false; }
-    if (node.type === N.raw_block) { const m = FOOTNOTE_DEF.exec(node.attrs.src); if (m) defs.push({ id: m[1], pos, node }); return false; }
+    if (node.type === N.raw_inline) { const m = FOOTNOTE_REF.exec((node.attrs as RawSrcAttrs).src); if (m) refs.push({ id: m[1], pos }); return false; }
+    if (node.type === N.raw_block) { const m = FOOTNOTE_DEF.exec((node.attrs as RawSrcAttrs).src); if (m) defs.push({ id: m[1], pos, node }); return false; }
     return true;
   });
   return { refs, defs };
@@ -29,7 +32,7 @@ export function footnoteBody(src: string): string {
 }
 export function footnoteText(doc: PMNode, id: string): string | null {
   const d = footnotes(doc).defs.find(x => x.id === id);
-  return d ? footnoteBody(d.node.attrs.src) : null;
+  return d ? footnoteBody((d.node.attrs as RawSrcAttrs).src) : null;
 }
 
 // 下一個編號：目前最大的數字編號 + 1
@@ -67,7 +70,7 @@ export function insertFootnote(text?: string | null): Command {
 export function setFootnoteBody(pos: number, text?: string | null): Command {
   return (state, dispatch) => {
     const node = state.doc.nodeAt(pos);
-    const m = node && node.type === N.raw_block && FOOTNOTE_DEF.exec(node.attrs.src);
+    const m = node && node.type === N.raw_block && FOOTNOTE_DEF.exec((node.attrs as RawSrcAttrs).src);
     if (!m) return false;
     if (dispatch) {
       const body = String(text || '').replace(/\r?\n/g, '\n    ').trim();

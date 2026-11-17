@@ -141,7 +141,7 @@ export function suggestPlugin(ctx: SuggestContext): Plugin<SuggestTrigger | null
     state: {
       init: () => null,
       apply(tr, old, _o, state) {
-        const meta: { close?: boolean } | undefined = tr.getMeta(suggestKey);
+        const meta = tr.getMeta(suggestKey) as { close?: boolean } | undefined;
         if (meta && meta.close) return null;
         // 只有打字（文件有變）時才開；只是把游標移到 #標籤 旁邊不會跳出來
         if (tr.docChanged) return ctx.enabled() ? suggestTrigger(state) : null;

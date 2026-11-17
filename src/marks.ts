@@ -208,7 +208,7 @@ export function marksPlugin(opts: MarksOptions = {}): Plugin<MarksState> {
         return Object.assign(s, { decos: buildAll(state.doc, s) });
       },
       apply(tr, old, _o, state) {
-        const meta: MarksMeta | undefined = tr.getMeta(marksKey);
+        const meta = tr.getMeta(marksKey) as MarksMeta | undefined;
         if (meta) {
           const s = { on: meta.on != null ? !!meta.on : old.on, always: meta.always != null ? !!meta.always : old.always };
           return Object.assign(s, { decos: buildAll(state.doc, s) });

@@ -3,6 +3,7 @@ import { Plugin, PluginKey } from 'prosemirror-state';
 import type { Transaction } from 'prosemirror-state';
 import { Decoration, DecorationSet } from 'prosemirror-view';
 import type { Node as PMNode } from 'prosemirror-model';
+import type { CodeBlockAttrs } from './schema.js';
 
 // Prism 由 Obsidian 的 loadPrism() 提供；這裡只描述用得到的部分
 export interface PrismToken {
@@ -36,7 +37,7 @@ function flatten(tokens: (string | PrismToken)[], start: number, out: ClassRange
 }
 
 function langOf(node: PMNode): string {
-  const lang = (node.attrs.params || '').trim().split(/\s+/)[0].toLowerCase();
+  const lang = ((node.attrs as CodeBlockAttrs).params || '').trim().split(/\s+/)[0].toLowerCase();
   return ALIAS[lang] || lang;
 }
 

@@ -101,7 +101,7 @@ export function renderEmbed(view: WordModeView, target: string, box: HTMLElement
       if (md == null) { body.textContent = t('找不到這個標題或區塊：') + subpath; body.classList.add('is-missing'); return; }
       if (!md.trim()) { body.textContent = t('（空白）'); return; }
       handle = view.renderBlock(md, body, file.path);
-    }).catch(e => { if (!dead) body.textContent = String(e && e.message ? e.message : e); });
+    }).catch((e: unknown) => { if (!dead) body.textContent = String(e && typeof e === 'object' && 'message' in e && e.message ? e.message : e); });
     return out;
   }
   // ---- PDF、Canvas、Bases 與其他：交給 Obsidian 顯示；它沒顯示出東西時，至少留一個可以開啟的檔案連結

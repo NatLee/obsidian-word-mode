@@ -11,6 +11,7 @@ import type { Command, EditorState, Transaction } from 'prosemirror-state';
 import type { Node as PMNode, Mark, MarkType, NodeType, ResolvedPos } from 'prosemirror-model';
 import type { I18nKey } from './i18n.js';
 import { schema } from './schema.js';
+import type { BidAttrs, BlockFormatAttrs, BulletListAttrs, ColorAttrs, HighlightAttrs, ListItemAttrs, OrderedListAttrs, TableCellAttrs } from './schema.js';
 import { htmlSafeBlock } from './markdown.js';
 import { autoformatEnter, undoAutoformat } from './autoformat.js';
 
@@ -152,8 +153,8 @@ const toFull = (s: string): string => s.replace(/[\u0021-\u007E]/g, c => String.
 export const CASE_KINDS: Record<CaseKind, CaseTransform> = {
   upper: s => s.toUpperCase(),
   lower: s => s.toLowerCase(),
-  title: s => s.toLowerCase().replace(/(^|[\s\-（(「『"'])([a-z])/g, (m, a, b) => a + b.toUpperCase()),
-  sentence: s => s.toLowerCase().replace(/(^\s*|[.!?。！？]\s*)([a-z])/g, (m, a, b) => a + b.toUpperCase()),
+  title: s => s.toLowerCase().replace(/(^|[\s\-（(「『"'])([a-z])/g, (m: string, a: string, b: string) => a + b.toUpperCase()),
+  sentence: s => s.toLowerCase().replace(/(^\s*|[.!?。！？]\s*)([a-z])/g, (m: string, a: string, b: string) => a + b.toUpperCase()),
   half: toHalf,
   full: toFull,
 };
@@ -318,9 +319,9 @@ export function setHighlight(color: string | null): Command {
 }
 export function currentHighlight(state: EditorState): string | null {
   const { $from, empty, from, to } = state.selection;
-  if (empty) { const m = M.highlight.isInSet(state.storedMarks || $from.marks()); return m ? m.attrs.color || 'default' : null; }
+  if (empty) { const m = M.highlight.isInSet(state.storedMarks || $from.marks()); return m ? (m.attrs as HighlightAttrs).color || 'default' : null; }
   let c: string | null = null;
-  state.doc.nodesBetween(from, to, n => { if (c == null && n.isText) { const m = M.highlight.isInSet(n.marks); if (m) c = m.attrs.color || 'default'; } });
+  state.doc.nodesBetween(from, to, n => { if (c == null && n.isText) { const m = M.highlight.isInSet(n.marks); if (m) c = (m.attrs as HighlightAttrs).color || 'default'; } });
   return c;
 }
 
@@ -374,10 +375,11 @@ export function blockFormatBlocked(state: EditorState): I18nKey | null {
 export function currentAlign(state: EditorState): Align | null {
   if (isInTable(state)) {
     const $f = state.selection.$from;
-    for (let d = $f.depth; d > 0; d--) { const n = $f.node(d); if (n.type === N.table_cell || n.type === N.table_header) return n.attrs.align || 'left'; }
+    // 儲存格的 align 型別是 string（從網頁貼上時可能帶入其他 CSS text-align 值）；與原本一樣照原值回傳
+    for (let d = $f.depth; d > 0; d--) { const n = $f.node(d); if (n.type === N.table_cell || n.type === N.table_header) return ((n.attrs as TableCellAttrs).align || 'left') as Align; }
   }
   const $f = state.selection.$from;
-  if ($f.depth === 1 && $f.parent.type === N.paragraph) return $f.parent.attrs.align || 'left';
+  if ($f.depth === 1 && $f.parent.type === N.paragraph) return ($f.parent.attrs as BlockFormatAttrs).align || 'left';
   return null;
 }
 
@@ -390,7 +392,7 @@ export function blockIndent(dir: Direction): Command {
     if (!blocks.length) return false;
     if (dispatch) {
       const tr = state.tr;
-      for (const b of blocks) tr.setNodeMarkup(b.pos, null, Object.assign({}, b.node.attrs, { indent: b.node.attrs.indent + dir }));
+      for (const b of blocks) tr.setNodeMarkup(b.pos, null, Object.assign({}, b.node.attrs, { indent: (b.node.attrs as BlockFormatAttrs).indent + dir }));
       dispatch(tr);
     }
     return true;
@@ -431,7 +433,7 @@ export function clearFormatting(state: EditorState, dispatch?: Dispatch): boolea
     eachRange(state, (from, to) => {
       state.doc.nodesBetween(from, to, (node, pos) => {
         if (node.type === N.heading || node.type === N.code_block) {
-          tr = tr.setNodeMarkup(pos, N.paragraph, { bid: node.attrs.bid != null ? node.attrs.bid : null });
+          tr = tr.setNodeMarkup(pos, N.paragraph, { bid: (node.attrs as BidAttrs).bid != null ? (node.attrs as BidAttrs).bid : null });
           return false;
         }
         return !node.isTextblock;
@@ -451,9 +453,9 @@ export function markActive(state: EditorState, type: MarkType): boolean {
 export function currentColor(state: EditorState): string | null {
   const { $from, empty, from, to } = state.selection;
   const marks = empty ? (state.storedMarks || $from.marks()) : null;
-  if (marks) { const m = M.color.isInSet(marks); return m ? m.attrs.color : null; }
+  if (marks) { const m = M.color.isInSet(marks); return m ? (m.attrs as ColorAttrs).color : null; }
   let c: string | null = null;
-  state.doc.nodesBetween(from, to, n => { if (c == null && n.isText) { const m = M.color.isInSet(n.marks); if (m) c = m.attrs.color; } });
+  state.doc.nodesBetween(from, to, n => { if (c == null && n.isText) { const m = M.color.isInSet(n.marks); if (m) c = (m.attrs as ColorAttrs).color; } });
   return c;
 }
 
@@ -519,7 +521,7 @@ export function setBlockStyle(id: BlockStyleId): Command {
     if (dispatch) {
       let tr = state.tr;
       eachRange(state, (from, to) => {
-        tr = tr.setBlockType(from, to, type, node => Object.assign({}, attrs, { bid: node.attrs.bid != null ? node.attrs.bid : null }));
+        tr = tr.setBlockType(from, to, type, node => Object.assign({}, attrs, { bid: (node.attrs as BidAttrs).bid != null ? (node.attrs as BidAttrs).bid : null }));
       });
       dispatch(tr.scrollIntoView());
     }
@@ -576,14 +578,16 @@ export function toggleList(kind: ListKind): Command {
       if (dispatch) {
         let tr = state.tr;
         if (l.node.type !== target) {
+          const listAttrs = l.node.attrs as BulletListAttrs | OrderedListAttrs;
           const attrs = target === N.ordered_list
-            ? { order: 1, tight: l.node.attrs.tight, bid: l.node.attrs.bid }
-            : { tight: l.node.attrs.tight, bullet: '-', bid: l.node.attrs.bid };
+            ? { order: 1, tight: listAttrs.tight, bid: listAttrs.bid }
+            : { tight: listAttrs.tight, bullet: '-', bid: listAttrs.bid };
           tr = tr.setNodeMarkup(l.pos, target, attrs);
         }
         l.node.forEach((child, offset) => {
-          const checked = kind === 'task' ? (child.attrs.checked != null ? child.attrs.checked : false) : null;
-          tr = tr.setNodeMarkup(l.pos + 1 + offset, null, Object.assign({}, child.attrs, { checked, status: checked ? child.attrs.status : null }));
+          const itemAttrs = child.attrs as ListItemAttrs;
+          const checked = kind === 'task' ? (itemAttrs.checked != null ? itemAttrs.checked : false) : null;
+          tr = tr.setNodeMarkup(l.pos + 1 + offset, null, Object.assign({}, child.attrs, { checked, status: checked ? itemAttrs.status : null }));
         });
         dispatch(tr);
       }

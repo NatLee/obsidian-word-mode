@@ -17,6 +17,8 @@ type RuleMatch = RegExpExecArray & { lead?: number };
 interface Rule { re: RegExp; run(tr: Transaction, m: RuleMatch, c: number): boolean; }
 type MakeNode = (m: RuleMatch) => PMNode | null;
 type Dispatch = (tr: Transaction) => void;
+// 頂層區塊共有的 bid 屬性（原文區塊編號，見 schema.ts）
+interface BidAttrs { readonly bid: number | null; }
 
 const N = schema.nodes;
 const M = schema.marks;
@@ -50,7 +52,7 @@ const BLOCK_RULES: Rule[] = [
     const $c = tr.doc.resolve(c);
     if (!$c.node(-1).canReplaceWith($c.index(-1), $c.indexAfter(-1), N.heading)) return false;
     const start = $c.start();
-    tr.delete(start, c).setBlockType(start, start, N.heading, { level: m[1].length, bid: $c.parent.attrs.bid });
+    tr.delete(start, c).setBlockType(start, start, N.heading, { level: m[1].length, bid: ($c.parent.attrs as BidAttrs).bid });
     return true;
   } },
   { re: /^\[([ xX]?)\][ \u3000]$/, run(tr, m, c) {
@@ -248,7 +250,7 @@ export function autoformatEnter(state: EditorState, dispatch?: Dispatch): boolea
     const rest: PMNode[] = [];
     holder.forEach((c, _o, i) => { if (i > 0) rest.push(c); });
     const content = rest.length ? rest : [N.paragraph.create()];
-    const callout = N.callout.create({ type: m[1], fold: m[2] || '', title: (m[3] || '').trim() || null, bid: holder.attrs.bid }, content);
+    const callout = N.callout.create({ type: m[1], fold: m[2] || '', title: (m[3] || '').trim() || null, bid: (holder.attrs as BidAttrs).bid }, content);
     return done(state.tr.replaceWith(bqPos, bqPos + holder.nodeSize, callout), bqPos + 2);
   }
   return false;
