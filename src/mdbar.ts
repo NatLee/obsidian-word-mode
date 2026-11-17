@@ -94,7 +94,7 @@ export class MarkdownBar {
   get editor(): Editor { return this.view.editor; }
   isReading(): boolean { return this.view.getMode && this.view.getMode() === 'preview'; }
 
-  cmd(id: string): () => boolean { return () => this.app.commands!.executeCommandById(id); }
+  cmd(id: string): () => boolean { return () => { const commands = this.app.commands; return commands ? commands.executeCommandById(id) : false; }; }
 
   render(): void {
     this.dom.replaceChildren();

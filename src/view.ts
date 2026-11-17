@@ -260,8 +260,8 @@ export class WordModeView extends TextFileView {
         scrollTo: pos => this.scrollToPos(pos),
         paste: mode => this.pasteFromClipboard(mode),
         clip: kind => this.clipboardAction(kind),
-        toggleMarks: () => this.setMarks(!marksOn(this.pm!.state)),
-        cleanup: () => new CleanupModal(this.app, this).open(),
+        toggleMarks: () => { if (this.pm) this.setMarks(!marksOn(this.pm.state)); },
+        cleanup: () => { if (this.pm) new CleanupModal(this.app, this).open(); },
         wordCount: () => this.openWordCount(),
         comment: () => this.insertComment(),
         foldAll: fold => this.foldAll(fold),
@@ -477,7 +477,8 @@ export class WordModeView extends TextFileView {
   // ---------------------------------------------------------- 字數統計與註解
 
   openWordCount(): void {
-    const st = this.pm!.state;
+    if (!this.pm) return;
+    const st = this.pm.state;
     const stats = (from: number, to: number): WordStats => {
       const text = st.doc.textBetween(from, to, '\n', ' ');
       const { cjk, latin } = countText(text);
@@ -507,7 +508,8 @@ export class WordModeView extends TextFileView {
   }
 
   insertComment(): void {
-    const st = this.pm!.state;
+    if (!this.pm) return;
+    const st = this.pm.state;
     const selected = st.selection.empty ? '' : st.doc.textBetween(st.selection.from, st.selection.to, ' ');
     new PromptModal(this.app, t('插入註解'), '', t('註解內容（只在編輯時看得到，閱讀模式不顯示）'), value => {
       const text = String(value || '').replace(/%%/g, '%').trim();
@@ -521,27 +523,29 @@ export class WordModeView extends TextFileView {
   }
 
   openProperties(): void {
-    const st = this.pm!.state;
+    if (!this.pm) return;
+    const st = this.pm.state;
     if (st.doc.firstChild && st.doc.firstChild.type === schema.nodes.frontmatter) {
       this.propsOpen = true;
-      const dom = this.pm!.nodeDOM(0) as FrontmatterDom | null;
+      const dom = this.pm.nodeDOM(0) as FrontmatterDom | null;
       if (dom && dom.wmOpen) dom.wmOpen();
       this.scroller.scrollTop = 0;
       return;
     }
     this.propsOpen = true;
     const tr = st.tr.insert(0, schema.nodes.frontmatter.create({ src: '---\n---' }));
-    this.pm!.dispatch(tr);
+    this.pm.dispatch(tr);
     this.scroller.scrollTop = 0;
   }
 
   openEquation(existing?: MathTarget): void {
+    if (!this.pm) return;
     const render: MathRenderer = (src, el, display) => {
       el.setText(src);
       Promise.resolve(loadMathJax()).then(() => { el.empty(); el.appendChild(renderMath(src, display)); return finishRenderMath(); })
         .catch(() => el.setText(src));
     };
-    const st0 = this.pm!.state;
+    const st0 = this.pm.state;
     // 沒有指定要編輯的方程式、但有選取文字：把選取的文字當成方程式內容
     const selText = !existing && !st0.selection.empty && st0.selection.$from.sameParent(st0.selection.$to) ? st0.doc.textBetween(st0.selection.from, st0.selection.to) : '';
     const init: EquationInit = existing
@@ -918,7 +922,7 @@ export class WordModeView extends TextFileView {
       editSource: (title, src, onSave) => new SourceModal(this.app, title, src, onSave).open(),
       editLinkAt: pos => { this.selectNodeAt(pos); this.openLinkDialog(); },
       prompt: (title, value, placeholder, cb) => new PromptModal(this.app, title, value, placeholder, cb).open(),
-      editMath: (pos, src, display) => this.openEquation({ pos, src, display } as MathTarget),
+      editMath: (pos, src, display) => { if (pos != null) this.openEquation({ pos, src, display }); },
       parseYaml: tv => parseYaml(tv),
       stringifyYaml: o => stringifyYaml(o),
       propsOpen: () => this.propsOpen !== false,
@@ -1004,7 +1008,8 @@ export class WordModeView extends TextFileView {
 
   // Mermaid 圖表編輯器：pos 是既有的 mermaid 程式碼區塊位置；沒有 pos 就是插入新的
   openMermaid(pos?: number | null): void {
-    const existing = pos != null ? this.pm!.state.doc.nodeAt(pos) : null;
+    if (!this.pm) return;
+    const existing = pos != null ? this.pm.state.doc.nodeAt(pos) : null;
     const isCode = existing && existing.type === schema.nodes.code_block;
     new MermaidModal(this.app, {
       src: isCode ? existing.textContent : '',
@@ -1055,7 +1060,8 @@ export class WordModeView extends TextFileView {
   // ---------------------------------------------------------- 註腳
 
   insertFootnoteDialog(): void {
-    if (!insertFootnote('')(this.pm!.state)) { new Notice(t('請先把游標放在文字裡')); return; }
+    if (!this.pm) return;
+    if (!insertFootnote('')(this.pm.state)) { new Notice(t('請先把游標放在文字裡')); return; }
     new PromptModal(this.app, t('插入註腳'), '', t('註腳內容（會放在文件最後）'), value => {
       insertFootnote(value)(this.pm!.state, tr => this.pm!.dispatch(tr));
       this.pm!.focus();
@@ -1373,6 +1379,7 @@ export class WordModeView extends TextFileView {
   // ---------------------------------------------------------- 提示框
 
   openCalloutMenu(btn?: HTMLElement | null): void {
+    if (!this.pm) return;
     const m = new Menu();
     for (const [type, label, icon] of C.CALLOUT_TYPES) {
       m.addItem(i => i.setTitle(t(label) + t('（') + type + t('）')).setIcon(icon).onClick(() => {
@@ -1405,7 +1412,8 @@ export class WordModeView extends TextFileView {
 
   // 依目前位置開啟連結對話框：新增、編輯網址連結、筆記連結（Wiki 或 Markdown）、或把網址文字變成連結
   openLinkDialog(ctx?: LinkContext | null): void {
-    const st = this.pm!.state;
+    if (!this.pm) return;
+    const st = this.pm.state;
     const info = ctx || linkContext(st);
     if (info && info.kind === 'image') return;
     let init: LinkDialogInit;
@@ -1624,6 +1632,7 @@ export class WordModeView extends TextFileView {
   }
 
   openNoteLinkPicker(): void {
+    if (!this.pm) return;
     const files = this.app.vault.getFiles().filter(f => f !== this.file && !f.path.startsWith(this.app.vault.configDir + '/'))
       .sort((a, b) => ((b.extension === 'md') as unknown as number) - ((a.extension === 'md') as unknown as number) || a.path.localeCompare(b.path));
     new FilePicker(this.app, files, t('輸入筆記或檔案名稱…'), f => this.insertFileLink(f)).open();
@@ -1631,6 +1640,7 @@ export class WordModeView extends TextFileView {
 
   // 沒有 Templater 時用 Obsidian 的核心外掛「範本」：在游標處插入範本內容，支援 {{title}}、{{date}}、{{time}}
   openCoreTemplatePicker(): void {
+    if (!this.pm) return;
     const ip = this.app.internalPlugins;
     const core = ip && ip.getPluginById ? ip.getPluginById('templates') : null;
     const opts = core && core.enabled !== false && core.instance ? (core.instance.options || {}) : null;
@@ -1657,6 +1667,7 @@ export class WordModeView extends TextFileView {
 
   // 套用 Templater 範本：空白筆記直接寫入；已有內容時切到 Markdown 再插入到游標處
   openTemplatePicker(): void {
+    if (!this.pm) return;
     const tp = this.app.plugins && this.app.plugins.plugins && this.app.plugins.plugins['templater-obsidian'];
     if (!tp || !tp.templater) { this.openCoreTemplatePicker(); return; }
     const folder = normalizePath(tp.settings.templates_folder || '');
@@ -1668,7 +1679,8 @@ export class WordModeView extends TextFileView {
         const doc = this.pm!.state.doc;
         const empty = doc.childCount === 1 && doc.firstChild!.isTextblock && doc.firstChild!.content.size === 0;
         if (empty) {
-          await tp.templater!.write_template_to_file(tf, this.file!);
+          if (!this.file) return;
+          await tp.templater!.write_template_to_file(tf, this.file);
         } else {
           const leaf = this.leaf;
           await this.plugin.switchToMarkdown(leaf);
@@ -1683,6 +1695,7 @@ export class WordModeView extends TextFileView {
   }
 
   openImageMenu(btn: HTMLElement | null | undefined, replacePos?: number | null, evt?: MouseEvent): void {
+    if (!this.pm) return;
     const m = new Menu();
     const verb = replacePos != null ? t('更換為') : t('插入');
     m.addItem(i => i.setTitle(verb + t('保管庫裡的圖片…')).setIcon('image').onClick(() => {

@@ -150,9 +150,9 @@ export class FindBar {
     this.count = el('span', 'wm-find-count', row1);
     this.btn(row1, 'arrow-up', t('上一個 (Shift+Enter)'), () => this.step(-1));
     this.btn(row1, 'arrow-down', t('下一個 (Enter)'), () => this.step(1));
-    this.caseBtn = this.btn(row1, 'case-sensitive', t('區分大小寫'), () => this.setCase(!this.state().caseSensitive), 'Aa');
-    this.wordBtn = this.btn(row1, 'whole-word', t('全字相符（前後不是字母或數字）'), () => this.setOption('wholeWord', !this.state().wholeWord), 'ab');
-    this.regexBtn = this.btn(row1, 'regex', t('使用正規表示式（取代時可用 $1、$2）'), () => this.setOption('regex', !this.state().regex), '.*');
+    this.caseBtn = this.btn(row1, 'case-sensitive', t('區分大小寫'), () => { if (this.view) this.setCase(!this.state().caseSensitive); }, 'Aa');
+    this.wordBtn = this.btn(row1, 'whole-word', t('全字相符（前後不是字母或數字）'), () => { if (this.view) this.setOption('wholeWord', !this.state().wholeWord); }, 'ab');
+    this.regexBtn = this.btn(row1, 'regex', t('使用正規表示式（取代時可用 $1、$2）'), () => { if (this.view) this.setOption('regex', !this.state().regex); }, '.*');
     this.replToggle = this.btn(row1, 'replace', withKey('取代', 'Mod+H'), () => this.showReplace(!this.replacing));
     this.btn(row1, 'x', t('關閉 (Esc)'), () => this.close());
     this.row2 = el('div', 'wm-find-row', this.dom);
@@ -254,7 +254,8 @@ export class FindBar {
   }
 
   step(dir: number) {
-    const v = this.view!;
+    const v = this.view;
+    if (!v) return;
     const s = this.state();
     if (!s.matches.length) return;
     const cur = ((s.current < 0 ? (dir > 0 ? -1 : 0) : s.current) + dir + s.matches.length) % s.matches.length;
@@ -264,7 +265,8 @@ export class FindBar {
 
   // 選取目前結果並捲到可見處（焦點留在尋找框）
   reveal() {
-    const v = this.view!;
+    const v = this.view;
+    if (!v) return;
     const s = this.state();
     this.count.textContent = s.query ? (s.error ? t('正規表示式有誤') : s.matches.length ? `${s.current + 1}/${s.matches.length}` : t('找不到')) : '';
     this.count.classList.toggle('is-empty', !!s.query && !s.matches.length);
@@ -274,7 +276,8 @@ export class FindBar {
   }
 
   replaceOne() {
-    const v = this.view!;
+    const v = this.view;
+    if (!v) return;
     const s = this.state();
     const m = s.matches[s.current];
     if (!m) return;
@@ -288,7 +291,8 @@ export class FindBar {
   }
 
   replaceAll() {
-    const v = this.view!;
+    const v = this.view;
+    if (!v) return;
     const s = this.state();
     if (!s.matches.length) return;
     const tr = v.state.tr;

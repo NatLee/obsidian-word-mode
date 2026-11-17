@@ -392,7 +392,9 @@ export default class WordModePlugin extends Plugin {
         await leaf.setViewState({ type: OUTLINE_TYPE, active: false });
         this.narrowLeaf(leaf, d.leaf);
       } else {
-        leaf = (place === 'right' ? ws.getRightLeaf(false) : ws.getLeftLeaf(false))!;
+        const side = place === 'right' ? ws.getRightLeaf(false) : ws.getLeftLeaf(false);
+        if (!side) return;
+        leaf = side;
         await leaf.setViewState({ type: OUTLINE_TYPE, active: false });
         ws.revealLeaf(leaf);
       }
@@ -466,10 +468,10 @@ export default class WordModePlugin extends Plugin {
     await this.saveSettings();
     const id = this.manifest.id;
     const plugins = this.app.plugins;
-    if (!plugins || !plugins.disablePlugin) { new Notice(t('請重新啟動 Obsidian 讓語言設定生效')); return; }
+    if (!plugins || !plugins.disablePlugin || !plugins.enablePlugin) { new Notice(t('請重新啟動 Obsidian 讓語言設定生效')); return; }
     const reopen = this.app.setting && this.app.setting.activeTab && this.app.setting.activeTab.id === id;
     await plugins.disablePlugin(id);
-    await plugins.enablePlugin!(id);
+    await plugins.enablePlugin(id);
     if (reopen) setTimeout(() => { try { this.app.setting!.openTabById(id); } catch (e) { /* 忽略 */ } }, 100);
   }
 

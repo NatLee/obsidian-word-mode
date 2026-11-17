@@ -503,7 +503,8 @@ export class Toolbar {
 
   sortCmd(dir: Direction): void {
     const v = this.view;
-    if (C.table.isIn(v!.state)) this.run(C.sortTableByColumn(dir));
+    if (!v) return;
+    if (C.table.isIn(v.state)) this.run(C.sortTableByColumn(dir));
     else if (!this.run(C.sortBlocks(dir)) && this.d.notice) this.d.notice(t('請先選取要排序的段落，或把游標放在清單或表格裡'));
   }
 
@@ -664,6 +665,7 @@ export class Toolbar {
   }
 
   openStylePopup(owner: HTMLElement): void {
+    if (!this.view) return;
     this.openPopup(owner, p => {
       p.classList.add('wm-style-popup');
       const cur = C.currentBlockStyle(this.view!.state);
@@ -765,7 +767,7 @@ export class Toolbar {
   }
 
   openTablePopup(owner: HTMLElement): void {
-    if (!C.insertTable(2, 2)(this.view!.state)) return;
+    if (!this.view || !C.insertTable(2, 2)(this.view.state)) return;
     this.openPopup(owner, p => {
       p.classList.add('wm-table-popup');
       const label = el('div', 'wm-table-label', p, t('插入表格'));
