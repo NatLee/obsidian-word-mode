@@ -12,7 +12,7 @@ if (manifest.version !== version) {
 
 const prod = process.argv.includes('--prod');
 await esbuild.build({
-  entryPoints: ['src/main.js'],
+  entryPoints: ['src/main.ts'],
   bundle: true,
   format: 'cjs',
   platform: 'browser',

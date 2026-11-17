@@ -8,8 +8,114 @@ import { WordModeView, VIEW_TYPE } from './view.js';
 import { OutlineView, OUTLINE_TYPE } from './outline.js';
 import { MarkdownBar } from './mdbar.js';
 import { TABS, GROUPS } from './toolbar.js';
+import type { App, Command, Editor, MarkdownViewModeType, View, ViewState } from 'obsidian';
+import type { EditorState } from 'prosemirror-state';
+import type { EditorView } from 'prosemirror-view';
+import type { Language } from './i18n.js';
+import type { DocMeta } from './markdown.js';
+import type { OutlineSource } from './outline.js';
+import type { RibbonLayout, ButtonStyle, TabId, GroupId } from './toolbar.js';
+import type { EquationEditMode } from './dialogs.js';
+import type { MermaidTab } from './mermaid.js';
+import type { CommandManager } from './obsidian-internal.js';
 
-const DEFAULTS = {
+// 介面語言設定：auto＝跟隨 Obsidian 的語言
+export type LanguageSetting = 'auto' | Language;
+// 工具列位置：auto＝手機放下方、平板與電腦放上方
+export type ToolbarPosition = 'auto' | 'top' | 'bottom';
+// 大綱的位置：split＝在筆記旁另開一欄、left／right＝Obsidian 的左／右側邊欄、popup＝下拉選單
+export type OutlinePlace = 'split' | 'left' | 'right' | 'popup';
+// 同步衝突的處理方式：ask＝每次詢問、both＝自動兩份都保留
+export type ConflictMode = 'ask' | 'both';
+// 右鍵選單中可在設定隱藏的區段（設定 hiddenCtx 存的值）
+export type ContextMenuSection = 'table' | 'clipboard' | 'format' | 'paragraph' | 'insert' | 'tools';
+
+// 外掛設定（存在 data.json）；有 ? 的欄位只在使用者設定過、或舊版設定檔裡才有
+export interface Settings {
+  // ---- 一般
+  language: LanguageSetting;
+  openByDefault: boolean;
+  // 不使用 Word 模式的資料夾，以換行或逗號分隔
+  excludeFolders: string;
+  // ---- 編輯
+  ctrlE: boolean;
+  wordAtCursor: boolean;
+  autoFormat: boolean;
+  autoComplete: boolean;
+  pasteChip: boolean;
+  keepHistory: boolean;
+  // ---- 顯示
+  fullWidth: boolean;
+  // 頁面縮放百分比（50–200）
+  zoom: number;
+  showMarks: boolean;
+  highlightWeird: boolean;
+  toolbarPosition: ToolbarPosition;
+  // ---- 工具列
+  ribbonLayout: RibbonLayout;
+  buttonStyle: ButtonStyle;
+  // 使用者自己選過按鈕樣式（之後不再依舊設定 ribbonLabels 改成只顯示圖示）
+  buttonStyleSet?: boolean;
+  groupLabels: boolean;
+  hiddenTabs: TabId[];
+  hiddenGroups: GroupId[];
+  richHints: boolean;
+  mdToolbar: boolean;
+  mdStatusBar: boolean;
+  outlinePlace: OutlinePlace;
+  // 上次選的字型色彩（CSS 色碼）
+  lastFontColor?: string;
+  // ---- 右鍵選單與方程式
+  ctxMenu: boolean;
+  hiddenCtx: ContextMenuSection[];
+  mathDisplay: boolean;
+  mathMode: EquationEditMode;
+  mermaidMode: MermaidTab;
+  codePreview: boolean;
+  // 最近使用的方程式（LaTeX 原始碼，最新的在前）
+  recentMath: string[];
+  // ---- 同步與檔案
+  conflict: ConflictMode;
+  maxSizeMB: number;
+  // ---- 舊版設定（載入時轉換後刪除）
+  // false＝舊版的「按鈕不顯示文字」
+  ribbonLabels?: boolean;
+  // false＝舊版的「不使用大綱側邊欄」
+  outlineSidebar?: boolean;
+}
+
+// 切換模式時保留的編輯狀態（含復原紀錄）；at 是存入的時間（Date.now()）
+export interface HistoryEntry {
+  at: number;
+  state: EditorState;
+  meta: DocMeta | null;
+  lastOut: string;
+}
+
+// leaf.view 的型別只是 View；這裡列出程式會先檢查是否存在、某些檢視才有的成員
+// （Markdown 與 Word 模式檢視有 file、save；Markdown 有 editor；Word 模式有 pm、applyZoom）
+type LeafView = View & {
+  file?: TFile | null;
+  save?(): Promise<void>;
+  editor?: Editor;
+  pm?: EditorView | null;
+  applyZoom?(): void;
+};
+// 檢視可能有上述成員的分頁（getLeavesOfType 取得的 Word 模式分頁，可能還沒載入完成）
+type LeafWithView = WorkspaceLeaf & { view: LeafView };
+
+// 調整分頁群組寬度用到的成員：WorkspaceLeaf.parent 不在 1.5.7 的型別定義裡；
+// setDimension 與 containerEl 是非公開 API，都可能不存在
+interface ResizableItem {
+  parent?: ResizableItem | null;
+  containerEl?: HTMLElement;
+  setDimension?(percent: number): void;
+}
+
+// 設定中值是 true／false 的欄位（設定頁的開關使用）
+type ToggleKey = { [K in keyof Settings]-?: Settings[K] extends boolean | undefined ? K : never }[keyof Settings];
+
+const DEFAULTS: Settings = {
   // 一般
   language: 'auto',
   openByDefault: true,
@@ -51,7 +157,22 @@ const DEFAULTS = {
 };
 
 export default class WordModePlugin extends Plugin {
-  async onload() {
+  declare settings: Settings;
+  declare converter: MarkdownConverter;
+  declare forceMarkdown: WeakMap<WorkspaceLeaf, string>;
+  declare mdActions: Map<MarkdownView, HTMLElement>;
+  declare history: Map<string, HistoryEntry>;
+  declare mdBars: Map<MarkdownView, MarkdownBar>;
+  declare lastDoc?: WordModeView | MarkdownView;
+  declare lastTab?: TabId;
+  declare statusEl: HTMLElement;
+  declare barView?: WordModeView | MarkdownView | null;
+  declare mdStatusKey?: string | null;
+  declare outlineTimer?: number;
+  declare unloaded?: boolean;
+  declare restoreSetViewState?: () => void;
+
+  async onload(): Promise<void> {
     this.settings = Object.assign({}, DEFAULTS, await this.loadData());
     if (this.settings.ribbonLabels === false && !this.settings.buttonStyleSet) this.settings.buttonStyle = 'icon';
     delete this.settings.ribbonLabels;
@@ -73,7 +194,7 @@ export default class WordModePlugin extends Plugin {
     this.addCommand({ id: 'toggle-outline', name: t('開啟／關閉大綱側邊欄'), callback: () => this.toggleOutline() });
     // 記住最後使用的筆記畫面（點側邊欄時仍知道要顯示哪份筆記的大綱）
     this.registerEvent(this.app.workspace.on('active-leaf-change', leaf => {
-      const v = leaf && leaf.view;
+      const v: LeafView | null = leaf && leaf.view;
       if (v && v.file && (v instanceof WordModeView || v instanceof MarkdownView)) { this.lastDoc = v; this.outlineChanged(v, true); }
     }));
     this.patchSetViewState();
@@ -84,7 +205,7 @@ export default class WordModePlugin extends Plugin {
         const leaf = this.app.workspace.getMostRecentLeaf();
         const v = leaf && leaf.view;
         if (!(v instanceof MarkdownView) || !v.file) return false;
-        if (!checking) this.switchToWord(leaf);
+        if (!checking) this.switchToWord(leaf!);
         return true;
       },
     });
@@ -111,12 +232,12 @@ export default class WordModePlugin extends Plugin {
     this.registerEvent(this.app.workspace.on('file-menu', (menu, file, source, leaf) => {
       if (!(file instanceof TFile) || file.extension !== 'md') return;
       menu.addItem(i => i.setTitle(t('以 Word 模式開啟')).setIcon('file-text').setSection('open').onClick(async () => {
-        const l = leaf && leaf.view && leaf.view.file === file ? leaf : this.app.workspace.getLeaf(false);
+        const l = leaf && leaf.view && (leaf.view as LeafView).file === file ? leaf : this.app.workspace.getLeaf(false);
         this.forceMarkdown.delete(l);
         await l.setViewState({ type: VIEW_TYPE, state: { file: file.path }, active: true });
       }));
       menu.addItem(i => i.setTitle(t('以 Markdown 開啟')).setIcon('code-2').setSection('open').onClick(async () => {
-        const l = leaf && leaf.view && leaf.view.file === file ? leaf : this.app.workspace.getLeaf(false);
+        const l = leaf && leaf.view && (leaf.view as LeafView).file === file ? leaf : this.app.workspace.getLeaf(false);
         this.forceMarkdown.set(l, file.path);
         await l.setViewState({ type: 'markdown', state: { file: file.path }, active: true });
       }));
@@ -156,7 +277,7 @@ export default class WordModePlugin extends Plugin {
     if (cmds && cmds.executeCommand) {
       const orig = cmds.executeCommand;
       const plugin = this;
-      const patched = function (command, ...rest) {
+      const patched = function (this: CommandManager, command: Command, ...rest: unknown[]): boolean {
         try {
           // plugin.unloaded：外掛停用後，如果別的外掛也包了這個函式，這層還原不了，所以自己停止作用
           if (!plugin.unloaded && command && command.id === 'markdown:toggle-preview' && plugin.settings.ctrlE !== false) {
@@ -170,7 +291,7 @@ export default class WordModePlugin extends Plugin {
       this.register(() => { if (cmds.executeCommand === patched) cmds.executeCommand = orig; });
     }
 
-    const wordCommand = (id, name, run) => this.addCommand({
+    const wordCommand = (id: string, name: string, run: (v: WordModeView) => void) => this.addCommand({
       id, name,
       checkCallback: checking => {
         const v = this.app.workspace.getActiveViewOfType(WordModeView);
@@ -190,13 +311,13 @@ export default class WordModePlugin extends Plugin {
       if (!this.settings.openByDefault) return;
       // 啟用外掛時，把已開啟的筆記轉成 Word 模式
       this.app.workspace.getLeavesOfType('markdown').forEach(leaf => {
-        const f = leaf.view && leaf.view.file;
+        const f = leaf.view && (leaf.view as LeafView).file;
         if (f && this.eligible(f.path)) leaf.setViewState({ type: VIEW_TYPE, state: { file: f.path } });
       });
     });
   }
 
-  onunload() {
+  onunload(): void {
     this.unloaded = true;
     for (const b of this.mdBars.values()) b.destroy();
     this.mdBars.clear();
@@ -204,20 +325,20 @@ export default class WordModePlugin extends Plugin {
     this.mdActions.clear();
     if (this.restoreSetViewState) this.restoreSetViewState();
     this.app.workspace.getLeavesOfType(VIEW_TYPE).forEach(leaf => {
-      const f = leaf.view && leaf.view.file;
+      const f = leaf.view && (leaf.view as LeafView).file;
       if (f) leaf.setViewState({ type: 'markdown', state: { file: f.path } });
     });
   }
 
-  async saveSettings() { await this.saveData(this.settings); }
+  async saveSettings(): Promise<void> { await this.saveData(this.settings); }
 
-  storeHistory(path, entry) {
+  storeHistory(path: string, entry: Omit<HistoryEntry, 'at'>): void {
     this.history.delete(path);
     this.history.set(path, Object.assign({ at: Date.now() }, entry));
-    while (this.history.size > 30) this.history.delete(this.history.keys().next().value);
+    while (this.history.size > 30) this.history.delete(this.history.keys().next().value!);
   }
 
-  takeHistory(path) {
+  takeHistory(path: string): HistoryEntry | null {
     const e = this.history.get(path);
     if (!e) return null;
     this.history.delete(path);
@@ -225,7 +346,7 @@ export default class WordModePlugin extends Plugin {
   }
 
   // ---- Markdown／閱讀模式的工具列
-  syncMdBars() {
+  syncMdBars(): void {
     const want = this.settings.mdToolbar !== false;
     const live = new Set();
     for (const leaf of this.app.workspace.getLeavesOfType('markdown')) {
@@ -238,7 +359,7 @@ export default class WordModePlugin extends Plugin {
   }
 
   // 設定改變：重建所有工具列
-  refreshToolbars() {
+  refreshToolbars(): void {
     for (const v of this.views()) v.buildToolbar();
     for (const b of this.mdBars.values()) b.destroy();
     this.mdBars.clear();
@@ -246,30 +367,30 @@ export default class WordModePlugin extends Plugin {
   }
 
   // ---- 大綱側邊欄
-  docView() {
+  docView(): OutlineSource | null {
     const v = this.lastDoc;
     if (v && v.leaf && v.file && this.app.workspace.getLeavesOfType(v.getViewType()).includes(v.leaf)) return v;
     const a = this.app.workspace.getActiveViewOfType(WordModeView) || this.app.workspace.getActiveViewOfType(MarkdownView);
     return a || null;
   }
 
-  outlineOpen() { return this.app.workspace.getLeavesOfType(OUTLINE_TYPE).length > 0; }
+  outlineOpen(): boolean { return this.app.workspace.getLeavesOfType(OUTLINE_TYPE).length > 0; }
 
   // 大綱的位置：split＝在筆記左邊另外展開一欄（預設，像第二個側邊欄）；left／right＝放進 Obsidian 的左／右側邊欄
-  async toggleOutline() {
+  async toggleOutline(): Promise<void> {
     const ws = this.app.workspace;
     const leaves = ws.getLeavesOfType(OUTLINE_TYPE);
     if (leaves.length) leaves.forEach(l => l.detach());
     else {
       const place = this.settings.outlinePlace === 'popup' ? 'split' : (this.settings.outlinePlace || 'split');
       const d = this.docView();
-      let leaf;
+      let leaf: WorkspaceLeaf;
       if (place === 'split' && d && d.leaf) {
         leaf = ws.createLeafBySplit(d.leaf, 'vertical', true);
         await leaf.setViewState({ type: OUTLINE_TYPE, active: false });
         this.narrowLeaf(leaf, d.leaf);
       } else {
-        leaf = place === 'right' ? ws.getRightLeaf(false) : ws.getLeftLeaf(false);
+        leaf = (place === 'right' ? ws.getRightLeaf(false) : ws.getLeftLeaf(false))!;
         await leaf.setViewState({ type: OUTLINE_TYPE, active: false });
         ws.revealLeaf(leaf);
       }
@@ -280,7 +401,7 @@ export default class WordModePlugin extends Plugin {
   }
 
   // 新展開的大綱欄寬度約 260px（其餘留給筆記）
-  narrowLeaf(leaf, docLeaf) {
+  narrowLeaf(leaf: WorkspaceLeaf & ResizableItem, docLeaf: WorkspaceLeaf & ResizableItem): void {
     try {
       // 分割後兩邊都在同一個 split 裡，各自是一組分頁（tabs）；設定兩組的比例
       const mine = leaf.parent && leaf.parent.setDimension ? leaf.parent : leaf;
@@ -295,7 +416,7 @@ export default class WordModePlugin extends Plugin {
 
 
 
-  outlineChanged(view, docChanged) {
+  outlineChanged(view: WordModeView | MarkdownView, docChanged: boolean): void {
     if (!this.outlineOpen()) return;
     clearTimeout(this.outlineTimer);
     this.outlineTimer = setTimeout(() => {
@@ -307,20 +428,20 @@ export default class WordModePlugin extends Plugin {
     }, docChanged ? 300 : 120);
   }
 
-  applyOptions() {
+  applyOptions(): void {
     cmdOptions.wordAtCursor = this.settings.wordAtCursor !== false;
     autoformatOptions.enabled = this.settings.autoFormat !== false;
   }
 
-  views() { return this.app.workspace.getLeavesOfType(VIEW_TYPE).map(l => l.view).filter(v => v instanceof WordModeView); }
+  views(): WordModeView[] { return this.app.workspace.getLeavesOfType(VIEW_TYPE).map(l => l.view).filter((v): v is WordModeView => v instanceof WordModeView); }
 
-  async setFullWidth(on) {
+  async setFullWidth(on: boolean): Promise<void> {
     this.settings.fullWidth = !!on;
     for (const v of this.views()) { v.contentEl.toggleClass('wm-full-width', !!on); if (v.pm) v.toolbar.update(v.pm.state); }
     await this.saveSettings();
   }
 
-  openSettings() {
+  openSettings(): void {
     const s = this.app.setting;
     if (!s) return;
     s.open();
@@ -328,8 +449,8 @@ export default class WordModePlugin extends Plugin {
   }
 
   // 重新開啟所有 Word 模式的分頁（版面設定改變時）；編輯紀錄會保留
-  async refreshViews() {
-    for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE)) {
+  async refreshViews(): Promise<void> {
+    for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE) as LeafWithView[]) {
       const st = leaf.getViewState();
       if (leaf.view && leaf.view.save) await leaf.view.save();
       await leaf.setViewState({ type: 'empty', state: {} });
@@ -338,7 +459,7 @@ export default class WordModePlugin extends Plugin {
   }
 
   // 換語言：重新載入外掛，讓所有文字（含命令名稱）都換成新語言
-  async changeLanguage(lang) {
+  async changeLanguage(lang: LanguageSetting): Promise<void> {
     this.settings.language = lang;
     await this.saveSettings();
     const id = this.manifest.id;
@@ -346,17 +467,17 @@ export default class WordModePlugin extends Plugin {
     if (!plugins || !plugins.disablePlugin) { new Notice(t('請重新啟動 Obsidian 讓語言設定生效')); return; }
     const reopen = this.app.setting && this.app.setting.activeTab && this.app.setting.activeTab.id === id;
     await plugins.disablePlugin(id);
-    await plugins.enablePlugin(id);
-    if (reopen) setTimeout(() => { try { this.app.setting.openTabById(id); } catch (e) { /* 忽略 */ } }, 100);
+    await plugins.enablePlugin!(id);
+    if (reopen) setTimeout(() => { try { this.app.setting!.openTabById(id); } catch (e) { /* 忽略 */ } }, 100);
   }
 
-  async setZoom(z) {
+  async setZoom(z: number): Promise<void> {
     this.settings.zoom = Math.max(50, Math.min(200, Math.round(z / 10) * 10));
-    this.app.workspace.getLeavesOfType(VIEW_TYPE).forEach(l => { if (l.view.applyZoom) l.view.applyZoom(); });
+    this.app.workspace.getLeavesOfType(VIEW_TYPE).forEach((l: LeafWithView) => { if (l.view.applyZoom) l.view.applyZoom(); });
     await this.saveSettings();
   }
 
-  updateStatus(view) {
+  updateStatus(view: WordModeView | null): void {
     const el = this.statusEl;
     if (!el) return;
     const active = this.app.workspace.getActiveViewOfType(WordModeView);
@@ -383,7 +504,7 @@ export default class WordModePlugin extends Plugin {
     this.barView = md;
     this.mdStatusKey = stamp;
     const views = el.createDiv('wm-bb-views');
-    const btn = (icon, title, on, run) => {
+    const btn = (icon: string, title: string, on: boolean, run: () => void) => {
       const b = views.createEl('button', { cls: 'wm-bb-btn' + (on ? ' is-active' : '') });
       b.setAttribute('aria-label', title);
       setIcon(b, icon);
@@ -395,8 +516,8 @@ export default class WordModePlugin extends Plugin {
   }
 
   // 切換 Obsidian 的 Markdown 編輯／閱讀模式
-  async setMarkdownMode(view, mode) {
-    const st = view.getState();
+  async setMarkdownMode(view: MarkdownView, mode: MarkdownViewModeType): Promise<void> {
+    const st: Record<string, unknown> = view.getState();
     st.mode = mode;
     if (mode === 'source') st.source = false;
     await view.setState(st, { history: false });
@@ -406,11 +527,11 @@ export default class WordModePlugin extends Plugin {
   }
 
 
-  excluded() {
+  excluded(): string[] {
     return this.settings.excludeFolders.split(/[\n,]/).map(s => s.trim().replace(/^\/+|\/+$/g, '')).filter(Boolean);
   }
 
-  eligible(path) {
+  eligible(path: string): boolean {
     if (!/\.md$/i.test(path)) return false;
     if (path.startsWith(this.app.vault.configDir + '/')) return false;
     if (this.excluded().some(d => path === d || path.startsWith(d + '/'))) return false;
@@ -424,14 +545,14 @@ export default class WordModePlugin extends Plugin {
   }
 
   // 開啟 Markdown 筆記時，自動改用 Word 模式
-  patchSetViewState() {
+  patchSetViewState(): void {
     const plugin = this;
     const proto = WorkspaceLeaf.prototype;
     const orig = proto.setViewState;
-    const patched = function (state, eState) {
+    const patched = function (this: WorkspaceLeaf, state: ViewState, eState?: unknown): Promise<void> {
       try {
         if (!plugin.unloaded && plugin.settings.openByDefault && state && state.type === 'markdown' && state.state && typeof state.state.file === 'string') {
-          const file = state.state.file;
+          const file: string = state.state.file;
           const forced = plugin.forceMarkdown.get(this);
           if (forced !== file && plugin.eligible(file)) {
             plugin.forceMarkdown.delete(this);
@@ -446,7 +567,7 @@ export default class WordModePlugin extends Plugin {
     this.restoreSetViewState = () => { if (proto.setViewState === patched) proto.setViewState = orig; };
   }
 
-  async switchToMarkdown(leaf, mode) {
+  async switchToMarkdown(leaf: WorkspaceLeaf, mode?: MarkdownViewModeType): Promise<void> {
     const v = leaf.view;
     if (!(v instanceof WordModeView) || !v.file) return;
     const path = v.file.path;
@@ -455,30 +576,32 @@ export default class WordModePlugin extends Plugin {
     this.forceMarkdown.set(leaf, path);
     const state = mode === 'preview' ? { file: path, mode: 'preview' } : { file: path, mode: 'source', source: false };
     await leaf.setViewState({ type: 'markdown', state, active: true });
-    setTimeout(() => { const nv = leaf.view; if (nv && nv.editor && mode !== 'preview') nv.editor.focus(); }, 50);
+    setTimeout(() => { const nv: LeafView = leaf.view; if (nv && nv.editor && mode !== 'preview') nv.editor.focus(); }, 50);
   }
 
-  async switchToWord(leaf) {
+  async switchToWord(leaf: WorkspaceLeaf): Promise<void> {
     const v = leaf.view;
     if (!(v instanceof MarkdownView) || !v.file) return;
     const path = v.file.path;
     await v.save();
     this.forceMarkdown.delete(leaf);
     await leaf.setViewState({ type: VIEW_TYPE, state: { file: path }, active: true });
-    setTimeout(() => { const nv = leaf.view; if (nv && nv.pm) nv.pm.focus(); }, 50);
+    setTimeout(() => { const nv: LeafView = leaf.view; if (nv && nv.pm) nv.pm.focus(); }, 50);
   }
 }
 
 class WordModeSettings extends PluginSettingTab {
-  constructor(app, plugin) { super(app, plugin); this.plugin = plugin; }
+  declare plugin: WordModePlugin;
 
-  display() {
+  constructor(app: App, plugin: WordModePlugin) { super(app, plugin); this.plugin = plugin; }
+
+  display(): void {
     const c = this.containerEl;
     const p = this.plugin;
     const S = p.settings;
     const save = async () => { p.applyOptions(); await p.saveSettings(); };
-    const toggle = (setting, k, after) => setting.addToggle(tg => tg.setValue(!!(S[k] == null ? DEFAULTS[k] : S[k])).onChange(async v => { S[k] = v; await save(); if (after) after(v); }));
-    const heading = (text, icon) => {
+    const toggle = (setting: Setting, k: ToggleKey, after?: (v: boolean) => unknown) => setting.addToggle(tg => tg.setValue(!!(S[k] == null ? DEFAULTS[k] : S[k])).onChange(async v => { S[k] = v; await save(); if (after) after(v); }));
+    const heading = (text: string, icon?: string) => {
       const h = new Setting(c).setName(t(text)).setHeading();
       h.settingEl.addClass('wm-setting-heading');
       if (icon) { const i = h.nameEl.createSpan('wm-setting-icon'); setIcon(i, icon); h.nameEl.prepend(i); }
@@ -491,7 +614,7 @@ class WordModeSettings extends PluginSettingTab {
     new Setting(c).setName(t('介面語言'))
       .setDesc(t('Word 模式的按鈕、選單與提示文字使用的語言。「自動」會跟著 Obsidian 的語言。'))
       .addDropdown(d => d.addOptions({ auto: t('自動（跟隨 Obsidian）'), 'zh-TW': '繁體中文', en: 'English', ja: '日本語', ko: '한국어' })
-        .setValue(S.language || 'auto').onChange(v => p.changeLanguage(v)));
+        .setValue(S.language || 'auto').onChange(v => p.changeLanguage(v as LanguageSetting)));
     toggle(new Setting(c).setName(t('預設用 Word 模式開啟筆記'))
       .setDesc(t('開啟 .md 筆記時自動使用 Word 模式。可隨時用右上角按鈕切回 Markdown。')), 'openByDefault');
     new Setting(c).setName(t('不使用 Word 模式的資料夾'))
@@ -533,17 +656,17 @@ class WordModeSettings extends PluginSettingTab {
     new Setting(c).setName(t('版面'))
       .setDesc(t('「分頁」像 Word（常用／插入／校閱／檢視）；「一行」把所有按鈕排成一行，可左右捲動；「自動換行」把所有按鈕都顯示出來，放不下就換行。'))
       .addDropdown(d => d.addOptions({ tabs: t('分頁（像 Word）'), single: t('全部排成一行'), wrap: t('全部顯示（自動換行）') })
-        .setValue(S.ribbonLayout || 'tabs').onChange(async v => { S.ribbonLayout = v; await rebuild(); }));
+        .setValue(S.ribbonLayout || 'tabs').onChange(async v => { S.ribbonLayout = v as RibbonLayout; await rebuild(); }));
     new Setting(c).setName(t('按鈕樣式'))
       .setDesc(t('「自動」：常用功能只顯示圖示，插入、校閱、檢視的按鈕下方有名稱。「只顯示圖示」最精簡；「圖示加文字」每個按鈕都有名稱。'))
       .addDropdown(d => d.addOptions({ auto: t('自動'), icon: t('只顯示圖示'), label: t('圖示加文字') })
-        .setValue(S.buttonStyle || 'auto').onChange(async v => { S.buttonStyle = v; S.buttonStyleSet = true; await rebuild(); }));
+        .setValue(S.buttonStyle || 'auto').onChange(async v => { S.buttonStyle = v as ButtonStyle; S.buttonStyleSet = true; await rebuild(); }));
     toggle(new Setting(c).setName(t('顯示群組名稱'))
       .setDesc(t('在每組按鈕下方顯示「剪貼簿」「字型」「段落」等名稱（像 Word）。')), 'groupLabels', () => p.refreshToolbars());
     new Setting(c).setName(t('工具列位置'))
       .setDesc(t('「自動」在手機上放在畫面下方（靠近鍵盤，單手好按），平板與電腦放在上方。'))
       .addDropdown(d => d.addOptions({ auto: t('自動'), top: t('上方'), bottom: t('下方') })
-        .setValue(S.toolbarPosition || 'auto').onChange(async v => { S.toolbarPosition = v; await rebuild(); }));
+        .setValue(S.toolbarPosition || 'auto').onChange(async v => { S.toolbarPosition = v as ToolbarPosition; await rebuild(); }));
     toggle(new Setting(c).setName(t('切換到 Markdown／閱讀模式時保留工具列'))
       .setDesc(t('在 Obsidian 的 Markdown 編輯與閱讀畫面上方也顯示工具列（粗體、標題、清單、連結、尋找、大綱等）。閱讀模式只能檢視，編輯按鈕會停用。')), 'mdToolbar', () => p.refreshToolbars());
     toggle(new Setting(c).setName(t('切換到 Markdown／閱讀模式時，狀態列保留檢視切換按鈕'))
@@ -552,7 +675,7 @@ class WordModeSettings extends PluginSettingTab {
       .setDesc(t('「另開一欄」在筆記左邊再展開一個大綱欄（像第二個側邊欄，不會蓋掉檔案總管）；也可以放進 Obsidian 的左或右側邊欄，或用小型下拉選單。'))
       .addDropdown(d => d.addOptions({ split: t('在筆記旁另開一欄（建議）'), left: t('左側邊欄（與檔案總管同一區）'), right: t('右側邊欄'), popup: t('下拉選單') })
         .setValue(S.outlinePlace || 'split').onChange(async v => {
-          S.outlinePlace = v; await save();
+          S.outlinePlace = v as OutlinePlace; await save();
           if (p.outlineOpen()) { await p.toggleOutline(); if (v !== 'popup') await p.toggleOutline(); }
         }));
     toggle(new Setting(c).setName(t('詳細提示（含動畫示意）'))
@@ -569,7 +692,7 @@ class WordModeSettings extends PluginSettingTab {
       const tcb = tl.createEl('input', { type: 'checkbox' });
       tcb.checked = !(S.hiddenTabs || []).includes(tab);
       tl.createSpan({ text: t(tabLabel) });
-      const inner = [];
+      const inner: HTMLInputElement[] = [];
       for (const [gid, gtab, gLabel] of GROUPS) {
         if (gtab !== tab) continue;
         const gl = col.createEl('label', { cls: 'wm-settings-group' });
@@ -608,7 +731,7 @@ class WordModeSettings extends PluginSettingTab {
       ['paragraph', '段落', '項目符號、編號、增加／減少縮排'],
       ['insert', '插入', '超連結、連結到筆記、方程式、註解'],
       ['tools', '工具', '複製為 Markdown、在筆記或保管庫中搜尋、字數統計、編輯標記'],
-    ]) {
+    ] as const) {
       const l = ctxGrid.createEl('label', { cls: 'wm-settings-ctx-item' });
       const cb = l.createEl('input', { type: 'checkbox' });
       cb.checked = !(S.hiddenCtx || []).includes(id);
@@ -625,11 +748,11 @@ class WordModeSettings extends PluginSettingTab {
     new Setting(c).setName(t('方程式編輯器預設的編輯方式'))
       .setDesc(t('「視覺化」把分數、根號、上下標顯示成一格一格，可以直接點進去輸入；「LaTeX」直接編輯原始碼。在編輯器裡隨時可以切換。'))
       .addDropdown(d => d.addOptions({ visual: t('視覺化'), latex: 'LaTeX' })
-        .setValue(S.mathMode === 'latex' ? 'latex' : 'visual').onChange(async v => { S.mathMode = v; await save(); }));
+        .setValue(S.mathMode === 'latex' ? 'latex' : 'visual').onChange(async v => { S.mathMode = v as EquationEditMode; await save(); }));
     new Setting(c).setName(t('圖表編輯器預設的編輯方式'))
       .setDesc(t('「表單」用步驟與連線的清單編輯流程圖；其他種類的圖表，或用了表單不支援的寫法時，會自動改用程式碼。'))
       .addDropdown(d => d.addOptions({ visual: t('表單（流程圖）'), code: t('程式碼') })
-        .setValue(S.mermaidMode === 'code' ? 'code' : 'visual').onChange(async v => { S.mermaidMode = v; await save(); }));
+        .setValue(S.mermaidMode === 'code' ? 'code' : 'visual').onChange(async v => { S.mermaidMode = v as MermaidTab; await save(); }));
     toggle(new Setting(c).setName(t('新方程式預設為獨立一行'))
       .setDesc(t('關閉時新插入的方程式放在文字中（$…$），開啟時獨立一行置中（$$…$$）。在方程式編輯器裡都可以切換。')), 'mathDisplay');
     new Setting(c).setName(t('清除最近使用的方程式'))
@@ -641,7 +764,7 @@ class WordModeSettings extends PluginSettingTab {
     new Setting(c).setName(t('同步衝突的處理方式'))
       .setDesc(t('筆記在這裡有未存檔的修改時，又被 Synology Drive 或其他裝置改過。'))
       .addDropdown(d => d.addOptions({ ask: t('每次詢問（建議）'), both: t('自動兩份都保留（另存我的版本）') })
-        .setValue(S.conflict || 'ask').onChange(async v => { S.conflict = v; await save(); }));
+        .setValue(S.conflict || 'ask').onChange(async v => { S.conflict = v as ConflictMode; await save(); }));
     new Setting(c).setName(t('檔案大小上限（MB）'))
       .setDesc(t('超過這個大小的筆記一律用 Markdown 開啟，避免太大的檔案讓編輯變慢。'))
       .addText(tx => { tx.inputEl.type = 'number'; tx.setValue(String(S.maxSizeMB || 2)).onChange(async v => { const n = parseFloat(v); if (n > 0) { S.maxSizeMB = n; await save(); } }); });

@@ -30,14 +30,129 @@ import { suggestContext } from './complete.js';
 import { SourceModal, PromptModal, LinkDialog, FilePicker, ShortcutModal, EquationModal, CleanupModal, WordCountModal } from './dialogs.js';
 import { countText } from './textstats.js';
 import { t, key, withKey } from './i18n.js';
+import type { Modifier, TAbstractFile, WorkspaceLeaf } from 'obsidian';
+import type { Command, EditorState, Plugin, Transaction } from 'prosemirror-state';
+import type { Attrs, Node as PMNode } from 'prosemirror-model';
+import type { DecorationSet } from 'prosemirror-view';
+import type WordModePlugin from './main.js';
+import type { PasteMode, ClipKind } from './toolbar.js';
+import type { NodeViewContext, NodeViewMenuItem, FrontmatterDom } from './nodeviews.js';
+import type { BubbleContext, LinkDescription } from './bubble.js';
+import type { FoldState } from './fold.js';
+import type { LinkContext } from './links.js';
+import type { LinkDialogInit, LinkDialogResult, MathRenderer, EquationInit, WordCountRow } from './dialogs.js';
+import type { SuggestTrigger } from './suggest.js';
+import type { EmbedHandle } from './embeds.js';
+import type { DocMeta, ParseResult } from './markdown.js';
+import type { PrismLike } from './codehl.js';
+import type { MarksState, WeirdKindId } from './marks.js';
+import type { TextRange } from './commands.js';
+import type { TemplatesInstance } from './obsidian-internal.js';
 
 export const VIEW_TYPE = 'natlee-word-mode';
 const IMAGE_EXT = /^(png|jpe?g|gif|bmp|svg|webp|avif)$/i;
 
+// 存檔狀態（下方狀態列顯示）：saved 已儲存、dirty 編輯中、saving 儲存中、conflict 同步衝突
+export type SaveStatus = 'saved' | 'dirty' | 'saving' | 'conflict';
+
+// 方程式節點的位置與內容（display 為 true 表示獨立一行 $$…$$）
+export interface MathTarget { pos: number; src: string; display: boolean; }
+// mathAt() 找到的方程式：另外帶著節點本身
+export interface MathInfo extends MathTarget { node: PMNode; }
+
+// buildLink() 的結果：依保管庫的設定是 [[Wiki 連結]] 或 [Markdown 連結](路徑)
+export type BuiltLink =
+  | { wiki: true; target: string; alias: string | null }
+  | { wiki: false; text: string; href: string };
+
+// 插入圖片時給的屬性（schema 的 image 節點）；用 type 而不是 interface，才能直接當成 Attrs 傳給 ProseMirror
+export type NewImageAttrs = { src: string; alt?: string | null; wiki: boolean };
+
+// 貼上純文字 Markdown 後顯示的「貼上選項」小視窗，以及貼上的範圍
+export interface PasteChip { el: HTMLDivElement; from: number; to: number; }
+
+// 同步衝突：磁碟上的新版本內容
+export interface ConflictState { data: string; }
+
+// setEphemeralState() 收到的狀態：line 原文行號（大綱、反向連結）、match 搜尋結果的字元位置、subpath 是 #標題 或 #^區塊
+export interface EphemeralState {
+  line?: unknown;
+  match?: { matches?: [from: number, to: number][] } | null;
+  subpath?: string;
+}
+
+// 字數統計的各項數字（openWordCount 用）
+interface WordStats {
+  words: number; chars: number; charsSp: number;
+  paras: number; heads: number; tables: number; images: number; links: number;
+  minutes: number;
+}
+
+// 滑鼠事件的 target 一定是元素（不會是文字節點），宣告成 Element 才能直接呼叫 closest()
+type ElementEvent<E extends Event = MouseEvent> = E & { readonly target: Element };
+
+// nodeDOM() 可能是文字節點（沒有 closest），mathAt() 先檢查再呼叫
+type MaybeElement = Node & Partial<Pick<Element, 'closest'>>;
+
+// 核心外掛「範本」的設定：obsidian-internal.d.ts 只宣告了 folder，這裡另外用到日期、時間格式
+type TemplateOptions = NonNullable<TemplatesInstance['options']> & { dateFormat?: string; timeFormat?: string };
+
+// 捕捉到的錯誤：通常是 Error；mermaid 的解析錯誤把訊息放在 str
+interface CaughtError { message?: string; str?: string; }
+
 // ------------------------------------------------------------------ 檢視
 
+// 欄位說明（類別裡不能寫註解，寫在這裡）：
+// - pm：ProseMirror 編輯器；還沒載入筆記（第一次 setViewData 之前）與關閉後是 null
+// - meta：parse() 回傳的原文區塊資訊，存檔時交給 serialize()；還沒載入筆記時是 null
+// - lastOut：最後一次載入或輸出的 Markdown 原文
+// - toolbarHost、findHost、bannerHost、scroller、page、toolbar、findBar、bubble、fold：在 onOpen() 建立，
+//   之後一直存在，所以不標成可省略
+// - bottomBar、countEl、statusBox、zoomRange、zoomLabel：下方狀態列（buildBottomBar）建立的元素；
+//   桌機的狀態列沒有 countEl；還沒建立狀態列時都不存在
+// - marks、code、suggest：第一次 editorPlugins() 時才建立
+// - prism：Obsidian 的 Prism（非同步載入，載入前不存在）
+// - propsOpen：文件屬性區塊是否展開；還沒設定過時是 undefined（視為展開）
+// - plainPasteNext：下一次貼上只貼純文字（Ctrl+Shift+V、功能區的「只貼上文字」）
+// - pendingEState：編輯器還沒建立時收到的 setEphemeralState()，載入後再處理
+// - countTimer：延遲更新字數的計時器
+// setEphemeralState() 先檢查父類別有沒有這個方法：型別定義裡它一定存在，TypeScript 會把這個檢查當成錯誤，
+// 所以在檢查的地方把它轉型成「可能是 undefined」（執行結果不變）
 export class WordModeView extends TextFileView {
-  constructor(leaf, plugin) {
+  declare plugin: WordModePlugin;
+  declare pm: EditorView | null;
+  declare meta: DocMeta | null;
+  declare lastOut: string;
+  declare changed: boolean;
+  declare pending: boolean;
+  declare status: SaveStatus;
+  declare savedAt: Date | undefined;
+  declare conflict: ConflictState | null | undefined;
+  declare toolbarHost: HTMLDivElement;
+  declare findHost: HTMLDivElement;
+  declare bannerHost: HTMLDivElement;
+  declare scroller: HTMLDivElement;
+  declare page: HTMLDivElement;
+  declare toolbar: Toolbar;
+  declare findBar: FindBar;
+  declare bubble: Plugin;
+  declare fold: Plugin<FoldState>;
+  declare prism: PrismLike | undefined;
+  declare bottomBar: HTMLElement | undefined;
+  declare countEl: HTMLDivElement | undefined;
+  declare statusBox: HTMLDivElement | undefined;
+  declare zoomRange: HTMLInputElement | undefined;
+  declare zoomLabel: HTMLButtonElement | undefined;
+  declare marks: Plugin<MarksState> | undefined;
+  declare code: Plugin<DecorationSet> | undefined;
+  declare suggest: Plugin<SuggestTrigger | null> | undefined;
+  declare propsOpen: boolean | undefined;
+  declare plainPasteNext: boolean | undefined;
+  declare pendingEState: EphemeralState | null | undefined;
+  declare pasteChip: PasteChip | null | undefined;
+  declare countTimer: number | undefined;
+
+  constructor(leaf: WorkspaceLeaf, plugin: WordModePlugin) {
     super(leaf);
     this.plugin = plugin;
     this.pm = null;
@@ -47,12 +162,12 @@ export class WordModeView extends TextFileView {
     this.pending = false;   // 有尚未存檔的修改
   }
 
-  getViewType() { return VIEW_TYPE; }
-  getIcon() { return 'file-text'; }
-  getDisplayText() { return this.file ? this.file.basename : t('Word 模式'); }
-  canAcceptExtension(ext) { return ext === 'md'; }
+  getViewType(): string { return VIEW_TYPE; }
+  getIcon(): string { return 'file-text'; }
+  getDisplayText(): string { return this.file ? this.file.basename : t('Word 模式'); }
+  canAcceptExtension(ext: string): boolean { return ext === 'md'; }
 
-  async onOpen() {
+  async onOpen(): Promise<void> {
     this.contentEl.addClass('wm-view');
     this.contentEl.toggleClass('wm-mobile', !!Platform.isMobile);
     this.contentEl.toggleClass('wm-phone', !!Platform.isPhone);
@@ -63,7 +178,7 @@ export class WordModeView extends TextFileView {
     this.scroller = this.contentEl.createDiv('wm-scroller');
     this.page = this.scroller.createDiv('wm-page');
     this.buildToolbar();
-    const icon = (el, name, fallback) => { setIcon(el, name); if (!el.querySelector('svg') && fallback) el.setText(fallback); };
+    const icon = (el: HTMLElement, name: string, fallback: string) => { setIcon(el, name); if (!el.querySelector('svg') && fallback) el.setText(fallback); };
     this.findBar = new FindBar(this.findHost, { getView: () => this.pm, icon, onChange: () => this.toolbar && this.toolbar.refresh() });
     this.bubble = bubblePlugin(this.bubbleContext());
     this.fold = foldPlugin({ icon });
@@ -84,12 +199,12 @@ export class WordModeView extends TextFileView {
     // 快速鍵放在這個畫面的 scope，才不會被 Obsidian 的全域快速鍵搶走（例如 Ctrl+K、Ctrl+E）
     this.scope = new Scope(this.app.scope);
     const inEditor = () => this.pm && this.pm.hasFocus();
-    const reg = (mods, key, fn, onlyEditor) => this.scope.register(mods, key, evt => {
+    const reg = (mods: Modifier[], key: string, fn: (evt: KeyboardEvent) => void, onlyEditor?: boolean) => this.scope!.register(mods, key, evt => {
       if (!this.pm || (onlyEditor && !inEditor())) return true;
       fn(evt);
       return false;
     });
-    const cmd = c => () => { c(this.pm.state, tr => this.pm.dispatch(tr), this.pm); };
+    const cmd = (c: Command) => () => { c(this.pm!.state, tr => this.pm!.dispatch(tr), this.pm!); };
     reg(['Mod'], 'k', () => this.openLinkDialog());
     reg(['Mod'], 'f', () => this.findBar.open(false));
     reg(['Mod'], 'h', () => this.findBar.open(true));
@@ -105,11 +220,11 @@ export class WordModeView extends TextFileView {
     reg(['Mod', 'Shift'], 'h', cmd(C.toggleHighlight), true);
     reg(['Mod', 'Shift'], 'x', cmd(C.toggleStrike), true);
     this.addAction('code-2', withKey('切換到 Markdown 編輯', 'Mod+E'), () => this.plugin.switchToMarkdown(this.leaf));
-    this.registerEvent(this.app.vault.on('modify', f => { if (f === this.file) this.onExternalModify(f); }));
+    this.registerEvent(this.app.vault.on('modify', f => { if (f === this.file) this.onExternalModify(f as TFile); }));
   }
 
   // 建立（或依設定重建）上方功能區
-  buildToolbar() {
+  buildToolbar(): void {
     if (this.toolbar) { this.toolbar.destroy(); this.toolbarHost.empty(); }
     const S = this.plugin.settings;
     this.contentEl.toggleClass('wm-no-labels', S.buttonStyle === 'icon');
@@ -145,7 +260,7 @@ export class WordModeView extends TextFileView {
         scrollTo: pos => this.scrollToPos(pos),
         paste: mode => this.pasteFromClipboard(mode),
         clip: kind => this.clipboardAction(kind),
-        toggleMarks: () => this.setMarks(!marksOn(this.pm.state)),
+        toggleMarks: () => this.setMarks(!marksOn(this.pm!.state)),
         cleanup: () => new CleanupModal(this.app, this).open(),
         wordCount: () => this.openWordCount(),
         comment: () => this.insertComment(),
@@ -161,20 +276,20 @@ export class WordModeView extends TextFileView {
     if (this.pm) this.toolbar.update(this.pm.state);
   }
 
-  async onClose() {
+  async onClose(): Promise<void> {
     this.plugin.updateStatus(null);
     if (this.toolbar) this.toolbar.destroy();
     if (this.pm) { this.pm.destroy(); this.pm = null; }
   }
 
-  onPaneMenu(menu, source) {
+  onPaneMenu(menu: Menu, source: string): void {
     menu.addItem(i => i.setTitle(withKey('切換到 Markdown 編輯', 'Mod+E')).setIcon('code-2').setSection('pane').onClick(() => this.plugin.switchToMarkdown(this.leaf)));
     super.onPaneMenu(menu, source);
   }
 
   // ---------------------------------------------------------- 資料進出
 
-  setViewData(data, clear) {
+  setViewData(data: string, clear: boolean): void {
     if (!clear && this.pm && data === this.lastOut) return;
     // clear 為 false 表示同一份筆記在磁碟上被改了（同步、其他裝置、其他外掛）。
     // 這裡還有沒存檔的修改時不能直接蓋掉，改走同步衝突的流程
@@ -182,10 +297,10 @@ export class WordModeView extends TextFileView {
     this.loadDoc(data, clear);
   }
 
-  getViewData() {
+  getViewData(): string {
     if (!this.pm || !this.changed) return this.lastOut;
     try {
-      const out = this.plugin.converter.serialize(this.pm.state.doc, this.meta);
+      const out = this.plugin.converter.serialize(this.pm.state.doc, this.meta!);
       this.lastOut = out;
       this.pending = false;
       return out;
@@ -196,7 +311,7 @@ export class WordModeView extends TextFileView {
     }
   }
 
-  clear() {
+  clear(): void {
     this.changed = false;
     this.pending = false;
     this.hideConflict();
@@ -204,7 +319,7 @@ export class WordModeView extends TextFileView {
 
   // ---------------------------------------------------------- 存檔狀態
 
-  setStatus(s) {
+  setStatus(s: SaveStatus): void {
     this.status = s;
     this.savedAt = s === 'saved' ? new Date() : this.savedAt;
     this.plugin.updateStatus(this);
@@ -213,7 +328,7 @@ export class WordModeView extends TextFileView {
 
   // ---------------------------------------------------------- 下方狀態列（像 Word：字數、存檔、檢視、縮放）
 
-  buildBottomBar(bar, inStatusBar) {
+  buildBottomBar(bar: HTMLElement, inStatusBar: boolean): void {
     this.bottomBar = bar;
     if (!inStatusBar) {
       this.countEl = bar.createDiv('wm-bb-count');
@@ -223,7 +338,7 @@ export class WordModeView extends TextFileView {
     }
     this.statusBox = bar.createDiv('wm-bb-status');
     const views = bar.createDiv('wm-bb-views');
-    const vbtn = (icon, title, run, active) => {
+    const vbtn = (icon: string, title: string, run: () => void, active?: boolean) => {
       const b = views.createEl('button', { cls: 'wm-bb-btn' + (active ? ' is-active' : '') });
       b.setAttribute('aria-label', title);
       setIcon(b, icon);
@@ -245,20 +360,20 @@ export class WordModeView extends TextFileView {
     this.zoomLabel.setAttribute('aria-label', t('恢復 100%'));
     minus.addEventListener('click', () => this.plugin.setZoom(this.plugin.settings.zoom - 10));
     plus.addEventListener('click', () => this.plugin.setZoom(this.plugin.settings.zoom + 10));
-    this.zoomRange.addEventListener('input', () => this.plugin.setZoom(+this.zoomRange.value));
+    this.zoomRange.addEventListener('input', () => this.plugin.setZoom(+this.zoomRange!.value));
     this.zoomLabel.addEventListener('click', () => this.plugin.setZoom(100));
     this.renderStatus();
     this.applyZoom();
   }
 
-  applyZoom() {
+  applyZoom(): void {
     const z = this.plugin.settings.zoom || 100;
     if (this.page) this.page.style.zoom = String(z / 100);
     if (this.zoomRange) this.zoomRange.value = String(z);
     if (this.zoomLabel) this.zoomLabel.setText(z + '%');
   }
 
-  renderStatus() {
+  renderStatus(): void {
     if (!this.statusBox) return;
     const st = this.status;
     const time = this.savedAt && window.moment ? window.moment(this.savedAt).format('HH:mm') : '';
@@ -269,12 +384,12 @@ export class WordModeView extends TextFileView {
     this.statusBox.toggleClass('is-conflict', st === 'conflict');
   }
 
-  updateCount() {
+  updateCount(): void {
     if (!this.pm || !this.countEl) return;
     const st = this.pm.state;
     const count = countText;
     const all = count(st.doc.textBetween(0, st.doc.content.size, '\n', ' '));
-    const fmt = n => n.toLocaleString();
+    const fmt = (n: number) => n.toLocaleString();
     if (!st.selection.empty) {
       const sel = count(st.doc.textBetween(st.selection.from, st.selection.to, '\n', ' '));
       this.countEl.setText(t('已選取 {a}／{b} 字', { a: fmt(sel.words), b: fmt(all.words) }));
@@ -283,28 +398,28 @@ export class WordModeView extends TextFileView {
 
   // ---------------------------------------------------------- 編輯器外掛
 
-  editorPlugins() {
+  editorPlugins(): Plugin[] {
     if (!this.marks) this.marks = marksPlugin({ on: !!this.plugin.settings.showMarks, always: this.plugin.settings.highlightWeird !== false });
     if (!this.code) this.code = codePlugin(() => this.prism);
     if (!this.suggest) this.suggest = suggestPlugin(suggestContext(this, (el, name, fallback) => { setIcon(el, name); if (!el.querySelector('svg') && fallback) el.setText(fallback); }));
     return [this.suggest, this.bubble, findPlugin, this.fold, this.marks, this.code, codeActivePlugin];
   }
 
-  setMarks(on) {
+  setMarks(on: boolean): void {
     if (!this.pm) return;
     this.pm.dispatch(this.pm.state.tr.setMeta(marksKey, { on }));
     this.pm.focus();
   }
 
-  jumpToWeird(kind) {
-    const f = scanWeird(this.pm.state.doc).find(x => x.kind === kind);
+  jumpToWeird(kind: WeirdKindId): void {
+    const f = scanWeird(this.pm!.state.doc).find(x => x.kind === kind);
     if (!f) return;
-    const st = this.pm.state;
-    this.pm.dispatch(st.tr.setMeta(marksKey, { on: true }).setSelection(TextSelection.create(st.doc, f.from, f.to)).scrollIntoView());
-    this.pm.focus();
+    const st = this.pm!.state;
+    this.pm!.dispatch(st.tr.setMeta(marksKey, { on: true }).setSelection(TextSelection.create(st.doc, f.from, f.to)).scrollIntoView());
+    this.pm!.focus();
   }
 
-  foldAll(fold) {
+  foldAll(fold: boolean): void {
     if (!this.pm) return;
     this.pm.dispatch(this.pm.state.tr.setMeta(foldKey, fold ? { all: true } : { clear: true }));
     this.pm.focus();
@@ -312,11 +427,11 @@ export class WordModeView extends TextFileView {
 
   // ---------------------------------------------------------- 剪貼簿（功能區的貼上／剪下／複製）
 
-  async pasteFromClipboard(mode) {
+  async pasteFromClipboard(mode: PasteMode): Promise<void> {
     const v = this.pm;
     if (!v) return;
     v.focus();
-    let text = ''; let html = ''; let image = null;
+    let text = ''; let html = ''; let image: File | null = null;
     try {
       if (navigator.clipboard.read) {
         for (const it of await navigator.clipboard.read()) {
@@ -339,7 +454,7 @@ export class WordModeView extends TextFileView {
       return;
     }
     if (image && !text && !html) { this.insertUploadedImages([image]); return; }
-    let ev;
+    let ev: ClipboardEvent | undefined;
     try {
       const dt = new DataTransfer();
       if (text) dt.setData('text/plain', text);
@@ -351,7 +466,7 @@ export class WordModeView extends TextFileView {
     else if (text) v.pasteText(text, ev);
   }
 
-  clipboardAction(kind) {
+  clipboardAction(kind: ClipKind): void {
     if (!this.pm) return;
     this.pm.focus();
     let ok = false;
@@ -361,9 +476,9 @@ export class WordModeView extends TextFileView {
 
   // ---------------------------------------------------------- 字數統計與註解
 
-  openWordCount() {
-    const st = this.pm.state;
-    const stats = (from, to) => {
+  openWordCount(): void {
+    const st = this.pm!.state;
+    const stats = (from: number, to: number): WordStats => {
       const text = st.doc.textBetween(from, to, '\n', ' ');
       const { cjk, latin } = countText(text);
       let paras = 0; let heads = 0; let tables = 0; let images = 0; let links = 0;
@@ -381,9 +496,9 @@ export class WordModeView extends TextFileView {
     };
     const all = stats(0, st.doc.content.size);
     const sel = st.selection.empty ? null : stats(st.selection.from, st.selection.to);
-    const f = n => n.toLocaleString();
-    const row = (label, k) => [t(label), f(all[k]), sel ? f(sel[k]) : null];
-    const rows = [];
+    const f = (n: number) => n.toLocaleString();
+    const row = (label: string, k: keyof WordStats): WordCountRow => [t(label), f(all[k]), sel ? f(sel[k]) : null];
+    const rows: WordCountRow[] = [];
     if (sel) rows.push(['', t('整份文件'), t('選取範圍')]);
     rows.push(row(t('字數'), 'words'), row(t('字元數（不含空白）'), 'chars'), row(t('字元數（含空白）'), 'charsSp'),
       row(t('段落數'), 'paras'), row(t('標題數'), 'heads'), row(t('表格'), 'tables'), row(t('圖片'), 'images'), row(t('連結'), 'links'));
@@ -391,91 +506,91 @@ export class WordModeView extends TextFileView {
     new WordCountModal(this.app, rows).open();
   }
 
-  insertComment() {
-    const st = this.pm.state;
+  insertComment(): void {
+    const st = this.pm!.state;
     const selected = st.selection.empty ? '' : st.doc.textBetween(st.selection.from, st.selection.to, ' ');
     new PromptModal(this.app, t('插入註解'), '', t('註解內容（只在編輯時看得到，閱讀模式不顯示）'), value => {
       const text = String(value || '').replace(/%%/g, '%').trim();
       if (!text) return;
       const node = schema.nodes.raw_inline.create({ src: '%%' + text + '%%' });
-      const s2 = this.pm.state;
+      const s2 = this.pm!.state;
       const at = selected ? s2.selection.to : s2.selection.from;
-      this.pm.dispatch(s2.tr.insert(at, node).scrollIntoView());
-      this.pm.focus();
+      this.pm!.dispatch(s2.tr.insert(at, node).scrollIntoView());
+      this.pm!.focus();
     }).open();
   }
 
-  openProperties() {
-    const st = this.pm.state;
+  openProperties(): void {
+    const st = this.pm!.state;
     if (st.doc.firstChild && st.doc.firstChild.type === schema.nodes.frontmatter) {
       this.propsOpen = true;
-      const dom = this.pm.nodeDOM(0);
+      const dom = this.pm!.nodeDOM(0) as FrontmatterDom | null;
       if (dom && dom.wmOpen) dom.wmOpen();
       this.scroller.scrollTop = 0;
       return;
     }
     this.propsOpen = true;
     const tr = st.tr.insert(0, schema.nodes.frontmatter.create({ src: '---\n---' }));
-    this.pm.dispatch(tr);
+    this.pm!.dispatch(tr);
     this.scroller.scrollTop = 0;
   }
 
-  openEquation(existing) {
-    const render = (src, el, display) => {
+  openEquation(existing?: MathTarget): void {
+    const render: MathRenderer = (src, el, display) => {
       el.setText(src);
       Promise.resolve(loadMathJax()).then(() => { el.empty(); el.appendChild(renderMath(src, display)); return finishRenderMath(); })
         .catch(() => el.setText(src));
     };
-    const st0 = this.pm.state;
+    const st0 = this.pm!.state;
     // 沒有指定要編輯的方程式、但有選取文字：把選取的文字當成方程式內容
     const selText = !existing && !st0.selection.empty && st0.selection.$from.sameParent(st0.selection.$to) ? st0.doc.textBetween(st0.selection.from, st0.selection.to) : '';
-    const init = existing
+    const init: EquationInit = existing
       ? { src: existing.src, display: existing.display, existing: true, onDelete: () => this.deleteNodeAt(existing.pos) }
       : { src: selText, display: this.plugin.settings.mathDisplay === true };
     new EquationModal(this.app, init, render, (src, display) => {
-      const st = this.pm.state;
+      const st = this.pm!.state;
       const node = display ? schema.nodes.raw_block.create({ src: '$$\n' + src + '\n$$', kind: 'math' }) : schema.nodes.raw_inline.create({ src: '$' + src + '$' });
       if (existing) {
         const n = st.doc.nodeAt(existing.pos);
-        if (n && n.isInline === node.isInline) { this.pm.dispatch(st.tr.replaceWith(existing.pos, existing.pos + n.nodeSize, node)); this.pm.focus(); return; }
+        if (n && n.isInline === node.isInline) { this.pm!.dispatch(st.tr.replaceWith(existing.pos, existing.pos + n.nodeSize, node)); this.pm!.focus(); return; }
         if (n) {
           // 行內 ⇄ 獨立一行：刪掉舊的，在同一個位置放新的
           const tr = st.tr.delete(existing.pos, existing.pos + n.nodeSize);
           tr.setSelection(TextSelection.near(tr.doc.resolve(Math.min(existing.pos, tr.doc.content.size))));
-          this.pm.dispatch(tr);
+          this.pm!.dispatch(tr);
         }
       }
       const ins = display ? C.insertBlock(node) : C.insertInline(node);
-      ins(this.pm.state, tv => this.pm.dispatch(tv));
-      this.pm.focus();
+      ins(this.pm!.state, tv => this.pm!.dispatch(tv));
+      this.pm!.focus();
     }, this.plugin).open();
   }
 
-  deleteNodeAt(pos) {
-    const st = this.pm.state;
+  deleteNodeAt(pos: number): void {
+    const st = this.pm!.state;
     const n = st.doc.nodeAt(pos);
-    if (n) this.pm.dispatch(st.tr.delete(pos, pos + n.nodeSize));
-    this.pm.focus();
+    if (n) this.pm!.dispatch(st.tr.delete(pos, pos + n.nodeSize));
+    this.pm!.focus();
   }
 
   // 方程式節點（行內 $…$ 或獨立 $$…$$）的位置與內容
-  mathAt(dom) {
+  mathAt(dom: MaybeElement | null): MathInfo | null {
     const elx = dom && dom.closest && (dom.closest('.wm-raw-inline.is-math') || dom.closest('.wm-raw-block[data-kind="math"]'));
     if (!elx) return null;
-    let pos;
-    try { pos = this.pm.posAtDOM(elx, 0); } catch (e) { return null; }
-    const st = this.pm.state;
+    let pos: number;
+    try { pos = this.pm!.posAtDOM(elx, 0); } catch (e) { return null; }
+    const st = this.pm!.state;
     for (const p of [pos, pos - 1]) {
       const n = p >= 0 && st.doc.nodeAt(p);
       if (!n) continue;
-      let m;
+      let m: RegExpExecArray | null;
       if (n.type.name === 'raw_inline' && (m = /^\$\$?([\s\S]+?)\$?\$$/.exec(n.attrs.src))) return { pos: p, node: n, src: m[1].trim(), display: false };
       if (n.type.name === 'raw_block' && n.attrs.kind === 'math' && (m = /^\s*\$\$([\s\S]*?)\$\$\s*$/.exec(n.attrs.src))) return { pos: p, node: n, src: m[1].trim(), display: true };
     }
     return null;
   }
 
-  mathMenuItems(math) {
+  mathMenuItems(math: MathTarget): Required<NodeViewMenuItem>[] {
     return [
       { title: t('編輯方程式…'), icon: 'sigma', run: () => this.openEquation({ pos: math.pos, src: math.src, display: math.display }) },
       { title: math.display ? t('改成文字中（行內）') : t('改成獨立一行'), icon: math.display ? 'text-cursor' : 'align-center', run: () => this.convertMath(math) },
@@ -485,20 +600,20 @@ export class WordModeView extends TextFileView {
     ];
   }
 
-  convertMath(math) {
-    const st = this.pm.state;
+  convertMath(math: MathTarget): void {
+    const st = this.pm!.state;
     const n = st.doc.nodeAt(math.pos);
     if (!n) return;
     const tr = st.tr.delete(math.pos, math.pos + n.nodeSize);
     tr.setSelection(TextSelection.near(tr.doc.resolve(Math.min(math.pos, tr.doc.content.size))));
-    this.pm.dispatch(tr);
+    this.pm!.dispatch(tr);
     const node = math.display ? schema.nodes.raw_inline.create({ src: '$' + math.src + '$' }) : schema.nodes.raw_block.create({ src: '$$\n' + math.src + '\n$$', kind: 'math' });
-    (math.display ? C.insertInline(node) : C.insertBlock(node))(this.pm.state, tv => this.pm.dispatch(tv));
-    this.pm.focus();
+    (math.display ? C.insertInline(node) : C.insertBlock(node))(this.pm!.state, tv => this.pm!.dispatch(tv));
+    this.pm!.focus();
   }
 
 
-  async save(clear) {
+  async save(clear?: boolean): Promise<void> {
     if (this.conflict) return; // 同步衝突時先不寫入，等使用者選擇
     const dirty = this.changed && this.pending;
     if (dirty) this.setStatus('saving');
@@ -506,7 +621,7 @@ export class WordModeView extends TextFileView {
     if (dirty || this.status !== 'conflict') this.setStatus('saved');
   }
 
-  async onUnloadFile(file) {
+  async onUnloadFile(file: TFile): Promise<void> {
     // 關閉時還有未解決的衝突：把自己的版本另存副本，避免內容遺失
     if (this.conflict) { try { await this.saveMyCopy(); } catch (e) { console.error(e); } this.hideConflict(); }
     const r = await super.onUnloadFile(file);
@@ -515,7 +630,7 @@ export class WordModeView extends TextFileView {
   }
 
   // 記住這份筆記的編輯狀態（含復原紀錄），切換模式回來時可以繼續 Ctrl+Z
-  cacheHistory(file) {
+  cacheHistory(file?: TFile | null): void {
     const f = file || this.file;
     if (!f || !this.pm || this.conflict || this.plugin.settings.keepHistory === false) return;
     this.plugin.storeHistory(f.path, { state: this.pm.state, meta: this.meta, lastOut: this.lastOut });
@@ -523,7 +638,7 @@ export class WordModeView extends TextFileView {
 
   // ---------------------------------------------------------- 同步衝突
 
-  showConflict(data) {
+  showConflict(data: string): void {
     this.conflict = { data };
     if (this.plugin.settings.conflict === 'both') {
       // 設定為「自動兩份都保留」：不詢問，把自己的版本另存副本後載入新版本
@@ -541,25 +656,25 @@ export class WordModeView extends TextFileView {
     setIcon(msg.createSpan('wm-banner-icon'), 'alert-triangle');
     msg.createSpan({ text: t('這份筆記剛在其他地方被修改（可能是 Synology 同步或其他裝置）。你在這裡的修改還沒存檔，要保留哪一份？') });
     const bar = box.createDiv('wm-banner-actions');
-    const btn = (text, cls, run) => { const x = bar.createEl('button', { text, cls }); x.addEventListener('click', run); return x; };
-    btn(t('載入新版本'), '', () => { const d = this.conflict.data; this.hideConflict(); this.loadDoc(d, false); this.setStatus('saved'); new Notice(t('已載入新版本，你剛剛的修改已捨棄。')); });
+    const btn = (text: string, cls: string, run: () => void) => { const x = bar.createEl('button', { text, cls }); x.addEventListener('click', run); return x; };
+    btn(t('載入新版本'), '', () => { const d = this.conflict!.data; this.hideConflict(); this.loadDoc(d, false); this.setStatus('saved'); new Notice(t('已載入新版本，你剛剛的修改已捨棄。')); });
     btn(t('保留我的版本'), 'mod-cta', async () => { this.hideConflict(); this.changed = true; this.pending = true; await this.save(); new Notice(t('已用你的版本覆蓋。')); });
     btn(t('兩份都保留'), '', async () => {
       const f = await this.saveMyCopy();
-      const d = this.conflict.data;
+      const d = this.conflict!.data;
       this.hideConflict(); this.loadDoc(d, false); this.setStatus('saved');
       if (f) new Notice(t('你的版本已另存為「') + f.basename + t('」，目前顯示新版本。'));
     });
   }
 
-  hideConflict() {
+  hideConflict(): void {
     this.conflict = null;
     if (this.bannerHost) this.bannerHost.empty();
   }
 
-  async saveMyCopy() {
+  async saveMyCopy(): Promise<TFile | null> {
     if (!this.file || !this.pm) return null;
-    const mine = this.plugin.converter.serialize(this.pm.state.doc, this.meta);
+    const mine = this.plugin.converter.serialize(this.pm.state.doc, this.meta!);
     const stamp = window.moment ? window.moment().format('YYYYMMDD-HHmm') : String(Date.now());
     const dir = this.file.parent && this.file.parent.path !== '/' ? this.file.parent.path + '/' : '';
     let path = normalizePath(dir + this.file.basename + t('（我的版本 ') + stamp + t('）.md'));
@@ -570,23 +685,23 @@ export class WordModeView extends TextFileView {
 
   // ---------------------------------------------------------- 跳到指定位置（大綱、反向連結、搜尋結果、#標題 連結）
 
-  setEphemeralState(state) {
-    if (super.setEphemeralState) super.setEphemeralState(state);
+  setEphemeralState(state: EphemeralState | null | undefined): void {
+    if (super.setEphemeralState as ((state: unknown) => void) | undefined) super.setEphemeralState(state);
     if (!state) return;
     if (!this.pm || !this.meta) { this.pendingEState = state; return; }
-    let line = null;
+    let line: number | null = null;
     if (typeof state.line === 'number') line = state.line;
     else if (state.match && state.match.matches && state.match.matches[0]) line = this.offsetToLine(state.match.matches[0][0]);
     else if (state.subpath) line = this.subpathLine(state.subpath);
     if (line != null) this.scrollToLine(line);
   }
 
-  offsetToLine(offset) {
+  offsetToLine(offset: number): number {
     const tv = this.lastOut.slice(0, offset);
     return (tv.match(/\r\n|\n|\r/g) || []).length;
   }
 
-  subpathLine(subpath) {
+  subpathLine(subpath: string): number | null {
     const cache = this.file && this.app.metadataCache.getFileCache(this.file);
     if (!cache) return null;
     const sp = subpath.replace(/^#/, '');
@@ -594,33 +709,33 @@ export class WordModeView extends TextFileView {
       const b = cache.blocks && cache.blocks[sp.slice(1).toLowerCase()];
       return b ? b.position.start.line : null;
     }
-    const last = sp.split('#').pop().trim().toLowerCase();
+    const last = sp.split('#').pop()!.trim().toLowerCase();
     const h = (cache.headings || []).find(x => x.heading.trim().toLowerCase() === last);
     return h ? h.position.start.line : null;
   }
 
   // 原文行號 → 文件位置：找出包含該行的原文區塊
-  lineToPos(line) {
-    const segs = this.meta.segments;
+  lineToPos(line: number): number | null {
+    const segs = this.meta!.segments;
     let idx = -1;
     for (let i = 0; i < segs.length; i++) if (segs[i].line != null && segs[i].line <= line) idx = i;
     if (idx < 0) return 0;
-    let found = null;
-    this.pm.state.doc.descendants((n, p) => { if (found != null) return false; if (n.attrs && n.attrs.bid === idx) { found = p; return false; } return true; });
+    let found: number | null = null;
+    this.pm!.state.doc.descendants((n, p) => { if (found != null) return false; if (n.attrs && n.attrs.bid === idx) { found = p; return false; } return true; });
     return found;
   }
 
-  scrollToLine(line) {
+  scrollToLine(line: number): void {
     const pos = this.lineToPos(line);
     if (pos != null) this.scrollToPos(pos);
   }
 
-  scrollToPos(pos) {
-    const v = this.pm;
+  scrollToPos(pos: number): void {
+    const v = this.pm!;
     try {
       const sel = TextSelection.near(v.state.doc.resolve(Math.min(pos + 1, v.state.doc.content.size)));
       v.dispatch(v.state.tr.setSelection(sel));
-      let dom = v.nodeDOM(pos);
+      let dom = v.nodeDOM(pos) as HTMLElement | null;
       if (dom && dom.nodeType !== 1) dom = dom.parentElement;
       if (dom && dom.scrollIntoView) {
         dom.scrollIntoView({ block: 'center' });
@@ -631,8 +746,8 @@ export class WordModeView extends TextFileView {
     } catch (e) { /* 忽略 */ }
   }
 
-  loadDoc(data, clear) {
-    let parsed;
+  loadDoc(data: string, clear: boolean): void {
+    let parsed: ParseResult;
     try { parsed = this.plugin.converter.parse(data); }
     catch (e) {
       console.error('[Word 模式] 解析失敗', e);
@@ -646,7 +761,7 @@ export class WordModeView extends TextFileView {
     this.changed = false;
     this.pending = false;
     const plugins = this.editorPlugins();
-    let state = null;
+    let state: EditorState | null = null;
     // 同一份筆記剛切去 Markdown 又切回來：沿用原本的編輯狀態與復原紀錄
     const cached = clear && this.file ? this.plugin.takeHistory(this.file.path) : null;
     if (cached) {
@@ -673,14 +788,14 @@ export class WordModeView extends TextFileView {
         // 拼字檢查跟著 Obsidian 的設定（設定 → 編輯器 → 拼字檢查）
         attributes: { class: 'wm-editor', spellcheck: this.spellcheckOn() ? 'true' : 'false' },
         handleDOMEvents: {
-          mousedown: (v, e) => this.onMouseDown(e),
+          mousedown: (v, e) => this.onMouseDown(e as ElementEvent),
           mouseover: (v, e) => {
-            const a = e.target.closest && e.target.closest('a.wm-link');
+            const a = (e.target as Element).closest && (e.target as Element).closest<HTMLAnchorElement>('a.wm-link');
             const href = a && a.getAttribute('href');
             if (href && !isExternal(href)) { let lt = href; try { lt = decodeURIComponent(href); } catch (err) { /* 保持原樣 */ } this.hoverLink(e, lt, a); }
             return false;
           },
-          contextmenu: (v, e) => this.onContextMenu(e),
+          contextmenu: (v, e) => this.onContextMenu(e as ElementEvent<typeof e>),
         },
         handleKeyDown: (v, e) => this.onKeyDown(e),
         handlePaste: (v, e) => this.onPaste(e),
@@ -702,7 +817,7 @@ export class WordModeView extends TextFileView {
     this.plugin.outlineChanged(this, true);
   }
 
-  dispatch(tr) {
+  dispatch(tr: Transaction): void {
     if (!this.pm) return;
     const state = this.pm.state.apply(tr);
     this.pm.updateState(state);
@@ -719,7 +834,7 @@ export class WordModeView extends TextFileView {
     this.countTimer = setTimeout(() => this.updateCount(), 200);
   }
 
-  async onExternalModify(file) {
+  async onExternalModify(file: TFile): Promise<void> {
     const data = await this.app.vault.read(file);
     if (data === this.lastOut || file !== this.file) return;
     if (this.pending || this.conflict) { this.showConflict(data); return; }
@@ -728,17 +843,17 @@ export class WordModeView extends TextFileView {
 
   // ---------------------------------------------------------- Obsidian 協助函式
 
-  sourcePath() { return this.file ? this.file.path : ''; }
+  sourcePath(): string { return this.file ? this.file.path : ''; }
 
   // 連結路徑 → 保管庫裡的檔案或資料夾（支援相對路徑、%20 編碼、<路徑>）
-  resolvePath(linkpath) {
+  resolvePath(linkpath: string): TAbstractFile | null {
     const clean = String(linkpath).replace(/^<|>$/g, '').split('#')[0];
     let p = clean;
     try { p = decodeURIComponent(clean); } catch (e) { /* 保持原樣 */ }
     if (!p) return this.file;
     const vault = this.app.vault;
     const dir = this.file && this.file.parent ? this.file.parent.path : '';
-    const join = base => {
+    const join = (base: string) => {
       const parts = base && base !== '/' ? base.split('/') : [];
       for (const seg of p.split('/')) { if (seg === '..') parts.pop(); else if (seg && seg !== '.') parts.push(seg); }
       return normalizePath(parts.join('/'));
@@ -750,17 +865,17 @@ export class WordModeView extends TextFileView {
     return null;
   }
 
-  resolveFile(linkpath) {
+  resolveFile(linkpath: string): TFile | null {
     const f = this.resolvePath(linkpath);
     return f instanceof TFile ? f : null;
   }
 
-  openLink(target, newLeaf) {
+  openLink(target: string, newLeaf: boolean): void {
     if (isExternal(target)) { window.open(target); return; }
     const f = this.resolvePath(target);
     if (f instanceof TFolder) {
       try {
-        const fe = this.app.internalPlugins.getEnabledPluginById('file-explorer');
+        const fe = this.app.internalPlugins!.getEnabledPluginById!('file-explorer');
         if (fe) { fe.revealInFolder(f); return; }
       } catch (e) { /* 改用提示 */ }
       new Notice(t('這是資料夾：') + f.path);
@@ -779,7 +894,7 @@ export class WordModeView extends TextFileView {
     this.app.workspace.openLinkText(linktext, this.sourcePath(), newLeaf ? 'tab' : false);
   }
 
-  nodeViewContext() {
+  nodeViewContext(): NodeViewContext {
     return {
       icon: (el, name, fallback) => { setIcon(el, name); if (!el.querySelector('svg') && fallback) el.setText(fallback); },
       openLink: (tv, n) => this.openLink(tv, n),
@@ -803,7 +918,7 @@ export class WordModeView extends TextFileView {
       editSource: (title, src, onSave) => new SourceModal(this.app, title, src, onSave).open(),
       editLinkAt: pos => { this.selectNodeAt(pos); this.openLinkDialog(); },
       prompt: (title, value, placeholder, cb) => new PromptModal(this.app, title, value, placeholder, cb).open(),
-      editMath: (pos, src, display) => this.openEquation({ pos, src, display }),
+      editMath: (pos, src, display) => this.openEquation({ pos, src, display } as MathTarget),
       parseYaml: tv => parseYaml(tv),
       stringifyYaml: o => stringifyYaml(o),
       propsOpen: () => this.propsOpen !== false,
@@ -823,7 +938,7 @@ export class WordModeView extends TextFileView {
       renderBlock: (src, el) => this.renderBlock(src, el),
       canPreview: lang => this.canPreview(lang),
       editMermaid: pos => this.openMermaid(pos),
-      footnoteText: id => footnoteText(this.pm.state.doc, id),
+      footnoteText: id => footnoteText(this.pm!.state.doc, id),
       gotoFootnote: id => this.gotoFootnote(id),
       editFootnote: id => this.editFootnote(id),
       renderEmbed: (target, el) => renderEmbed(this, target, el),
@@ -840,18 +955,18 @@ export class WordModeView extends TextFileView {
 
   // ---------------------------------------------------------- 事件
 
-  onMouseDown(e) {
+  onMouseDown(e: ElementEvent): boolean {
     // Ctrl+點擊超連結：開啟（一般點擊只放游標，不會跳出網址）
     const a = e.target.closest && e.target.closest('a.wm-link');
     if (a && (e.ctrlKey || e.metaKey) && e.button === 0) {
       e.preventDefault();
-      this.openLink(a.getAttribute('href'), e.shiftKey);
+      this.openLink(a.getAttribute('href')!, e.shiftKey);
       return true;
     }
     const u = e.target.closest && e.target.closest('.wm-bare-url');
     if (u && (e.ctrlKey || e.metaKey) && e.button === 0) {
       e.preventDefault();
-      this.openLink(u.getAttribute('data-href'), e.shiftKey);
+      this.openLink(u.getAttribute('data-href')!, e.shiftKey);
       return true;
     }
     // Ctrl+點擊 #標籤：在保管庫中搜尋這個標籤
@@ -867,7 +982,7 @@ export class WordModeView extends TextFileView {
   // ---------------------------------------------------------- 用 Obsidian 顯示 Markdown（原文區塊、程式碼區塊的結果、內嵌）
 
   // 把一段 Markdown 交給 Obsidian 顯示在 el 裡；回傳的 unload() 用來釋放（重畫或區塊被刪除時呼叫）
-  renderBlock(src, el, sourcePath) {
+  renderBlock(src: string, el: HTMLElement, sourcePath?: string): EmbedHandle {
     const comp = new Component();
     if (this.addChild) this.addChild(comp); else comp.load();
     MarkdownRenderer.render(this.app, src, el, sourcePath || this.sourcePath(), comp).catch(e => { el.setText(src); console.error('[Word Mode]', e); });
@@ -876,7 +991,7 @@ export class WordModeView extends TextFileView {
 
   // 這個語言的程式碼區塊在 Obsidian 會不會顯示成結果：內建的 mermaid、query、math、base，
   // 以及其他外掛註冊的區塊（dataview、tasks、chart…）
-  canPreview(lang) {
+  canPreview(lang: string | null | undefined): boolean {
     if (this.plugin.settings.codePreview === false) return false;
     const l = String(lang || '').trim().split(/\s+/)[0].toLowerCase();
     if (!l) return false;
@@ -888,8 +1003,8 @@ export class WordModeView extends TextFileView {
   }
 
   // Mermaid 圖表編輯器：pos 是既有的 mermaid 程式碼區塊位置；沒有 pos 就是插入新的
-  openMermaid(pos) {
-    const existing = pos != null ? this.pm.state.doc.nodeAt(pos) : null;
+  openMermaid(pos?: number | null): void {
+    const existing = pos != null ? this.pm!.state.doc.nodeAt(pos) : null;
     const isCode = existing && existing.type === schema.nodes.code_block;
     new MermaidModal(this.app, {
       src: isCode ? existing.textContent : '',
@@ -901,19 +1016,19 @@ export class WordModeView extends TextFileView {
           const mm = await loadMermaid();
           if (mm && mm.parse) await mm.parse(s);
           return null;
-        } catch (e) { return String((e && (e.str || e.message)) || e).split('\n')[0]; }
+        } catch (e) { return String((e && ((e as CaughtError).str || (e as CaughtError).message)) || e).split('\n')[0]; }
       },
     }, text => {
-      const st = this.pm.state;
+      const st = this.pm!.state;
       const content = text ? schema.text(text) : null;
       if (isCode) {
-        const n = st.doc.nodeAt(pos);
+        const n = st.doc.nodeAt(pos!);
         if (!n || n.type !== schema.nodes.code_block) return;
-        if (n.textContent !== text) this.pm.dispatch(st.tr.replaceWith(pos, pos + n.nodeSize, schema.nodes.code_block.create(n.attrs, content)));
+        if (n.textContent !== text) this.pm!.dispatch(st.tr.replaceWith(pos!, pos! + n.nodeSize, schema.nodes.code_block.create(n.attrs, content)));
       } else {
-        C.insertBlock(schema.nodes.code_block.create({ params: 'mermaid' }, content))(st, tr => this.pm.dispatch(tr));
+        C.insertBlock(schema.nodes.code_block.create({ params: 'mermaid' }, content))(st, tr => this.pm!.dispatch(tr));
         // 游標移到圖表後面，圖表就會顯示成結果（游標在裡面時顯示的是程式碼）
-        const s2 = this.pm.state;
+        const s2 = this.pm!.state;
         const $f = s2.selection.$from;
         for (let d = $f.depth; d > 0; d--) {
           if ($f.node(d).type === schema.nodes.code_block) {
@@ -921,17 +1036,17 @@ export class WordModeView extends TextFileView {
             let tr = s2.tr;
             if (after >= s2.doc.content.size) tr = tr.insert(after, schema.nodes.paragraph.create());
             tr.setSelection(TextSelection.near(tr.doc.resolve(after + 1)));
-            this.pm.dispatch(tr);
+            this.pm!.dispatch(tr);
             break;
           }
         }
       }
-      this.pm.focus();
+      this.pm!.focus();
     }).open();
   }
 
   // 滑鼠移到筆記連結上：交給 Obsidian 的「頁面預覽」顯示預覽（依它的設定，預設要按住 Ctrl／Cmd）
-  hoverLink(event, linktext, targetEl) {
+  hoverLink(event: MouseEvent, linktext: string, targetEl: HTMLElement): void {
     try {
       this.app.workspace.trigger('hover-link', { event, source: VIEW_TYPE, hoverParent: this, targetEl, linktext, sourcePath: this.sourcePath() });
     } catch (e) { /* 沒有頁面預覽就不顯示 */ }
@@ -939,46 +1054,46 @@ export class WordModeView extends TextFileView {
 
   // ---------------------------------------------------------- 註腳
 
-  insertFootnoteDialog() {
-    if (!insertFootnote('')(this.pm.state)) { new Notice(t('請先把游標放在文字裡')); return; }
+  insertFootnoteDialog(): void {
+    if (!insertFootnote('')(this.pm!.state)) { new Notice(t('請先把游標放在文字裡')); return; }
     new PromptModal(this.app, t('插入註腳'), '', t('註腳內容（會放在文件最後）'), value => {
-      insertFootnote(value)(this.pm.state, tr => this.pm.dispatch(tr));
-      this.pm.focus();
+      insertFootnote(value)(this.pm!.state, tr => this.pm!.dispatch(tr));
+      this.pm!.focus();
     }).open();
   }
 
   // 跳到註腳的內容（文件後面的定義）
-  gotoFootnote(id) {
-    const d = footnotes(this.pm.state.doc).defs.find(x => x.id === id);
+  gotoFootnote(id: string): void {
+    const d = footnotes(this.pm!.state.doc).defs.find(x => x.id === id);
     if (!d) { new Notice(t('找不到這個註腳的內容')); return; }
     this.selectNodeAt(d.pos);
-    const dom = this.pm.nodeDOM(d.pos);
+    const dom = this.pm!.nodeDOM(d.pos) as HTMLElement | null;
     if (dom && dom.scrollIntoView) { dom.scrollIntoView({ block: 'center' }); dom.classList.add('wm-flash'); setTimeout(() => dom.classList.remove('wm-flash'), 1200); }
   }
 
   // 編輯註腳的內容；還沒有定義就新增一個
-  editFootnote(id) {
-    const d = footnotes(this.pm.state.doc).defs.find(x => x.id === id);
+  editFootnote(id: string): void {
+    const d = footnotes(this.pm!.state.doc).defs.find(x => x.id === id);
     new SourceModal(this.app, t('註腳') + ' ' + id, d ? footnoteBody(d.node.attrs.src) : '', value => {
-      const st = this.pm.state;
+      const st = this.pm!.state;
       const cur = footnotes(st.doc).defs.find(x => x.id === id);
-      if (cur) setFootnoteBody(cur.pos, value)(st, tr => this.pm.dispatch(tr));
-      else this.pm.dispatch(st.tr.insert(st.doc.content.size, schema.nodes.raw_block.create({ src: '[^' + id + ']: ' + String(value).replace(/\r?\n/g, '\n    ').trim(), kind: 'footnote' })));
-      this.pm.focus();
+      if (cur) setFootnoteBody(cur.pos, value)(st, tr => this.pm!.dispatch(tr));
+      else this.pm!.dispatch(st.tr.insert(st.doc.content.size, schema.nodes.raw_block.create({ src: '[^' + id + ']: ' + String(value).replace(/\r?\n/g, '\n    ').trim(), kind: 'footnote' })));
+      this.pm!.focus();
     }).open();
   }
 
-  spellcheckOn() {
+  spellcheckOn(): boolean {
     try { return !!(this.app.vault.getConfig && this.app.vault.getConfig('spellcheck')); } catch (e) { return false; }
   }
 
-  onKeyDown(e) {
+  onKeyDown(e: KeyboardEvent): boolean {
     const mod = (e.ctrlKey || e.metaKey) && !e.altKey;
     const k = e.key.toLowerCase();
     // 選取方程式時按 Enter：開啟方程式編輯器
-    const sel = this.pm.state.selection;
+    const sel = this.pm!.state.selection;
     if (e.key === 'Enter' && !mod && sel instanceof NodeSelection) {
-      const dom = this.pm.nodeDOM(sel.from);
+      const dom = this.pm!.nodeDOM(sel.from);
       const math = dom && this.mathAt(dom.firstChild || dom) || (dom && this.mathAt(dom));
       if (math) { e.preventDefault(); this.openEquation({ pos: math.pos, src: math.src, display: math.display }); return true; }
     }
@@ -1005,32 +1120,32 @@ export class WordModeView extends TextFileView {
   }
 
   // 右鍵選單：先放游標所在內容的專屬功能（連結、方程式、表格…），再放剪貼簿、格式、段落、插入、工具（可在設定中關閉）
-  onContextMenu(e) {
+  onContextMenu(e: ElementEvent): boolean {
     // 手機長按是用來選取文字，保留系統行為（表格、連結、圖片操作都在工具列與小工具列上）
     if (Platform.isMobile) return false;
     const S = this.plugin.settings;
     if (S.ctxMenu === false) return false;
     const hidden = new Set(S.hiddenCtx || []);
-    const pmPos = this.pm.posAtCoords({ left: e.clientX, top: e.clientY });
+    const pmPos = this.pm!.posAtCoords({ left: e.clientX, top: e.clientY });
     // 右鍵點在選取範圍外：游標移到點的位置（像 Word）
-    const sel0 = this.pm.state.selection;
+    const sel0 = this.pm!.state.selection;
     if (pmPos && (sel0.empty || pmPos.pos < sel0.from || pmPos.pos > sel0.to)) {
       try {
-        const $p = this.pm.state.doc.resolve(pmPos.pos);
-        if ($p.parent.inlineContent) this.pm.dispatch(this.pm.state.tr.setSelection(TextSelection.create(this.pm.state.doc, pmPos.pos)));
+        const $p = this.pm!.state.doc.resolve(pmPos.pos);
+        if ($p.parent.inlineContent) this.pm!.dispatch(this.pm!.state.tr.setSelection(TextSelection.create(this.pm!.state.doc, pmPos.pos)));
       } catch (err) { /* 非文字位置 */ }
     }
-    const st = this.pm.state;
+    const st = this.pm!.state;
     const hasSel = !st.selection.empty && !(st.selection instanceof NodeSelection);
     const selText = hasSel ? st.doc.textBetween(st.selection.from, st.selection.to, ' ') : '';
     const m = new Menu();
     let section = false;
     const sep = () => { if (section) m.addSeparator(); section = false; };
-    const item = (title, icon, run, enabled = true) => {
+    const item = (title: string, icon: string, run: () => void, enabled = true) => {
       section = true;
       m.addItem(i => { i.setTitle(title).setIcon(icon).onClick(() => { run(); }); if (!enabled) i.setDisabled(true); });
     };
-    const cmd = (title, icon, c, check = true) => item(title, icon, () => { c(this.pm.state, v => this.pm.dispatch(v), this.pm); this.pm.focus(); }, check ? !!c(st) : true);
+    const cmd = (title: string, icon: string, c: Command, check = true) => item(title, icon, () => { c(this.pm!.state, v => this.pm!.dispatch(v), this.pm!); this.pm!.focus(); }, check ? !!c(st) : true);
 
     // ---- 專屬：方程式
     const math = this.mathAt(e.target);
@@ -1043,18 +1158,18 @@ export class WordModeView extends TextFileView {
     if (fnId) {
       item(t('跳到註腳內容'), 'arrow-down-to-line', () => this.gotoFootnote(fnId));
       item(t('編輯註腳…'), 'pencil', () => this.editFootnote(fnId));
-      item(t('刪除註腳（含內容）'), 'trash-2', () => { removeFootnote(fnId)(this.pm.state, tr => this.pm.dispatch(tr)); this.pm.focus(); });
+      item(t('刪除註腳（含內容）'), 'trash-2', () => { removeFootnote(fnId)(this.pm!.state, tr => this.pm!.dispatch(tr)); this.pm!.focus(); });
       sep();
     } else if (raw) { item(t('編輯原文'), 'pencil', () => raw.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))); sep(); }
     // ---- 專屬：連結
     const a = e.target.closest && (e.target.closest('a.wm-link') || e.target.closest('.wm-bare-url'));
     if (a) {
-      const href = a.getAttribute('href') || a.getAttribute('data-href');
+      const href = (a.getAttribute('href') || a.getAttribute('data-href'))!;
       item(t('開啟連結'), 'external-link', () => this.openLink(href, false));
       item(t('在新分頁開啟'), 'file-plus', () => this.openLink(href, true));
       item(t('編輯連結…'), 'pencil', () => this.openLinkDialog());
       item(t('複製連結'), 'copy', () => this.copyText(href));
-      if (a.matches('a.wm-link')) item(t('移除連結'), 'unlink', () => { const c = linkContext(this.pm.state); if (c) this.unlink(c); });
+      if (a.matches('a.wm-link')) item(t('移除連結'), 'unlink', () => { const c = linkContext(this.pm!.state); if (c) this.unlink(c); });
       sep();
     }
     // ---- 專屬：程式碼區塊
@@ -1065,7 +1180,7 @@ export class WordModeView extends TextFileView {
       item(t('程式語言') + '：' + (code.attrs.params || t('純文字')), 'code', () => {
         new PromptModal(this.app, t('程式語言'), code.attrs.params || '', 'python, sql, json…', v => {
           const pos = $f.before();
-          this.pm.dispatch(this.pm.state.tr.setNodeMarkup(pos, null, Object.assign({}, code.attrs, { params: String(v || '').trim() })));
+          this.pm!.dispatch(this.pm!.state.tr.setNodeMarkup(pos, null, Object.assign({}, code.attrs, { params: String(v || '').trim() })));
         }).open();
       });
       sep();
@@ -1093,7 +1208,7 @@ export class WordModeView extends TextFileView {
       item(t('複製'), 'copy', () => this.clipboardAction('copy'), hasSel);
       item(t('貼上'), 'clipboard-paste', () => this.pasteFromClipboard('auto'));
       item(t('只貼上文字'), 'type', () => this.pasteFromClipboard('text'));
-      item(t('全選'), 'text-select', () => { C.selectAll(this.pm.state, v => this.pm.dispatch(v)); this.pm.focus(); });
+      item(t('全選'), 'text-select', () => { C.selectAll(this.pm!.state, v => this.pm!.dispatch(v)); this.pm!.focus(); });
       sep();
     }
     // ---- 格式（有選取文字時，像 Word 的迷你工具列）
@@ -1134,7 +1249,7 @@ export class WordModeView extends TextFileView {
       } else {
         item(t('字數統計'), 'bar-chart-3', () => this.openWordCount());
       }
-      item(marksOn(st) ? t('隱藏編輯標記') : t('顯示編輯標記'), 'pilcrow', () => this.setMarks(!marksOn(this.pm.state)));
+      item(marksOn(st) ? t('隱藏編輯標記') : t('顯示編輯標記'), 'pilcrow', () => this.setMarks(!marksOn(this.pm!.state)));
     }
     m.showAtMouseEvent(e);
     e.preventDefault();
@@ -1142,8 +1257,8 @@ export class WordModeView extends TextFileView {
   }
 
   // 選取範圍轉成 Markdown 原文
-  selectionMarkdown() {
-    const st = this.pm.state;
+  selectionMarkdown(): string {
+    const st = this.pm!.state;
     const slice = st.selection.content();
     let content = slice.content;
     if (content.firstChild && content.firstChild.isInline) content = Fragment.from(schema.nodes.paragraph.create(null, content));
@@ -1154,18 +1269,18 @@ export class WordModeView extends TextFileView {
     } catch (e) { return st.doc.textBetween(st.selection.from, st.selection.to, '\n'); }
   }
 
-  searchVault(q) {
+  searchVault(q: string): void {
     const gs = this.app.internalPlugins && this.app.internalPlugins.getPluginById && this.app.internalPlugins.getPluginById('global-search');
     if (gs && gs.instance && gs.instance.openGlobalSearch) gs.instance.openGlobalSearch(q);
     else new Notice(t('請先啟用 Obsidian 的「搜尋」核心外掛'));
   }
 
 
-  onPaste(e) {
+  onPaste(e: ClipboardEvent): boolean {
     // 選取文字後貼上網址：把選取的文字變成超連結（像 Google 文件）
     const text = e.clipboardData && e.clipboardData.getData('text/plain');
     const html = e.clipboardData && e.clipboardData.getData('text/html');
-    const st = this.pm.state;
+    const st = this.pm!.state;
     const plain = this.plainPasteNext;
     this.plainPasteNext = false;
     this.hidePasteChip();
@@ -1174,8 +1289,8 @@ export class WordModeView extends TextFileView {
     if (rows) {
       e.preventDefault();
       const fill = C.table.isIn(st) ? fillTable(st, rows) : null;
-      if (fill) this.pm.dispatch(fill);
-      else C.insertBlock(tableFromRows(rows))(this.pm.state, tr => this.pm.dispatch(tr));
+      if (fill) this.pm!.dispatch(fill);
+      else C.insertBlock(tableFromRows(rows))(this.pm!.state, tr => this.pm!.dispatch(tr));
       return true;
     }
     // 只有純文字、看起來像 Markdown（例如從 ChatGPT 複製）：先照原樣貼上，再提供「轉成格式」
@@ -1188,7 +1303,7 @@ export class WordModeView extends TextFileView {
       && !st.selection.$from.parent.type.spec.code && st.selection.$from.sameParent(st.selection.$to)) {
       e.preventDefault();
       const { from, to } = st.selection;
-      this.pm.dispatch(st.tr.removeMark(from, to, schema.marks.link).addMark(from, to, schema.marks.link.create({ href: text.trim() })));
+      this.pm!.dispatch(st.tr.removeMark(from, to, schema.marks.link).addMark(from, to, schema.marks.link.create({ href: text.trim() })));
       return true;
     }
     const files = Array.from((e.clipboardData && e.clipboardData.files) || []).filter(f => /^image\//.test(f.type));
@@ -1198,14 +1313,14 @@ export class WordModeView extends TextFileView {
     return true;
   }
 
-  onDrop(e) {
+  onDrop(e: DragEvent): boolean {
     const drag = this.app.dragManager && this.app.dragManager.draggable;
-    const pos = this.pm.posAtCoords({ left: e.clientX, top: e.clientY });
-    const place = () => { if (pos) this.pm.dispatch(this.pm.state.tr.setSelection(TextSelection.near(this.pm.state.doc.resolve(pos.pos)))); };
+    const pos = this.pm!.posAtCoords({ left: e.clientX, top: e.clientY });
+    const place = () => { if (pos) this.pm!.dispatch(this.pm!.state.tr.setSelection(TextSelection.near(this.pm!.state.doc.resolve(pos.pos)))); };
     if (drag && (drag.type === 'file' || drag.type === 'files')) {
       e.preventDefault();
       place();
-      const list = drag.type === 'file' ? [drag.file] : drag.files;
+      const list = drag.type === 'file' ? [drag.file] : drag.files!;
       for (const f of list) if (f instanceof TFile) this.insertFileLink(f);
       return true;
     }
@@ -1219,8 +1334,8 @@ export class WordModeView extends TextFileView {
 
   // ---------------------------------------------------------- 貼上選項
 
-  showPasteChip(text, from) {
-    const v = this.pm;
+  showPasteChip(text: string, from: number): void {
+    const v = this.pm!;
     const to = v.state.selection.from;
     if (to <= from) return;
     this.hidePasteChip();
@@ -1234,14 +1349,14 @@ export class WordModeView extends TextFileView {
     b1.addEventListener('click', () => {
       const doc = this.plugin.converter.parseFragment(text);
       const frag = stripBids(doc.content);
-      const st = this.pm.state;
-      const tr = st.tr.replaceRange(from, Math.min(this.pasteChip.to, st.doc.content.size), new Slice(frag, 0, 0));
+      const st = this.pm!.state;
+      const tr = st.tr.replaceRange(from, Math.min(this.pasteChip!.to, st.doc.content.size), new Slice(frag, 0, 0));
       tr.setMeta('wmPasteChip', true);
       this.hidePasteChip();
-      this.pm.dispatch(tr.scrollIntoView());
-      this.pm.focus();
+      this.pm!.dispatch(tr.scrollIntoView());
+      this.pm!.focus();
     });
-    b2.addEventListener('click', () => { this.hidePasteChip(); this.pm.focus(); });
+    b2.addEventListener('click', () => { this.hidePasteChip(); this.pm!.focus(); });
     try {
       const c = v.coordsAtPos(to);
       const host = this.page.getBoundingClientRect();
@@ -1251,50 +1366,50 @@ export class WordModeView extends TextFileView {
     this.pasteChip = { el: chip, from, to };
   }
 
-  hidePasteChip() {
+  hidePasteChip(): void {
     if (this.pasteChip) { this.pasteChip.el.remove(); this.pasteChip = null; }
   }
 
   // ---------------------------------------------------------- 提示框
 
-  openCalloutMenu(btn) {
+  openCalloutMenu(btn?: HTMLElement | null): void {
     const m = new Menu();
     for (const [type, label, icon] of C.CALLOUT_TYPES) {
       m.addItem(i => i.setTitle(t(label) + t('（') + type + t('）')).setIcon(icon).onClick(() => {
-        C.insertCallout(type)(this.pm.state, tr => this.pm.dispatch(tr));
-        this.pm.focus();
+        C.insertCallout(type)(this.pm!.state, tr => this.pm!.dispatch(tr));
+        this.pm!.focus();
       }));
     }
     const r = btn ? btn.getBoundingClientRect() : { left: 200, bottom: 120 };
     m.showAtPosition({ x: r.left, y: r.bottom + 4 });
   }
 
-  unwrapCallout(pos) {
-    const st = this.pm.state;
+  unwrapCallout(pos: number | null | undefined): void {
+    const st = this.pm!.state;
     const n = pos != null ? st.doc.nodeAt(pos) : null;
     if (!n || n.type !== schema.nodes.callout) return;
-    this.pm.dispatch(st.tr.replaceWith(pos, pos + n.nodeSize, stripBids(n.content)));
-    this.pm.focus();
+    this.pm!.dispatch(st.tr.replaceWith(pos!, pos! + n.nodeSize, stripBids(n.content)));
+    this.pm!.focus();
   }
 
   // ---------------------------------------------------------- 插入連結與圖片
 
-  copyText(tv) {
+  copyText(tv: string): void {
     navigator.clipboard.writeText(tv).then(() => new Notice(t('已複製：') + tv), () => new Notice(t('無法複製')));
   }
 
-  selectNodeAt(pos) {
+  selectNodeAt(pos: number | null | undefined): void {
     if (pos == null) return;
-    try { this.pm.dispatch(this.pm.state.tr.setSelection(NodeSelection.create(this.pm.state.doc, pos))); } catch (e) { /* 忽略 */ }
+    try { this.pm!.dispatch(this.pm!.state.tr.setSelection(NodeSelection.create(this.pm!.state.doc, pos))); } catch (e) { /* 忽略 */ }
   }
 
   // 依目前位置開啟連結對話框：新增、編輯網址連結、筆記連結（Wiki 或 Markdown）、或把網址文字變成連結
-  openLinkDialog(ctx) {
-    const st = this.pm.state;
+  openLinkDialog(ctx?: LinkContext | null): void {
+    const st = this.pm!.state;
     const info = ctx || linkContext(st);
     if (info && info.kind === 'image') return;
-    let init;
-    let range;
+    let init: LinkDialogInit;
+    let range: TextRange;
     if (info && info.kind === 'wikilink') {
       const a = info.node.attrs;
       const f = this.app.metadataCache.getFirstLinkpathDest(a.target.split('#')[0], this.sourcePath());
@@ -1315,13 +1430,13 @@ export class WordModeView extends TextFileView {
     new LinkDialog(this.app, this, init, res => this.applyLink(range, res, info), () => { if (info) this.unlink(info); }).open();
   }
 
-  applyLink(range, res, info) {
-    const state = this.pm.state;
+  applyLink(range: TextRange, res: LinkDialogResult, info: LinkContext | null): void {
+    const state = this.pm!.state;
     const { from, to } = range;
     const existing = state.doc.textBetween(from, to, ' ');
     const tr = state.tr;
     const marksAt = state.doc.resolve(from).marks().filter(m => m.type !== schema.marks.link);
-    const putText = (text, href) => {
+    const putText = (text: string, href: string | undefined) => {
       const node = state.schema.text(text, href ? marksAt.concat(schema.marks.link.create({ href })) : marksAt);
       tr.replaceWith(from, to, node);
       tr.setSelection(TextSelection.create(tr.doc, from + text.length));
@@ -1336,10 +1451,10 @@ export class WordModeView extends TextFileView {
       // 原本是 [[筆記連結]] 就維持 Wiki 連結；原本是 Markdown 連結就維持 Markdown；新的連結依保管庫設定
       const asWiki = kind === 'wikilink' ? true : kind === 'link' ? false : l.wiki;
       if (asWiki) {
-        const target = kind === 'wikilink' && res.unchanged ? info.node.attrs.target
+        const target = kind === 'wikilink' && res.unchanged ? info!.node!.attrs.target
           : l.wiki ? l.target : this.app.metadataCache.fileToLinktext(f, this.sourcePath(), true);
         const alias = res.text && res.text !== f.basename ? res.text : null;
-        const embed = kind === 'wikilink' && !!info.node.attrs.embed;
+        const embed = kind === 'wikilink' && !!info!.node!.attrs.embed;
         tr.replaceWith(from, to, schema.nodes.wikilink.create({ target, alias, embed }));
         tr.setSelection(TextSelection.create(tr.doc, from + 1));
       } else {
@@ -1348,24 +1463,24 @@ export class WordModeView extends TextFileView {
         putText(text, href);
       }
     }
-    this.pm.dispatch(tr.scrollIntoView());
-    this.pm.focus();
+    this.pm!.dispatch(tr.scrollIntoView());
+    this.pm!.focus();
   }
 
-  unlink(info) {
-    const tr = this.pm.state.tr;
+  unlink(info: LinkContext): void {
+    const tr = this.pm!.state.tr;
     if (info.kind === 'link') tr.removeMark(info.from, info.to, schema.marks.link);
     else if (info.kind === 'wikilink') {
       const a = info.node.attrs;
       const text = a.alias || a.target.replace(/\.md$/i, '').split('/').pop();
-      tr.replaceWith(info.pos, info.pos + 1, this.pm.state.schema.text(text));
+      tr.replaceWith(info.pos, info.pos + 1, this.pm!.state.schema.text(text));
     } else return;
-    this.pm.dispatch(tr);
-    this.pm.focus();
+    this.pm!.dispatch(tr);
+    this.pm!.focus();
   }
 
   // 連結預覽列的顯示內容
-  describe(target, wiki) {
+  describe(target: string, wiki: boolean): LinkDescription {
     if (isExternal(target)) {
       const label = target.replace(/^https?:\/\//i, '').replace(/\/$/, '');
       return { icon: 'globe', label: label.length > 60 ? label.slice(0, 57) + '…' : label, title: target, missing: false };
@@ -1381,12 +1496,12 @@ export class WordModeView extends TextFileView {
     return { icon: 'file-question', label: label + t('（找不到，點一下會建立新筆記）'), title: label, missing: true };
   }
 
-  bubbleContext() {
+  bubbleContext(): BubbleContext {
     return {
       host: this.page,
       icon: (el, name, fallback) => { setIcon(el, name); if (!el.querySelector('svg') && fallback) el.setText(fallback); },
       describe: (tv, wiki) => this.describe(tv, wiki),
-      open: (info, newTab) => this.openLink(info.kind === 'wikilink' ? info.node.attrs.target : info.href, newTab),
+      open: (info, newTab) => this.openLink(info.kind === 'wikilink' ? info.node.attrs.target : info.href!, newTab),
       edit: info => this.openLinkDialog(info),
       copy: tv => this.copyText(tv),
       unlink: info => this.unlink(info),
@@ -1397,66 +1512,66 @@ export class WordModeView extends TextFileView {
       editAlt: info => this.editImageAlt(info.pos),
       replaceImage: (info, btn) => this.openImageMenu(btn, info.pos),
       openImage: info => this.openImage(info.node.attrs),
-      removeNode: info => { this.pm.dispatch(this.pm.state.tr.delete(info.pos, info.pos + info.node.nodeSize)); this.pm.focus(); },
+      removeNode: info => { this.pm!.dispatch(this.pm!.state.tr.delete(info.pos, info.pos + info.node.nodeSize)); this.pm!.focus(); },
     };
   }
 
   // ---------------------------------------------------------- 圖片
 
-  pageWidth() {
+  pageWidth(): number {
     const w = this.pm ? this.pm.dom.clientWidth : 0;
     return w > 100 ? w : 700;
   }
 
   // 圖片「小／中／大／滿版」的基準寬度：Obsidian 閱讀畫面的行寬（預設 700px），避免全寬頁面時圖片被放得過大
-  refWidth() {
+  refWidth(): number {
     let line = 0;
     try { line = parseInt(getComputedStyle(document.body).getPropertyValue('--file-line-width'), 10) || 0; } catch (e) { /* 預設值 */ }
     return Math.min(this.pageWidth(), line > 200 ? line : 700);
   }
 
-  imageAt(pos) {
-    const n = pos != null ? this.pm.state.doc.nodeAt(pos) : null;
+  imageAt(pos: number | null | undefined): PMNode | null {
+    const n = pos != null ? this.pm!.state.doc.nodeAt(pos) : null;
     return n && n.type === schema.nodes.image ? n : null;
   }
 
-  setImageWidth(pos, w) {
+  setImageWidth(pos: number, w: number | null): void {
     const n = this.imageAt(pos);
     if (!n) return;
-    const tr = this.pm.state.tr.setNodeMarkup(pos, null, imageAttrsWithWidth(n.attrs, w));
+    const tr = this.pm!.state.tr.setNodeMarkup(pos, null, imageAttrsWithWidth(n.attrs, w));
     tr.setSelection(NodeSelection.create(tr.doc, pos));
-    this.pm.dispatch(tr);
-    this.pm.focus();
+    this.pm!.dispatch(tr);
+    this.pm!.focus();
   }
 
-  editImageAlt(pos) {
+  editImageAlt(pos: number): void {
     const n = this.imageAt(pos);
     if (!n) return;
     const cur = (n.attrs.alt || '').replace(/\|\d+(x\d+)?$/, '');
     new PromptModal(this.app, t('圖片的替代文字（說明）'), cur, t('例如：2026 年 10 月發電量趨勢圖'), v => {
       const node = this.imageAt(pos);
       if (!node) return;
-      const tr = this.pm.state.tr.setNodeMarkup(pos, null, Object.assign({}, node.attrs, { alt: v.trim() || null }));
+      const tr = this.pm!.state.tr.setNodeMarkup(pos, null, Object.assign({}, node.attrs, { alt: v.trim() || null }));
       tr.setSelection(NodeSelection.create(tr.doc, pos));
-      this.pm.dispatch(tr);
-      this.pm.focus();
+      this.pm!.dispatch(tr);
+      this.pm!.focus();
     }).open();
   }
 
-  openImage(a) {
+  openImage(a: Attrs): void {
     if (/^https?:/i.test(a.src)) { window.open(a.src); return; }
     const f = this.resolveFile(a.src);
     if (f) this.app.workspace.getLeaf('tab').openFile(f);
   }
 
-  imageMenu(evt, pos) {
+  imageMenu(evt: MouseEvent, pos: number): void {
     evt.preventDefault();
     this.selectNodeAt(pos);
     const n = this.imageAt(pos);
     if (!n) return;
     const m = new Menu();
     const full = this.refWidth();
-    for (const [label, pct] of [[t('小（25%）'), 0.25], [t('中（50%）'), 0.5], [t('大（75%）'), 0.75], [t('滿版'), 1]]) {
+    for (const [label, pct] of [[t('小（25%）'), 0.25], [t('中（50%）'), 0.5], [t('大（75%）'), 0.75], [t('滿版'), 1]] as [string, number][]) {
       m.addItem(i => i.setTitle(t('寬度：') + label).onClick(() => this.setImageWidth(pos, Math.round(full * pct))));
     }
     m.addItem(i => i.setTitle(t('原始大小')).setIcon('maximize').onClick(() => this.setImageWidth(pos, null)));
@@ -1464,12 +1579,12 @@ export class WordModeView extends TextFileView {
     m.addItem(i => i.setTitle(t('替代文字…')).setIcon('text-cursor-input').onClick(() => this.editImageAlt(pos)));
     m.addItem(i => i.setTitle(t('更換圖片…')).setIcon('replace').onClick(() => this.openImageMenu(null, pos, evt)));
     m.addItem(i => i.setTitle(t('在新分頁開啟圖片')).setIcon('external-link').onClick(() => this.openImage(n.attrs)));
-    m.addItem(i => i.setTitle(t('刪除圖片')).setIcon('trash-2').onClick(() => { this.pm.dispatch(this.pm.state.tr.delete(pos, pos + n.nodeSize)); }));
+    m.addItem(i => i.setTitle(t('刪除圖片')).setIcon('trash-2').onClick(() => { this.pm!.dispatch(this.pm!.state.tr.delete(pos, pos + n.nodeSize)); }));
     m.showAtMouseEvent(evt);
   }
 
   // 依照保管庫的連結設定（Wiki 或 Markdown 連結、相對路徑）產生連結
-  buildLink(file) {
+  buildLink(file: TFile): BuiltLink {
     const raw = this.app.fileManager.generateMarkdownLink(file, this.sourcePath()).replace(/^!/, '');
     let m = /^\[\[([^\]|]+)(?:\|([^\]]*))?\]\]$/.exec(raw);
     if (m) return { wiki: true, target: m[1], alias: m[2] != null ? m[2] : null };
@@ -1478,44 +1593,44 @@ export class WordModeView extends TextFileView {
     return { wiki: true, target: file.path, alias: null };
   }
 
-  insertFileLink(file) {
+  insertFileLink(file: TFile): void {
     if (IMAGE_EXT.test(file.extension)) { this.insertImageFile(file); return; }
     const l = this.buildLink(file);
-    const run = cmd => cmd(this.pm.state, tr => this.pm.dispatch(tr));
+    const run = (cmd: Command) => cmd(this.pm!.state, tr => this.pm!.dispatch(tr));
     if (l.wiki) run(C.insertInline(schema.nodes.wikilink.create({ target: l.target, alias: l.alias })));
     else run(C.insertText(l.text, [schema.marks.link.create({ href: l.href })]));
-    this.pm.focus();
+    this.pm!.focus();
   }
 
-  insertImageFile(file, replacePos) {
+  insertImageFile(file: TFile, replacePos?: number | null): void {
     const l = this.buildLink(file);
     const attrs = l.wiki ? { src: l.target, wiki: true } : { src: l.href, alt: file.basename, wiki: false };
     this.insertImageAttrs(attrs, replacePos);
   }
 
   // 插入圖片；replacePos 有值時是「更換圖片」：保留原本的寬度與說明
-  insertImageAttrs(attrs, replacePos) {
+  insertImageAttrs(attrs: NewImageAttrs, replacePos?: number | null): void {
     const old = replacePos != null ? this.imageAt(replacePos) : null;
     if (old) {
       const a = Object.assign({}, attrs, { width: old.attrs.width, title: old.attrs.title });
       if (old.attrs.alt) a.alt = old.attrs.alt;
-      const tr = this.pm.state.tr.setNodeMarkup(replacePos, null, a);
-      tr.setSelection(NodeSelection.create(tr.doc, replacePos));
-      this.pm.dispatch(tr);
+      const tr = this.pm!.state.tr.setNodeMarkup(replacePos!, null, a);
+      tr.setSelection(NodeSelection.create(tr.doc, replacePos!));
+      this.pm!.dispatch(tr);
     } else {
-      C.insertInline(schema.nodes.image.create(attrs))(this.pm.state, tr => this.pm.dispatch(tr));
+      C.insertInline(schema.nodes.image.create(attrs))(this.pm!.state, tr => this.pm!.dispatch(tr));
     }
-    this.pm.focus();
+    this.pm!.focus();
   }
 
-  openNoteLinkPicker() {
+  openNoteLinkPicker(): void {
     const files = this.app.vault.getFiles().filter(f => f !== this.file && !f.path.startsWith(this.app.vault.configDir + '/'))
-      .sort((a, b) => (b.extension === 'md') - (a.extension === 'md') || a.path.localeCompare(b.path));
+      .sort((a, b) => ((b.extension === 'md') as unknown as number) - ((a.extension === 'md') as unknown as number) || a.path.localeCompare(b.path));
     new FilePicker(this.app, files, t('輸入筆記或檔案名稱…'), f => this.insertFileLink(f)).open();
   }
 
   // 沒有 Templater 時用 Obsidian 的核心外掛「範本」：在游標處插入範本內容，支援 {{title}}、{{date}}、{{time}}
-  openCoreTemplatePicker() {
+  openCoreTemplatePicker(): void {
     const ip = this.app.internalPlugins;
     const core = ip && ip.getPluginById ? ip.getPluginById('templates') : null;
     const opts = core && core.enabled !== false && core.instance ? (core.instance.options || {}) : null;
@@ -1526,22 +1641,22 @@ export class WordModeView extends TextFileView {
     new FilePicker(this.app, list, t('選擇要套用的範本…'), async tf => {
       try {
         let text = await this.app.vault.cachedRead(tf);
-        const now = fmt => (window.moment ? window.moment().format(fmt) : new Date().toLocaleString());
+        const now = (fmt: string) => (window.moment ? window.moment().format(fmt) : new Date().toLocaleString());
         text = text.replace(/^---\r?\n[\s\S]*?\r?\n(---|\.\.\.)\r?\n?/, '') // 範本自己的文件屬性不插入
           .replace(/\{\{title\}\}/gi, this.file ? this.file.basename : '')
-          .replace(/\{\{(date|time)(?::([^}]+))?\}\}/gi, (m, kind, f) => now(f || (kind.toLowerCase() === 'date' ? (opts.dateFormat || 'YYYY-MM-DD') : (opts.timeFormat || 'HH:mm'))));
+          .replace(/\{\{(date|time)(?::([^}]+))?\}\}/gi, (m, kind, f) => now(f || (kind.toLowerCase() === 'date' ? ((opts as TemplateOptions).dateFormat || 'YYYY-MM-DD') : ((opts as TemplateOptions).timeFormat || 'HH:mm'))));
         const frag = stripBids(this.plugin.converter.parseFragment(text).content);
-        this.pm.dispatch(this.pm.state.tr.replaceSelection(new Slice(frag, 0, 0)).scrollIntoView());
-        this.pm.focus();
+        this.pm!.dispatch(this.pm!.state.tr.replaceSelection(new Slice(frag, 0, 0)).scrollIntoView());
+        this.pm!.focus();
       } catch (e) {
         console.error('[Word Mode]', e);
-        new Notice(t('套用範本失敗：') + (e && e.message ? e.message : e));
+        new Notice(t('套用範本失敗：') + (e && (e as CaughtError).message ? (e as CaughtError).message : e));
       }
     }).open();
   }
 
   // 套用 Templater 範本：空白筆記直接寫入；已有內容時切到 Markdown 再插入到游標處
-  openTemplatePicker() {
+  openTemplatePicker(): void {
     const tp = this.app.plugins && this.app.plugins.plugins && this.app.plugins.plugins['templater-obsidian'];
     if (!tp || !tp.templater) { this.openCoreTemplatePicker(); return; }
     const folder = normalizePath(tp.settings.templates_folder || '');
@@ -1550,24 +1665,24 @@ export class WordModeView extends TextFileView {
     if (!list.length) { new Notice(t('找不到範本（範本資料夾：') + (folder || t('未設定')) + t('）')); return; }
     new FilePicker(this.app, list, t('選擇要套用的範本…'), async tf => {
       try {
-        const doc = this.pm.state.doc;
-        const empty = doc.childCount === 1 && doc.firstChild.isTextblock && doc.firstChild.content.size === 0;
+        const doc = this.pm!.state.doc;
+        const empty = doc.childCount === 1 && doc.firstChild!.isTextblock && doc.firstChild!.content.size === 0;
         if (empty) {
-          await tp.templater.write_template_to_file(tf, this.file);
+          await tp.templater!.write_template_to_file(tf, this.file!);
         } else {
           const leaf = this.leaf;
           await this.plugin.switchToMarkdown(leaf);
           new Notice(t('已切換到 Markdown 編輯並在游標處插入範本；完成後可按右上角切回 Word 模式。'));
-          await tp.templater.append_template_to_active_file(tf);
+          await tp.templater!.append_template_to_active_file(tf);
         }
       } catch (e) {
         console.error('[Word 模式] 套用範本失敗', e);
-        new Notice(t('套用範本失敗：') + (e && e.message ? e.message : e));
+        new Notice(t('套用範本失敗：') + (e && (e as CaughtError).message ? (e as CaughtError).message : e));
       }
     }).open();
   }
 
-  openImageMenu(btn, replacePos, evt) {
+  openImageMenu(btn: HTMLElement | null | undefined, replacePos?: number | null, evt?: MouseEvent): void {
     const m = new Menu();
     const verb = replacePos != null ? t('更換為') : t('插入');
     m.addItem(i => i.setTitle(verb + t('保管庫裡的圖片…')).setIcon('image').onClick(() => {
@@ -1592,7 +1707,7 @@ export class WordModeView extends TextFileView {
     m.showAtPosition({ x: r.left, y: r.bottom + 4 });
   }
 
-  async insertUploadedImages(files, replacePos) {
+  async insertUploadedImages(files: File[], replacePos?: number | null): Promise<void> {
     for (const f of files) {
       try {
         const buf = await f.arrayBuffer();
@@ -1605,7 +1720,7 @@ export class WordModeView extends TextFileView {
         replacePos = null;
       } catch (e) {
         console.error('[Word 模式] 圖片儲存失敗', e);
-        new Notice(t('圖片儲存失敗：') + (e && e.message ? e.message : e));
+        new Notice(t('圖片儲存失敗：') + (e && (e as CaughtError).message ? (e as CaughtError).message : e));
       }
     }
   }
