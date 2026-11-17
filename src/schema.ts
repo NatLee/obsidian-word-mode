@@ -1,19 +1,20 @@
 // Word 模式的文件結構（ProseMirror schema）
 import { Schema } from 'prosemirror-model';
+import type { Attrs, AttributeSpec, Node as PMNode } from 'prosemirror-model';
 import { tableNodes } from 'prosemirror-tables';
 
 // 每個頂層區塊都帶 bid（原文區塊編號），用來判斷存檔時能否原樣輸出原文
-const bid = { bid: { default: null } };
+const bid: Record<string, AttributeSpec> = { bid: { default: null } };
 
 // 段落對齊與左縮排（Markdown 沒有這些語法，存檔時寫成 <p style="…">，Obsidian 閱讀畫面也會套用）
-const blockFormat = { align: { default: null }, indent: { default: 0 } };
-function blockStyle(n) {
-  const st = [];
+const blockFormat: Record<string, AttributeSpec> = { align: { default: null }, indent: { default: 0 } };
+function blockStyle(n: PMNode): { style?: string } {
+  const st: string[] = [];
   if (n.attrs.align) st.push('text-align: ' + n.attrs.align);
   if (n.attrs.indent) st.push('margin-left: ' + (n.attrs.indent * 2) + 'em');
   return st.length ? { style: st.join('; ') } : {};
 }
-function readBlockFormat(dom) {
+function readBlockFormat(dom: HTMLElement): Attrs {
   const a = dom.style && dom.style.textAlign;
   const ml = dom.style && parseFloat(dom.style.marginLeft);
   return {
@@ -89,7 +90,7 @@ export const schema = new Schema({
     ordered_list: {
       content: 'list_item+', group: 'block',
       attrs: { order: { default: 1 }, tight: { default: true }, ...bid },
-      parseDOM: [{ tag: 'ol', getAttrs: d => ({ order: +d.getAttribute('start') || 1 }) }],
+      parseDOM: [{ tag: 'ol', getAttrs: d => ({ order: +d.getAttribute('start')! || 1 }) }],
       toDOM: n => ['ol', n.attrs.order === 1 ? {} : { start: n.attrs.order }, 0],
     },
 

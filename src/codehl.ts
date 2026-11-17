@@ -1,15 +1,32 @@
 // 程式碼區塊語法上色（使用 Obsidian 內建的 Prism）
 import { Plugin, PluginKey } from 'prosemirror-state';
+import type { Transaction } from 'prosemirror-state';
 import { Decoration, DecorationSet } from 'prosemirror-view';
+import type { Node as PMNode } from 'prosemirror-model';
 
-export const codeKey = new PluginKey('wmCode');
-const ALIAS = { js: 'javascript', ts: 'typescript', py: 'python', sh: 'bash', shell: 'bash', zsh: 'bash', ps: 'powershell', ps1: 'powershell', yml: 'yaml', md: 'markdown', 'c#': 'csharp', cs: 'csharp', 'c++': 'cpp', html: 'markup', xml: 'markup', svg: 'markup' };
+// Prism 由 Obsidian 的 loadPrism() 提供；這裡只描述用得到的部分
+export interface PrismToken {
+  type: string;
+  content: string | PrismToken | (string | PrismToken)[];
+  alias?: string | string[];
+  length: number;
+}
+export interface PrismLike {
+  languages: Record<string, unknown>;
+  tokenize(text: string, grammar: unknown): (string | PrismToken)[];
+}
+export type GetPrism = () => PrismLike | null | undefined;
 
-function flatten(tokens, start, out, classes) {
+interface ClassRange { from: number; to: number; cls: string; }
+
+export const codeKey = new PluginKey<DecorationSet>('wmCode');
+const ALIAS: Record<string, string> = { js: 'javascript', ts: 'typescript', py: 'python', sh: 'bash', shell: 'bash', zsh: 'bash', ps: 'powershell', ps1: 'powershell', yml: 'yaml', md: 'markdown', 'c#': 'csharp', cs: 'csharp', 'c++': 'cpp', html: 'markup', xml: 'markup', svg: 'markup' };
+
+function flatten(tokens: (string | PrismToken)[], start: number, out: ClassRange[], classes: string[]): void {
   let pos = start;
   for (const tk of tokens) {
     if (typeof tk === 'string') { pos += tk.length; continue; }
-    const cls = classes.concat(['token', tk.type]).concat(tk.alias ? [].concat(tk.alias) : []);
+    const cls = classes.concat(['token', tk.type]).concat(tk.alias ? ([] as string[]).concat(tk.alias) : []);
     const len = typeof tk.content === 'string' ? tk.content.length : tk.length;
     if (typeof tk.content === 'string') out.push({ from: pos, to: pos + len, cls: cls.join(' ') });
     else if (Array.isArray(tk.content)) flatten(tk.content, pos, out, cls);
@@ -18,23 +35,23 @@ function flatten(tokens, start, out, classes) {
   }
 }
 
-function langOf(node) {
+function langOf(node: PMNode): string {
   const lang = (node.attrs.params || '').trim().split(/\s+/)[0].toLowerCase();
   return ALIAS[lang] || lang;
 }
 
-function blockDecos(Prism, node, pos) {
+function blockDecos(Prism: PrismLike, node: PMNode, pos: number): Decoration[] {
   const grammar = Prism.languages[langOf(node)];
   if (!grammar || !node.textContent) return [];
-  const ranges = [];
+  const ranges: ClassRange[] = [];
   try { flatten(Prism.tokenize(node.textContent, grammar), pos + 1, ranges, []); } catch (e) { return []; }
   return ranges.filter(r => r.to > r.from).map(r => Decoration.inline(r.from, r.to, { class: r.cls }));
 }
 
-function build(doc, getPrism) {
+function build(doc: PMNode, getPrism: GetPrism): DecorationSet {
   const Prism = getPrism();
   if (!Prism) return DecorationSet.empty;
-  const decos = [];
+  const decos: Decoration[] = [];
   doc.descendants((node, pos) => {
     if (node.type.name !== 'code_block') return true;
     for (const d of blockDecos(Prism, node, pos)) decos.push(d);
@@ -44,12 +61,12 @@ function build(doc, getPrism) {
 }
 
 // 只重算有改動的程式碼區塊
-function update(tr, set, getPrism) {
+function update(tr: Transaction, set: DecorationSet, getPrism: GetPrism): DecorationSet {
   const Prism = getPrism();
   if (!Prism) return DecorationSet.empty;
   set = set.map(tr.mapping, tr.doc);
   const doc = tr.doc;
-  const done = new Set();
+  const done = new Set<number>();
   tr.mapping.maps.forEach((map, i) => {
     const rest = tr.mapping.slice(i + 1);
     map.forEach((oS, oE, nS, nE) => {
@@ -83,8 +100,8 @@ export const codeActivePlugin = new Plugin({
   },
 });
 
-export function codePlugin(getPrism) {
-  return new Plugin({
+export function codePlugin(getPrism: GetPrism): Plugin<DecorationSet> {
+  return new Plugin<DecorationSet>({
     key: codeKey,
     state: {
       init: (_, state) => build(state.doc, getPrism),
