@@ -417,7 +417,8 @@ await fresh('> [!note]- 預設收合\n> 內容\n\n> [!tip] 一般\n> 內容\n');
   assert(picker.getItems().length === 1, '沒有 Templater 時，改用核心外掛「範本」的資料夾');
   picker.onChooseItem(picker.getItems()[0]);
   await sleep(20);
-  assert(/^開頭\n\n## 測試 的會議\n\n日期：\d{4}|^開頭## 測試/.test(out()) && !out().includes('tags'), '插入範本：{{title}}、{{date}} 會換成內容，範本的屬性不插入：' + JSON.stringify(out()));
+  // 測試環境沒有 moment，日期用系統語系的寫法（各地不同），所以只確認有換成內容
+  assert(/^開頭\n\n## 測試 的會議\n\n日期：[^{\s]|^開頭## 測試/.test(out()) && !out().includes('{{') && !out().includes('tags'), '插入範本：{{title}}、{{date}} 會換成內容，範本的屬性不插入：' + JSON.stringify(out()));
 }
 
 // ======== 編輯器還沒載入時，工具列與尋找列的動作不應該出錯 ========
