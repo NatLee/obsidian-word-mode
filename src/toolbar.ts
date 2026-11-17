@@ -7,15 +7,168 @@ import { t, key } from './i18n.js';
 import { marksOn } from './marks.js';
 import { attachHint, hideHint } from './hints.js';
 import { el } from './dom.js';
+import type { Command, EditorState } from 'prosemirror-state';
+import type { EditorView } from 'prosemirror-view';
+import type { Mark, MarkType } from 'prosemirror-model';
+import type { Align, CaseKind, Direction } from './commands.js';
+
+// 分頁 id（TABS 的第一欄；也是設定 hiddenTabs 存的值）
+export type TabId = 'home' | 'insert' | 'review' | 'viewtab';
+// 按鈕群組 id（GROUPS 的第一欄；也是設定 hiddenGroups 存的值）
+export type GroupId =
+  | 'undo' | 'clipboard' | 'styles' | 'font' | 'paragraph' | 'editing'
+  | 'tables' | 'illustrations' | 'links' | 'code' | 'text' | 'obsidian'
+  | 'proofing' | 'stats' | 'comments'
+  | 'views' | 'show' | 'zoom' | 'help';
+// [分頁 id, 分頁名稱（翻譯前的原文，顯示時再用 t() 翻譯）]
+export type TabEntry = readonly [id: TabId, label: string];
+// [群組 id, 所在分頁, 群組名稱（翻譯前的原文）]
+export type GroupEntry = readonly [id: GroupId, tab: TabId, label: string];
+
+// 設定裡的版面：分頁、全部排成一行、全部自動換行
+export type RibbonLayout = 'tabs' | 'single' | 'wrap';
+// 設定裡的按鈕樣式：自動（大按鈕才加文字）、只顯示圖示、圖示加文字
+export type ButtonStyle = 'auto' | 'icon' | 'label';
+// 「貼上」按鈕與選單的模式：auto＝一般貼上、text＝只貼文字、markdown＝把 Markdown 轉成格式
+export type PasteMode = 'auto' | 'text' | 'markdown';
+// 「剪下」「複製」按鈕
+export type ClipKind = 'cut' | 'copy';
+
+// 功能區需要的外部功能（由 view.js 建立）；有 ? 的成員功能區會先檢查有沒有提供
+export interface ToolbarContext {
+  // 目前的編輯器；還沒載入筆記時是 null
+  getView(): EditorView | null;
+  // 在 el 裡放 Obsidian 圖示；找不到圖示時改顯示 fallback 文字
+  icon(el: HTMLElement, name: string, fallback: string): void;
+  isMobile: boolean;
+  // 外掛設定（只列出功能區會讀的欄位）
+  settings?: {
+    ribbonLayout?: RibbonLayout;
+    buttonStyle?: ButtonStyle;
+    hiddenGroups?: readonly string[];
+    hiddenTabs?: readonly string[];
+    richHints?: boolean;
+    groupLabels?: boolean;
+    // 上次選的字型色彩（CSS 色碼）
+    lastFontColor?: string;
+  };
+  // 一開始顯示的分頁（上次離開時的分頁）
+  initialTab: TabId;
+  // 使用者切換分頁時通知，讓下次開啟時回到同一個分頁
+  onTab?(id: TabId): void;
+  isFullWidth?(): boolean;
+  // 尋找列是否開著、是否顯示取代列
+  findState?(): { open: boolean; replace: boolean };
+  // 大綱是否開著
+  outlineOpen?(): boolean;
+  // 記住使用者選的字型色彩（CSS 色碼）
+  rememberColor?(color: string): void;
+  // 依格式（moment.js 格式字串）把現在的時間轉成文字
+  formatDate(format: string): string;
+  // 按鈕要開的對話框、選單與其他動作；btn 是按下的按鈕（選單要顯示在它下方）
+  dialogs: {
+    find(): void;
+    replace(): void;
+    shortcuts(): void;
+    markdown(): void;
+    reading(): void;
+    paste(mode: PasteMode): void;
+    clip(kind: ClipKind): void;
+    toggleMarks(): void;
+    image(btn: HTMLElement): void;
+    equation(): void;
+    mermaid(): void;
+    link(): void;
+    noteLink(): void;
+    footnote(): void;
+    callout(btn: HTMLElement): void;
+    comment(): void;
+    template?(): void;
+    properties(): void;
+    cleanup(): void;
+    wordCount(): void;
+    outline(btn: HTMLElement): void;
+    // true 摺疊全部標題，false 全部展開
+    foldAll(fold: boolean): void;
+    toggleFullWidth(): void;
+    // 縮放增減的百分比；0 表示恢復 100%
+    zoom(delta: number): void;
+    settings(): void;
+    // 捲動到文件中的位置（大綱下拉選單點標題時）
+    scrollTo(pos: number): void;
+    notice?(message: string): void;
+  };
+}
+
+// 檢查編輯狀態的函式：按鈕是否顯示成作用中、是否可以使用
+export type StateTest = (state: EditorState) => boolean;
+// 按鈕的點擊處理；btn 是按下的按鈕
+export type ButtonClick = (e: MouseEvent, btn: HTMLButtonElement) => void;
+
+// 一個按鈕的描述；title、label、desc 都是翻譯前的原文
+export interface ButtonSpec {
+  // 功能名稱，也是提示的標題；分頁以外的版面用它判斷重複的按鈕
+  title: string;
+  // Obsidian（Lucide）圖示名稱
+  icon?: string;
+  // 沒有圖示時顯示的文字
+  text?: string;
+  // 顯示文字時的按鈕名稱
+  label?: string;
+  // 快速鍵，例如 'Mod+B'
+  keys?: string | null;
+  // 詳細提示的說明
+  desc?: string;
+  // 詳細提示的示意動畫名稱（hints.ts 的 DEMOS）
+  demo?: string;
+  // 大按鈕：按鈕樣式為「自動」時也顯示文字
+  big?: boolean;
+  // 額外的 CSS class
+  cls?: string;
+  // 分割按鈕的箭頭：全部排在一起的版面也不去除重複
+  split?: boolean;
+  // 按下時執行的編輯指令（沒有 onClick 時）
+  cmd?: Command;
+  active?: StateTest;
+  enabled?: StateTest;
+  // 停用時的原因（翻譯前的原文），沒有原因時回傳 null
+  why?: (state: EditorState) => string | null;
+  onClick?: ButtonClick;
+}
+
+// 下拉選單的一個項目；title 已經翻譯好
+export interface MenuItem {
+  title: string;
+  icon?: string;
+  run(): void;
+}
+
+// 功能區記住的按鈕，update() 依編輯狀態更新它們
+interface ToolbarItem extends Pick<ButtonSpec, 'cmd' | 'active' | 'enabled' | 'why'> {
+  dom: HTMLButtonElement;
+  // 已翻譯、含快速鍵的標題
+  title: string;
+  // 已翻譯的停用原因
+  reasonText: string | null;
+}
+
+// 大綱下拉選單的一個標題
+interface OutlineHead { level: number; text: string; pos: number; }
+
+// 各群組放按鈕的容器；群組被隱藏時是 null，所在分頁被隱藏時沒有這一項
+type GroupBodies = Partial<Record<GroupId, HTMLDivElement | null>>;
+
+// 表格大小選擇器把格子的列、欄號碼（數字）直接存進 dataset，瀏覽器會自動轉成字串
+type DataNumbers = Record<string, string | number | undefined>;
 
 const M = schema.marks;
 
-export const TEXT_COLORS = [
+export const TEXT_COLORS: readonly (readonly [color: string, name: string])[] = [
   ['#000000', '黑色'], ['#7f7f7f', '灰色'], ['#c00000', '深紅'], ['#ff0000', '紅色'], ['#ff8c00', '橙色'],
   ['#bf9000', '金色'], ['#00b050', '綠色'], ['#00b0f0', '淺藍'], ['#0070c0', '藍色'], ['#7030a0', '紫色'],
 ];
 
-export const SYMBOLS = [
+export const SYMBOLS: readonly (readonly [group: string, chars: string])[] = [
   ['常用', '©®™°±×÷≈≠≤≥∞✓✗★☆●○■□◆◇※§¶†…‰€£¥'],
   ['中文標點', '「」『』（）【】《》〈〉、。，；：！？—～·‧'],
   ['箭頭', '→←↑↓↔⇒⇐⇔↗↘↖↙➔➜'],
@@ -25,14 +178,14 @@ export const SYMBOLS = [
   ['圈號數字', '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮'],
 ];
 
-export const DATE_FORMATS = ['YYYY-MM-DD', 'YYYY/MM/DD', 'YYYY年M月D日', 'YYYY-MM-DD HH:mm', 'HH:mm', 'YYYY-MM-DD dddd'];
+export const DATE_FORMATS: readonly string[] = ['YYYY-MM-DD', 'YYYY/MM/DD', 'YYYY年M月D日', 'YYYY-MM-DD HH:mm', 'HH:mm', 'YYYY-MM-DD dddd'];
 
-const CASE_MENU = [['upper', '全部大寫'], ['lower', '全部小寫'], ['title', '每個英文單字首字大寫'], ['sentence', '句首大寫'], ['half', '轉成半形'], ['full', '轉成全形']];
+const CASE_MENU: readonly (readonly [kind: CaseKind, label: string])[] = [['upper', '全部大寫'], ['lower', '全部小寫'], ['title', '每個英文單字首字大寫'], ['sentence', '句首大寫'], ['half', '轉成半形'], ['full', '轉成全形']];
 const SHADING = '#9e9e9e59';
 
 // 分頁與群組（設定頁用同一份清單，讓使用者勾選要顯示的項目）
-export const TABS = [['home', '常用'], ['insert', '插入'], ['review', '校閱'], ['viewtab', '檢視']];
-export const GROUPS = [
+export const TABS: readonly TabEntry[] = [['home', '常用'], ['insert', '插入'], ['review', '校閱'], ['viewtab', '檢視']];
+export const GROUPS: readonly GroupEntry[] = [
   ['undo', 'home', '復原'], ['clipboard', 'home', '剪貼簿'], ['styles', 'home', '樣式'], ['font', 'home', '字型'],
   ['paragraph', 'home', '段落'], ['editing', 'home', '編輯'],
   ['tables', 'insert', '表格'], ['illustrations', 'insert', '圖例'], ['links', 'insert', '連結'], ['code', 'insert', '程式碼'],
@@ -42,14 +195,48 @@ export const GROUPS = [
 ];
 
 // 不讓編輯區失去焦點（手機上鍵盤才不會收起來）
-function keepFocus(b) {
+function keepFocus(b: HTMLElement): void {
   b.addEventListener('mousedown', e => e.preventDefault());
   b.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse') e.preventDefault(); });
 }
 
+// 功能區；popup 是目前開著的下拉面板（沒有時是 null 或 undefined），painter 是格式刷記住的格式
 export class Toolbar {
+  declare ctx: ToolbarContext;
+  declare layout: RibbonLayout;
+  declare buttonStyle: ButtonStyle;
+  declare hiddenGroups: Set<string>;
+  declare hiddenTabs: Set<string>;
+  declare richHints: boolean;
+  declare groupLabels: boolean;
+  declare dom: HTMLDivElement;
+  declare tabsEl: HTMLDivElement;
+  declare toolbarEl: HTMLDivElement;
+  declare allPanel: HTMLDivElement;
+  declare items: ToolbarItem[];
+  declare panels: Partial<Record<TabId, HTMLDivElement>>;
+  declare tabBtns: Partial<Record<TabId, HTMLButtonElement>>;
+  declare activeTab: TabId;
+  declare seen: Set<string>;
+  declare painter: readonly Mark[] | null;
+  declare painterSticky: boolean;
+  declare painterHandler: (() => void) | null;
+  declare hlColor: string | null;
+  declare fontColor: string;
+  declare onDocDown: (e: PointerEvent) => void;
+  declare popup: HTMLDivElement | null | undefined;
+  declare popupOwner: HTMLElement | null | undefined;
+  declare findBtn: HTMLButtonElement | null;
+  declare painterBtn: HTMLButtonElement | null;
+  declare styleBtn: HTMLButtonElement | null;
+  declare hlBtn: HTMLButtonElement | null;
+  declare colorBtn: HTMLButtonElement | null;
+  declare tableBtn: HTMLButtonElement | null;
+  declare fullBtn: HTMLButtonElement | null;
+  declare tableGroup: HTMLDivElement;
+
   // ctx: { getView(), icon(el, name, fallbackText), dialogs: {...}, isMobile, settings }
-  constructor(container, ctx) {
+  constructor(container: HTMLElement, ctx: ToolbarContext) {
     this.ctx = ctx;
     const S = ctx.settings || {};
     this.layout = S.ribbonLayout || 'tabs';
@@ -71,22 +258,22 @@ export class Toolbar {
     this.fontColor = S.lastFontColor || '#c00000';
     this.build();
     const first = TABS.find(([id]) => this.panels[id] && !this.panels[id].classList.contains('is-empty'));
-    this.showTab(this.panels[ctx.initialTab] && !this.panels[ctx.initialTab].classList.contains('is-empty') ? ctx.initialTab : (first ? first[0] : 'home'));
-    this.onDocDown = e => { if (this.popup && !this.popup.contains(e.target) && !this.popupOwner.contains(e.target)) this.closePopup(); };
+    this.showTab(this.panels[ctx.initialTab] && !this.panels[ctx.initialTab]!.classList.contains('is-empty') ? ctx.initialTab : (first ? first[0] : 'home'));
+    this.onDocDown = e => { if (this.popup && !this.popup.contains(e.target as Node | null) && !this.popupOwner!.contains(e.target as Node | null)) this.closePopup(); };
     document.addEventListener('pointerdown', this.onDocDown, true);
   }
 
-  destroy() {
+  destroy(): void {
     document.removeEventListener('pointerdown', this.onDocDown, true);
     this.closePopup();
     hideHint();
     this.dom.remove();
   }
 
-  get view() { return this.ctx.getView(); }
-  get d() { return this.ctx.dialogs; }
+  get view(): EditorView | null { return this.ctx.getView(); }
+  get d(): ToolbarContext['dialogs'] { return this.ctx.dialogs; }
 
-  run(cmd) {
+  run(cmd: Command): boolean {
     const v = this.view;
     if (!v) return false;
     const r = cmd(v.state, v.dispatch, v);
@@ -94,7 +281,7 @@ export class Toolbar {
     return r;
   }
 
-  showTab(id) {
+  showTab(id: TabId): void {
     if (this.layout !== 'tabs') return;
     this.activeTab = id;
     for (const [k, p] of Object.entries(this.panels)) p.classList.toggle('is-hidden', k !== id);
@@ -103,15 +290,15 @@ export class Toolbar {
   }
 
   // 按鈕的提示：一般模式用 Obsidian 的 aria-label；詳細提示模式改用自己的提示卡（有說明與動畫），兩者不會同時出現
-  setTip(b, it) {
+  setTip(b: HTMLButtonElement, it: ToolbarItem): void {
     const text = it.reasonText ? it.title + '\n' + it.reasonText : it.title;
     if (this.richHints) {
       b.removeAttribute('aria-label');
-      b.querySelector('.wm-sr').textContent = text;
+      b.querySelector('.wm-sr')!.textContent = text;
     } else b.setAttribute('aria-label', text);
   }
 
-  group(panel, id, label) {
+  group(panel: HTMLElement | undefined, id: GroupId, label: string): HTMLDivElement | null {
     if (this.hiddenGroups.has(id)) return null;
     const g = el('div', 'wm-group wm-group-' + id, panel);
     g.dataset.group = id;
@@ -121,7 +308,7 @@ export class Toolbar {
   }
 
   // spec: { icon, text, title, keys, desc, demo, label, big, cmd, active, enabled, why, onClick, cls, split }
-  button(parent, spec) {
+  button(parent: HTMLElement | null | undefined, spec: ButtonSpec): HTMLButtonElement | null {
     if (!parent) return null;
     const title = spec.keys ? t(spec.title) + ' (' + key(spec.keys) + ')' : t(spec.title);
     // 全部排在一起的版面：同一個功能只出現一次
@@ -145,7 +332,7 @@ export class Toolbar {
       if (b.classList.contains('is-disabled')) return;
       if (spec.onClick) spec.onClick(e, b); else if (spec.cmd) this.run(spec.cmd);
     });
-    const it = { dom: b, cmd: spec.cmd, active: spec.active, enabled: spec.enabled, why: spec.why, title, reasonText: null };
+    const it: ToolbarItem = { dom: b, cmd: spec.cmd, active: spec.active, enabled: spec.enabled, why: spec.why, title, reasonText: null };
     this.items.push(it);
     this.setTip(b, it);
     if (this.richHints) {
@@ -157,21 +344,21 @@ export class Toolbar {
     return b;
   }
 
-  menuButton(parent, spec, items) {
-    return this.button(parent, Object.assign({}, spec, { onClick: (e, b) => this.openMenu(b, typeof items === 'function' ? items() : items) }));
+  menuButton(parent: HTMLElement | null | undefined, spec: Omit<ButtonSpec, 'onClick'>, items: readonly MenuItem[] | (() => readonly MenuItem[])): HTMLButtonElement | null {
+    return this.button(parent, Object.assign({}, spec, { onClick: (e: MouseEvent, b: HTMLButtonElement) => this.openMenu(b, typeof items === 'function' ? items() : items) }));
   }
 
   // 分割按鈕：主按鈕執行，旁邊的小箭頭開選單
-  arrow(parent, title, onClick) {
+  arrow(parent: HTMLElement | null | undefined, title: string, onClick: ButtonClick): HTMLButtonElement | null {
     return this.button(parent, { icon: 'chevron-down', title, text: '▾', cls: 'wm-split-arrow', split: true, onClick });
   }
 
-  panel(tab) {
+  panel(tab: TabId): HTMLDivElement | undefined {
     if (this.layout !== 'tabs') return this.allPanel;
     return this.panels[tab];
   }
 
-  build() {
+  build(): void {
     if (this.layout === 'tabs') {
       for (const [id, label] of TABS) {
         this.panels[id] = el('div', 'wm-panel', this.toolbarEl);
@@ -185,7 +372,7 @@ export class Toolbar {
     } else {
       this.allPanel = el('div', 'wm-panel', this.toolbarEl);
     }
-    const G = {};
+    const G: GroupBodies = {};
     for (const [id, tab, label] of GROUPS) {
       if (this.hiddenTabs.has(tab)) continue;
       G[id] = this.group(this.panel(tab), id, label);
@@ -212,10 +399,10 @@ export class Toolbar {
     if (!this.tabsEl.childElementCount || this.layout !== 'tabs') this.tabsEl.classList.add('is-hidden');
   }
 
-  isFindOpen() { return !!(this.ctx.findState && this.ctx.findState().open); }
+  isFindOpen(): boolean { return !!(this.ctx.findState && this.ctx.findState().open); }
 
   // ----------------------------------------------------------- 常用
-  buildHome(G) {
+  buildHome(G: GroupBodies): void {
     let g = G.undo;
     this.button(g, { icon: 'undo-2', title: '復原', keys: 'Mod+Z', desc: '取消上一個動作。切到 Markdown 再切回來也能復原。', demo: 'undo', cmd: undo, enabled: s => undo(s) });
     this.button(g, { icon: 'redo-2', title: '取消復原', keys: 'Mod+Y', desc: '把剛剛復原的動作做回來。', demo: 'redo', cmd: redo, enabled: s => redo(s) });
@@ -236,7 +423,7 @@ export class Toolbar {
     this.styleBtn = this.button(g, { title: '段落樣式', text: t('內文'), cls: 'wm-style-btn', desc: '把段落改成標題 1～6、內文或程式碼。', demo: 'style', onClick: (e, b) => this.openStylePopup(b) });
 
     g = G.font;
-    const mk = (icon, title, keys, cmd, type, text, demo, desc) => this.button(g, { icon, title, keys, cmd, text, demo, desc, active: s => C.markActive(s, type) });
+    const mk = (icon: string, title: string, keys: string | null, cmd: Command, type: MarkType, text: string, demo: string, desc: string) => this.button(g, { icon, title, keys, cmd, text, demo, desc, active: s => C.markActive(s, type) });
     mk('bold', '粗體', 'Mod+B', C.toggleBold, M.strong, 'B', 'bold', '把選取的文字（或游標所在的詞）變粗體。');
     mk('italic', '斜體', 'Mod+I', C.toggleItalic, M.em, 'I', 'italic', '把文字變斜體。');
     mk('underline', '底線', 'Mod+U', C.toggleUnderline, M.underline, 'U', 'underline', '在文字下方加底線。');
@@ -268,7 +455,7 @@ export class Toolbar {
     this.button(g, { icon: 'list-checks', title: '核取清單', text: '☐', demo: 'task', desc: '變成可以打勾的待辦清單。', cmd: C.toggleList('task'), active: s => C.currentList(s) === 'task' });
     this.button(g, { icon: 'indent-decrease', title: '減少縮排', keys: 'Shift+Tab', text: '←', demo: 'outdent', desc: '整段往左移；清單往上一層。', cmd: C.outdent, enabled: s => C.outdent(s) });
     this.button(g, { icon: 'indent-increase', title: '增加縮排', text: '→', demo: 'indent', desc: '整段往右移；清單變成下一層。', cmd: C.indent, enabled: s => C.indent(s), why: C.blockFormatBlocked });
-    const al = (a, icon, title, keys, text) => this.button(g, { icon, title, keys, text, demo: a, desc: '設定段落的對齊方式。', cmd: C.setAlign(a), active: st => C.currentAlign(st) === a, enabled: st => C.setAlign(a)(st) || (a === 'left' && C.currentAlign(st) === 'left'), why: C.blockFormatBlocked });
+    const al = (a: Align, icon: string, title: string, keys: string | null, text: string) => this.button(g, { icon, title, keys, text, demo: a, desc: '設定段落的對齊方式。', cmd: C.setAlign(a), active: st => C.currentAlign(st) === a, enabled: st => C.setAlign(a)(st) || (a === 'left' && C.currentAlign(st) === 'left'), why: C.blockFormatBlocked });
     al('left', 'align-left', '靠左對齊', 'Mod+L', '左');
     al('center', 'align-center', '置中', null, '中');
     al('right', 'align-right', '靠右對齊', null, '右');
@@ -281,8 +468,8 @@ export class Toolbar {
     this.button(g, { icon: 'pilcrow', title: '顯示／隱藏編輯標記', text: '¶', demo: 'marks', desc: '顯示空白（·）、全形空白、Tab、換行與段落結尾（¶），也會標出奇怪的符號。', onClick: () => this.d.toggleMarks(), active: s => marksOn(s) });
 
     g = G.editing;
-    this.button(g, { icon: 'search', title: '尋找', keys: 'Mod+F', text: '找', demo: 'find', desc: '在這份筆記裡尋找文字。再按一次關閉。', onClick: () => this.d.find(), active: () => this.isFindOpen() && !this.ctx.findState().replace });
-    this.button(g, { icon: 'replace', title: '取代', keys: 'Mod+H', text: '換', demo: 'replace', desc: '把找到的文字換成別的文字。再按一次關閉。', onClick: () => this.d.replace(), active: () => this.isFindOpen() && this.ctx.findState().replace });
+    this.button(g, { icon: 'search', title: '尋找', keys: 'Mod+F', text: '找', demo: 'find', desc: '在這份筆記裡尋找文字。再按一次關閉。', onClick: () => this.d.find(), active: () => this.isFindOpen() && !this.ctx.findState!().replace });
+    this.button(g, { icon: 'replace', title: '取代', keys: 'Mod+H', text: '換', demo: 'replace', desc: '把找到的文字換成別的文字。再按一次關閉。', onClick: () => this.d.replace(), active: () => this.isFindOpen() && this.ctx.findState!().replace });
     this.button(g, { icon: 'text-select', title: '全選', keys: 'Mod+A', text: '全', demo: 'selectall', desc: '選取整份筆記。再按一次取消選取。', onClick: () => this.toggleSelectAll(), active: s => C.isAllSelected(s) });
 
     // 表格工具（游標在表格內才顯示）
@@ -294,7 +481,7 @@ export class Toolbar {
     el('div', 'wm-group-name', tableGroup, t('表格工具'));
     const T = C.table;
     const prevSeen = this.seen; this.seen = new Set();
-    const tb = (icon, title, cmd, text) => this.button(tbody, { icon, title, cmd, text, enabled: s => cmd(s) });
+    const tb = (icon: string, title: string, cmd: Command, text: string) => this.button(tbody, { icon, title, cmd, text, enabled: s => cmd(s) });
     tb('arrow-up-to-line', '在上方插入列', T.addRowBefore, '↑列');
     tb('arrow-down-to-line', '在下方插入列', T.addRowAfter, '↓列');
     tb('arrow-left-to-line', '在左側插入欄', T.addColumnBefore, '←欄');
@@ -307,21 +494,21 @@ export class Toolbar {
     this.seen = prevSeen;
   }
 
-  toggleSelectAll() {
+  toggleSelectAll(): void {
     const v = this.view;
     if (!v) return;
     if (C.isAllSelected(v.state)) this.run(C.collapseSelection);
     else this.run(C.selectAll);
   }
 
-  sortCmd(dir) {
+  sortCmd(dir: Direction): void {
     const v = this.view;
-    if (C.table.isIn(v.state)) this.run(C.sortTableByColumn(dir));
+    if (C.table.isIn(v!.state)) this.run(C.sortTableByColumn(dir));
     else if (!this.run(C.sortBlocks(dir)) && this.d.notice) this.d.notice(t('請先選取要排序的段落，或把游標放在清單或表格裡'));
   }
 
   // ----------------------------------------------------------- 插入
-  buildInsert(G) {
+  buildInsert(G: GroupBodies): void {
     this.tableBtn = this.button(G.tables, { icon: 'table', title: '插入表格', text: '表', label: '表格', big: true, demo: 'table', desc: '拖曳選擇欄數與列數，插入表格。也可以直接貼上 Excel 的範圍。', onClick: (e, b) => this.openTablePopup(b) });
     let g = G.illustrations;
     this.button(g, { icon: 'image', title: '插入圖片', text: '圖', label: '圖片', big: true, demo: 'image', desc: '插入保管庫裡的圖片、電腦上的圖片或網路圖片。', onClick: (e, b) => this.d.image(b) });
@@ -344,15 +531,15 @@ export class Toolbar {
       () => DATE_FORMATS.map(f => ({ title: this.ctx.formatDate(f), run: () => this.run(C.insertText(this.ctx.formatDate(f))) })));
     this.button(g, { icon: 'minus', title: '水平線', text: '—', label: '分隔線', big: true, demo: 'hr', desc: '插入一條橫線分隔內容。', cmd: C.insertHr });
     g = G.obsidian;
-    if (this.d.template) this.button(g, { icon: 'layout-template', title: '套用範本', text: '範', label: '範本', big: true, demo: 'template', desc: '用 Templater 範本在游標處插入內容。', onClick: () => this.d.template() });
+    if (this.d.template) this.button(g, { icon: 'layout-template', title: '套用範本', text: '範', label: '範本', big: true, demo: 'template', desc: '用 Templater 範本在游標處插入內容。', onClick: () => this.d.template!() });
     this.button(g, { icon: 'list-plus', title: '文件屬性', text: '屬', label: '屬性', big: true, demo: 'properties', desc: '編輯筆記最上方的屬性（標籤、日期等 metadata）。', onClick: () => this.d.properties() });
   }
 
   // ----------------------------------------------------------- 校閱
-  buildReview(G) {
+  buildReview(G: GroupBodies): void {
     let g = G.proofing;
-    this.button(g, { icon: 'search', title: '尋找', keys: 'Mod+F', text: '找', label: '尋找', big: true, demo: 'find', desc: '在這份筆記裡尋找文字。再按一次關閉。', onClick: () => this.d.find(), active: () => this.isFindOpen() && !this.ctx.findState().replace });
-    this.button(g, { icon: 'replace', title: '取代', keys: 'Mod+H', text: '換', label: '取代', big: true, demo: 'replace', desc: '把找到的文字換成別的文字。再按一次關閉。', onClick: () => this.d.replace(), active: () => this.isFindOpen() && this.ctx.findState().replace });
+    this.button(g, { icon: 'search', title: '尋找', keys: 'Mod+F', text: '找', label: '尋找', big: true, demo: 'find', desc: '在這份筆記裡尋找文字。再按一次關閉。', onClick: () => this.d.find(), active: () => this.isFindOpen() && !this.ctx.findState!().replace });
+    this.button(g, { icon: 'replace', title: '取代', keys: 'Mod+H', text: '換', label: '取代', big: true, demo: 'replace', desc: '把找到的文字換成別的文字。再按一次關閉。', onClick: () => this.d.replace(), active: () => this.isFindOpen() && this.ctx.findState!().replace });
     this.button(g, { icon: 'sparkles', title: '清理符號', text: '淨', label: '清理符號', big: true, demo: 'cleanup', desc: '找出看不見的字元、亂碼、殘留的 ** 與落單的引號，勾選後一次清除。', onClick: () => this.d.cleanup() });
     this.button(g, { icon: 'pilcrow', title: '顯示／隱藏編輯標記', text: '¶', label: '編輯標記', big: true, demo: 'marks', desc: '顯示空白、換行與段落結尾，也會標出奇怪的符號。', onClick: () => this.d.toggleMarks(), active: s => marksOn(s) });
     this.button(G.stats, { icon: 'bar-chart-3', title: '字數統計', text: '數', label: '字數', big: true, demo: 'wordcount', desc: '顯示字數、字元數、段落數與預估閱讀時間；有選取時也會算選取範圍。', onClick: () => this.d.wordCount() });
@@ -360,7 +547,7 @@ export class Toolbar {
   }
 
   // ----------------------------------------------------------- 檢視
-  buildView(G) {
+  buildView(G: GroupBodies): void {
     let g = G.views;
     this.button(g, { icon: 'file-text', title: 'Word 模式（目前）', text: 'W', label: 'Word 模式', big: true, cls: 'is-active' });
     this.button(g, { icon: 'code-2', title: '切換到 Markdown 編輯', keys: 'Mod+E', text: 'MD', label: 'Markdown', big: true, demo: 'markdown', desc: '用 Obsidian 原本的 Markdown 編輯這份筆記。', onClick: () => this.d.markdown() });
@@ -380,7 +567,7 @@ export class Toolbar {
     this.button(g, { icon: 'settings', title: 'Word 模式設定', text: '設', label: '設定', big: true, onClick: () => this.d.settings() });
   }
 
-  update(state) {
+  update(state: EditorState): void {
     for (const it of this.items) {
       if (it.active) it.dom.classList.toggle('is-active', !!it.active(state));
       if (it.enabled) {
@@ -404,10 +591,10 @@ export class Toolbar {
   }
 
   // 尋找列、大綱等開關變了：只更新按鈕狀態
-  refresh() { const v = this.view; if (v) this.update(v.state); }
+  refresh(): void { const v = this.view; if (v) this.update(v.state); }
 
   // ----------------------------------------------------------- 格式刷
-  togglePainter(sticky) {
+  togglePainter(sticky?: boolean): void {
     const v = this.view;
     if (!v || !this.painterBtn) return;
     if (this.painter && !sticky) { this.stopPainter(); return; }
@@ -429,7 +616,7 @@ export class Toolbar {
     v.dom.addEventListener('keyup', this.painterHandler);
   }
 
-  stopPainter() {
+  stopPainter(): void {
     const v = this.view;
     if (v && this.painterHandler) {
       v.dom.removeEventListener('pointerup', this.painterHandler);
@@ -442,7 +629,7 @@ export class Toolbar {
   }
 
   // ----------------------------------------------------------- 彈出選單
-  openPopup(owner, build) {
+  openPopup(owner: HTMLElement, build: (p: HTMLDivElement) => void): void {
     if (this.popup && this.popupOwner === owner) { this.closePopup(); return; }
     this.closePopup();
     hideHint();
@@ -457,12 +644,12 @@ export class Toolbar {
     p.style.top = Math.max(4, r.bottom + 4 + h > vh && r.top - h - 4 > 0 ? r.top - h - 4 : r.bottom + 4) + 'px';
   }
 
-  closePopup() {
+  closePopup(): void {
     if (this.popup) this.popup.remove();
     this.popup = null; this.popupOwner = null;
   }
 
-  openMenu(owner, items) {
+  openMenu(owner: HTMLElement, items: readonly MenuItem[]): void {
     this.openPopup(owner, p => {
       p.classList.add('wm-menu-popup');
       for (const it of items) {
@@ -476,17 +663,17 @@ export class Toolbar {
     });
   }
 
-  openStylePopup(owner) {
+  openStylePopup(owner: HTMLElement): void {
     this.openPopup(owner, p => {
       p.classList.add('wm-style-popup');
-      const cur = C.currentBlockStyle(this.view.state);
+      const cur = C.currentBlockStyle(this.view!.state);
       for (const s of C.BLOCK_STYLES) {
         const b = el('button', 'wm-style-item' + (s.id === cur ? ' is-active' : ''), p);
         b.type = 'button';
         el('span', 'wm-style-label wm-style-label-' + s.id, b, t(s.label));
         const k = s.id === 'p' ? 'Mod+Alt+0' : /^h\d/.test(s.id) ? 'Mod+Alt+' + s.id.slice(1) : null;
         if (k) el('span', 'wm-style-key', b, key(k));
-        const ok = C.setBlockStyle(s.id)(this.view.state) || s.id === cur;
+        const ok = C.setBlockStyle(s.id)(this.view!.state) || s.id === cur;
         if (!ok) b.classList.add('is-disabled');
         keepFocus(b);
         b.addEventListener('click', () => { if (!ok) return; this.closePopup(); this.run(C.setBlockStyle(s.id)); });
@@ -494,10 +681,10 @@ export class Toolbar {
     });
   }
 
-  openOutlinePopup(owner) {
+  openOutlinePopup(owner: HTMLElement): void {
     const v = this.view;
     if (!v) return;
-    const heads = [];
+    const heads: OutlineHead[] = [];
     v.state.doc.descendants((n, pos) => {
       if (n.type.name === 'heading') heads.push({ level: n.attrs.level, text: n.textContent || t('（無標題）'), pos });
       return !n.isTextblock;
@@ -515,8 +702,8 @@ export class Toolbar {
     });
   }
 
-  openColorPopup(owner) {
-    const apply = c => {
+  openColorPopup(owner: HTMLElement): void {
+    const apply = (c: string | null) => {
       this.closePopup();
       if (c) { this.fontColor = c; if (this.colorBtn) this.colorBtn.style.setProperty('--wm-current-color', c); if (this.ctx.rememberColor) this.ctx.rememberColor(c); }
       this.run(C.setColor(c));
@@ -541,7 +728,7 @@ export class Toolbar {
     });
   }
 
-  openHighlightPopup(owner) {
+  openHighlightPopup(owner: HTMLElement): void {
     this.openPopup(owner, p => {
       p.classList.add('wm-hl-popup');
       el('div', 'wm-popup-title', p, t('醒目提示色彩'));
@@ -549,7 +736,7 @@ export class Toolbar {
       for (const [color, name, css] of C.HIGHLIGHT_COLORS) {
         if (color === SHADING) continue;
         const b = el('button', 'wm-color-swatch', grid);
-        b.type = 'button'; b.setAttribute('aria-label', t(name)); b.style.background = css || color;
+        b.type = 'button'; b.setAttribute('aria-label', t(name)); b.style.background = (css || color)!;
         keepFocus(b);
         b.addEventListener('click', () => { this.closePopup(); this.hlColor = color; if (this.hlBtn) this.hlBtn.style.setProperty('--wm-hl', css || color); this.run(C.setHighlight(color)); });
       }
@@ -561,7 +748,7 @@ export class Toolbar {
     });
   }
 
-  openSymbolPopup(owner) {
+  openSymbolPopup(owner: HTMLElement): void {
     this.openPopup(owner, p => {
       p.classList.add('wm-symbol-popup');
       for (const [group, chars] of SYMBOLS) {
@@ -577,22 +764,22 @@ export class Toolbar {
     });
   }
 
-  openTablePopup(owner) {
-    if (!C.insertTable(2, 2)(this.view.state)) return;
+  openTablePopup(owner: HTMLElement): void {
+    if (!C.insertTable(2, 2)(this.view!.state)) return;
     this.openPopup(owner, p => {
       p.classList.add('wm-table-popup');
       const label = el('div', 'wm-table-label', p, t('插入表格'));
       const grid = el('div', 'wm-table-grid', p);
-      const R = 8; const COLS = 8; const cells = [];
-      let picked = null;
-      const mark = (r, c) => {
-        for (const x of cells) x.classList.toggle('is-on', +x.dataset.r <= r && +x.dataset.c <= c);
+      const R = 8; const COLS = 8; const cells: HTMLDivElement[] = [];
+      let picked: string | null = null;
+      const mark = (r: number, c: number) => {
+        for (const x of cells) x.classList.toggle('is-on', +x.dataset.r! <= r && +x.dataset.c! <= c);
         label.textContent = t('{c} 欄 × {r} 列（第一列為標題列）', { c, r });
       };
       for (let r = 1; r <= R; r++) {
         for (let c = 1; c <= COLS; c++) {
           const cell = el('div', 'wm-table-cell', grid);
-          cell.dataset.r = r; cell.dataset.c = c;
+          (cell.dataset as DataNumbers).r = r; (cell.dataset as DataNumbers).c = c;
           cells.push(cell);
           cell.addEventListener('mouseenter', () => mark(r, c));
           cell.addEventListener('mousedown', e => e.preventDefault());

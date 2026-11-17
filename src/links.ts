@@ -4,10 +4,29 @@ import { Decoration } from 'prosemirror-view';
 import { buildBlockDecorations, updateBlockDecorations } from './decoutil.js';
 import { schema } from './schema.js';
 import { linkRange } from './commands.js';
+import type { EditorState } from 'prosemirror-state';
+import type { DecorationSet } from 'prosemirror-view';
+import type { Node as PMNode } from 'prosemirror-model';
+
+// 行內裝飾的 spec（inlineDecos 產生）：網址有 href、標籤有 tag、區塊參照有 blockId，每個裝飾只有其中一個
+export interface InlineSpec { href?: string; tag?: string; blockId?: string; }
+
+// bareUrlAt／tagAt 找到的一段網址或標籤
+export interface InlineHit { from: number; to: number; }
+export interface BareUrlHit extends InlineHit { href: string; }
+export interface TagHit extends InlineHit { tag: string; }
+
+// linkContext 的結果：圖片與 Wiki 連結是被選取的節點（pos、node）；
+// 連結格式（link）與沒加連結格式的網址（url）是一段文字（from、to、href、text）。
+// 沒有的欄位寫成 undefined，讓 info.pos != null 之類的檢查能分辨兩種
+export interface ImageContext { kind: 'image'; pos: number; node: PMNode; from?: undefined; to?: undefined; href?: undefined; text?: undefined; }
+export interface WikilinkContext { kind: 'wikilink'; pos: number; node: PMNode; from?: undefined; to?: undefined; href?: undefined; text?: undefined; }
+export interface TextLinkContext { kind: 'link' | 'url'; from: number; to: number; href: string; text: string; pos?: undefined; node?: undefined; }
+export type LinkContext = ImageContext | WikilinkContext | TextLinkContext;
 
 export const URL_RE = /https?:\/\/[^\s<>()\[\]]+[^\s<>()\[\].,;:!?'"，。、；：！？」』）]/g;
-export const isUrl = s => /^https?:\/\/\S+$/i.test(s.trim());
-export const isExternal = href => /^[a-z][a-z0-9+.-]*:/i.test(href);
+export const isUrl = (s: string): boolean => /^https?:\/\/\S+$/i.test(s.trim());
+export const isExternal = (href: string): boolean => /^[a-z][a-z0-9+.-]*:/i.test(href);
 
 // Obsidian 的 #標籤：前面是行首或空白，可以有 / 分層，不能全是數字
 export const TAG_RE = /(^|\s)#([^\s#!@$%^&*(),.?":;{}|<>\[\]\\`'~=+]+)/g;
@@ -15,18 +34,18 @@ export const TAG_RE = /(^|\s)#([^\s#!@$%^&*(),.?":;{}|<>\[\]\\`'~=+]+)/g;
 const BLOCK_ID_RE = /(^|\s)\^([A-Za-z0-9-]+)$/;
 
 // 一個文字區塊裡的行內標示：沒有加連結格式的網址（Obsidian 也會顯示成連結）、#標籤、^區塊參照
-function inlineDecos(node, pos) {
+function inlineDecos(node: PMNode, pos: number): Decoration[] {
   if (node.type.spec.code) return [];
-  const out = [];
+  const out: Decoration[] = [];
   let prevChar = '';
   node.forEach((child, offset) => {
     if (!child.isText) { prevChar = 'x'; return; }
-    const text = child.text;
+    const text = child.text!;
     if (schema.marks.link.isInSet(child.marks) || schema.marks.code.isInSet(child.marks)) { prevChar = text.slice(-1); return; }
     const base = pos + 1 + offset;
-    const urls = [];
+    const urls: [number, number][] = [];
     URL_RE.lastIndex = 0;
-    let m;
+    let m: RegExpExecArray | null;
     while ((m = URL_RE.exec(text))) {
       urls.push([m.index, m.index + m[0].length]);
       out.push(Decoration.inline(base + m.index, base + m.index + m[0].length, { class: 'wm-bare-url', 'data-href': m[0] }, { href: m[0] }));
@@ -43,15 +62,15 @@ function inlineDecos(node, pos) {
   });
   const last = node.lastChild;
   if (last && last.isText && !schema.marks.code.isInSet(last.marks)) {
-    const bm = BLOCK_ID_RE.exec(last.text);
+    const bm = BLOCK_ID_RE.exec(last.text!);
     if (bm) { const end = pos + node.nodeSize - 1; out.push(Decoration.inline(end - bm[2].length - 1, end, { class: 'wm-block-id' }, { blockId: bm[2] })); }
   }
   return out;
 }
 
 // 文件改動時只重算有變的段落（見 decoutil.js）
-export const inlineKey = new PluginKey('wmInline');
-export const bareUrlPlugin = new Plugin({
+export const inlineKey = new PluginKey<DecorationSet>('wmInline');
+export const bareUrlPlugin = new Plugin<DecorationSet>({
   key: inlineKey,
   state: {
     init: (_, state) => buildBlockDecorations(state.doc, inlineDecos),
@@ -60,24 +79,24 @@ export const bareUrlPlugin = new Plugin({
   props: { decorations(state) { return inlineKey.getState(state); } },
 });
 
-function inlineAt(state, field) {
+function inlineAt<F extends 'href' | 'tag'>(state: EditorState, field: F): (InlineHit & Record<F, string>) | null {
   const { from, empty } = state.selection;
   if (!empty) return null;
   const set = inlineKey.getState(state);
-  const d = set ? set.find(from, from, spec => spec[field] != null)[0] : null;
-  return d ? { from: d.from, to: d.to, [field]: d.spec[field] } : null;
+  const d = set ? set.find(from, from, (spec: InlineSpec) => spec[field] != null)[0] : null;
+  return d ? { from: d.from, to: d.to, [field]: d.spec[field] } as InlineHit & Record<F, string> : null;
 }
-export function bareUrlAt(state) { return inlineAt(state, 'href'); }
-export function tagAt(state) { return inlineAt(state, 'tag'); }
+export function bareUrlAt(state: EditorState): BareUrlHit | null { return inlineAt(state, 'href'); }
+export function tagAt(state: EditorState): TagHit | null { return inlineAt(state, 'tag'); }
 
 // 文件裡用到的所有 #標籤（不重複）
-export function tagsInDoc(state) {
+export function tagsInDoc(state: EditorState): string[] {
   const set = inlineKey.getState(state);
-  return set ? [...new Set(set.find(undefined, undefined, spec => spec.tag != null).map(d => d.spec.tag))] : [];
+  return set ? [...new Set(set.find(undefined, undefined, (spec: InlineSpec) => spec.tag != null).map(d => (d.spec as InlineSpec).tag!))] : [];
 }
 
 // 目前選取位置屬於哪種連結／圖片
-export function linkContext(state) {
+export function linkContext(state: EditorState): LinkContext | null {
   const sel = state.selection;
   if (sel instanceof NodeSelection) {
     const n = sel.node;

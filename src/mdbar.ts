@@ -5,9 +5,32 @@ import { t, key } from './i18n.js';
 import { attachHint, hideHint } from './hints.js';
 import { CODE_LANGUAGES } from './commands.js';
 import { el } from './dom.js';
+import type { App, Editor, MarkdownViewModeType } from 'obsidian';
+import type WordModePlugin from './main.js';
+
+// 工具列按鈕的設定（button() 的 spec）：title、label、desc 是還沒翻譯的文字；keys 是快速鍵（例如 'Mod+B'）；
+// always 表示閱讀模式也能用；active() 回傳 true 時按鈕顯示成按下的樣子
+interface MdButtonSpec {
+  icon: string;
+  title: string;
+  keys?: string | null;
+  label?: string;
+  desc?: string;
+  demo?: string;
+  big?: boolean;
+  always?: boolean;
+  active?: () => boolean;
+  run: (e: MouseEvent, b: HTMLButtonElement) => void;
+}
+
+// 已建立的按鈕；reason 是停用的原因（閱讀模式），給詳細提示顯示
+interface MdButtonItem { dom: HTMLButtonElement; spec: MdButtonSpec; title: string; reason?: string | null; }
+
+// 下拉選單的一項（標題已翻譯）
+interface MdMenuItem { title: string; run: () => void; }
 
 // 在選取文字前後加上（或拿掉）符號
-function wrap(editor, open, close = open) {
+function wrap(editor: Editor, open: string, close: string = open): void {
   const sel = editor.getSelection();
   const from = editor.getCursor('from'); const to = editor.getCursor('to');
   const before = editor.getRange({ line: from.line, ch: Math.max(0, from.ch - open.length) }, from);
@@ -27,7 +50,7 @@ function wrap(editor, open, close = open) {
 }
 
 // 目前這行（或選取的每一行）的開頭改成 prefix
-function linePrefix(editor, re, prefix) {
+function linePrefix(editor: Editor, re: RegExp, prefix: string): void {
   const a = editor.getCursor('from').line; const b = editor.getCursor('to').line;
   for (let l = a; l <= b; l++) {
     const text = editor.getLine(l);
@@ -39,7 +62,18 @@ function linePrefix(editor, re, prefix) {
 const HEAD_RE = /^#{1,6}\s+/;
 
 export class MarkdownBar {
-  constructor(plugin, view) {
+  declare plugin: WordModePlugin;
+  declare view: MarkdownView;
+  declare app: App;
+  declare layout: string;
+  declare buttonStyle: string;
+  declare richHints: boolean;
+  declare hidden: Set<string>;
+  declare dom: HTMLDivElement;
+  declare items: MdButtonItem[];
+  declare mode: MarkdownViewModeType | null;
+
+  constructor(plugin: WordModePlugin, view: MarkdownView) {
     this.plugin = plugin;
     this.view = view;
     this.app = plugin.app;
@@ -55,20 +89,20 @@ export class MarkdownBar {
     this.render();
   }
 
-  destroy() { hideHint(); this.dom.remove(); }
+  destroy(): void { hideHint(); this.dom.remove(); }
 
-  get editor() { return this.view.editor; }
-  isReading() { return this.view.getMode && this.view.getMode() === 'preview'; }
+  get editor(): Editor { return this.view.editor; }
+  isReading(): boolean { return this.view.getMode && this.view.getMode() === 'preview'; }
 
-  cmd(id) { return () => this.app.commands.executeCommandById(id); }
+  cmd(id: string): () => boolean { return () => this.app.commands!.executeCommandById(id); }
 
-  render() {
+  render(): void {
     this.dom.replaceChildren();
     this.items = [];
     this.mode = this.isReading() ? 'preview' : 'source';
     const bar = el('div', 'wm-toolbar', this.dom);
-    const group = id => (this.hidden.has(id) ? null : el('div', 'wm-group wm-group-' + id, bar));
-    const E = fn => () => { const ed = this.editor; if (ed) { fn(ed); ed.focus(); } };
+    const group = (id: string) => (this.hidden.has(id) ? null : el('div', 'wm-group wm-group-' + id, bar));
+    const E = (fn: (ed: Editor) => void) => () => { const ed = this.editor; if (ed) { fn(ed); ed.focus(); } };
 
     let g = group('views');
     this.button(g, { icon: 'file-text', title: '切換到 Word 模式', keys: this.plugin.settings.ctrlE !== false ? 'Mod+E' : null, label: 'Word 模式', demo: 'markdown', desc: '用 Word 模式編輯這份筆記。', run: () => this.plugin.switchToWord(this.view.leaf), always: true });
@@ -125,7 +159,7 @@ export class MarkdownBar {
     this.update();
   }
 
-  button(parent, spec) {
+  button(parent: HTMLElement | null, spec: MdButtonSpec): HTMLButtonElement | null {
     if (!parent) return null;
     const title = spec.keys ? t(spec.title) + ' (' + key(spec.keys) + ')' : t(spec.title);
     const showLabel = this.buttonStyle === 'label' || (this.buttonStyle === 'auto' && spec.big);
@@ -137,16 +171,16 @@ export class MarkdownBar {
     if (showLabel && spec.label) el('span', 'wm-btn-label', b, t(spec.label));
     b.addEventListener('mousedown', e => e.preventDefault());
     b.addEventListener('click', e => { e.preventDefault(); hideHint(); if (b.classList.contains('is-disabled')) return; spec.run(e, b); setTimeout(() => this.update(), 50); });
-    const it = { dom: b, spec, title };
+    const it: MdButtonItem = { dom: b, spec, title };
     this.items.push(it);
     if (this.richHints) {
-      b.querySelector('.wm-sr').textContent = title;
+      b.querySelector('.wm-sr')!.textContent = title;
       attachHint(b, () => ({ title: t(spec.title), keys: spec.keys ? key(spec.keys) : null, desc: spec.desc ? t(spec.desc) : null, demo: spec.demo, reason: it.reason }));
     } else b.setAttribute('aria-label', title);
     return b;
   }
 
-  update() {
+  update(): void {
     const reading = this.isReading();
     if ((reading ? 'preview' : 'source') !== this.mode) { this.render(); return; }
     for (const it of this.items) {
@@ -158,8 +192,8 @@ export class MarkdownBar {
     }
   }
 
-  async setMode(mode) {
-    const st = this.view.getState();
+  async setMode(mode: MarkdownViewModeType): Promise<void> {
+    const st: Record<string, unknown> = this.view.getState();
     st.mode = mode;
     if (mode === 'source') st.source = false;
     await this.view.setState(st, { history: false });
@@ -167,22 +201,22 @@ export class MarkdownBar {
     if (mode === 'source' && this.editor) this.editor.focus();
   }
 
-  menu(owner, items) {
+  menu(owner: HTMLElement, items: MdMenuItem[]): void {
     const m = new Menu();
     for (const it of items) m.addItem(i => i.setTitle(it.title).onClick(it.run));
     const r = owner.getBoundingClientRect();
     m.showAtPosition({ x: r.left, y: r.bottom + 4 });
   }
 
-  headingMenu(owner) {
+  headingMenu(owner: HTMLElement): void {
     const ed = this.editor;
     if (!ed) return;
-    const items = [{ title: t('內文'), run: () => { linePrefix(ed, HEAD_RE, ''); ed.focus(); } }];
+    const items: MdMenuItem[] = [{ title: t('內文'), run: () => { linePrefix(ed, HEAD_RE, ''); ed.focus(); } }];
     for (let i = 1; i <= 6; i++) items.push({ title: t('標題 ' + i), run: () => { linePrefix(ed, HEAD_RE, '#'.repeat(i) + ' '); ed.focus(); } });
     this.menu(owner, items);
   }
 
-  codeMenu(owner) {
+  codeMenu(owner: HTMLElement): void {
     const ed = this.editor;
     if (!ed) return;
     this.menu(owner, CODE_LANGUAGES.map(([lang, label]) => ({
@@ -198,4 +232,4 @@ export class MarkdownBar {
   }
 }
 
-export function isMarkdownView(v) { return v instanceof MarkdownView; }
+export function isMarkdownView(v: unknown): v is MarkdownView { return v instanceof MarkdownView; }

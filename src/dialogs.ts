@@ -3,10 +3,65 @@ import { Modal, FuzzySuggestModal, Notice, setIcon } from 'obsidian';
 import { countWeird, cleanWeird, WEIRD_KINDS } from './marks.js';
 import { MathField } from './mathvisual.js';
 import { t, key, isMac } from './i18n.js';
+import type { App, TFile } from 'obsidian';
+import type { WeirdKindId } from './marks.js';
+import type WordModePlugin from './main.js';
+import type { WordModeView } from './view.js';
+
+// 原文編輯、輸入框按「套用／確定」後收到輸入的文字
+export type TextCallback = (value: string) => void;
+
+// 超連結對話框：連到網址，或連到保管庫裡的筆記與檔案
+export type LinkMode = 'url' | 'file';
+// 開啟時的初始值：existing 是否在編輯既有的連結、text 顯示文字、href 原本的網址或連結目標、file 原本連到的檔案、query 搜尋框的預設文字
+export interface LinkDialogInit {
+  existing?: boolean;
+  text?: string;
+  mode?: LinkMode;
+  href?: string;
+  file?: TFile | null;
+  query?: string;
+}
+// 按「確定」的結果；連到檔案時 unchanged 表示沒有換檔案，href 帶回初始值的 href
+export type LinkDialogResult =
+  | { mode: 'url'; href: string; text: string }
+  | { mode: 'file'; file: TFile; text: string; unchanged: boolean; href: string | undefined };
+export type LinkSaveCallback = (result: LinkDialogResult) => void;
+
+// 檔案選擇器選好檔案後呼叫（可以是 async 函式）
+export type FileChooseCallback = (file: TFile) => void;
+
+// 快速鍵說明的一組：分類名稱、圖示、[按鍵組合, 說明] 的列表（文字在顯示時才翻譯）
+export type ShortcutRow = [combo: string, desc: string];
+export type ShortcutGroup = [group: string, icon: string, rows: ShortcutRow[]];
+// 快速鍵說明視窗裡的一列與一張卡片，搜尋時用來顯示或隱藏
+interface ShortcutRowEl { row: HTMLDivElement; text: string; }
+interface ShortcutCardEl { card: HTMLDivElement; list: ShortcutRowEl[]; group: string; }
+
+// 方程式工具列的一個按鈕：顯示文字、插入的 LaTeX；raw 為 true 表示「最近使用」，原樣插入
+export type MathSnippet = [label: string, snip: string, raw?: boolean];
+export type MathSnippetGroup = [name: string, items: MathSnippet[]];
+// 方程式對話框的初始值：src LaTeX 原文、display 是否獨立一行、existing 是否在編輯既有的方程式、onDelete 按「刪除方程式」時呼叫
+export interface EquationInit {
+  src?: string;
+  display?: boolean;
+  existing?: boolean;
+  onDelete?: () => void;
+}
+// 把 LaTeX 畫到 el 裡（display 為 true 表示獨立一行、置中）
+export type MathRenderer = (src: string, el: HTMLElement, display: boolean) => void;
+export type EquationSaveCallback = (src: string, display: boolean) => void;
+export type EquationEditMode = 'visual' | 'latex';
+
+// 字數統計的一列：名稱、整份文件、選取範圍（沒有選取時為 null）
+export type WordCountRow = [label: string, all: string, sel: string | null];
 
 export class SourceModal extends Modal {
-  constructor(app, title, value, onSave) { super(app); this.titleText = title; this.value = value; this.onSave = onSave; }
-  onOpen() {
+  declare titleText: string;
+  declare value: string;
+  declare onSave: TextCallback;
+  constructor(app: App, title: string, value: string, onSave: TextCallback) { super(app); this.titleText = title; this.value = value; this.onSave = onSave; }
+  onOpen(): void {
     this.titleEl.setText(this.titleText);
     const ta = this.contentEl.createEl('textarea', { cls: 'wm-source-input' });
     ta.value = this.value;
@@ -18,12 +73,16 @@ export class SourceModal extends Modal {
     ta.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); ok.click(); } });
     setTimeout(() => ta.focus(), 10);
   }
-  onClose() { this.contentEl.empty(); }
+  onClose(): void { this.contentEl.empty(); }
 }
 
 export class PromptModal extends Modal {
-  constructor(app, title, value, placeholder, onSave) { super(app); this.titleText = title; this.value = value; this.placeholder = placeholder; this.onSave = onSave; }
-  onOpen() {
+  declare titleText: string;
+  declare value: string;
+  declare placeholder: string;
+  declare onSave: TextCallback;
+  constructor(app: App, title: string, value: string, placeholder: string, onSave: TextCallback) { super(app); this.titleText = title; this.value = value; this.placeholder = placeholder; this.onSave = onSave; }
+  onOpen(): void {
     this.titleEl.setText(this.titleText);
     const i = this.contentEl.createEl('input', { type: 'text', cls: 'wm-prompt-input' });
     i.value = this.value || '';
@@ -35,30 +94,47 @@ export class PromptModal extends Modal {
     i.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); ok.click(); } });
     setTimeout(() => { i.focus(); i.select(); }, 10);
   }
-  onClose() { this.contentEl.empty(); }
+  onClose(): void { this.contentEl.empty(); }
 }
 
 // 插入／編輯超連結：可以連到網址，或搜尋保管庫裡的筆記與檔案
 export class LinkDialog extends Modal {
+  declare view: WordModeView;
+  declare init: LinkDialogInit;
+  declare onSave: LinkSaveCallback;
+  declare onRemove: (() => void) | undefined;
+  declare mode: LinkMode;
+  declare selected: TFile | null;
+  declare results: TFile[];
+  declare active: number;
+  declare text: HTMLInputElement;
+  declare tabUrl: HTMLButtonElement;
+  declare tabFile: HTMLButtonElement;
+  declare urlPane: HTMLDivElement;
+  declare href: HTMLInputElement;
+  declare filePane: HTMLDivElement;
+  declare query: HTMLInputElement;
+  declare list: HTMLDivElement;
+  declare ok: HTMLButtonElement;
   // init: { text, mode: 'url'|'file', href, file, existing }
-  constructor(app, view, init, onSave, onRemove) {
+  constructor(app: App, view: WordModeView, init: LinkDialogInit, onSave: LinkSaveCallback, onRemove?: () => void) {
     super(app); this.view = view; this.init = init; this.onSave = onSave; this.onRemove = onRemove;
     this.mode = init.mode || 'url';
     this.selected = init.file || null;
     this.results = [];
     this.active = 0;
   }
-  onOpen() {
+  onOpen(): void {
     const c = this.contentEl;
     c.addClass('wm-link-dialog');
     this.titleEl.setText(this.init.existing ? t('編輯超連結') : t('插入超連結'));
-    const row = (label) => { const d = c.createDiv('wm-form-row'); d.createEl('label', { text: label }); return d; };
+    const row = (label: string) => { const d = c.createDiv('wm-form-row'); d.createEl('label', { text: label }); return d; };
     this.text = row(t('顯示文字')).createEl('input', { type: 'text' });
     this.text.value = this.init.text || '';
     this.text.placeholder = t('（留白則顯示網址或筆記名稱）');
 
     const tabs = c.createDiv('wm-link-tabs');
-    const tab = (icon, label) => {
+    const tab = (icon: string, label: string) => {
       const b = tabs.createEl('button');
       setIcon(b.createSpan('wm-tab-icon'), icon);
       b.createSpan({ text: label });
@@ -83,12 +159,12 @@ export class LinkDialog extends Modal {
     this.query.addEventListener('input', () => { this.selected = null; this.search(); });
 
     const bar = c.createDiv('modal-button-container');
-    if (this.init.existing && this.onRemove) bar.createEl('button', { text: t('移除連結'), cls: 'mod-warning' }).addEventListener('click', () => { this.close(); this.onRemove(); });
+    if (this.init.existing && this.onRemove) bar.createEl('button', { text: t('移除連結'), cls: 'mod-warning' }).addEventListener('click', () => { this.close(); this.onRemove!(); });
     bar.createEl('button', { text: t('取消') }).addEventListener('click', () => this.close());
     this.ok = bar.createEl('button', { text: t('確定'), cls: 'mod-cta' });
     this.ok.addEventListener('click', () => this.submit());
 
-    const keys = e => {
+    const keys = (e: KeyboardEvent) => {
       if (this.mode === 'file' && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
         e.preventDefault();
         this.active = Math.max(0, Math.min(this.results.length - 1, this.active + (e.key === 'ArrowDown' ? 1 : -1)));
@@ -103,7 +179,7 @@ export class LinkDialog extends Modal {
     this.setMode(this.mode);
     if (this.mode === 'file') this.search();
   }
-  setMode(m) {
+  setMode(m: LinkMode): void {
     this.mode = m;
     this.tabUrl.toggleClass('is-active', m === 'url');
     this.tabFile.toggleClass('is-active', m === 'file');
@@ -112,10 +188,10 @@ export class LinkDialog extends Modal {
     setTimeout(() => (this.init.text || this.text.value ? (m === 'url' ? this.href : this.query) : this.text).focus(), 10);
     if (m === 'file') this.search();
   }
-  search() {
+  search(): void {
     const q = this.query.value.trim().toLowerCase();
     const files = this.app.vault.getFiles().filter(f => !f.path.startsWith(this.app.vault.configDir + '/') && f !== this.view.file);
-    const score = f => {
+    const score = (f: TFile) => {
       const b = f.basename.toLowerCase(); const p = f.path.toLowerCase();
       if (!q) return f.extension === 'md' ? 1 : 0;
       if (b === q) return 100;
@@ -124,12 +200,12 @@ export class LinkDialog extends Modal {
       if (p.includes(q)) return 40;
       return q.split(/\s+/).every(tv => p.includes(tv)) ? 20 : -1;
     };
-    this.results = files.map(f => [score(f), f]).filter(x => x[0] >= 0).map(x => [x[0] + (x[1].extension === 'md' ? 5 : 0), x[1]])
+    this.results = files.map<[number, TFile]>(f => [score(f), f]).filter(x => x[0] >= 0).map<[number, TFile]>(x => [x[0] + (x[1].extension === 'md' ? 5 : 0), x[1]])
       .sort((a, b) => b[0] - a[0] || a[1].path.length - b[1].path.length).slice(0, 8).map(x => x[1]);
     this.active = 0;
     this.renderList();
   }
-  renderList() {
+  renderList(): void {
     this.list.empty();
     if (this.selected) {
       const d = this.list.createDiv('wm-link-item is-selected');
@@ -148,8 +224,8 @@ export class LinkDialog extends Modal {
       d.addEventListener('click', () => this.pick(f));
     });
   }
-  pick(f) { this.selected = f; this.query.value = f.basename; this.renderList(); this.ok.focus(); }
-  submit() {
+  pick(f: TFile): void { this.selected = f; this.query.value = f.basename; this.renderList(); this.ok.focus(); }
+  submit(): void {
     const text = this.text.value;
     if (this.mode === 'url') {
       let href = this.href.value.trim();
@@ -162,18 +238,20 @@ export class LinkDialog extends Modal {
       this.close(); this.onSave({ mode: 'file', file: f, text, unchanged: f === this.init.file, href: this.init.href });
     }
   }
-  onClose() { this.contentEl.empty(); }
+  onClose(): void { this.contentEl.empty(); }
 }
 
-export class FilePicker extends FuzzySuggestModal {
-  constructor(app, files, placeholder, onChoose) { super(app); this.files = files; this.onChooseFile = onChoose; this.setPlaceholder(placeholder); }
-  getItems() { return this.files; }
-  getItemText(f) { return f.path; }
-  onChooseItem(f) { this.onChooseFile(f); }
+export class FilePicker extends FuzzySuggestModal<TFile> {
+  declare files: TFile[];
+  declare onChooseFile: FileChooseCallback;
+  constructor(app: App, files: TFile[], placeholder: string, onChoose: FileChooseCallback) { super(app); this.files = files; this.onChooseFile = onChoose; this.setPlaceholder(placeholder); }
+  getItems(): TFile[] { return this.files; }
+  getItemText(f: TFile): string { return f.path; }
+  onChooseItem(f: TFile): void { this.onChooseFile(f); }
 }
 
 // 快速鍵說明：Mod 顯示成 Ctrl 或 Cmd，文字在顯示時才翻譯；多個組合用「／」分開
-export const SHORTCUTS = [
+export const SHORTCUTS: readonly ShortcutGroup[] = [
   ['檢視', 'eye', [['Mod+E', 'Word 模式 ⇄ Markdown 編輯（在 Markdown 畫面再按一次切回）'], ['Mod+滑鼠滾輪', '放大／縮小頁面'], ['Mod+/', '快速鍵說明']]],
   ['文字格式', 'bold', [['Mod+B', '粗體'], ['Mod+I', '斜體'], ['Mod+U', '底線'], ['Mod+Shift+X', '刪除線'], ['Mod+Shift+H', '醒目提示（螢光筆）'], ['Mod+`', '行內程式碼'], ['（沒有選取時）', '格式套用到游標所在的詞']]],
   ['段落', 'pilcrow', [['Mod+Alt+1～6', '標題 1～6'], ['Mod+Alt+0', '內文'], ['Mod+L／Mod+J', '靠左／左右對齊（置中、靠右在工具列）'], ['Tab', '段落開頭：首行縮排兩個字'], ['Alt+↑／Alt+↓', '上下移動段落、清單項目或表格列'], ['Shift+Enter', '同一段落內換行']]],
@@ -183,10 +261,10 @@ export const SHORTCUTS = [
   ['格式刷', 'paintbrush', [['按一下', '刷一次'], ['按兩下', '連續刷，按 Esc 或再按一次結束']]],
 ];
 
-export const KEY_NAMES = { Mod: () => key('Mod'), Alt: () => key('Alt'), Shift: () => 'Shift', Enter: () => 'Enter', Esc: () => 'Esc', Tab: () => 'Tab' };
+export const KEY_NAMES: Partial<Record<string, () => string>> = { Mod: () => key('Mod'), Alt: () => key('Alt'), Shift: () => 'Shift', Enter: () => 'Enter', Esc: () => 'Esc', Tab: () => 'Tab' };
 
 // 'Mod+Shift+V' → [Ctrl] + [Shift] + [V]；沒有 + 的說明文字（例如「按一下」）照樣顯示
-function renderKeys(parent, combo) {
+function renderKeys(parent: HTMLElement, combo: string): void {
   const box = parent.createDiv('wm-sc-keys');
   combo.split('／').forEach((alt, i) => {
     if (i) box.createSpan({ cls: 'wm-sc-or', text: '/' });
@@ -201,7 +279,7 @@ function renderKeys(parent, combo) {
   });
 }
 
-export const MATH_SNIPPETS = [
+export const MATH_SNIPPETS: readonly MathSnippetGroup[] = [
   ['結構', [['分數', '\\frac{}{}'], ['根號', '\\sqrt{}'], ['n 次方根', '\\sqrt[n]{}'], ['上標', '^{}'], ['下標', '_{}'], ['上下標', '_{}^{}'], ['括號', '\\left( \\right)'], ['中括號', '\\left[ \\right]'], ['大括號', '\\left\\{ \\right\\}'], ['絕對值', '\\left| \\right|'], ['矩陣', '\\begin{bmatrix} a & b \\\\ c & d \\end{bmatrix}'], ['分段函數', '\\begin{cases} x, & x \\ge 0 \\\\ -x, & x < 0 \\end{cases}'], ['多行對齊', '\\begin{aligned} a &= b \\\\ c &= d \\end{aligned}'], ['編號', '\\tag{1}'], ['文字', '\\text{}']]],
   ['運算', [['總和', '\\sum_{i=1}^{n}'], ['積分', '\\int_{a}^{b}'], ['重積分', '\\iint_{D}'], ['極限', '\\lim_{x \\to \\infty}'], ['乘積', '\\prod_{i=1}^{n}'], ['微分', '\\frac{d}{dx}'], ['偏微分', '\\frac{\\partial }{\\partial x}'], ['組合', '\\binom{n}{k}'], ['最大', '\\max'], ['最小', '\\min'], ['對數', '\\log'], ['自然對數', '\\ln'], ['指數', 'e^{}'], ['sin', '\\sin'], ['cos', '\\cos'], ['tan', '\\tan']]],
   ['標記', [['向量', '\\vec{}'], ['平均', '\\bar{}'], ['估計', '\\hat{}'], ['波浪', '\\tilde{}'], ['一階導數', '\\dot{}'], ['二階導數', '\\ddot{}'], ['上括號', '\\overbrace{}^{}'], ['下括號', '\\underbrace{}_{}'], ['粗體', '\\mathbf{}'], ['空心字', '\\mathbb{}'], ['正體', '\\mathrm{}'], ['花體', '\\mathcal{}']]],
@@ -213,10 +291,25 @@ export const MATH_SNIPPETS = [
 
 // 方程式編輯器：上方分類按鈕、輸入框、即時預覽（含語法錯誤提示）、最近使用
 export class EquationModal extends Modal {
-  constructor(app, init, render, onSave, plugin) {
+  declare init: EquationInit;
+  declare render: MathRenderer;
+  declare onSave: EquationSaveCallback;
+  declare plugin: WordModePlugin | null | undefined;
+  declare display: boolean;
+  declare tabVisual: HTMLButtonElement;
+  declare tabLatex: HTMLButtonElement;
+  declare fieldHost: HTMLDivElement;
+  declare field: MathField;
+  declare fieldHint: HTMLDivElement;
+  declare ta: HTMLTextAreaElement;
+  declare err: HTMLSpanElement;
+  declare prev: HTMLDivElement;
+  declare timer: number | undefined;
+  declare editMode: EquationEditMode;
+  constructor(app: App, init: EquationInit, render: MathRenderer, onSave: EquationSaveCallback, plugin?: WordModePlugin | null) {
     super(app); this.init = init; this.render = render; this.onSave = onSave; this.plugin = plugin; this.display = !!init.display;
   }
-  onOpen() {
+  onOpen(): void {
     this.titleEl.setText(this.init.existing ? t('編輯方程式') : t('插入方程式'));
     this.modalEl.addClass('wm-eq-modal');
     const c = this.contentEl;
@@ -225,7 +318,7 @@ export class EquationModal extends Modal {
     const modes = top.createDiv('wm-link-tabs');
     const mInline = modes.createEl('button', { text: t('文字中（行內）') });
     const mBlock = modes.createEl('button', { text: t('獨立一行（置中）') });
-    const setMode = d => { this.display = d; mInline.toggleClass('is-active', !d); mBlock.toggleClass('is-active', d); this.preview(); };
+    const setMode = (d: boolean) => { this.display = d; mInline.toggleClass('is-active', !d); mBlock.toggleClass('is-active', d); this.preview(); };
     mInline.addEventListener('click', () => setMode(false));
     mBlock.addEventListener('click', () => setMode(true));
     // 編輯方式：視覺化（分數、根號等顯示成一格一格，可以直接點進去打）或 LaTeX 原始碼
@@ -238,10 +331,10 @@ export class EquationModal extends Modal {
     // 分類（像 Word 的方程式工具列）
     const cats = c.createDiv('wm-eq-cats');
     const pal = c.createDiv('wm-eq-palette');
-    const recent = (this.plugin && this.plugin.settings.recentMath) || [];
+    const recent: string[] = (this.plugin && this.plugin.settings.recentMath) || [];
     const groups = MATH_SNIPPETS.slice();
     if (recent.length) groups.unshift(['最近使用', recent.map(r => [r.length > 18 ? r.slice(0, 17) + '…' : r, r, true])]);
-    const showGroup = i => {
+    const showGroup = (i: number) => {
       pal.empty();
       [...cats.children].forEach((b, j) => b.toggleClass('is-active', i === j));
       const row = pal.createDiv('wm-eq-items');
@@ -290,14 +383,14 @@ export class EquationModal extends Modal {
     const bar = c.createDiv('modal-button-container');
     if (this.init.existing && this.init.onDelete) {
       const del = bar.createEl('button', { text: t('刪除方程式'), cls: 'mod-warning' });
-      del.addEventListener('click', () => { this.close(); this.init.onDelete(); });
+      del.addEventListener('click', () => { this.close(); this.init.onDelete!(); });
     }
     bar.createEl('button', { text: t('取消') }).addEventListener('click', () => this.close());
     const ok = bar.createEl('button', { text: this.init.existing ? t('套用') : t('插入'), cls: 'mod-cta' });
     ok.addEventListener('click', () => {
       const v = this.ta.value.trim(); if (!v) return;
       if (this.plugin) {
-        const r = [v].concat((this.plugin.settings.recentMath || []).filter(x => x !== v)).slice(0, 12);
+        const r = [v].concat((this.plugin.settings.recentMath || []).filter((x: string) => x !== v)).slice(0, 12);
         this.plugin.settings.recentMath = r; this.plugin.saveSettings();
       }
       this.close(); this.onSave(v, this.display);
@@ -309,7 +402,7 @@ export class EquationModal extends Modal {
     this.setEdit(this.plugin && this.plugin.settings.mathMode === 'latex' ? 'latex' : 'visual');
   }
   // 切換編輯方式。切到視覺化時用目前的 LaTeX 建立格子；沒有在格子裡改東西就不會動到原本的 LaTeX
-  setEdit(mode) {
+  setEdit(mode: EquationEditMode): void {
     this.editMode = mode;
     this.tabVisual.toggleClass('is-active', mode === 'visual');
     this.tabLatex.toggleClass('is-active', mode === 'latex');
@@ -319,7 +412,7 @@ export class EquationModal extends Modal {
     if (mode === 'visual') { this.field.setLatex(this.ta.value); setTimeout(() => this.field.focus(true), 10); }
     else setTimeout(() => { this.ta.focus(); this.ta.setSelectionRange(this.ta.value.length, this.ta.value.length); }, 10);
   }
-  insertRaw(text) {
+  insertRaw(text: string): void {
     if (this.editMode === 'visual') { this.field.insert(text); return; }
     const ta = this.ta;
     const a = ta.selectionStart; const b = ta.selectionEnd;
@@ -327,7 +420,7 @@ export class EquationModal extends Modal {
     ta.focus(); ta.setSelectionRange(a + text.length, a + text.length);
     this.preview();
   }
-  insert(snip) {
+  insert(snip: string): void {
     if (this.editMode === 'visual') { this.field.insert(snip); return; }
     const ta = this.ta;
     const a = ta.selectionStart; const b = ta.selectionEnd;
@@ -341,7 +434,7 @@ export class EquationModal extends Modal {
     ta.setSelectionRange(caret, caret);
     this.preview();
   }
-  preview() {
+  preview(): void {
     if (!this.prev) return;
     this.prev.empty();
     this.err.setText('');
@@ -354,11 +447,11 @@ export class EquationModal extends Modal {
     this.render(v, this.prev, this.display);
     setTimeout(() => { if (this.prev && this.prev.querySelector('mjx-merror, .merror, [data-mjx-error]')) this.err.setText(t('語法錯誤，請檢查 LaTeX')); }, 120);
   }
-  onClose() { clearTimeout(this.timer); this.contentEl.empty(); }
+  onClose(): void { clearTimeout(this.timer); this.contentEl.empty(); }
 }
 
 export class ShortcutModal extends Modal {
-  onOpen() {
+  onOpen(): void {
     this.titleEl.setText(t('Word 模式快速鍵'));
     this.modalEl.addClass('wm-shortcuts-modal');
     const c = this.contentEl;
@@ -368,13 +461,13 @@ export class ShortcutModal extends Modal {
     search.placeholder = t('搜尋快速鍵或功能…');
     head.createDiv({ cls: 'wm-sc-platform', text: isMac ? t('Mac：Cmd 與 Option') : t('Windows：Ctrl 與 Alt') });
     const grid = c.createDiv('wm-sc-grid');
-    const cards = [];
+    const cards: ShortcutCardEl[] = [];
     for (const [group, icon, rows] of SHORTCUTS) {
       const card = grid.createDiv('wm-sc-card');
       const h = card.createDiv('wm-sc-card-head');
       setIcon(h.createSpan('wm-sc-icon'), icon);
       h.createSpan({ text: t(group) });
-      const list = [];
+      const list: ShortcutRowEl[] = [];
       for (const [k, d] of rows) {
         const row = card.createDiv('wm-sc-row');
         row.createDiv({ cls: 'wm-sc-desc', text: t(d) });
@@ -397,21 +490,22 @@ export class ShortcutModal extends Modal {
     });
     setTimeout(() => search.focus(), 0);
   }
-  onClose() { this.contentEl.empty(); }
+  onClose(): void { this.contentEl.empty(); }
 }
 
 // 清理奇怪符號
 export class CleanupModal extends Modal {
-  constructor(app, view) { super(app); this.view = view; }
-  onOpen() {
+  declare view: WordModeView;
+  constructor(app: App, view: WordModeView) { super(app); this.view = view; }
+  onOpen(): void {
     this.titleEl.setText(t('清理奇怪符號'));
     this.modalEl.addClass('wm-cleanup-modal');
     const { contentEl } = this;
-    const counts = countWeird(this.view.pm.state.doc);
+    const counts = countWeird(this.view.pm!.state.doc);
     const total = Object.values(counts).reduce((a, b) => a + b, 0);
     contentEl.createDiv({ cls: 'wm-cleanup-intro', text: total ? t('找到 {n} 個可能有問題的符號。勾選要清除的種類：', { n: total }) : t('沒有找到奇怪符號，這份筆記很乾淨！') });
     if (!total) return;
-    const checks = {};
+    const checks: Record<string, HTMLInputElement> = {};
     for (const k of WEIRD_KINDS) {
       const n = counts[k.id] || 0;
       const row = contentEl.createEl('label', { cls: 'wm-cleanup-row' + (n ? '' : ' is-empty') });
@@ -435,21 +529,22 @@ export class CleanupModal extends Modal {
     const ok = btns.createEl('button', { text: t('清除勾選的符號'), cls: 'mod-cta' });
     ok.addEventListener('click', () => {
       const kinds = Object.keys(checks).filter(k => checks[k].checked);
-      const tr = kinds.length ? cleanWeird(this.view.pm.state, kinds) : null;
+      const tr = kinds.length ? cleanWeird(this.view.pm!.state, kinds) : null;
       this.close();
-      if (tr) { this.view.pm.dispatch(tr); new Notice(t('已清除，Ctrl+Z 可以復原').replace('Ctrl', key('Mod'))); }
-      this.view.pm.focus();
+      if (tr) { this.view.pm!.dispatch(tr); new Notice(t('已清除，Ctrl+Z 可以復原').replace('Ctrl', key('Mod'))); }
+      this.view.pm!.focus();
     });
   }
-  onClose() { this.contentEl.empty(); }
+  onClose(): void { this.contentEl.empty(); }
 }
 
-export const SAMPLE = { zw: '␣', ctrl: '␣', nbsp: '·', repl: '�', md: '**', quote: '"', space: '··' };
+export const SAMPLE: Record<WeirdKindId, string> = { zw: '␣', ctrl: '␣', nbsp: '·', repl: '�', md: '**', quote: '"', space: '··' };
 
 // 字數統計（像 Word 的「字數統計」視窗）
 export class WordCountModal extends Modal {
-  constructor(app, rows) { super(app); this.rows = rows; }
-  onOpen() {
+  declare rows: WordCountRow[];
+  constructor(app: App, rows: WordCountRow[]) { super(app); this.rows = rows; }
+  onOpen(): void {
     this.titleEl.setText(t('字數統計'));
     const table = this.contentEl.createEl('table', { cls: 'wm-count-table' });
     for (const [label, a, b] of this.rows) {
@@ -460,6 +555,6 @@ export class WordCountModal extends Modal {
     }
     this.contentEl.createDiv({ cls: 'wm-count-note', text: t('中文、日文、韓文以字計；英文與數字以單字計。') });
   }
-  onClose() { this.contentEl.empty(); }
+  onClose(): void { this.contentEl.empty(); }
 }
 

@@ -3,19 +3,59 @@ import { Plugin } from 'prosemirror-state';
 import { t, withKey, key } from './i18n.js';
 import { linkContext } from './links.js';
 import { el } from './dom.js';
+import type { EditorState } from 'prosemirror-state';
+import type { EditorView } from 'prosemirror-view';
+import type { Attrs } from 'prosemirror-model';
+import type { LinkContext, ImageContext, WikilinkContext, TextLinkContext } from './links.js';
+
+// 連結在工具列上的顯示方式（view.js 的 describe 產生）
+export interface LinkDescription { icon: string; label: string; title: string; missing: boolean; }
+
+// 浮動工具列需要的外部功能（view.js 的 bubbleContext 產生）。
+// 圖片專用的功能（setWidth 等）只會在選取圖片時被呼叫，所以參數是 ImageContext
+export interface BubbleContext {
+  host: HTMLElement;
+  icon(el: HTMLElement, name: string, fallback: string): void;
+  describe(target: string, wiki: boolean): LinkDescription;
+  open(info: LinkContext, newTab: boolean): void;
+  edit(info: LinkContext): void;
+  copy(text: string): void;
+  unlink(info: LinkContext): void;
+  imageExists(attrs: Attrs): boolean;
+  imageWidth(attrs: Attrs): number | null;
+  pageWidth(): number;
+  setWidth(info: ImageContext, width: number | null): void;
+  editAlt(info: ImageContext): void;
+  replaceImage(info: ImageContext, btn: HTMLElement): void;
+  openImage(info: ImageContext): void;
+  removeNode(info: ImageContext): void;
+}
+
+// nodeDOM 可能是文字節點（沒有 getBoundingClientRect），所以 position() 先檢查再呼叫
+type MaybeElement = Node & Partial<Pick<Element, 'getBoundingClientRect'>>;
 
 export const IMAGE_SIZES = [
   { label: t('小'), pct: 0.25 }, { label: t('中'), pct: 0.5 }, { label: t('大'), pct: 0.75 }, { label: t('滿版'), pct: 1 },
 ];
 
+// Bubble 的欄位：info 是目前顯示的連結／圖片（沒有時是 null），key 用來判斷內容有沒有變、要不要重畫。
+// 工具列的內容在 info 的種類改變時一定會重畫，所以按鈕被按下時 this.info 的種類與建立按鈕時相同：
+// btn() 依此把 this.info 轉成呼叫端宣告的型別（例如圖片按鈕的 ImageContext）
 class Bubble {
-  constructor(view, ctx) {
+  declare view: EditorView;
+  declare ctx: BubbleContext;
+  declare dom: HTMLDivElement;
+  declare info: LinkContext | null;
+  declare key: string;
+  declare onBlur: () => void;
+
+  constructor(view: EditorView, ctx: BubbleContext) {
     this.view = view;
     this.ctx = ctx;
     this.dom = el('div', 'wm-bubble');
     this.dom.style.display = 'none';
-    this.dom.addEventListener('mousedown', e => { if (e.target.tagName !== 'INPUT') e.preventDefault(); });
-    this.dom.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse' && e.target.tagName !== 'INPUT') e.preventDefault(); });
+    this.dom.addEventListener('mousedown', e => { if ((e.target as HTMLElement).tagName !== 'INPUT') e.preventDefault(); });
+    this.dom.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse' && (e.target as HTMLElement).tagName !== 'INPUT') e.preventDefault(); });
     ctx.host.appendChild(this.dom);
     this.info = null;
     this.key = '';
@@ -30,7 +70,7 @@ class Bubble {
 
   hide() { this.dom.style.display = 'none'; this.info = null; this.key = ''; }
 
-  update(view, prev) {
+  update(view: EditorView, prev: EditorState | null) {
     const st = view.state;
     if (prev && prev.doc.eq(st.doc) && prev.selection.eq(st.selection) && this.info) return;
     const info = linkContext(st);
@@ -42,12 +82,12 @@ class Bubble {
     this.position(info);
   }
 
-  position(info) {
+  position(info: LinkContext) {
     const v = this.view;
-    let rect;
+    let rect: { left: number; top: number; bottom: number };
     try {
       if (info.pos != null) {
-        const dom = v.nodeDOM(info.pos);
+        const dom = v.nodeDOM(info.pos) as MaybeElement | null;
         rect = dom && dom.getBoundingClientRect ? dom.getBoundingClientRect() : v.coordsAtPos(info.pos);
       } else {
         const a = v.coordsAtPos(info.from);
@@ -60,17 +100,17 @@ class Bubble {
     this.dom.style.top = (rect.bottom - host.top + 6) + 'px';
   }
 
-  btn(parent, icon, title, run, cls) {
+  btn<I extends LinkContext>(parent: HTMLElement, icon: string, title: string, run: (info: I, e: MouseEvent) => void, cls?: string): HTMLButtonElement {
     const b = el('button', 'wm-bubble-btn' + (cls ? ' ' + cls : ''), parent);
     b.type = 'button';
     b.setAttribute('aria-label', title);
     b.setAttribute('aria-label', title);
     this.ctx.icon(b, icon, title);
-    b.addEventListener('click', e => { e.preventDefault(); const info = this.info; if (info) run(info, e); });
+    b.addEventListener('click', e => { e.preventDefault(); const info = this.info as I | null; if (info) run(info, e); });
     return b;
   }
 
-  render(info) {
+  render(info: LinkContext) {
     const c = this.ctx;
     this.dom.replaceChildren();
     this.dom.dataset.kind = info.kind;
@@ -88,15 +128,15 @@ class Bubble {
     el('span', 'wm-bubble-sep', this.dom);
     if (info.kind === 'url') {
       this.btn(this.dom, 'link', t('設定顯示文字（變成超連結）'), i => c.edit(i));
-      this.btn(this.dom, 'copy', t('複製網址'), i => c.copy(i.href));
+      this.btn(this.dom, 'copy', t('複製網址'), (i: TextLinkContext) => c.copy(i.href));
       return;
     }
     this.btn(this.dom, 'pencil', withKey('編輯連結', 'Mod+K'), i => c.edit(i));
-    this.btn(this.dom, 'copy', t('複製連結'), i => c.copy(i.kind === 'wikilink' ? i.node.attrs.target : i.href));
+    this.btn(this.dom, 'copy', t('複製連結'), (i: WikilinkContext | TextLinkContext) => c.copy(i.kind === 'wikilink' ? i.node.attrs.target : i.href));
     this.btn(this.dom, 'unlink', t('移除連結（保留文字）'), i => c.unlink(i));
   }
 
-  renderImage(info) {
+  renderImage(info: ImageContext) {
     const c = this.ctx;
     const a = info.node.attrs;
     const missing = !c.imageExists(a);
@@ -110,12 +150,12 @@ class Bubble {
       b.type = 'button';
       b.setAttribute('aria-label', w + ' px');
       if (cur && Math.abs(cur - w) <= 2) b.classList.add('is-active');
-      b.addEventListener('click', e => { e.preventDefault(); if (this.info) c.setWidth(this.info, w); });
+      b.addEventListener('click', e => { e.preventDefault(); if (this.info) c.setWidth(this.info as ImageContext, w); });
     }
     const orig = el('button', 'wm-bubble-size' + (cur ? '' : ' is-active'), this.dom, t('原始'));
     orig.type = 'button';
     orig.setAttribute('aria-label', t('原始大小'));
-    orig.addEventListener('click', e => { e.preventDefault(); if (this.info) c.setWidth(this.info, null); });
+    orig.addEventListener('click', e => { e.preventDefault(); if (this.info) c.setWidth(this.info as ImageContext, null); });
     const input = el('input', 'wm-bubble-width', this.dom);
     input.type = 'number'; input.min = '20'; input.step = '10';
     input.placeholder = 'px';
@@ -125,18 +165,18 @@ class Bubble {
       if (e.key === 'Enter') {
         e.preventDefault();
         const v = parseInt(input.value, 10);
-        if (this.info) c.setWidth(this.info, v > 0 ? v : null);
+        if (this.info) c.setWidth(this.info as ImageContext, v > 0 ? v : null);
         this.view.focus();
       } else if (e.key === 'Escape') { e.preventDefault(); this.view.focus(); }
     });
     el('span', 'wm-bubble-sep', this.dom);
-    this.btn(this.dom, 'text-cursor-input', t('替代文字（圖片說明）'), i => c.editAlt(i));
-    this.btn(this.dom, 'replace', t('更換圖片…'), (i, e) => c.replaceImage(i, e.currentTarget));
-    if (!missing) this.btn(this.dom, 'external-link', t('在新分頁開啟圖片'), i => c.openImage(i));
-    this.btn(this.dom, 'trash-2', t('刪除圖片'), i => c.removeNode(i), 'mod-warning');
+    this.btn(this.dom, 'text-cursor-input', t('替代文字（圖片說明）'), (i: ImageContext) => c.editAlt(i));
+    this.btn(this.dom, 'replace', t('更換圖片…'), (i: ImageContext, e) => c.replaceImage(i, e.currentTarget as HTMLButtonElement));
+    if (!missing) this.btn(this.dom, 'external-link', t('在新分頁開啟圖片'), (i: ImageContext) => c.openImage(i));
+    this.btn(this.dom, 'trash-2', t('刪除圖片'), (i: ImageContext) => c.removeNode(i), 'mod-warning');
   }
 }
 
-export function bubblePlugin(ctx) {
+export function bubblePlugin(ctx: BubbleContext): Plugin {
   return new Plugin({ view: view => new Bubble(view, ctx) });
 }
