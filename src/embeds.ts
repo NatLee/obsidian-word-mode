@@ -50,12 +50,12 @@ export function renderEmbed(view: WordModeView, target: string, box: HTMLElement
   const app = view.app;
   let handle: EmbedHandle | null = null;
   let dead = false;
-  const out: EmbedHandle = { unload() { dead = true; if (handle) { try { handle.unload(); } catch (e) { /* 忽略 */ } handle = null; } } };
+  const out: EmbedHandle = { unload() { dead = true; if (handle) { try { handle.unload(); } catch { /* 忽略 */ } handle = null; } } };
   box.replaceChildren();
   const note = (icon: string, text: string, cls?: string) => {
     const d = el('span', 'wm-embed-note' + (cls ? ' ' + cls : ''), box);
     setIcon(el('span', 'wm-inline-icon', d), icon);
-    d.appendChild(document.createTextNode(text));
+    d.appendChild(activeDocument.createTextNode(text));
     return d;
   };
 
@@ -92,7 +92,7 @@ export function renderEmbed(view: WordModeView, target: string, box: HTMLElement
     if (view.file && file.path === view.file.path && !subpath) { note('file-warning', t('這份筆記不能內嵌自己')); return out; }
     const head = el('span', 'wm-embed-title', box);
     setIcon(el('span', 'wm-inline-icon', head), 'file-text');
-    head.appendChild(document.createTextNode(file.basename + (subpath ? ' › ' + subpath.replace(/^#\^?/, '').split('#').join(' › ') : '')));
+    head.appendChild(activeDocument.createTextNode(file.basename + (subpath ? ' › ' + subpath.replace(/^#\^?/, '').split('#').join(' › ') : '')));
     const body = el('span', 'wm-embed-body markdown-rendered', box);
     body.textContent = t('載入中…');
     embedSource(view, file, subpath).then(md => {
@@ -101,13 +101,13 @@ export function renderEmbed(view: WordModeView, target: string, box: HTMLElement
       if (md == null) { body.textContent = t('找不到這個標題或區塊：') + subpath; body.classList.add('is-missing'); return; }
       if (!md.trim()) { body.textContent = t('（空白）'); return; }
       handle = view.renderBlock(md, body, file.path);
-    }).catch(e => { if (!dead) body.textContent = String(e && e.message ? e.message : e); });
+    }).catch((e: unknown) => { if (!dead) body.textContent = String(e && typeof e === 'object' && 'message' in e && e.message ? e.message : e); });
     return out;
   }
   // ---- PDF、Canvas、Bases 與其他：交給 Obsidian 顯示；它沒顯示出東西時，至少留一個可以開啟的檔案連結
   const body = el('span', 'wm-embed-body', box);
   handle = view.renderBlock('![[' + target + ']]', body);
-  setTimeout(() => {
+  window.setTimeout(() => {
     if (dead) return;
     const shown = body.querySelector('iframe, canvas, embed, object, img, video, audio, .pdf-embed, .canvas-embed, .bases-embed, .is-loaded');
     if (!shown && !body.textContent.trim()) note(ext === 'pdf' ? 'file-text' : 'file', file.name + t('（按住 {k} 點一下開啟）', { k: key('Mod') }));

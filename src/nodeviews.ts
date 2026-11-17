@@ -70,6 +70,22 @@ export interface FrontmatterDom extends HTMLDivElement { wmOpen?: () => void; }
 // 文件屬性的內容（YAML 解析後的物件）
 export type PropValues = Record<string, unknown>;
 
+// 各種節點的屬性（對應 schema.ts 裡各節點 attrs 的設定）。node.attrs 的值是 any，讀取時先轉成這些型別。
+// bid 是原文區塊編號，新建立的區塊是 null。
+export interface WikilinkAttrs { readonly target: string; readonly alias: string | null; readonly embed: boolean; }
+// width：寬度（像素數字的字串）；wiki：是否為 ![[圖片]] 寫法
+export interface ImageAttrs { readonly src: string; readonly alt: string | null; readonly title: string | null; readonly wiki: boolean; readonly width: string | null; }
+// kind：raw、html、math、comment、footnote 等（見 RAW_LABEL）
+export interface RawBlockAttrs { readonly src: string; readonly kind: string; readonly bid: number | null; }
+export interface RawInlineAttrs { readonly src: string; }
+export interface FrontmatterAttrs { readonly src: string; readonly bid: number | null; }
+// checked：null＝一般項目、false／true＝任務；status：自訂任務狀態的字元，一般的 x 為 null
+export interface ListItemAttrs { readonly checked: boolean | null; readonly status: string | null; }
+// params：``` 後面的語言與參數
+export interface CodeBlockAttrs { readonly params: string; readonly bid: number | null; }
+// fold：''＝不可摺疊、'+'＝預設展開、'-'＝預設收合；title 是 null 時顯示類型名稱
+export interface CalloutAttrs { readonly type: string; readonly title: string | null; readonly fold: string; readonly bid: number | null; }
+
 // 任務狀態：[核取方塊裡的字元, 名稱（翻譯前）, 圖示]
 export type TaskStatus = [ch: string, label: I18nKey, icon: string];
 
@@ -100,21 +116,21 @@ class WikilinkView implements NodeView {
     this.node = node; this.view = view; this.getPos = getPos; this.ctx = ctx;
     this.dom = el('span', 'wm-wikilink');
     this.dom.addEventListener('mousedown', e => {
-      if (isMod(e) && e.button === 0) { e.preventDefault(); e.stopPropagation(); ctx.openLink(this.node.attrs.target, e.shiftKey); }
+      if (isMod(e) && e.button === 0) { e.preventDefault(); e.stopPropagation(); ctx.openLink((this.node.attrs as WikilinkAttrs).target, e.shiftKey); }
     });
-    this.dom.addEventListener('mouseover', e => { if (ctx.hoverLink) ctx.hoverLink(e, this.node.attrs.target, this.dom); });
+    this.dom.addEventListener('mouseover', e => { if (ctx.hoverLink) ctx.hoverLink(e, (this.node.attrs as WikilinkAttrs).target, this.dom); });
     this.dom.addEventListener('contextmenu', e => {
       const pos = this.getPos();
       ctx.menu(e, [
-        { title: t('開啟連結'), icon: 'file-input', run: () => ctx.openLink(this.node.attrs.target, false) },
-        { title: t('在新分頁開啟'), icon: 'file-plus', run: () => ctx.openLink(this.node.attrs.target, true) },
+        { title: t('開啟連結'), icon: 'file-input', run: () => ctx.openLink((this.node.attrs as WikilinkAttrs).target, false) },
+        { title: t('在新分頁開啟'), icon: 'file-plus', run: () => ctx.openLink((this.node.attrs as WikilinkAttrs).target, true) },
         { title: t('編輯連結…'), icon: 'pencil', run: () => ctx.editLinkAt(pos) },
       ]);
     });
     this.render();
   }
   render(): void {
-    const a = this.node.attrs;
+    const a = this.node.attrs as WikilinkAttrs;
     this.dispose();
     this.dom.replaceChildren();
     this.dom.classList.toggle('is-embed', !!a.embed);
@@ -124,9 +140,9 @@ class WikilinkView implements NodeView {
     this.dom.classList.toggle('wm-embed', embed);
     if (embed) { this.handle = this.ctx.renderEmbed!(a.target, this.dom); return; }
     if (a.embed) { const i = el('span', 'wm-inline-icon', this.dom); this.ctx.icon(i, 'file-text', ''); }
-    this.dom.appendChild(document.createTextNode(a.alias || displayTarget(a.target)));
+    this.dom.appendChild(activeDocument.createTextNode(a.alias || displayTarget(a.target)));
   }
-  dispose(): void { if (this.handle) { try { this.handle.unload(); } catch (e) { /* 忽略 */ } this.handle = null; } }
+  dispose(): void { if (this.handle) { try { this.handle.unload(); } catch { /* 忽略 */ } this.handle = null; } }
   destroy(): void { this.dispose(); }
   update(node: PMNode): boolean {
     if (node.type !== this.node.type) return false;
@@ -143,8 +159,9 @@ class WikilinkView implements NodeView {
 }
 
 export function parseWidth(attrs: Attrs): number | null {
-  let w = attrs.width;
-  if (!w && !attrs.wiki && attrs.alt) { const m = /\|(\d+)(?:x(\d+))?$/.exec(attrs.alt); if (m) w = m[1]; }
+  const a = attrs as ImageAttrs;
+  let w = a.width;
+  if (!w && !a.wiki && a.alt) { const m = /\|(\d+)(?:x(\d+))?$/.exec(a.alt); if (m) w = m[1]; }
   if (!w) return null;
   const m = /^(\d+)/.exec(String(w));
   return m ? +m[1] : null;
@@ -152,8 +169,10 @@ export function parseWidth(attrs: Attrs): number | null {
 
 export function imageAttrsWithWidth(attrs: Attrs, w: number | null): Attrs {
   const a: MutableAttrs = Object.assign({}, attrs);
+  // 讀取用原本的屬性（型別確定）；a 只改 width 和 alt
+  const img = attrs as ImageAttrs;
   a.width = w ? String(Math.round(w)) : null;
-  if (!a.wiki && a.alt) a.alt = a.alt.replace(/\|\d+(x\d+)?$/, '') || null;
+  if (!img.wiki && img.alt) a.alt = img.alt.replace(/\|\d+(x\d+)?$/, '') || null;
   return a;
 }
 
@@ -188,7 +207,7 @@ class ImageView implements NodeView {
     this.render();
   }
   render(): void {
-    const a = this.node.attrs;
+    const a = this.node.attrs as ImageAttrs;
     // ![](…) 也可能是影片、錄音、PDF、筆記或 YouTube：顯示成內嵌的內容，不是破圖
     const kind = this.ctx.mediaKind ? this.ctx.mediaKind(a.src) : 'image';
     const embed = kind !== 'image' && kind !== 'missing' && !!this.ctx.renderEmbed;
@@ -201,14 +220,14 @@ class ImageView implements NodeView {
     const url = this.ctx.resolveImage(a);
     if (url) {
       if (this.img.getAttribute('src') !== url) this.img.src = url;
-      this.img.style.display = '';
+      this.img.show();
       this.missing.hide();
     } else {
       this.img.hide();
-      this.missing.style.display = '';
+      this.missing.show();
       this.missing.replaceChildren();
       const i = el('span', 'wm-inline-icon', this.missing); this.ctx.icon(i, 'image-off', '');
-      this.missing.appendChild(document.createTextNode(t('找不到圖片：') + a.src));
+      this.missing.appendChild(activeDocument.createTextNode(t('找不到圖片：') + a.src));
     }
     this.img.alt = (a.alt || '').replace(/\|\d+(x\d+)?$/, '');
     const w = parseWidth(a);
@@ -231,7 +250,7 @@ class ImageView implements NodeView {
     const startW = this.img.getBoundingClientRect().width || this.img.naturalWidth || 200;
     const maxW = this.ctx.pageWidth();
     const calc = (ev: PointerEvent): number => Math.min(maxW, Math.max(40, Math.round((startW + dir * (ev.clientX - startX)) / 10) * 10));
-    try { handle.setPointerCapture(e.pointerId); } catch (err) { /* 舊環境 */ }
+    try { handle.setPointerCapture(e.pointerId); } catch { /* 舊環境 */ }
     this.dom.classList.add('is-resizing');
     const move = (ev: PointerEvent): void => { const w = calc(ev); this.img.style.width = w + 'px'; this.updateBadge(w); };
     const up = (ev: PointerEvent): void => {
@@ -254,7 +273,7 @@ class ImageView implements NodeView {
   }
   selectNode(): void { this.dom.classList.add('ProseMirror-selectednode'); }
   deselectNode(): void { this.dom.classList.remove('ProseMirror-selectednode'); }
-  dispose(): void { if (this.handle) { try { this.handle.unload(); } catch (e) { /* 忽略 */ } this.handle = null; } }
+  dispose(): void { if (this.handle) { try { this.handle.unload(); } catch { /* 忽略 */ } this.handle = null; } }
   destroy(): void { this.dispose(); }
   stopEvent(e: Event): boolean {
     return (e.target && (e.target as Element).classList && (e.target as Element).classList.contains('wm-image-handle')) || e.type === 'contextmenu'
@@ -296,7 +315,7 @@ class RawBlockView implements NodeView {
     this.render();
   }
   render(): void {
-    const a = this.node.attrs;
+    const a = this.node.attrs as RawBlockAttrs;
     // RAW_LABEL 的值是載入時 t() 的結果或 'HTML'，不一定是鍵；再翻一次，找不到時 t() 原樣回傳
     this.label.textContent = t((RAW_LABEL[a.kind] || RAW_LABEL.raw) as I18nKey) + t('（按兩下編輯）');
     this.dom.dataset.kind = a.kind;
@@ -317,15 +336,16 @@ class RawBlockView implements NodeView {
     else this.ctx.renderMarkdown(a.src, this.body);
   }
   // 釋放上一次顯示用到的資源（Obsidian 的顯示元件）
-  dispose(): void { if (this.handle) { try { this.handle.unload(); } catch (e) { /* 忽略 */ } this.handle = null; } }
+  dispose(): void { if (this.handle) { try { this.handle.unload(); } catch { /* 忽略 */ } this.handle = null; } }
   destroy(): void { this.dispose(); }
   edit(): void {
-    const fn = this.node.attrs.kind === 'footnote' && FOOTNOTE_DEF.exec(this.node.attrs.src);
+    const a = this.node.attrs as RawBlockAttrs;
+    const fn = a.kind === 'footnote' && FOOTNOTE_DEF.exec(a.src);
     if (fn && this.ctx.editFootnote) { this.ctx.editFootnote(fn[1]); return; }
-    const mm = this.node.attrs.kind === 'math' && /^\s*\$\$([\s\S]*?)\$\$\s*$/.exec(this.node.attrs.src);
+    const mm = a.kind === 'math' && /^\s*\$\$([\s\S]*?)\$\$\s*$/.exec(a.src);
     if (mm && this.ctx.editMath) { this.ctx.editMath(this.getPos(), mm[1].trim(), true); return; }
     // RAW_LABEL 的值是載入時 t() 的結果或 'HTML'，不一定是鍵；再翻一次，找不到時 t() 原樣回傳
-    this.ctx.editSource(t('編輯') + t((RAW_LABEL[this.node.attrs.kind] || RAW_LABEL.raw) as I18nKey), this.node.attrs.src, value => {
+    this.ctx.editSource(t('編輯') + t((RAW_LABEL[a.kind] || RAW_LABEL.raw) as I18nKey), a.src, value => {
       const pos = this.getPos();
       if (pos == null) return;
       this.view.dispatch(this.view.state.tr.setNodeMarkup(pos, null, Object.assign({}, this.node.attrs, { src: value.replace(/\s+$/, '') })));
@@ -357,20 +377,20 @@ class RawInlineView implements NodeView {
     // 註腳：滑鼠移上去顯示內容；按住 Ctrl／Cmd 點一下跳到內容
     this.dom.addEventListener('mouseenter', () => this.footnoteTip());
     this.dom.addEventListener('mousedown', e => {
-      const m = FOOTNOTE_REF.exec(this.node.attrs.src);
+      const m = FOOTNOTE_REF.exec((this.node.attrs as RawInlineAttrs).src);
       if (m && isMod(e) && e.button === 0 && this.ctx.gotoFootnote) { e.preventDefault(); e.stopPropagation(); this.ctx.gotoFootnote(m[1]); }
     });
     this.render();
   }
   footnoteTip(): void {
-    const m = FOOTNOTE_REF.exec(this.node.attrs.src);
+    const m = FOOTNOTE_REF.exec((this.node.attrs as RawInlineAttrs).src);
     if (!m || !this.ctx.footnoteText) return;
     const text = this.ctx.footnoteText(m[1]);
     this.dom.classList.toggle('is-missing', text == null);
     this.dom.setAttribute('aria-label', text == null ? t('找不到這個註腳的內容（按兩下新增）') : t('註腳') + ' ' + m[1] + '\n' + text);
   }
   render(): void {
-    const s = this.node.attrs.src;
+    const s = (this.node.attrs as RawInlineAttrs).src;
     this.dom.replaceChildren();
     this.dom.className = 'wm-raw-inline';
     let m: RegExpExecArray | null;
@@ -397,11 +417,12 @@ class RawInlineView implements NodeView {
     }
   }
   edit(): void {
-    const m = /^\$\$([\s\S]+)\$\$$/.exec(this.node.attrs.src) || /^\$([^$][\s\S]*)\$$/.exec(this.node.attrs.src);
+    const a = this.node.attrs as RawInlineAttrs;
+    const m = /^\$\$([\s\S]+)\$\$$/.exec(a.src) || /^\$([^$][\s\S]*)\$$/.exec(a.src);
     if (m && this.ctx.editMath) { this.ctx.editMath(this.getPos(), m[1].trim(), false); return; }
-    const fn = FOOTNOTE_REF.exec(this.node.attrs.src);
+    const fn = FOOTNOTE_REF.exec(a.src);
     if (fn && this.ctx.editFootnote) { this.ctx.editFootnote(fn[1]); return; }
-    this.ctx.editSource(t('編輯原文'), this.node.attrs.src, value => {
+    this.ctx.editSource(t('編輯原文'), a.src, value => {
       const pos = this.getPos();
       if (pos == null || !value) return;
       this.view.dispatch(this.view.state.tr.setNodeMarkup(pos, null, { src: value }));
@@ -446,14 +467,14 @@ class FrontmatterView implements NodeView {
     this.dom.wmOpen = () => { this.ctx.setPropsOpen(true); this.render(); };
     this.render();
   }
-  inner(): string { return this.node.attrs.src.replace(/^---[^\n]*\r?\n/, '').replace(/\r?\n?(---|\.\.\.)\s*$/, ''); }
+  inner(): string { return (this.node.attrs as FrontmatterAttrs).src.replace(/^---[^\n]*\r?\n/, '').replace(/\r?\n?(---|\.\.\.)\s*$/, ''); }
   data(): PropValues | null {
     const tv = this.inner();
     if (!tv.trim()) return {};
     try {
       const o = this.ctx.parseYaml(tv);
       return o && typeof o === 'object' && !Array.isArray(o) ? o as PropValues : null;
-    } catch (e) { return null; }
+    } catch { return null; }
   }
   commit(obj: PropValues): void {
     const pos = this.getPos();
@@ -471,7 +492,7 @@ class FrontmatterView implements NodeView {
     if (had && this.ctx.notice) this.ctx.notice(t('已移除文件屬性，{k} 可以復原', { k: key('Mod+Z') }));
   }
   editRaw(): void {
-    this.ctx.editSource(t('編輯文件屬性（YAML 原文）'), this.node.attrs.src, value => {
+    this.ctx.editSource(t('編輯文件屬性（YAML 原文）'), (this.node.attrs as FrontmatterAttrs).src, value => {
       const pos = this.getPos();
       if (pos == null) return;
       let v = value.replace(/\s+$/, '');
@@ -541,7 +562,9 @@ class FrontmatterView implements NodeView {
     } else {
       const inp = el('input', 'wm-prop-input', v);
       inp.type = type === 'number' ? 'number' : type === 'date' ? 'date' : type === 'datetime' ? 'datetime-local' : 'text';
-      inp.value = value == null ? '' : String(value).slice(0, type === 'datetime' ? 16 : undefined);
+      // 文字、數字、日期欄位的值是 YAML 的純量（文字、數字或布林）
+      const scalar = value as string | number | boolean | null | undefined;
+      inp.value = scalar == null ? '' : String(scalar).slice(0, type === 'datetime' ? 16 : undefined);
       inp.placeholder = t('（空白）');
       const save = () => {
         let nv: string | number | null = inp.value;
@@ -599,7 +622,7 @@ class ListItemView implements NodeView {
   declare contentDOM: HTMLDivElement;
   constructor(node: PMNode, view: EditorView, getPos: GetPos, ctx?: NodeViewContext) {
     this.node = node; this.view = view; this.getPos = getPos;
-    this.dom = document.createElement('li');
+    this.dom = createEl('li');
     if (node.attrs.checked != null) {
       this.dom.className = 'wm-task';
       this.cb = el('input', 'task-list-item-checkbox', this.dom);
@@ -632,7 +655,7 @@ class ListItemView implements NodeView {
   }
   sync(): void {
     if (!this.cb) return;
-    const a = this.node.attrs;
+    const a = this.node.attrs as ListItemAttrs;
     this.cb.checked = !!a.checked;
     this.dom.classList.toggle('is-checked', !!a.checked);
     // data-task 與 Obsidian 相同，佈景主題的自訂核取方塊樣式才會套用
@@ -690,12 +713,12 @@ class CodeBlockView implements NodeView {
     this.srcBtn = btn('wm-code-src', t('顯示／隱藏原始碼'), 'code-2', t('原始碼'), () => this.toggleSource());
     this.copy = btn('wm-code-copy', t('複製程式碼'), 'copy', t('複製'), () => {
       const text = this.node.textContent;
-      if (navigator.clipboard) void navigator.clipboard.writeText(text).then(() => { this.copy.classList.add('is-done'); setTimeout(() => this.copy.classList.remove('is-done'), 900); });
+      if (navigator.clipboard) void navigator.clipboard.writeText(text).then(() => { this.copy.classList.add('is-done'); window.setTimeout(() => this.copy.classList.remove('is-done'), 900); });
     });
     this.sel.addEventListener('change', () => {
       if (this.sel.value === '__other') {
         this.syncSelect();
-        if (this.ctx.prompt) this.ctx.prompt(t('程式語言'), this.node.attrs.params || '', 'python, sql, json…', v => this.setLang(v.trim()));
+        if (this.ctx.prompt) this.ctx.prompt(t('程式語言'), (this.node.attrs as CodeBlockAttrs).params || '', 'python, sql, json…', v => this.setLang(v.trim()));
         return;
       }
       this.setLang(this.sel.value);
@@ -718,7 +741,7 @@ class CodeBlockView implements NodeView {
     this.syncSelect();
     this.syncPreview(true);
   }
-  lang(): string { return (this.node.attrs.params || '').trim().split(/\s+/)[0].toLowerCase(); }
+  lang(): string { return ((this.node.attrs as CodeBlockAttrs).params || '').trim().split(/\s+/)[0].toLowerCase(); }
   setLang(lang: string): void {
     const pos = this.getPos();
     if (pos == null) return;
@@ -738,7 +761,7 @@ class CodeBlockView implements NodeView {
     this.view.focus();
   }
   syncSelect(): void {
-    const cur = (this.node.attrs.params || '').trim();
+    const cur = ((this.node.attrs as CodeBlockAttrs).params || '').trim();
     this.sel.replaceChildren();
     const list = CODE_LANGUAGES.slice();
     if (cur && !list.some(([v]) => v === cur)) list.push([cur, cur]);
@@ -749,12 +772,12 @@ class CodeBlockView implements NodeView {
     this.pre.dataset && (this.pre.dataset.lang = cur);
   }
   dispose(): void {
-    clearTimeout(this.timer);
-    if (this.handle) { try { this.handle.unload(); } catch (e) { /* 忽略 */ } this.handle = null; }
+    window.clearTimeout(this.timer);
+    if (this.handle) { try { this.handle.unload(); } catch { /* 忽略 */ } this.handle = null; }
   }
   // 顯示結果：內容或語言變了才重畫（打字時延後一下，不要每個字都重畫）
   syncPreview(now: boolean): void {
-    const on = !!(this.ctx.canPreview && this.ctx.canPreview(this.node.attrs.params));
+    const on = !!(this.ctx.canPreview && this.ctx.canPreview((this.node.attrs as CodeBlockAttrs).params));
     const text = this.node.textContent;
     this.dom.classList.toggle('has-preview', on);
     this.dom.classList.toggle('is-empty', !text.trim());
@@ -763,7 +786,7 @@ class CodeBlockView implements NodeView {
     if (!on) { this.dispose(); this.preview.replaceChildren(); this.rendered = null; return; }
     const key = this.node.attrs.params + '\n' + text;
     if (key === this.rendered) return;
-    clearTimeout(this.timer);
+    window.clearTimeout(this.timer);
     const run = () => {
       this.dispose();
       this.rendered = key;
@@ -773,7 +796,7 @@ class CodeBlockView implements NodeView {
       const fence = ticks ? ticks.sort().slice(-1)[0] + '`' : '```';
       this.handle = this.ctx.renderBlock!(fence + this.node.attrs.params + '\n' + text + '\n' + fence, this.preview);
     };
-    if (now) run(); else this.timer = setTimeout(run, 400);
+    if (now) run(); else this.timer = window.setTimeout(run, 400);
   }
   update(node: PMNode): boolean {
     if (node.type !== this.node.type) return false;
@@ -832,7 +855,7 @@ class CalloutView implements NodeView {
     });
     this.titleEl.addEventListener('mousedown', e => {
       e.preventDefault(); e.stopPropagation();
-      ctx.prompt(t('提示框標題'), this.node.attrs.title || '', t('留白則顯示類型名稱'), v => this.set({ title: v.trim() || null }));
+      ctx.prompt(t('提示框標題'), (this.node.attrs as CalloutAttrs).title || '', t('留白則顯示類型名稱'), v => this.set({ title: v.trim() || null }));
     });
     this.render();
   }
@@ -843,32 +866,32 @@ class CalloutView implements NodeView {
     this.view.focus();
   }
   render(): void {
-    const a = this.node.attrs;
+    const a = this.node.attrs as CalloutAttrs;
     this.dom.setAttribute('data-callout', a.type);
     this.dom.setAttribute('data-callout-fold', a.fold || '');
     this.syncIcon();
     this.syncFold();
     // 自訂類型的圖示寫在 CSS（--callout-icon），要等節點放進畫面後才讀得到
-    if (!this.iconTimer) this.iconTimer = setTimeout(() => { this.iconTimer = null; this.syncIcon(); }, 0);
+    if (!this.iconTimer) this.iconTimer = window.setTimeout(() => { this.iconTimer = null; this.syncIcon(); }, 0);
     const tv = a.type.charAt(0).toUpperCase() + a.type.slice(1);
-    this.titleEl.textContent = a.title ? a.title.replace(/(\*\*|__|==|`)/g, '').replace(/\\([\\`*_{}\[\]()#+\-.!|<>=$%~])/g, '$1') : tv;
+    this.titleEl.textContent = a.title ? a.title.replace(/(\*\*|__|==|`)/g, '').replace(/\\([\\`*_{}[\]()#+\-.!|<>=$%~])/g, '$1') : tv;
     this.titleEl.classList.toggle('is-default', !a.title);
   }
   // 圖示：Obsidian、佈景主題或 CSS 片段用 --callout-icon 指定的優先（自訂的提示框類型才會有對的圖示）
   syncIcon(): void {
     let name = '';
-    try { name = getComputedStyle(this.dom).getPropertyValue('--callout-icon').trim().replace(/^["']|["']$/g, ''); } catch (e) { name = ''; }
+    try { name = getComputedStyle(this.dom).getPropertyValue('--callout-icon').trim().replace(/^["']|["']$/g, ''); } catch { name = ''; }
     this.icon.replaceChildren();
-    this.ctx.icon(this.icon, name && name !== 'none' && !name.startsWith('<') ? name : calloutIcon(this.node.attrs.type), '');
+    this.ctx.icon(this.icon, name && name !== 'none' && !name.startsWith('<') ? name : calloutIcon((this.node.attrs as CalloutAttrs).type), '');
   }
   syncFold(): void {
-    const fold = this.node.attrs.fold || '';
+    const fold = (this.node.attrs as CalloutAttrs).fold || '';
     this.foldEl.hidden = !fold;
     this.dom.classList.toggle('is-collapsed', !!fold && this.collapsed);
     this.foldEl.replaceChildren();
     if (fold) this.ctx.icon(this.foldEl, this.collapsed ? 'chevron-right' : 'chevron-down', this.collapsed ? '▸' : '▾');
   }
-  destroy(): void { clearTimeout(this.iconTimer!); }
+  destroy(): void { window.clearTimeout(this.iconTimer!); }
   update(node: PMNode): boolean {
     if (node.type !== this.node.type) return false;
     const changed = JSON.stringify(node.attrs) !== JSON.stringify(this.node.attrs);

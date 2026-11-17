@@ -19,6 +19,14 @@ import type { EquationEditMode } from './dialogs.js';
 import type { MermaidTab } from './mermaid.js';
 import type { CommandManager } from './obsidian-internal.js';
 
+// 1.5.7 的型別定義裡 Plugin 沒有宣告 onload（繼承 Component 的 onload(): void），
+// 但 Obsidian 載入外掛時會等待 onload 回傳的 Promise；1.7.2 起官方型別也宣告成 Promise<void> | void，這裡照新版補上
+declare module 'obsidian' {
+  interface Plugin {
+    onload(): Promise<void> | void;
+  }
+}
+
 // 介面語言設定：auto＝跟隨 Obsidian 的語言
 export type LanguageSetting = 'auto' | Language;
 // 工具列位置：auto＝手機放下方、平板與電腦放上方
@@ -173,7 +181,8 @@ export default class WordModePlugin extends Plugin {
   declare restoreSetViewState?: () => void;
 
   async onload(): Promise<void> {
-    this.settings = Object.assign({}, DEFAULTS, await this.loadData());
+    // data.json 不存在時 loadData() 回傳 null
+    this.settings = Object.assign({}, DEFAULTS, await this.loadData() as Partial<Settings> | null);
     if (this.settings.ribbonLabels === false && !this.settings.buttonStyleSet) this.settings.buttonStyle = 'icon';
     delete this.settings.ribbonLabels;
     if (this.settings.outlineSidebar === false) this.settings.outlinePlace = 'popup';
@@ -415,15 +424,15 @@ export default class WordModePlugin extends Plugin {
       const pct = Math.max(12, Math.min(35, 260 / (total || 1200) * 100));
       if (mine.setDimension) mine.setDimension(pct);
       if (other !== mine && other.setDimension) other.setDimension(100 - pct);
-    } catch (e) { /* 用預設寬度 */ }
+    } catch { /* 用預設寬度 */ }
   }
 
 
 
   outlineChanged(view: WordModeView | MarkdownView, docChanged: boolean): void {
     if (!this.outlineOpen()) return;
-    clearTimeout(this.outlineTimer);
-    this.outlineTimer = setTimeout(() => {
+    window.clearTimeout(this.outlineTimer);
+    this.outlineTimer = window.setTimeout(() => {
       for (const l of this.app.workspace.getLeavesOfType(OUTLINE_TYPE)) {
         const ov = l.view;
         if (!(ov instanceof OutlineView)) continue;
@@ -472,7 +481,7 @@ export default class WordModePlugin extends Plugin {
     const reopen = this.app.setting && this.app.setting.activeTab && this.app.setting.activeTab.id === id;
     await plugins.disablePlugin(id);
     await plugins.enablePlugin(id);
-    if (reopen) setTimeout(() => { try { this.app.setting!.openTabById(id); } catch (e) { /* 忽略 */ } }, 100);
+    if (reopen) window.setTimeout(() => { try { this.app.setting!.openTabById(id); } catch { /* 忽略 */ } }, 100);
   }
 
   async setZoom(z: number): Promise<void> {
@@ -488,7 +497,7 @@ export default class WordModePlugin extends Plugin {
     if (view && view !== active) return;
     if (Platform.isMobile) { el.hide(); this.barView = null; return; }
     if (active && active.pm) {
-      el.style.display = '';
+      el.show();
       if (this.barView !== active || !el.childElementCount) {
         el.empty();
         active.buildBottomBar(el, true);
@@ -502,7 +511,7 @@ export default class WordModePlugin extends Plugin {
     if (!md || !md.file || !/\.md$/i.test(md.file.path)) { el.hide(); this.barView = null; this.mdStatusKey = null; return; }
     const mode = md.getMode && md.getMode() === 'preview' ? 'preview' : 'source';
     const stamp = md.file.path + '|' + mode;
-    el.style.display = '';
+    el.show();
     if (this.barView === md && this.mdStatusKey === stamp && el.childElementCount) return;
     el.empty();
     this.barView = md;
@@ -514,14 +523,14 @@ export default class WordModePlugin extends Plugin {
       setIcon(b, icon);
       b.addEventListener('click', run);
     };
-    btn('file-text', this.settings.ctrlE !== false ? withKey('Word 模式', 'Mod+E') : t('Word 模式'), false, () => this.switchToWord(md.leaf));
-    btn('code-2', t('Markdown 編輯') + (mode === 'source' ? t('（目前）') : ''), mode === 'source', () => this.setMarkdownMode(md, 'source'));
-    btn('book-open', t('閱讀模式') + (mode === 'preview' ? t('（目前）') : ''), mode === 'preview', () => this.setMarkdownMode(md, 'preview'));
+    btn('file-text', this.settings.ctrlE !== false ? withKey('Word 模式', 'Mod+E') : t('Word 模式'), false, () => { void this.switchToWord(md.leaf); });
+    btn('code-2', t('Markdown 編輯') + (mode === 'source' ? t('（目前）') : ''), mode === 'source', () => { void this.setMarkdownMode(md, 'source'); });
+    btn('book-open', t('閱讀模式') + (mode === 'preview' ? t('（目前）') : ''), mode === 'preview', () => { void this.setMarkdownMode(md, 'preview'); });
   }
 
   // 切換 Obsidian 的 Markdown 編輯／閱讀模式
   async setMarkdownMode(view: MarkdownView, mode: MarkdownViewModeType): Promise<void> {
-    const st: Record<string, unknown> = view.getState();
+    const st = view.getState() as Record<string, unknown>;
     st.mode = mode;
     if (mode === 'source') st.source = false;
     await view.setState(st, { history: false });
@@ -557,8 +566,10 @@ export default class WordModePlugin extends Plugin {
     const orig = proto.setViewState;
     const patched = function (this: WorkspaceLeaf, state: ViewState, eState?: unknown): Promise<void> {
       try {
-        if (!plugin.unloaded && plugin.settings.openByDefault && state && state.type === 'markdown' && state.state && typeof state.state.file === 'string') {
-          const file: string = state.state.file;
+        // ViewState.state 的型別是 any；這裡只讀 file
+        const viewState = state && (state.state as { file?: unknown } | null | undefined);
+        if (!plugin.unloaded && plugin.settings.openByDefault && state && state.type === 'markdown' && viewState && typeof viewState.file === 'string') {
+          const file: string = viewState.file;
           const forced = plugin.forceMarkdown.get(this);
           if (forced !== file && plugin.eligible(file)) {
             plugin.forceMarkdown.delete(this);
@@ -582,7 +593,7 @@ export default class WordModePlugin extends Plugin {
     this.forceMarkdown.set(leaf, path);
     const state = mode === 'preview' ? { file: path, mode: 'preview' } : { file: path, mode: 'source', source: false };
     await leaf.setViewState({ type: 'markdown', state, active: true });
-    setTimeout(() => { const nv: LeafView = leaf.view; if (nv && nv.editor && mode !== 'preview') nv.editor.focus(); }, 50);
+    window.setTimeout(() => { const nv: LeafView = leaf.view; if (nv && nv.editor && mode !== 'preview') nv.editor.focus(); }, 50);
   }
 
   async switchToWord(leaf: WorkspaceLeaf): Promise<void> {
@@ -592,209 +603,301 @@ export default class WordModePlugin extends Plugin {
     await v.save();
     this.forceMarkdown.delete(leaf);
     await leaf.setViewState({ type: VIEW_TYPE, state: { file: path }, active: true });
-    setTimeout(() => { const nv: LeafView = leaf.view; if (nv && nv.pm) nv.pm.focus(); }, 50);
+    window.setTimeout(() => { const nv: LeafView = leaf.view; if (nv && nv.pm) nv.pm.focus(); }, 50);
   }
+}
+
+// ---- 設定頁
+// 設定頁的內容只在 settingSections() 描述一次。Obsidian 1.13 以前由 display() 依序畫出來；
+// 1.13 起 Obsidian 改用 getSettingDefinitions() 回傳的定義畫設定頁（有定義時不再呼叫 display()），設定搜尋也用這份定義。
+// 兩條路徑的名稱、說明與控制項（含 onChange）都來自同一份資料
+
+// 設定頁的一列；name、desc 是已翻譯的文字
+//   setting：一般的設定列。build 在 Obsidian 的 Setting 上加控制項（開關、下拉選單、滑桿、文字框、按鈕）；
+//            名稱與說明由畫設定頁的一方設定，build 不再設定。build 的回傳值不使用
+//   grid：自訂的勾選區塊（顯示的分頁與按鈕群組、右鍵選單要顯示的項目）。fill 在格線容器裡放勾選框；
+//         cls 是 display() 畫的區塊外框的 CSS class
+//   note：一段說明文字，不是設定；cls 是 display() 畫的段落另外加的 CSS class
+type SettingRow =
+  | { kind: 'setting'; name: string; desc: string; build: (setting: Setting) => unknown }
+  | { kind: 'grid'; name: string; desc?: string; cls: string; fill: (grid: HTMLElement) => void }
+  | { kind: 'note'; desc: string; cls?: string };
+
+// 設定頁的一段：heading 是標題（最上面的一般設定沒有標題），icon 是 display() 畫在標題前的圖示
+interface SettingSection {
+  heading?: I18nKey;
+  icon?: string;
+  rows: SettingRow[];
+}
+
+// Obsidian 1.13 起 getSettingDefinitions() 回傳的設定定義。外掛支援 Obsidian 1.5.7 起的版本，
+// obsidian 套件的型別刻意固定在 1.5.7，裡面沒有這些型別，所以只在這裡宣告用到的欄位；
+// 欄位與 1.13 型別定義裡的 SettingDefinitionRender（name、desc、searchable、render）及 SettingDefinitionGroup（type、heading、items）相同
+interface SettingDefinitionRender {
+  name: string;
+  desc?: string;
+  // false：不列入設定搜尋
+  searchable?: boolean;
+  // Obsidian 建立這一列的 Setting、設好名稱與說明後呼叫，在 setting 上加控制項。
+  // 回傳的函式會在這一列重畫或移除前呼叫；Obsidian 會把任何有值的回傳值當成這個函式，所以不要回傳別的東西
+  render: (setting: Setting) => void | (() => void);
+}
+interface SettingDefinitionGroup {
+  type: 'group';
+  heading?: string;
+  items: SettingDefinitionRender[];
+}
+
+// 設定頁的內容。每次畫設定頁或取得定義時重新建立，讀的是當時的 plugin.settings
+function settingSections(settingTab: WordModeSettings): SettingSection[] {
+  const p = settingTab.plugin;
+  const S = p.settings;
+  const save = async () => { p.applyOptions(); await p.saveSettings(); };
+  const toggle = (setting: Setting, k: ToggleKey, after?: (v: boolean) => unknown) => setting.addToggle(tg => tg.setValue(!!(S[k] == null ? DEFAULTS[k] : S[k])).onChange(async v => { S[k] = v; await save(); if (after) after(v); }));
+  const rebuild = async () => { await save(); p.refreshToolbars(); };
+  const row = (name: string, desc: string, build: (setting: Setting) => unknown): SettingRow => ({ kind: 'setting', name, desc, build });
+  const toggleRow = (name: string, desc: string, k: ToggleKey, after?: (v: boolean) => unknown): SettingRow => row(name, desc, s => toggle(s, k, after));
+
+  return [
+    // ------------------------------------------------ 一般（放在最上面，不加標題）
+    { rows: [
+      row(t('介面語言'), t('Word 模式的按鈕、選單與提示文字使用的語言。「自動」會跟著 Obsidian 的語言。'),
+        s => s.addDropdown(d => d.addOptions({ auto: t('自動（跟隨 Obsidian）'), 'zh-TW': '繁體中文', en: 'English', ja: '日本語', ko: '한국어' })
+          .setValue(S.language || 'auto').onChange(v => p.changeLanguage(v as LanguageSetting)))),
+      toggleRow(t('預設用 Word 模式開啟筆記'), t('開啟 .md 筆記時自動使用 Word 模式。可隨時用右上角按鈕切回 Markdown。'), 'openByDefault'),
+      row(t('不使用 Word 模式的資料夾'), t('每行一個資料夾（例如模板資料夾），裡面的筆記一律用 Markdown 開啟。'),
+        s => s.addTextArea(ta => ta.setValue(S.excludeFolders).onChange(async v => { S.excludeFolders = v; await save(); }))),
+    ] },
+
+    // ------------------------------------------------ 編輯
+    { heading: '編輯', icon: 'pencil', rows: [
+      toggleRow(withKey('切換 Word 模式與 Markdown', 'Mod+E'),
+        t('開啟時，在 Markdown 畫面按 {k} 會回到 Word 模式（取代 Obsidian 原本的「切換閱讀／編輯」）。閱讀模式可用下方狀態列的按鈕開啟。', { k: key('Mod+E') }), 'ctrlE'),
+      toggleRow(t('沒有選取文字時，格式套用到游標所在的詞'),
+        t('像 Word 一樣：游標在詞中間按粗體，整個詞會變粗體。關閉後只影響接下來輸入的文字。'), 'wordAtCursor'),
+      toggleRow(t('輸入時自動套用格式'),
+        t('段落開頭打「- 」「1. 」「# 」「> 」「[ ] 」會變成清單、編號、標題、引文、核取清單；打完 **粗體**、*斜體*、`程式碼`、[[筆記]] 也會直接變成格式。套用格式是獨立的一步：按一次 {k}（或緊接著按 Backspace）只取消格式，打的字還在。', { k: key('Mod+Z') }), 'autoFormat'),
+      toggleRow(t('輸入 [[ 與 # 時顯示選單'),
+        t('打 [[ 會列出筆記（[[筆記# 列出標題），打 # 會列出用過的標籤，用方向鍵與 Enter 選擇。'), 'autoComplete'),
+      toggleRow(t('貼上 Markdown 文字時顯示「轉成格式」選項'),
+        t('從 ChatGPT 等地方複製的 Markdown 純文字，貼上後可一鍵轉成粗體、標題、清單等格式。'), 'pasteChip'),
+      toggleRow(t('切換模式時保留復原紀錄'),
+        t('切到 Markdown 編輯再切回來，仍可用 {k} 復原之前的修改（最多保留 30 份筆記、6 小時）。', { k: key('Mod+Z') }), 'keepHistory'),
+    ] },
+
+    // ------------------------------------------------ 顯示
+    { heading: '顯示', icon: 'monitor', rows: [
+      toggleRow(t('全寬頁面'), t('關閉時以 A4 紙張寬度顯示，開啟時使用整個視窗寬度。'), 'fullWidth', v => p.setFullWidth(v)),
+      row(t('頁面縮放'), t('也可以用 {k}+滑鼠滾輪，或右下角的縮放列調整。', { k: key('Mod') }),
+        s => s.addSlider(sl => sl.setLimits(50, 200, 10).setValue(S.zoom || 100).setDynamicTooltip().onChange(v => p.setZoom(v)))),
+      toggleRow(t('開啟筆記時顯示編輯標記（¶）'),
+        t('顯示空白（·）、全形空白（□）、Tab（→）、換行（↵）與段落結尾（¶）。也可以用工具列的 ¶ 按鈕隨時切換。'), 'showMarks'),
+      toggleRow(t('顯示圖表與查詢的結果'),
+        t('Mermaid 圖表、Dataview 查詢與其他外掛的程式碼區塊顯示成結果（像 Obsidian 的閱讀畫面）。游標進到區塊裡，或按區塊上方的「原始碼」按鈕，才顯示程式碼。關閉後一律顯示程式碼。'), 'codePreview', () => p.refreshViews()),
+      toggleRow(t('一直標示奇怪符號'),
+        t('即使沒開編輯標記，也用紅色波浪底線標出看不見的字元、亂碼、殘留的 ** == [[ 與落單的引號。可到「校閱 → 清理符號」一次清除。'), 'highlightWeird', () => p.refreshViews()),
+    ] },
+
+    // ------------------------------------------------ 工具列
+    { heading: '工具列', icon: 'layout-panel-top', rows: [
+      row(t('版面'), t('「分頁」像 Word（常用／插入／校閱／檢視）；「一行」把所有按鈕排成一行，可左右捲動；「自動換行」把所有按鈕都顯示出來，放不下就換行。'),
+        s => s.addDropdown(d => d.addOptions({ tabs: t('分頁（像 Word）'), single: t('全部排成一行'), wrap: t('全部顯示（自動換行）') })
+          .setValue(S.ribbonLayout || 'tabs').onChange(async v => { S.ribbonLayout = v as RibbonLayout; await rebuild(); }))),
+      row(t('按鈕樣式'), t('「自動」：常用功能只顯示圖示，插入、校閱、檢視的按鈕下方有名稱。「只顯示圖示」最精簡；「圖示加文字」每個按鈕都有名稱。'),
+        s => s.addDropdown(d => d.addOptions({ auto: t('自動'), icon: t('只顯示圖示'), label: t('圖示加文字') })
+          .setValue(S.buttonStyle || 'auto').onChange(async v => { S.buttonStyle = v as ButtonStyle; S.buttonStyleSet = true; await rebuild(); }))),
+      toggleRow(t('顯示群組名稱'), t('在每組按鈕下方顯示「剪貼簿」「字型」「段落」等名稱（像 Word）。'), 'groupLabels', () => p.refreshToolbars()),
+      row(t('工具列位置'), t('「自動」在手機上放在畫面下方（靠近鍵盤，單手好按），平板與電腦放在上方。'),
+        s => s.addDropdown(d => d.addOptions({ auto: t('自動'), top: t('上方'), bottom: t('下方') })
+          .setValue(S.toolbarPosition || 'auto').onChange(async v => { S.toolbarPosition = v as ToolbarPosition; await rebuild(); }))),
+      toggleRow(t('切換到 Markdown／閱讀模式時保留工具列'),
+        t('在 Obsidian 的 Markdown 編輯與閱讀畫面上方也顯示工具列（粗體、標題、清單、連結、尋找、大綱等）。閱讀模式只能檢視，編輯按鈕會停用。'), 'mdToolbar', () => p.refreshToolbars()),
+      toggleRow(t('切換到 Markdown／閱讀模式時，狀態列保留檢視切換按鈕'),
+        t('在 Obsidian 右下角的狀態列顯示 Word 模式、Markdown、閱讀三個按鈕（只有圖示），位置與 Word 模式時相同，方便切換回來。'), 'mdStatusBar', () => p.updateStatus(null)),
+      row(t('大綱的位置'), t('「另開一欄」在筆記左邊再展開一個大綱欄（像第二個側邊欄，不會蓋掉檔案總管）；也可以放進 Obsidian 的左或右側邊欄，或用小型下拉選單。'),
+        s => s.addDropdown(d => d.addOptions({ split: t('在筆記旁另開一欄（建議）'), left: t('左側邊欄（與檔案總管同一區）'), right: t('右側邊欄'), popup: t('下拉選單') })
+          .setValue(S.outlinePlace || 'split').onChange(async v => {
+            S.outlinePlace = v as OutlinePlace; await save();
+            if (p.outlineOpen()) { await p.toggleOutline(); if (v !== 'popup') await p.toggleOutline(); }
+          }))),
+      toggleRow(t('詳細提示（含動畫示意）'),
+        t('滑鼠停在按鈕上時，顯示功能說明、快速鍵，以及一段動畫示範這個按鈕會做什麼。適合剛開始使用的人。'), 'richHints', () => p.refreshToolbars()),
+      // 要顯示的分頁與群組
+      { kind: 'grid', name: t('顯示的分頁與按鈕群組'), desc: t('取消勾選可以隱藏不常用的功能。隱藏整個分頁時，該分頁的按鈕都不會出現。'), cls: 'wm-settings-groups', fill: cols => {
+        for (const [tab, tabLabel] of TABS) {
+          const col = cols.createDiv('wm-settings-groups-col');
+          const tl = col.createEl('label', { cls: 'wm-settings-tab' });
+          const tcb = tl.createEl('input', { type: 'checkbox' });
+          tcb.checked = !(S.hiddenTabs || []).includes(tab);
+          tl.createSpan({ text: t(tabLabel) });
+          const inner: HTMLInputElement[] = [];
+          for (const [gid, gtab, gLabel] of GROUPS) {
+            if (gtab !== tab) continue;
+            const gl = col.createEl('label', { cls: 'wm-settings-group' });
+            const gcb = gl.createEl('input', { type: 'checkbox' });
+            gcb.checked = !(S.hiddenGroups || []).includes(gid);
+            gcb.disabled = !tcb.checked;
+            gl.createSpan({ text: t(gLabel) });
+            inner.push(gcb);
+            gcb.addEventListener('change', () => {
+              const set = new Set(S.hiddenGroups || []);
+              if (gcb.checked) set.delete(gid); else set.add(gid);
+              S.hiddenGroups = [...set];
+              void rebuild();
+            });
+          }
+          tcb.addEventListener('change', () => {
+            const set = new Set(S.hiddenTabs || []);
+            if (tcb.checked) set.delete(tab); else set.add(tab);
+            S.hiddenTabs = [...set];
+            for (const x of inner) x.disabled = !tcb.checked;
+            void rebuild();
+          });
+        }
+      } },
+    ] },
+
+    // ------------------------------------------------ 右鍵選單與方程式
+    { heading: '右鍵選單、方程式與圖表', icon: 'mouse-pointer-click', rows: [
+      toggleRow(t('使用 Word 模式的右鍵選單'),
+        t('在編輯區按右鍵時，顯示依游標位置變化的選單（連結、方程式、表格、程式碼…），以及下面勾選的功能。關閉時使用 Obsidian／系統原本的選單。手機上長按仍是選取文字。'), 'ctxMenu'),
+      { kind: 'grid', name: t('右鍵選單要顯示的項目'), cls: 'wm-settings-groups wm-settings-ctx', fill: ctxGrid => {
+        for (const [id, label, desc] of [
+          ['table', '表格', '插入／刪除列欄、整欄對齊、排序'],
+          ['clipboard', '剪貼簿', '剪下、複製、貼上、只貼上文字、全選'],
+          ['format', '格式', '有選取文字時：粗體、斜體、底線、醒目提示、清除格式'],
+          ['paragraph', '段落', '項目符號、編號、增加／減少縮排'],
+          ['insert', '插入', '超連結、連結到筆記、方程式、註解'],
+          ['tools', '工具', '複製為 Markdown、在筆記或保管庫中搜尋、字數統計、編輯標記'],
+        ] as const) {
+          const l = ctxGrid.createEl('label', { cls: 'wm-settings-ctx-item' });
+          const cb = l.createEl('input', { type: 'checkbox' });
+          cb.checked = !(S.hiddenCtx || []).includes(id);
+          const tx = l.createDiv();
+          tx.createDiv({ cls: 'wm-settings-tab', text: t(label) });
+          tx.createDiv({ cls: 'setting-item-description', text: t(desc) });
+          cb.addEventListener('change', () => {
+            const set = new Set(S.hiddenCtx || []);
+            if (cb.checked) set.delete(id); else set.add(id);
+            S.hiddenCtx = [...set];
+            void save();
+          });
+        }
+      } },
+      row(t('方程式編輯器預設的編輯方式'), t('「視覺化」把分數、根號、上下標顯示成一格一格，可以直接點進去輸入；「LaTeX」直接編輯原始碼。在編輯器裡隨時可以切換。'),
+        s => s.addDropdown(d => d.addOptions({ visual: t('視覺化'), latex: 'LaTeX' })
+          .setValue(S.mathMode === 'latex' ? 'latex' : 'visual').onChange(async v => { S.mathMode = v as EquationEditMode; await save(); }))),
+      row(t('圖表編輯器預設的編輯方式'), t('「表單」用步驟與連線的清單編輯流程圖；其他種類的圖表，或用了表單不支援的寫法時，會自動改用程式碼。'),
+        s => s.addDropdown(d => d.addOptions({ visual: t('表單（流程圖）'), code: t('程式碼') })
+          .setValue(S.mermaidMode === 'code' ? 'code' : 'visual').onChange(async v => { S.mermaidMode = v as MermaidTab; await save(); }))),
+      toggleRow(t('新方程式預設為獨立一行'),
+        t('關閉時新插入的方程式放在文字中（$…$），開啟時獨立一行置中（$$…$$）。在方程式編輯器裡都可以切換。'), 'mathDisplay'),
+      row(t('清除最近使用的方程式'), t('方程式編輯器會記住最近 12 個方程式，方便重複使用。'),
+        s => s.addButton(b => b.setButtonText(t('清除')).onClick(async () => { S.recentMath = []; await save(); new Notice(t('已清除')); }))),
+    ] },
+
+    // ------------------------------------------------ 同步與檔案
+    { heading: '同步與檔案', icon: 'refresh-cw', rows: [
+      row(t('同步衝突的處理方式'), t('筆記在這裡有未存檔的修改時，又被 Synology Drive 或其他裝置改過。'),
+        s => s.addDropdown(d => d.addOptions({ ask: t('每次詢問（建議）'), both: t('自動兩份都保留（另存我的版本）') })
+          .setValue(S.conflict || 'ask').onChange(async v => { S.conflict = v as ConflictMode; await save(); }))),
+      row(t('檔案大小上限（MB）'), t('超過這個大小的筆記一律用 Markdown 開啟，避免太大的檔案讓編輯變慢。'),
+        s => s.addText(tx => { tx.inputEl.type = 'number'; tx.setValue(String(S.maxSizeMB || 2)).onChange(async v => { const n = parseFloat(v); if (n > 0) { S.maxSizeMB = n; await save(); } }); })),
+      { kind: 'note', desc: t('在 frontmatter 加上「word-mode: false」可讓單一筆記不使用 Word 模式。') },
+    ] },
+
+    // ------------------------------------------------ 進階
+    { heading: '進階', icon: 'wrench', rows: [
+      row(t('快速鍵說明'), t('查看 Word 模式所有的快速鍵。'),
+        s => s.addButton(b => b.setButtonText(t('開啟')).onClick(() => {
+          const v = p.views()[0];
+          if (v) v.toolbar.ctx.dialogs.shortcuts(); else new Notice(t('請先用 Word 模式開啟一份筆記'));
+        }))),
+      row(t('還原預設設定'), t('把以上所有設定改回預設值（不會修改任何筆記）。'),
+        s => s.addButton(b => b.setButtonText(t('還原')).setWarning().onClick(async () => {
+          const lang = S.language;
+          p.settings = Object.assign({}, DEFAULTS, { language: lang });
+          await save();
+          p.refreshToolbars();
+          await p.refreshViews();
+          refreshSettingTab(settingTab);
+        }))),
+      { kind: 'note', desc: 'Word 模式 v' + p.manifest.version + ' · ' + getLanguage(), cls: 'wm-settings-version' },
+    ] },
+  ];
+}
+
+// 把設定頁的一列換成 Obsidian 1.13 的設定定義。Obsidian 會先建立這一列的 Setting、設好名稱與說明，再呼叫 render
+function settingDefinition(row: SettingRow): SettingDefinitionRender {
+  switch (row.kind) {
+    case 'setting':
+      // 大括號不能省：build 可能回傳 Setting，而 render 的回傳值會被當成清除用的函式
+      return { name: row.name, desc: row.desc, render: setting => { row.build(setting); } };
+    case 'grid':
+      // 勾選框放在名稱與說明下方；這一列重畫或設定頁關閉前，先拿掉這次放的勾選框，重畫時才不會多出一份
+      return {
+        name: row.name, desc: row.desc,
+        render: setting => {
+          const grid = setting.infoEl.createDiv('wm-settings-groups-grid');
+          row.fill(grid);
+          return () => grid.remove();
+        },
+      };
+    case 'note':
+      // 只是說明文字：沒有名稱與控制項，也不列入設定搜尋（搜尋結果以名稱當標題，空白的標題沒有意義）
+      return { name: '', desc: row.desc, searchable: false, render: () => { /* 沒有控制項 */ } };
+  }
+}
+
+// 設定改變後重畫整個設定頁。Obsidian 1.13 起 settingItems（getSettingDefinitions() 的結果）有內容時，
+// 設定頁由 Obsidian 依定義畫、不呼叫 display()，要用 update() 重新取得定義並重畫；舊版 Obsidian 沒有 update()，直接呼叫 display()
+function refreshSettingTab(settingTab: WordModeSettings): void {
+  if (settingTab.update && settingTab.settingItems && settingTab.settingItems.length > 0) settingTab.update();
+  else settingTab.display();
 }
 
 class WordModeSettings extends PluginSettingTab {
   declare plugin: WordModePlugin;
+  // Obsidian 1.13 起 SettingTab 才有的成員（1.5.7 的型別定義裡沒有，較舊的版本執行時也沒有）：
+  // settingItems 是 Obsidian 存下的 getSettingDefinitions() 結果；update() 重新取得定義、更新設定搜尋並重畫開著的設定頁
+  declare settingItems?: unknown[];
+  declare update?: () => void;
 
   constructor(app: App, plugin: WordModePlugin) { super(app, plugin); this.plugin = plugin; }
 
+  // Obsidian 1.13 以前畫設定頁的方式（1.13 起 getSettingDefinitions() 有內容時，Obsidian 不呼叫這裡）
   display(): void {
     const c = this.containerEl;
-    const p = this.plugin;
-    const S = p.settings;
-    const save = async () => { p.applyOptions(); await p.saveSettings(); };
-    const toggle = (setting: Setting, k: ToggleKey, after?: (v: boolean) => unknown) => setting.addToggle(tg => tg.setValue(!!(S[k] == null ? DEFAULTS[k] : S[k])).onChange(async v => { S[k] = v; await save(); if (after) after(v); }));
     const heading = (text: I18nKey, icon?: string) => {
       const h = new Setting(c).setName(t(text)).setHeading();
       h.settingEl.addClass('wm-setting-heading');
       if (icon) { const i = h.nameEl.createSpan('wm-setting-icon'); setIcon(i, icon); h.nameEl.prepend(i); }
-      return h;
     };
     c.empty();
     c.addClass('wm-settings');
-
-    // ------------------------------------------------ 一般（放在最上面，不加標題）
-    new Setting(c).setName(t('介面語言'))
-      .setDesc(t('Word 模式的按鈕、選單與提示文字使用的語言。「自動」會跟著 Obsidian 的語言。'))
-      .addDropdown(d => d.addOptions({ auto: t('自動（跟隨 Obsidian）'), 'zh-TW': '繁體中文', en: 'English', ja: '日本語', ko: '한국어' })
-        .setValue(S.language || 'auto').onChange(v => p.changeLanguage(v as LanguageSetting)));
-    toggle(new Setting(c).setName(t('預設用 Word 模式開啟筆記'))
-      .setDesc(t('開啟 .md 筆記時自動使用 Word 模式。可隨時用右上角按鈕切回 Markdown。')), 'openByDefault');
-    new Setting(c).setName(t('不使用 Word 模式的資料夾'))
-      .setDesc(t('每行一個資料夾（例如模板資料夾），裡面的筆記一律用 Markdown 開啟。'))
-      .addTextArea(ta => ta.setValue(S.excludeFolders).onChange(async v => { S.excludeFolders = v; await save(); }));
-
-    // ------------------------------------------------ 編輯
-    heading('編輯', 'pencil');
-    toggle(new Setting(c).setName(withKey('切換 Word 模式與 Markdown', 'Mod+E'))
-      .setDesc(t('開啟時，在 Markdown 畫面按 {k} 會回到 Word 模式（取代 Obsidian 原本的「切換閱讀／編輯」）。閱讀模式可用下方狀態列的按鈕開啟。', { k: key('Mod+E') })), 'ctrlE');
-    toggle(new Setting(c).setName(t('沒有選取文字時，格式套用到游標所在的詞'))
-      .setDesc(t('像 Word 一樣：游標在詞中間按粗體，整個詞會變粗體。關閉後只影響接下來輸入的文字。')), 'wordAtCursor');
-    toggle(new Setting(c).setName(t('輸入時自動套用格式'))
-      .setDesc(t('段落開頭打「- 」「1. 」「# 」「> 」「[ ] 」會變成清單、編號、標題、引文、核取清單；打完 **粗體**、*斜體*、`程式碼`、[[筆記]] 也會直接變成格式。套用格式是獨立的一步：按一次 {k}（或緊接著按 Backspace）只取消格式，打的字還在。', { k: key('Mod+Z') })), 'autoFormat');
-    toggle(new Setting(c).setName(t('輸入 [[ 與 # 時顯示選單'))
-      .setDesc(t('打 [[ 會列出筆記（[[筆記# 列出標題），打 # 會列出用過的標籤，用方向鍵與 Enter 選擇。')), 'autoComplete');
-    toggle(new Setting(c).setName(t('貼上 Markdown 文字時顯示「轉成格式」選項'))
-      .setDesc(t('從 ChatGPT 等地方複製的 Markdown 純文字，貼上後可一鍵轉成粗體、標題、清單等格式。')), 'pasteChip');
-    toggle(new Setting(c).setName(t('切換模式時保留復原紀錄'))
-      .setDesc(t('切到 Markdown 編輯再切回來，仍可用 {k} 復原之前的修改（最多保留 30 份筆記、6 小時）。', { k: key('Mod+Z') })), 'keepHistory');
-
-    // ------------------------------------------------ 顯示
-    heading('顯示', 'monitor');
-    toggle(new Setting(c).setName(t('全寬頁面'))
-      .setDesc(t('關閉時以 A4 紙張寬度顯示，開啟時使用整個視窗寬度。')), 'fullWidth', v => p.setFullWidth(v));
-    new Setting(c).setName(t('頁面縮放'))
-      .setDesc(t('也可以用 {k}+滑鼠滾輪，或右下角的縮放列調整。', { k: key('Mod') }))
-      .addSlider(sl => sl.setLimits(50, 200, 10).setValue(S.zoom || 100).setDynamicTooltip().onChange(v => p.setZoom(v)));
-    toggle(new Setting(c).setName(t('開啟筆記時顯示編輯標記（¶）'))
-      .setDesc(t('顯示空白（·）、全形空白（□）、Tab（→）、換行（↵）與段落結尾（¶）。也可以用工具列的 ¶ 按鈕隨時切換。')), 'showMarks');
-    toggle(new Setting(c).setName(t('顯示圖表與查詢的結果'))
-      .setDesc(t('Mermaid 圖表、Dataview 查詢與其他外掛的程式碼區塊顯示成結果（像 Obsidian 的閱讀畫面）。游標進到區塊裡，或按區塊上方的「原始碼」按鈕，才顯示程式碼。關閉後一律顯示程式碼。')), 'codePreview', () => p.refreshViews());
-    toggle(new Setting(c).setName(t('一直標示奇怪符號'))
-      .setDesc(t('即使沒開編輯標記，也用紅色波浪底線標出看不見的字元、亂碼、殘留的 ** == [[ 與落單的引號。可到「校閱 → 清理符號」一次清除。')), 'highlightWeird', () => p.refreshViews());
-
-    // ------------------------------------------------ 工具列
-    heading('工具列', 'layout-panel-top');
-    const rebuild = async () => { await save(); p.refreshToolbars(); };
-    new Setting(c).setName(t('版面'))
-      .setDesc(t('「分頁」像 Word（常用／插入／校閱／檢視）；「一行」把所有按鈕排成一行，可左右捲動；「自動換行」把所有按鈕都顯示出來，放不下就換行。'))
-      .addDropdown(d => d.addOptions({ tabs: t('分頁（像 Word）'), single: t('全部排成一行'), wrap: t('全部顯示（自動換行）') })
-        .setValue(S.ribbonLayout || 'tabs').onChange(async v => { S.ribbonLayout = v as RibbonLayout; await rebuild(); }));
-    new Setting(c).setName(t('按鈕樣式'))
-      .setDesc(t('「自動」：常用功能只顯示圖示，插入、校閱、檢視的按鈕下方有名稱。「只顯示圖示」最精簡；「圖示加文字」每個按鈕都有名稱。'))
-      .addDropdown(d => d.addOptions({ auto: t('自動'), icon: t('只顯示圖示'), label: t('圖示加文字') })
-        .setValue(S.buttonStyle || 'auto').onChange(async v => { S.buttonStyle = v as ButtonStyle; S.buttonStyleSet = true; await rebuild(); }));
-    toggle(new Setting(c).setName(t('顯示群組名稱'))
-      .setDesc(t('在每組按鈕下方顯示「剪貼簿」「字型」「段落」等名稱（像 Word）。')), 'groupLabels', () => p.refreshToolbars());
-    new Setting(c).setName(t('工具列位置'))
-      .setDesc(t('「自動」在手機上放在畫面下方（靠近鍵盤，單手好按），平板與電腦放在上方。'))
-      .addDropdown(d => d.addOptions({ auto: t('自動'), top: t('上方'), bottom: t('下方') })
-        .setValue(S.toolbarPosition || 'auto').onChange(async v => { S.toolbarPosition = v as ToolbarPosition; await rebuild(); }));
-    toggle(new Setting(c).setName(t('切換到 Markdown／閱讀模式時保留工具列'))
-      .setDesc(t('在 Obsidian 的 Markdown 編輯與閱讀畫面上方也顯示工具列（粗體、標題、清單、連結、尋找、大綱等）。閱讀模式只能檢視，編輯按鈕會停用。')), 'mdToolbar', () => p.refreshToolbars());
-    toggle(new Setting(c).setName(t('切換到 Markdown／閱讀模式時，狀態列保留檢視切換按鈕'))
-      .setDesc(t('在 Obsidian 右下角的狀態列顯示 Word 模式、Markdown、閱讀三個按鈕（只有圖示），位置與 Word 模式時相同，方便切換回來。')), 'mdStatusBar', () => p.updateStatus(null));
-    new Setting(c).setName(t('大綱的位置'))
-      .setDesc(t('「另開一欄」在筆記左邊再展開一個大綱欄（像第二個側邊欄，不會蓋掉檔案總管）；也可以放進 Obsidian 的左或右側邊欄，或用小型下拉選單。'))
-      .addDropdown(d => d.addOptions({ split: t('在筆記旁另開一欄（建議）'), left: t('左側邊欄（與檔案總管同一區）'), right: t('右側邊欄'), popup: t('下拉選單') })
-        .setValue(S.outlinePlace || 'split').onChange(async v => {
-          S.outlinePlace = v as OutlinePlace; await save();
-          if (p.outlineOpen()) { await p.toggleOutline(); if (v !== 'popup') await p.toggleOutline(); }
-        }));
-    toggle(new Setting(c).setName(t('詳細提示（含動畫示意）'))
-      .setDesc(t('滑鼠停在按鈕上時，顯示功能說明、快速鍵，以及一段動畫示範這個按鈕會做什麼。適合剛開始使用的人。')), 'richHints', () => p.refreshToolbars());
-
-    // 要顯示的分頁與群組
-    const box = c.createDiv('wm-settings-groups');
-    box.createDiv({ cls: 'setting-item-name', text: t('顯示的分頁與按鈕群組') });
-    box.createDiv({ cls: 'setting-item-description', text: t('取消勾選可以隱藏不常用的功能。隱藏整個分頁時，該分頁的按鈕都不會出現。') });
-    const cols = box.createDiv('wm-settings-groups-grid');
-    for (const [tab, tabLabel] of TABS) {
-      const col = cols.createDiv('wm-settings-groups-col');
-      const tl = col.createEl('label', { cls: 'wm-settings-tab' });
-      const tcb = tl.createEl('input', { type: 'checkbox' });
-      tcb.checked = !(S.hiddenTabs || []).includes(tab);
-      tl.createSpan({ text: t(tabLabel) });
-      const inner: HTMLInputElement[] = [];
-      for (const [gid, gtab, gLabel] of GROUPS) {
-        if (gtab !== tab) continue;
-        const gl = col.createEl('label', { cls: 'wm-settings-group' });
-        const gcb = gl.createEl('input', { type: 'checkbox' });
-        gcb.checked = !(S.hiddenGroups || []).includes(gid);
-        gcb.disabled = !tcb.checked;
-        gl.createSpan({ text: t(gLabel) });
-        inner.push(gcb);
-        gcb.addEventListener('change', async () => {
-          const set = new Set(S.hiddenGroups || []);
-          if (gcb.checked) set.delete(gid); else set.add(gid);
-          S.hiddenGroups = [...set];
-          await rebuild();
-        });
+    for (const section of settingSections(this)) {
+      if (section.heading) heading(section.heading, section.icon);
+      for (const row of section.rows) {
+        if (row.kind === 'setting') row.build(new Setting(c).setName(row.name).setDesc(row.desc));
+        else if (row.kind === 'grid') {
+          const box = c.createDiv(row.cls);
+          box.createDiv({ cls: 'setting-item-name', text: row.name });
+          if (row.desc) box.createDiv({ cls: 'setting-item-description', text: row.desc });
+          row.fill(box.createDiv('wm-settings-groups-grid'));
+        } else c.createEl('p', { cls: 'setting-item-description' + (row.cls ? ' ' + row.cls : ''), text: row.desc });
       }
-      tcb.addEventListener('change', async () => {
-        const set = new Set(S.hiddenTabs || []);
-        if (tcb.checked) set.delete(tab); else set.add(tab);
-        S.hiddenTabs = [...set];
-        for (const x of inner) x.disabled = !tcb.checked;
-        await rebuild();
-      });
     }
+  }
 
-    // ------------------------------------------------ 右鍵選單與方程式
-    heading('右鍵選單、方程式與圖表', 'mouse-pointer-click');
-    toggle(new Setting(c).setName(t('使用 Word 模式的右鍵選單'))
-      .setDesc(t('在編輯區按右鍵時，顯示依游標位置變化的選單（連結、方程式、表格、程式碼…），以及下面勾選的功能。關閉時使用 Obsidian／系統原本的選單。手機上長按仍是選取文字。')), 'ctxMenu');
-    const ctxBox = c.createDiv('wm-settings-groups wm-settings-ctx');
-    ctxBox.createDiv({ cls: 'setting-item-name', text: t('右鍵選單要顯示的項目') });
-    const ctxGrid = ctxBox.createDiv('wm-settings-groups-grid');
-    for (const [id, label, desc] of [
-      ['table', '表格', '插入／刪除列欄、整欄對齊、排序'],
-      ['clipboard', '剪貼簿', '剪下、複製、貼上、只貼上文字、全選'],
-      ['format', '格式', '有選取文字時：粗體、斜體、底線、醒目提示、清除格式'],
-      ['paragraph', '段落', '項目符號、編號、增加／減少縮排'],
-      ['insert', '插入', '超連結、連結到筆記、方程式、註解'],
-      ['tools', '工具', '複製為 Markdown、在筆記或保管庫中搜尋、字數統計、編輯標記'],
-    ] as const) {
-      const l = ctxGrid.createEl('label', { cls: 'wm-settings-ctx-item' });
-      const cb = l.createEl('input', { type: 'checkbox' });
-      cb.checked = !(S.hiddenCtx || []).includes(id);
-      const tx = l.createDiv();
-      tx.createDiv({ cls: 'wm-settings-tab', text: t(label) });
-      tx.createDiv({ cls: 'setting-item-description', text: t(desc) });
-      cb.addEventListener('change', async () => {
-        const set = new Set(S.hiddenCtx || []);
-        if (cb.checked) set.delete(id); else set.add(id);
-        S.hiddenCtx = [...set];
-        await save();
-      });
-    }
-    new Setting(c).setName(t('方程式編輯器預設的編輯方式'))
-      .setDesc(t('「視覺化」把分數、根號、上下標顯示成一格一格，可以直接點進去輸入；「LaTeX」直接編輯原始碼。在編輯器裡隨時可以切換。'))
-      .addDropdown(d => d.addOptions({ visual: t('視覺化'), latex: 'LaTeX' })
-        .setValue(S.mathMode === 'latex' ? 'latex' : 'visual').onChange(async v => { S.mathMode = v as EquationEditMode; await save(); }));
-    new Setting(c).setName(t('圖表編輯器預設的編輯方式'))
-      .setDesc(t('「表單」用步驟與連線的清單編輯流程圖；其他種類的圖表，或用了表單不支援的寫法時，會自動改用程式碼。'))
-      .addDropdown(d => d.addOptions({ visual: t('表單（流程圖）'), code: t('程式碼') })
-        .setValue(S.mermaidMode === 'code' ? 'code' : 'visual').onChange(async v => { S.mermaidMode = v as MermaidTab; await save(); }));
-    toggle(new Setting(c).setName(t('新方程式預設為獨立一行'))
-      .setDesc(t('關閉時新插入的方程式放在文字中（$…$），開啟時獨立一行置中（$$…$$）。在方程式編輯器裡都可以切換。')), 'mathDisplay');
-    new Setting(c).setName(t('清除最近使用的方程式'))
-      .setDesc(t('方程式編輯器會記住最近 12 個方程式，方便重複使用。'))
-      .addButton(b => b.setButtonText(t('清除')).onClick(async () => { S.recentMath = []; await save(); new Notice(t('已清除')); }));
-
-    // ------------------------------------------------ 同步與檔案
-    heading('同步與檔案', 'refresh-cw');
-    new Setting(c).setName(t('同步衝突的處理方式'))
-      .setDesc(t('筆記在這裡有未存檔的修改時，又被 Synology Drive 或其他裝置改過。'))
-      .addDropdown(d => d.addOptions({ ask: t('每次詢問（建議）'), both: t('自動兩份都保留（另存我的版本）') })
-        .setValue(S.conflict || 'ask').onChange(async v => { S.conflict = v as ConflictMode; await save(); }));
-    new Setting(c).setName(t('檔案大小上限（MB）'))
-      .setDesc(t('超過這個大小的筆記一律用 Markdown 開啟，避免太大的檔案讓編輯變慢。'))
-      .addText(tx => { tx.inputEl.type = 'number'; tx.setValue(String(S.maxSizeMB || 2)).onChange(async v => { const n = parseFloat(v); if (n > 0) { S.maxSizeMB = n; await save(); } }); });
-    c.createEl('p', { cls: 'setting-item-description', text: t('在 frontmatter 加上「word-mode: false」可讓單一筆記不使用 Word 模式。') });
-
-    // ------------------------------------------------ 進階
-    heading('進階', 'wrench');
-    new Setting(c).setName(t('快速鍵說明'))
-      .setDesc(t('查看 Word 模式所有的快速鍵。'))
-      .addButton(b => b.setButtonText(t('開啟')).onClick(() => {
-        const v = p.views()[0];
-        if (v) v.toolbar.ctx.dialogs.shortcuts(); else new Notice(t('請先用 Word 模式開啟一份筆記'));
-      }));
-    new Setting(c).setName(t('還原預設設定'))
-      .setDesc(t('把以上所有設定改回預設值（不會修改任何筆記）。'))
-      .addButton(b => b.setButtonText(t('還原')).setWarning().onClick(async () => {
-        const lang = S.language;
-        p.settings = Object.assign({}, DEFAULTS, { language: lang });
-        await save();
-        p.refreshToolbars();
-        await p.refreshViews();
-        this.display();
-      }));
-    c.createEl('p', { cls: 'setting-item-description wm-settings-version', text: 'Word 模式 v' + p.manifest.version + ' · ' + getLanguage() });
+  // Obsidian 1.13 起：回傳設定定義，Obsidian 依這份定義畫設定頁（不再呼叫 display()），也用來做設定搜尋。
+  // Obsidian 在加入設定頁時與每次 update() 時呼叫；舊版 Obsidian 不會呼叫
+  getSettingDefinitions(): SettingDefinitionGroup[] {
+    return settingSections(this).map((section): SettingDefinitionGroup => ({
+      type: 'group',
+      // 最上面的一般設定畫成沒有標題的一組。1.13 的群組標題只能是文字，沒有 display() 畫的圖示
+      heading: section.heading ? t(section.heading) : undefined,
+      items: section.rows.map(settingDefinition),
+    }));
   }
 }
 

@@ -132,7 +132,7 @@ export function cleanWeird(state: EditorState, kinds: readonly string[]): Transa
 }
 
 function widget(cls: string, text: string): () => HTMLSpanElement {
-  return () => { const s = document.createElement('span'); s.className = cls; s.textContent = text; s.contentEditable = 'false'; return s; };
+  return () => { const s = createSpan(); s.className = cls; s.textContent = text; s.contentEditable = 'false'; return s; };
 }
 
 function blockDecos(node: PMNode, pos: number, s: MarksFlags): Decoration[] {
@@ -208,7 +208,7 @@ export function marksPlugin(opts: MarksOptions = {}): Plugin<MarksState> {
         return Object.assign(s, { decos: buildAll(state.doc, s) });
       },
       apply(tr, old, _o, state) {
-        const meta: MarksMeta | undefined = tr.getMeta(marksKey);
+        const meta = tr.getMeta(marksKey) as MarksMeta | undefined;
         if (meta) {
           const s = { on: meta.on != null ? !!meta.on : old.on, always: meta.always != null ? !!meta.always : old.always };
           return Object.assign(s, { decos: buildAll(state.doc, s) });

@@ -7,6 +7,9 @@ import { schema } from './schema.js';
 
 const N = schema.nodes;
 
+// 表格儲存格（table_cell、table_header）的屬性（見 schema.ts）；這裡只讀 align（對齊，沒設定時是 null）
+interface CellAttrs { readonly align: string | null; }
+
 // 貼上的內容不能帶原文區塊編號（bid），否則存檔時會被當成原本的段落
 export function stripBids(fragment: Fragment): Fragment {
   const nodes: PMNode[] = [];
@@ -98,8 +101,8 @@ export function fillTable(state: EditorState, rows: string[][]): Transaction | n
     for (let c = 0; c < width; c++) {
       const v = rows[r - r0] && rows[r - r0][c - c0];
       const old = grid[r][c];
-      if (v != null && r >= r0 && c >= c0) grid[r][c] = makeCell(r === 0, v, old ? old.attrs : (grid[0][c] ? { align: grid[0][c].attrs.align } : null));
-      else if (!old) grid[r][c] = makeCell(r === 0, '', grid[0][c] ? { align: grid[0][c].attrs.align } : null);
+      if (v != null && r >= r0 && c >= c0) grid[r][c] = makeCell(r === 0, v, old ? old.attrs : (grid[0][c] ? { align: (grid[0][c].attrs as CellAttrs).align } : null));
+      else if (!old) grid[r][c] = makeCell(r === 0, '', grid[0][c] ? { align: (grid[0][c].attrs as CellAttrs).align } : null);
     }
   }
   const node = N.table.create(table.attrs, grid.map(cells => N.table_row.create(null, cells)));
@@ -112,7 +115,7 @@ export function fillTable(state: EditorState, rows: string[][]): Transaction | n
   pos += 1;
   for (let c = 0; c < lastC; c++) pos += node.child(lastR).child(c).nodeSize;
   const cell = node.child(lastR).child(lastC);
-  try { tr.setSelection(TextSelection.create(tr.doc, pos + 2 + cell.firstChild!.content.size)); } catch (e) { /* 保持預設 */ }
+  try { tr.setSelection(TextSelection.create(tr.doc, pos + 2 + cell.firstChild!.content.size)); } catch { /* 保持預設 */ }
   return tr.scrollIntoView();
 }
 

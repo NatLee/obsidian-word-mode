@@ -24,12 +24,15 @@ export interface WikilinkContext { kind: 'wikilink'; pos: number; node: PMNode; 
 export interface TextLinkContext { kind: 'link' | 'url'; from: number; to: number; href: string; text: string; pos?: undefined; node?: undefined; }
 export type LinkContext = ImageContext | WikilinkContext | TextLinkContext;
 
-export const URL_RE = /https?:\/\/[^\s<>()\[\]]+[^\s<>()\[\].,;:!?'"，。、；：！？」』）]/g;
+// link 格式的屬性（見 schema.ts）
+interface LinkAttrs { readonly href: string; readonly title: string | null; }
+
+export const URL_RE = /https?:\/\/[^\s<>()[\]]+[^\s<>()[\].,;:!?'"，。、；：！？」』）]/g;
 export const isUrl = (s: string): boolean => /^https?:\/\/\S+$/i.test(s.trim());
 export const isExternal = (href: string): boolean => /^[a-z][a-z0-9+.-]*:/i.test(href);
 
 // Obsidian 的 #標籤：前面是行首或空白，可以有 / 分層，不能全是數字
-export const TAG_RE = /(^|\s)#([^\s#!@$%^&*(),.?":;{}|<>\[\]\\`'~=+]+)/g;
+export const TAG_RE = /(^|\s)#([^\s#!@$%^&*(),.?":;{}|<>[\]\\`'~=+]+)/g;
 // 區塊參照 ^id：寫在段落結尾
 const BLOCK_ID_RE = /(^|\s)\^([A-Za-z0-9-]+)$/;
 
@@ -84,7 +87,9 @@ function inlineAt<F extends 'href' | 'tag'>(state: EditorState, field: F): (Inli
   if (!empty) return null;
   const set = inlineKey.getState(state);
   const d = set ? set.find(from, from, (spec: InlineSpec) => spec[field] != null)[0] : null;
-  return d ? { from: d.from, to: d.to, [field]: d.spec[field] } as InlineHit & Record<F, string> : null;
+  // 上面只找 spec[field] 有值的裝飾，所以 spec 一定有這個欄位；
+  // 屬性名是泛型 F 時 TypeScript 推不出 Record<F, string>，所以這一欄單獨轉型後再展開
+  return d ? { from: d.from, to: d.to, ...({ [field]: (d.spec as Record<F, string>)[field] } as Record<F, string>) } : null;
 }
 export function bareUrlAt(state: EditorState): BareUrlHit | null { return inlineAt(state, 'href'); }
 export function tagAt(state: EditorState): TagHit | null { return inlineAt(state, 'tag'); }
@@ -105,7 +110,7 @@ export function linkContext(state: EditorState): LinkContext | null {
     return null;
   }
   const r = linkRange(state);
-  if (r && sel.from >= r.from && sel.to <= r.to) return { kind: 'link', from: r.from, to: r.to, href: r.mark.attrs.href, text: r.text };
+  if (r && sel.from >= r.from && sel.to <= r.to) return { kind: 'link', from: r.from, to: r.to, href: (r.mark.attrs as LinkAttrs).href, text: r.text };
   const u = bareUrlAt(state);
   if (u) return { kind: 'url', from: u.from, to: u.to, href: u.href, text: u.href };
   return null;

@@ -21,7 +21,7 @@ if (out('git', ['tag', '--list', version]) === version && out('git', ['rev-list'
 }
 
 run('npm', ['test']);
-run('npm', ['run', 'build:prod']);
+run('npm', ['run', 'build']);
 
 // tag 與版本號完全相同（不加 v），Obsidian 才找得到這個 Release
 const hasTag = out('git', ['tag', '--list', version]) === version;

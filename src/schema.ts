@@ -3,6 +3,38 @@ import { Schema } from 'prosemirror-model';
 import type { Attrs, AttributeSpec, Node as PMNode } from 'prosemirror-model';
 import { tableNodes } from 'prosemirror-tables';
 
+// 各種節點與 mark 的屬性（對應下面 schema 裡各 attrs 的設定）。node.attrs／mark.attrs 的值是 any，讀取時先轉成這些型別。
+// bid 是原文區塊編號，新建立的區塊是 null
+export interface BidAttrs { readonly bid: number | null; }
+// 段落與標題的對齊、左縮排（indent 以 2em 為一級，0～8）
+export interface BlockFormatAttrs { readonly align: 'left' | 'center' | 'right' | 'justify' | null; readonly indent: number; }
+export interface HeadingAttrs extends BidAttrs, BlockFormatAttrs { readonly level: number; }
+// fold：''＝不可摺疊、'+'＝預設展開、'-'＝預設收合；title 是 null 時顯示類型名稱
+export interface CalloutAttrs extends BidAttrs { readonly type: string; readonly title: string | null; readonly fold: string; }
+// markup：原文的分隔線寫法（---、*** 等）
+export interface HorizontalRuleAttrs extends BidAttrs { readonly markup: string; }
+// params：``` 後面的語言與參數
+export interface CodeBlockAttrs extends BidAttrs { readonly params: string; }
+// bullet：項目符號（-、*、+）
+export interface BulletListAttrs extends BidAttrs { readonly tight: boolean; readonly bullet: string; }
+// order：起始編號
+export interface OrderedListAttrs extends BidAttrs { readonly order: number; readonly tight: boolean; }
+// checked：null＝一般項目、false／true＝任務；status：自訂任務狀態的字元，一般的 x 為 null
+export interface ListItemAttrs { readonly checked: boolean | null; readonly status: string | null; }
+// kind：raw、html、math、comment、footnote 等
+export interface RawBlockAttrs extends BidAttrs { readonly src: string; readonly kind: string; }
+export interface FrontmatterAttrs extends BidAttrs { readonly src: string; }
+// 表格儲存格：colspan、rowspan、colwidth 是 prosemirror-tables 的屬性；align 從網頁貼上時可能是其他 CSS text-align 值
+export interface TableCellAttrs { readonly colspan: number; readonly rowspan: number; readonly colwidth: number[] | null; readonly align: string | null; }
+// width：寬度（像素數字的字串，例如 300 或 300x200）；wiki：是否為 ![[圖片]] 寫法
+export interface ImageAttrs { readonly src: string; readonly alt: string | null; readonly title: string | null; readonly wiki: boolean; readonly width: string | null; }
+export interface WikilinkAttrs { readonly target: string; readonly alias: string | null; readonly embed: boolean; }
+export interface RawInlineAttrs { readonly src: string; }
+export interface LinkAttrs { readonly href: string; readonly title: string | null; }
+// 螢光：color 為 null 是預設黃色
+export interface HighlightAttrs { readonly color: string | null; }
+export interface ColorAttrs { readonly color: string; }
+
 // 每個頂層區塊都帶 bid（原文區塊編號），用來判斷存檔時能否原樣輸出原文
 const bid: Record<string, AttributeSpec> = { bid: { default: null } };
 
@@ -30,7 +62,7 @@ const tables = tableNodes({
     align: {
       default: null,
       getFromDOM: (dom) => dom.style.textAlign || null,
-      setDOMAttr: (value, attrs) => { if (value) attrs.style = ((attrs.style as string | undefined) || '') + `text-align: ${value};`; },
+      setDOMAttr: (value, attrs) => { if (value) attrs.style = ((attrs.style as string | undefined) || '') + `text-align: ${value as string};`; },
     },
   },
 });
@@ -66,7 +98,7 @@ export const schema = new Schema({
         getAttrs: d => ({ type: d.getAttribute('data-callout') || 'note', title: null, fold: '' }),
         contentElement: '.callout-content',
       }],
-      toDOM: n => ['div', { class: 'callout', 'data-callout': n.attrs.type }, ['div', { class: 'callout-content' }, 0]],
+      toDOM: n => ['div', { class: 'callout', 'data-callout': (n.attrs as CalloutAttrs).type }, ['div', { class: 'callout-content' }, 0]],
     },
 
     horizontal_rule: {
@@ -78,7 +110,7 @@ export const schema = new Schema({
       content: 'text*', marks: '', group: 'block', code: true, defining: true,
       attrs: { params: { default: '' }, ...bid },
       parseDOM: [{ tag: 'pre', preserveWhitespace: 'full' }],
-      toDOM: n => ['pre', { 'data-lang': n.attrs.params || '' }, ['code', 0]],
+      toDOM: n => ['pre', { 'data-lang': (n.attrs as CodeBlockAttrs).params || '' }, ['code', 0]],
     },
 
     bullet_list: {
@@ -91,7 +123,7 @@ export const schema = new Schema({
       content: 'list_item+', group: 'block',
       attrs: { order: { default: 1 }, tight: { default: true }, ...bid },
       parseDOM: [{ tag: 'ol', getAttrs: d => ({ order: +d.getAttribute('start')! || 1 }) }],
-      toDOM: n => ['ol', n.attrs.order === 1 ? {} : { start: n.attrs.order }, 0],
+      toDOM: n => ['ol', n.attrs.order === 1 ? {} : { start: (n.attrs as OrderedListAttrs).order }, 0],
     },
 
     list_item: {
@@ -124,7 +156,7 @@ export const schema = new Schema({
       inline: true, group: 'inline', draggable: true,
       attrs: { src: {}, alt: { default: null }, title: { default: null }, wiki: { default: false }, width: { default: null } },
       parseDOM: [{ tag: 'img[src]', getAttrs: d => ({ src: d.getAttribute('src'), alt: d.getAttribute('alt') }) }],
-      toDOM: n => ['img', { src: n.attrs.src, alt: n.attrs.alt }],
+      toDOM: n => ['img', { src: (n.attrs as ImageAttrs).src, alt: (n.attrs as ImageAttrs).alt }],
     },
 
     // [[筆記]]、[[筆記|別名]]、![[筆記]]（非圖片嵌入）
@@ -151,7 +183,7 @@ export const schema = new Schema({
     link: {
       attrs: { href: {}, title: { default: null } }, inclusive: false,
       parseDOM: [{ tag: 'a[href]', getAttrs: d => ({ href: d.getAttribute('href'), title: d.getAttribute('title') }) }],
-      toDOM: m => ['a', { href: m.attrs.href, class: 'wm-link' }, 0],
+      toDOM: m => ['a', { href: (m.attrs as LinkAttrs).href, class: 'wm-link' }, 0],
     },
     em: { parseDOM: [{ tag: 'i' }, { tag: 'em' }], toDOM: () => ['em', 0] },
     strong: { parseDOM: [{ tag: 'b' }, { tag: 'strong' }], toDOM: () => ['strong', 0] },

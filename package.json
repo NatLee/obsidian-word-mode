@@ -11,10 +11,10 @@
     "url": "git+https://github.com/NatLee/obsidian-word-mode.git"
   },
   "scripts": {
-    "build": "node build.mjs",
-    "build:prod": "node build.mjs --prod",
+    "dev": "node build.mjs",
+    "build": "node build.mjs --prod",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings 0",
     "test": "npm run typecheck && node tests/run.mjs tests/basic.mjs && node tests/run.mjs tests/roundtrip.mjs && node tests/run.mjs tests/flowchart.mjs && node tests/run.mjs tests/mathvisual.mjs && node tests/view/build-test.mjs && node tests/view/test.mjs && node tests/view/features.mjs",
     "test:vault": "node tests/run.mjs tests/vault-check.mjs",
     "release:local": "node release-local.mjs",

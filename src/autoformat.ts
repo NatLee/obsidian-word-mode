@@ -17,6 +17,8 @@ type RuleMatch = RegExpExecArray & { lead?: number };
 interface Rule { re: RegExp; run(tr: Transaction, m: RuleMatch, c: number): boolean; }
 type MakeNode = (m: RuleMatch) => PMNode | null;
 type Dispatch = (tr: Transaction) => void;
+// 頂層區塊共有的 bid 屬性（原文區塊編號，見 schema.ts）
+interface BidAttrs { readonly bid: number | null; }
 
 const N = schema.nodes;
 const M = schema.marks;
@@ -50,7 +52,7 @@ const BLOCK_RULES: Rule[] = [
     const $c = tr.doc.resolve(c);
     if (!$c.node(-1).canReplaceWith($c.index(-1), $c.indexAfter(-1), N.heading)) return false;
     const start = $c.start();
-    tr.delete(start, c).setBlockType(start, start, N.heading, { level: m[1].length, bid: $c.parent.attrs.bid });
+    tr.delete(start, c).setBlockType(start, start, N.heading, { level: m[1].length, bid: ($c.parent.attrs as BidAttrs).bid });
     return true;
   } },
   { re: /^\[([ xX]?)\][ \u3000]$/, run(tr, m, c) {
@@ -115,8 +117,8 @@ const INLINE_RULES: Rule[] = [
   markRule(/(^|[^~\\])~~([^~\s]|[^~\s][^~]*[^~\s])~~$/, M.strike, 2),
   markRule(/(^|[^`\\])`([^`]+)`$/, M.code, 1),
   // ![說明](圖片網址或路徑)、![[圖片.png|300]]、![[筆記]]、[[筆記|別名]]
-  nodeRule(/!\[([^\[\]]*)\]\(([^()\s]+)\)$/, m => N.image.create({ src: m[2], alt: m[1] || null, wiki: false })),
-  nodeRule(/(!?)\[\[([^\[\]\n]+)\]\]$/, m => {
+  nodeRule(/!\[([^[\]]*)\]\(([^()\s]+)\)$/, m => N.image.create({ src: m[2], alt: m[1] || null, wiki: false })),
+  nodeRule(/(!?)\[\[([^[\]\n]+)\]\]$/, m => {
     const bar = m[2].indexOf('|');
     const target = (bar < 0 ? m[2] : m[2].slice(0, bar)).trim();
     const alias = bar < 0 ? null : m[2].slice(bar + 1);
@@ -128,7 +130,7 @@ const INLINE_RULES: Rule[] = [
     return N.wikilink.create({ target, alias, embed: !!m[1] });
   }),
   // [文字](網址)
-  { re: /\[([^\[\]]+)\]\(([^()\s]+)\)$/, run(tr, m, c) {
+  { re: /\[([^[\]]+)\]\(([^()\s]+)\)$/, run(tr, m, c) {
     const from = c - m[0].length;
     if (tr.doc.rangeHasMark(from, c, M.code)) return false;
     const textEnd = from + 1 + m[1].length;
@@ -178,7 +180,7 @@ export const autoformatPlugin = new Plugin<boolean>({
       const s1 = view.state;
       const tr = closeHistory(s1.tr);
       let ok = false;
-      try { ok = hit.r.run(tr, hit.m, s1.selection.from) !== false; } catch (e) { ok = false; }
+      try { ok = hit.r.run(tr, hit.m, s1.selection.from) !== false; } catch { ok = false; }
       if (ok && tr.docChanged) view.dispatch(tr.setMeta(autoKey, true).scrollIntoView());
       return true;
     },
@@ -248,7 +250,7 @@ export function autoformatEnter(state: EditorState, dispatch?: Dispatch): boolea
     const rest: PMNode[] = [];
     holder.forEach((c, _o, i) => { if (i > 0) rest.push(c); });
     const content = rest.length ? rest : [N.paragraph.create()];
-    const callout = N.callout.create({ type: m[1], fold: m[2] || '', title: (m[3] || '').trim() || null, bid: holder.attrs.bid }, content);
+    const callout = N.callout.create({ type: m[1], fold: m[2] || '', title: (m[3] || '').trim() || null, bid: (holder.attrs as BidAttrs).bid }, content);
     return done(state.tr.replaceWith(bqPos, bqPos + holder.nodeSize, callout), bqPos + 2);
   }
   return false;

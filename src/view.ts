@@ -10,7 +10,7 @@ import { TextSelection, NodeSelection } from 'prosemirror-state';
 import { linkContext, isExternal, isUrl } from './links.js';
 import { bubblePlugin } from './bubble.js';
 import { parseWidth, imageAttrsWithWidth } from './nodeviews.js';
-import { findPlugin, FindBar, findKey } from './find.js';
+import { findPlugin, FindBar } from './find.js';
 import { foldPlugin } from './fold.js';
 import { stripSliceBids, stripBids, clipboardTable, tableFromRows, fillTable, looksLikeMarkdown } from './paste.js';
 import { Slice, Fragment } from 'prosemirror-model';
@@ -101,6 +101,20 @@ type TemplateOptions = NonNullable<TemplatesInstance['options']> & { dateFormat?
 // 捕捉到的錯誤：通常是 Error；mermaid 的解析錯誤把訊息放在 str
 interface CaughtError { message?: string; str?: string; }
 
+// 節點屬性的型別（對應 schema.ts 各節點的 attrs；ProseMirror 的 node.attrs 本身是 any）。
+// nodeviews.ts 也匯出同樣形狀的介面，之後可以改成共用
+// width：寬度（像素數字的字串）；wiki：是否為 ![[圖片]] 寫法
+interface ImageAttrs { readonly src: string; readonly alt: string | null; readonly title: string | null; readonly wiki: boolean; readonly width: string | null; }
+interface WikilinkAttrs { readonly target: string; readonly alias: string | null; readonly embed: boolean; }
+// kind：raw、math、footnote 等；bid 是原文區塊編號，新建立的區塊是 null
+interface RawBlockAttrs { readonly src: string; readonly kind: string; readonly bid: number | null; }
+interface RawInlineAttrs { readonly src: string; }
+// params：``` 後面的語言與參數
+interface CodeBlockAttrs { readonly params: string; readonly bid: number | null; }
+
+// Obsidian 載入的 mermaid（loadMermaid() 在型別定義裡是 any）：這裡只用到 parse()，語法錯誤時會丟出例外
+interface MermaidLike { parse?(text: string): Promise<unknown>; }
+
 // ------------------------------------------------------------------ 檢視
 
 // 欄位說明（類別裡不能寫註解，寫在這裡）：
@@ -183,7 +197,7 @@ export class WordModeView extends TextFileView {
     this.findBar = new FindBar(this.findHost, { getView: () => this.pm, icon, onChange: () => this.toolbar && this.toolbar.refresh() });
     this.bubble = bubblePlugin(this.bubbleContext());
     this.fold = foldPlugin({ icon });
-    Promise.resolve(loadPrism()).then(P => {
+    Promise.resolve(loadPrism()).then((P: PrismLike) => {
       this.prism = P;
       if (this.pm) this.pm.dispatch(this.pm.state.tr.setMeta(codeKey, true));
     }).catch(() => { /* 沒有 Prism 就不上色 */ });
@@ -209,9 +223,9 @@ export class WordModeView extends TextFileView {
     reg(['Mod'], 'k', () => this.openLinkDialog());
     reg(['Mod'], 'f', () => this.findBar.open(false));
     reg(['Mod'], 'h', () => this.findBar.open(true));
-    reg(['Mod'], 'e', () => this.plugin.switchToMarkdown(this.leaf));
+    reg(['Mod'], 'e', () => { void this.plugin.switchToMarkdown(this.leaf); });
     reg(['Mod'], '/', () => new ShortcutModal(this.app).open());
-    reg(['Mod'], 's', () => this.save());
+    reg(['Mod'], 's', () => { void this.save(); });
     reg(['Mod'], 'b', cmd(C.toggleBold), true);
     reg(['Mod'], 'i', cmd(C.toggleItalic), true);
     reg(['Mod'], 'u', cmd(C.toggleUnderline), true);
@@ -221,7 +235,7 @@ export class WordModeView extends TextFileView {
     reg(['Mod', 'Shift'], 'h', cmd(C.toggleHighlight), true);
     reg(['Mod', 'Shift'], 'x', cmd(C.toggleStrike), true);
     this.addAction('code-2', withKey('切換到 Markdown 編輯', 'Mod+E'), () => this.plugin.switchToMarkdown(this.leaf));
-    this.registerEvent(this.app.vault.on('modify', f => { if (f === this.file) void this.onExternalModify(f as TFile); }));
+    this.registerEvent(this.app.vault.on('modify', f => { if (f === this.file && f instanceof TFile) void this.onExternalModify(f); }));
   }
 
   // 建立（或依設定重建）上方功能區
@@ -248,8 +262,8 @@ export class WordModeView extends TextFileView {
         noteLink: () => this.openNoteLinkPicker(),
         image: b => this.openImageMenu(b),
         template: () => this.openTemplatePicker(),
-        markdown: () => this.plugin.switchToMarkdown(this.leaf),
-        reading: () => this.plugin.switchToMarkdown(this.leaf, 'preview'),
+        markdown: () => { void this.plugin.switchToMarkdown(this.leaf); },
+        reading: () => { void this.plugin.switchToMarkdown(this.leaf, 'preview'); },
         // 按一次開啟、再按一次關閉
         find: () => { const f = this.findBar; if (f.isOpen && !f.replacing) f.close(); else { f.open(false); f.showReplace(false); } },
         replace: () => { const f = this.findBar; if (f.isOpen && f.replacing) f.close(); else f.open(true); },
@@ -259,16 +273,16 @@ export class WordModeView extends TextFileView {
         mermaid: () => this.openMermaid(),
         footnote: () => this.insertFootnoteDialog(),
         scrollTo: pos => this.scrollToPos(pos),
-        paste: mode => this.pasteFromClipboard(mode),
+        paste: mode => { void this.pasteFromClipboard(mode); },
         clip: kind => this.clipboardAction(kind),
         toggleMarks: () => { if (this.pm) this.setMarks(!marksOn(this.pm.state)); },
         cleanup: () => { if (this.pm) new CleanupModal(this.app, this).open(); },
         wordCount: () => this.openWordCount(),
         comment: () => this.insertComment(),
         foldAll: fold => this.foldAll(fold),
-        outline: b => (this.plugin.settings.outlinePlace === 'popup' ? this.toolbar.openOutlinePopup(b) : this.plugin.toggleOutline()),
-        toggleFullWidth: () => this.plugin.setFullWidth(!this.plugin.settings.fullWidth),
-        zoom: d => this.plugin.setZoom(d === 0 ? 100 : (this.plugin.settings.zoom || 100) + d),
+        outline: b => { if (this.plugin.settings.outlinePlace === 'popup') this.toolbar.openOutlinePopup(b); else void this.plugin.toggleOutline(); },
+        toggleFullWidth: () => { void this.plugin.setFullWidth(!this.plugin.settings.fullWidth); },
+        zoom: d => { void this.plugin.setZoom(d === 0 ? 100 : (this.plugin.settings.zoom || 100) + d); },
         settings: () => this.plugin.openSettings(),
         properties: () => this.openProperties(),
         notice: msg => new Notice(msg),
@@ -347,8 +361,8 @@ export class WordModeView extends TextFileView {
       return b;
     };
     vbtn('file-text', t('Word 模式（目前）'), () => {}, true);
-    vbtn('code-2', withKey('Markdown 編輯', 'Mod+E'), () => this.plugin.switchToMarkdown(this.leaf));
-    vbtn('book-open', t('閱讀模式'), () => this.plugin.switchToMarkdown(this.leaf, 'preview'));
+    vbtn('code-2', withKey('Markdown 編輯', 'Mod+E'), () => { void this.plugin.switchToMarkdown(this.leaf); });
+    vbtn('book-open', t('閱讀模式'), () => { void this.plugin.switchToMarkdown(this.leaf, 'preview'); });
     vbtn('list-plus', t('文件屬性（metadata）'), () => this.openProperties());
     const zoom = bar.createDiv('wm-bb-zoom');
     const minus = zoom.createEl('button', { cls: 'wm-bb-btn', text: t('－') });
@@ -359,10 +373,10 @@ export class WordModeView extends TextFileView {
     plus.setAttribute('aria-label', t('放大'));
     this.zoomLabel = zoom.createEl('button', { cls: 'wm-bb-zoomlabel' });
     this.zoomLabel.setAttribute('aria-label', t('恢復 100%'));
-    minus.addEventListener('click', () => this.plugin.setZoom(this.plugin.settings.zoom - 10));
-    plus.addEventListener('click', () => this.plugin.setZoom(this.plugin.settings.zoom + 10));
-    this.zoomRange.addEventListener('input', () => this.plugin.setZoom(+this.zoomRange!.value));
-    this.zoomLabel.addEventListener('click', () => this.plugin.setZoom(100));
+    minus.addEventListener('click', () => { void this.plugin.setZoom(this.plugin.settings.zoom - 10); });
+    plus.addEventListener('click', () => { void this.plugin.setZoom(this.plugin.settings.zoom + 10); });
+    this.zoomRange.addEventListener('input', () => { void this.plugin.setZoom(+this.zoomRange!.value); });
+    this.zoomLabel.addEventListener('click', () => { void this.plugin.setZoom(100); });
     this.renderStatus();
     this.applyZoom();
   }
@@ -442,8 +456,8 @@ export class WordModeView extends TextFileView {
           if (!image && img) image = new File([await it.getType(img)], 'Pasted image.' + img.split('/')[1].replace('jpeg', 'jpg'), { type: img });
         }
       } else text = await navigator.clipboard.readText();
-    } catch (e) {
-      try { text = await navigator.clipboard.readText(); } catch (e2) {
+    } catch {
+      try { text = await navigator.clipboard.readText(); } catch {
         new Notice(t('無法讀取剪貼簿，請直接按 {k} 貼上', { k: key('Mod+V') }));
         return;
       }
@@ -461,7 +475,7 @@ export class WordModeView extends TextFileView {
       if (text) dt.setData('text/plain', text);
       if (html && mode !== 'text') dt.setData('text/html', html);
       ev = new ClipboardEvent('paste', { clipboardData: dt });
-    } catch (e) { ev = undefined; }
+    } catch { ev = undefined; }
     if (mode === 'text') { this.plainPasteNext = true; v.pasteText(text, ev); this.plainPasteNext = false; }
     else if (html) v.pasteHTML(html, ev);
     else if (text) v.pasteText(text, ev);
@@ -469,11 +483,29 @@ export class WordModeView extends TextFileView {
 
   clipboardAction(kind: ClipKind): void {
     if (!this.pm) return;
-    this.pm.focus();
+    const pm = this.pm;
+    pm.focus();
+    const { doc, selection } = pm.state;
     let ok = false;
-    try { ok = document.execCommand(kind); } catch (e) { ok = false; }
+    try {
+      if (!selection.empty && navigator.clipboard && typeof ClipboardItem !== 'undefined') {
+        // 跟鍵盤的剪下／複製一樣，同時放格式（HTML）與純文字
+        const { dom, text } = pm.serializeForClipboard(selection.content());
+        const item = new ClipboardItem({ 'text/html': new Blob([dom.innerHTML], { type: 'text/html' }), 'text/plain': new Blob([text], { type: 'text/plain' }) });
+        void navigator.clipboard.write([item]).then(
+          // 寫入期間文件沒有變動才刪除選取的內容
+          () => { if (kind === 'cut' && pm.state.doc === doc) pm.dispatch(pm.state.tr.delete(selection.from, selection.to).scrollIntoView()); },
+          () => this.clipboardFailed(kind),
+        );
+        ok = true;
+      }
+    } catch { ok = false; }
     // 外層 t() 收到的是已經翻譯過的文字，不一定是鍵；找不到時 t() 原樣回傳，只負責代入 {k}
-    if (!ok) new Notice(t((kind === 'cut' ? t('請按 {k} 剪下') : t('請按 {k} 複製')) as I18nKey, { k: key(kind === 'cut' ? 'Mod+X' : 'Mod+C') }));
+    if (!ok) this.clipboardFailed(kind);
+  }
+
+  clipboardFailed(kind: ClipKind): void {
+    new Notice(t(kind === 'cut' ? '請按 {k} 剪下' : '請按 {k} 複製', { k: key(kind === 'cut' ? 'Mod+X' : 'Mod+C') }));
   }
 
   // ---------------------------------------------------------- 字數統計與註解
@@ -585,14 +617,14 @@ export class WordModeView extends TextFileView {
     const elx = dom && dom.closest && (dom.closest('.wm-raw-inline.is-math') || dom.closest('.wm-raw-block[data-kind="math"]'));
     if (!elx) return null;
     let pos: number;
-    try { pos = this.pm!.posAtDOM(elx, 0); } catch (e) { return null; }
+    try { pos = this.pm!.posAtDOM(elx, 0); } catch { return null; }
     const st = this.pm!.state;
     for (const p of [pos, pos - 1]) {
       const n = p >= 0 && st.doc.nodeAt(p);
       if (!n) continue;
       let m: RegExpExecArray | null;
-      if (n.type.name === 'raw_inline' && (m = /^\$\$?([\s\S]+?)\$?\$$/.exec(n.attrs.src))) return { pos: p, node: n, src: m[1].trim(), display: false };
-      if (n.type.name === 'raw_block' && n.attrs.kind === 'math' && (m = /^\s*\$\$([\s\S]*?)\$\$\s*$/.exec(n.attrs.src))) return { pos: p, node: n, src: m[1].trim(), display: true };
+      if (n.type.name === 'raw_inline' && (m = /^\$\$?([\s\S]+?)\$?\$$/.exec((n.attrs as RawInlineAttrs).src))) return { pos: p, node: n, src: m[1].trim(), display: false };
+      if (n.type.name === 'raw_block' && (n.attrs as RawBlockAttrs).kind === 'math' && (m = /^\s*\$\$([\s\S]*?)\$\$\s*$/.exec((n.attrs as RawBlockAttrs).src))) return { pos: p, node: n, src: m[1].trim(), display: true };
     }
     return null;
   }
@@ -665,13 +697,13 @@ export class WordModeView extends TextFileView {
     const bar = box.createDiv('wm-banner-actions');
     const btn = (text: string, cls: string, run: () => void) => { const x = bar.createEl('button', { text, cls }); x.addEventListener('click', run); return x; };
     btn(t('載入新版本'), '', () => { const d = this.conflict!.data; this.hideConflict(); this.loadDoc(d, false); this.setStatus('saved'); new Notice(t('已載入新版本，你剛剛的修改已捨棄。')); });
-    btn(t('保留我的版本'), 'mod-cta', async () => { this.hideConflict(); this.changed = true; this.pending = true; await this.save(); new Notice(t('已用你的版本覆蓋。')); });
-    btn(t('兩份都保留'), '', async () => {
+    btn(t('保留我的版本'), 'mod-cta', () => { void (async () => { this.hideConflict(); this.changed = true; this.pending = true; await this.save(); new Notice(t('已用你的版本覆蓋。')); })(); });
+    btn(t('兩份都保留'), '', () => { void (async () => {
       const f = await this.saveMyCopy();
       const d = this.conflict!.data;
       this.hideConflict(); this.loadDoc(d, false); this.setStatus('saved');
       if (f) new Notice(t('你的版本已另存為「') + f.basename + t('」，目前顯示新版本。'));
-    });
+    })(); });
   }
 
   hideConflict(): void {
@@ -747,10 +779,10 @@ export class WordModeView extends TextFileView {
       if (dom && dom.scrollIntoView) {
         dom.scrollIntoView({ block: 'center' });
         dom.classList.add('wm-flash');
-        setTimeout(() => dom.classList.remove('wm-flash'), 1200);
+        window.setTimeout(() => dom.classList.remove('wm-flash'), 1200);
       } else v.dispatch(v.state.tr.scrollIntoView());
       v.focus();
-    } catch (e) { /* 忽略 */ }
+    } catch { /* 忽略 */ }
   }
 
   loadDoc(data: string, clear: boolean): void {
@@ -760,7 +792,7 @@ export class WordModeView extends TextFileView {
       console.error('[Word 模式] 解析失敗', e);
       new Notice(t('Word 模式無法開啟這份筆記，改用 Markdown 編輯。'));
       this.lastOut = data;
-      setTimeout(() => this.plugin.switchToMarkdown(this.leaf), 0);
+      window.setTimeout(() => this.plugin.switchToMarkdown(this.leaf), 0);
       return;
     }
     this.meta = parsed.meta;
@@ -799,7 +831,7 @@ export class WordModeView extends TextFileView {
           mouseover: (v, e) => {
             const a = (e.target as Element).closest && (e.target as Element).closest<HTMLAnchorElement>('a.wm-link');
             const href = a && a.getAttribute('href');
-            if (href && !isExternal(href)) { let lt = href; try { lt = decodeURIComponent(href); } catch (err) { /* 保持原樣 */ } this.hoverLink(e, lt, a); }
+            if (href && !isExternal(href)) { let lt = href; try { lt = decodeURIComponent(href); } catch { /* 保持原樣 */ } this.hoverLink(e, lt, a); }
             return false;
           },
           contextmenu: (v, e) => this.onContextMenu(e as ElementEvent<typeof e>),
@@ -820,7 +852,7 @@ export class WordModeView extends TextFileView {
     else this.scroller.scrollTop = scrollTop;
     this.setStatus('saved');
     this.updateCount();
-    if (this.pendingEState) { const st = this.pendingEState; this.pendingEState = null; setTimeout(() => this.setEphemeralState(st), 0); }
+    if (this.pendingEState) { const st = this.pendingEState; this.pendingEState = null; window.setTimeout(() => this.setEphemeralState(st), 0); }
     this.plugin.outlineChanged(this, true);
   }
 
@@ -837,8 +869,8 @@ export class WordModeView extends TextFileView {
     }
     this.toolbar.update(state);
     if (tr.docChanged || tr.selectionSet) this.plugin.outlineChanged(this, tr.docChanged);
-    clearTimeout(this.countTimer);
-    this.countTimer = setTimeout(() => this.updateCount(), 200);
+    window.clearTimeout(this.countTimer);
+    this.countTimer = window.setTimeout(() => this.updateCount(), 200);
   }
 
   async onExternalModify(file: TFile): Promise<void> {
@@ -856,7 +888,7 @@ export class WordModeView extends TextFileView {
   resolvePath(linkpath: string): TAbstractFile | null {
     const clean = String(linkpath).replace(/^<|>$/g, '').split('#')[0];
     let p = clean;
-    try { p = decodeURIComponent(clean); } catch (e) { /* 保持原樣 */ }
+    try { p = decodeURIComponent(clean); } catch { /* 保持原樣 */ }
     if (!p) return this.file;
     const vault = this.app.vault;
     const dir = this.file && this.file.parent ? this.file.parent.path : '';
@@ -884,7 +916,7 @@ export class WordModeView extends TextFileView {
       try {
         const fe = this.app.internalPlugins!.getEnabledPluginById!('file-explorer');
         if (fe) { fe.revealInFolder(f); return; }
-      } catch (e) { /* 改用提示 */ }
+      } catch { /* 改用提示 */ }
       new Notice(t('這是資料夾：') + f.path);
       return;
     }
@@ -893,7 +925,7 @@ export class WordModeView extends TextFileView {
       return;
     }
     let linktext = target.replace(/^<|>$/g, '');
-    try { linktext = decodeURIComponent(linktext); } catch (e) { /* 保持原樣 */ }
+    try { linktext = decodeURIComponent(linktext); } catch { /* 保持原樣 */ }
     if (f instanceof TFile) {
       const sub = linktext.includes('#') ? '#' + linktext.split('#').slice(1).join('#') : '';
       linktext = f.path + sub;
@@ -907,8 +939,9 @@ export class WordModeView extends TextFileView {
       openLink: (tv, n) => this.openLink(tv, n),
       isResolved: tv => !!this.resolveFile(tv),
       resolveImage: a => {
-        if (/^(https?:|data:)/i.test(a.src)) return a.src;
-        const f = this.resolveFile(a.src);
+        const { src } = a as ImageAttrs;
+        if (/^(https?:|data:)/i.test(src)) return src;
+        const f = this.resolveFile(src);
         return f instanceof TFile ? this.app.vault.getResourcePath(f) : null;
       },
       renderMarkdown: (src, el) => {
@@ -926,7 +959,7 @@ export class WordModeView extends TextFileView {
       editLinkAt: pos => { this.selectNodeAt(pos); this.openLinkDialog(); },
       prompt: (title, value, placeholder, cb) => new PromptModal(this.app, title, value, placeholder, cb).open(),
       editMath: (pos, src, display) => { if (pos != null) this.openEquation({ pos, src, display }); },
-      parseYaml: tv => parseYaml(tv),
+      parseYaml: tv => { const v: unknown = parseYaml(tv); return v; },
       stringifyYaml: o => stringifyYaml(o),
       propsOpen: () => this.propsOpen !== false,
       setPropsOpen: v => { this.propsOpen = v; },
@@ -935,7 +968,7 @@ export class WordModeView extends TextFileView {
           const m = this.app.metadataTypeManager;
           const info = m && (m.getPropertyInfo ? m.getPropertyInfo(key) : m.properties && m.properties[key.toLowerCase()]);
           return info ? (info.widget || info.type) : null;
-        } catch (e) { return null; }
+        } catch { return null; }
       },
       unwrapCallout: pos => this.unwrapCallout(pos),
       imageMenu: (evt, pos) => this.imageMenu(evt, pos),
@@ -1006,7 +1039,7 @@ export class WordModeView extends TextFileView {
     try {
       const pp = MarkdownPreviewRenderer.codeBlockPostProcessors;
       return !!(pp && pp[l]);
-    } catch (e) { return false; }
+    } catch { return false; }
   }
 
   // Mermaid 圖表編輯器：pos 是既有的 mermaid 程式碼區塊位置；沒有 pos 就是插入新的
@@ -1021,7 +1054,7 @@ export class WordModeView extends TextFileView {
       render: (s, el) => this.renderBlock('```mermaid\n' + s + '\n```', el),
       validate: async s => {
         try {
-          const mm = await loadMermaid();
+          const mm = (await loadMermaid()) as MermaidLike | undefined;
           if (mm && mm.parse) await mm.parse(s);
           return null;
         } catch (e) { return String((e && ((e as CaughtError).str || (e as CaughtError).message)) || e).split('\n')[0]; }
@@ -1057,7 +1090,7 @@ export class WordModeView extends TextFileView {
   hoverLink(event: MouseEvent, linktext: string, targetEl: HTMLElement): void {
     try {
       this.app.workspace.trigger('hover-link', { event, source: VIEW_TYPE, hoverParent: this, targetEl, linktext, sourcePath: this.sourcePath() });
-    } catch (e) { /* 沒有頁面預覽就不顯示 */ }
+    } catch { /* 沒有頁面預覽就不顯示 */ }
   }
 
   // ---------------------------------------------------------- 註腳
@@ -1077,13 +1110,13 @@ export class WordModeView extends TextFileView {
     if (!d) { new Notice(t('找不到這個註腳的內容')); return; }
     this.selectNodeAt(d.pos);
     const dom = this.pm!.nodeDOM(d.pos) as HTMLElement | null;
-    if (dom && dom.scrollIntoView) { dom.scrollIntoView({ block: 'center' }); dom.classList.add('wm-flash'); setTimeout(() => dom.classList.remove('wm-flash'), 1200); }
+    if (dom && dom.scrollIntoView) { dom.scrollIntoView({ block: 'center' }); dom.classList.add('wm-flash'); window.setTimeout(() => dom.classList.remove('wm-flash'), 1200); }
   }
 
   // 編輯註腳的內容；還沒有定義就新增一個
   editFootnote(id: string): void {
     const d = footnotes(this.pm!.state.doc).defs.find(x => x.id === id);
-    new SourceModal(this.app, t('註腳') + ' ' + id, d ? footnoteBody(d.node.attrs.src) : '', value => {
+    new SourceModal(this.app, t('註腳') + ' ' + id, d ? footnoteBody((d.node.attrs as RawBlockAttrs).src) : '', value => {
       const st = this.pm!.state;
       const cur = footnotes(st.doc).defs.find(x => x.id === id);
       if (cur) setFootnoteBody(cur.pos, value)(st, tr => this.pm!.dispatch(tr));
@@ -1093,7 +1126,7 @@ export class WordModeView extends TextFileView {
   }
 
   spellcheckOn(): boolean {
-    try { return !!(this.app.vault.getConfig && this.app.vault.getConfig('spellcheck')); } catch (e) { return false; }
+    try { return !!(this.app.vault.getConfig && this.app.vault.getConfig('spellcheck')); } catch { return false; }
   }
 
   onKeyDown(e: KeyboardEvent): boolean {
@@ -1109,7 +1142,7 @@ export class WordModeView extends TextFileView {
     if (mod && !e.shiftKey && k === 'f') { e.preventDefault(); this.findBar.open(false); return true; }
     if (mod && !e.shiftKey && k === 'h') { e.preventDefault(); this.findBar.open(true); return true; }
     if (mod && !e.shiftKey && (k === '/' || e.code === 'Slash')) { e.preventDefault(); new ShortcutModal(this.app).open(); return true; }
-    if (mod && e.shiftKey && k === 'v') { this.plainPasteNext = true; setTimeout(() => { this.plainPasteNext = false; }, 1000); return false; }
+    if (mod && e.shiftKey && k === 'v') { this.plainPasteNext = true; window.setTimeout(() => { this.plainPasteNext = false; }, 1000); return false; }
     if (e.key === 'Escape') {
       if (this.pasteChip) { this.hidePasteChip(); return true; }
       if (this.toolbar.painter) { this.toolbar.togglePainter(); return true; }
@@ -1142,7 +1175,7 @@ export class WordModeView extends TextFileView {
       try {
         const $p = this.pm!.state.doc.resolve(pmPos.pos);
         if ($p.parent.inlineContent) this.pm!.dispatch(this.pm!.state.tr.setSelection(TextSelection.create(this.pm!.state.doc, pmPos.pos)));
-      } catch (err) { /* 非文字位置 */ }
+      } catch { /* 非文字位置 */ }
     }
     const st = this.pm!.state;
     const hasSel = !st.selection.empty && !(st.selection instanceof NodeSelection);
@@ -1185,9 +1218,10 @@ export class WordModeView extends TextFileView {
     const $f = st.selection.$from;
     if ($f.parent.type === schema.nodes.code_block) {
       const code = $f.parent;
+      const params = (code.attrs as CodeBlockAttrs).params;
       item(t('複製程式碼'), 'copy', () => this.copyText(code.textContent));
-      item(t('程式語言') + '：' + (code.attrs.params || t('純文字')), 'code', () => {
-        new PromptModal(this.app, t('程式語言'), code.attrs.params || '', 'python, sql, json…', v => {
+      item(t('程式語言') + '：' + (params || t('純文字')), 'code', () => {
+        new PromptModal(this.app, t('程式語言'), params || '', 'python, sql, json…', v => {
           const pos = $f.before();
           this.pm!.dispatch(this.pm!.state.tr.setNodeMarkup(pos, null, Object.assign({}, code.attrs, { params: String(v || '').trim() })));
         }).open();
@@ -1215,8 +1249,8 @@ export class WordModeView extends TextFileView {
     if (!hidden.has('clipboard')) {
       item(t('剪下'), 'scissors', () => this.clipboardAction('cut'), hasSel);
       item(t('複製'), 'copy', () => this.clipboardAction('copy'), hasSel);
-      item(t('貼上'), 'clipboard-paste', () => this.pasteFromClipboard('auto'));
-      item(t('只貼上文字'), 'type', () => this.pasteFromClipboard('text'));
+      item(t('貼上'), 'clipboard-paste', () => { void this.pasteFromClipboard('auto'); });
+      item(t('只貼上文字'), 'type', () => { void this.pasteFromClipboard('text'); });
       item(t('全選'), 'text-select', () => { C.selectAll(this.pm!.state, v => this.pm!.dispatch(v)); this.pm!.focus(); });
       sep();
     }
@@ -1275,7 +1309,7 @@ export class WordModeView extends TextFileView {
       const doc = schema.topNodeType.create(null, stripBids(content));
       const meta = this.plugin.converter.parse('').meta;
       return this.plugin.converter.serialize(doc, meta).replace(/\n+$/, '');
-    } catch (e) { return st.doc.textBetween(st.selection.from, st.selection.to, '\n'); }
+    } catch { return st.doc.textBetween(st.selection.from, st.selection.to, '\n'); }
   }
 
   searchVault(q: string): void {
@@ -1305,7 +1339,7 @@ export class WordModeView extends TextFileView {
     // 只有純文字、看起來像 Markdown（例如從 ChatGPT 複製）：先照原樣貼上，再提供「轉成格式」
     if (!plain && this.plugin.settings.pasteChip !== false && text && !html && looksLikeMarkdown(text) && !st.selection.$from.parent.type.spec.code) {
       const from = st.selection.from;
-      setTimeout(() => this.showPasteChip(text, from), 0);
+      window.setTimeout(() => this.showPasteChip(text, from), 0);
       return false;
     }
     if (text && isUrl(text) && !st.selection.empty && !(st.selection instanceof NodeSelection)
@@ -1371,7 +1405,7 @@ export class WordModeView extends TextFileView {
       const host = this.page.getBoundingClientRect();
       chip.style.left = Math.max(0, Math.min(c.left - host.left, host.width - 260)) + 'px';
       chip.style.top = (c.bottom - host.top + 6) + 'px';
-    } catch (err) { /* 預設位置 */ }
+    } catch { /* 預設位置 */ }
     this.pasteChip = { el: chip, from, to };
   }
 
@@ -1410,7 +1444,7 @@ export class WordModeView extends TextFileView {
 
   selectNodeAt(pos: number | null | undefined): void {
     if (pos == null) return;
-    try { this.pm!.dispatch(this.pm!.state.tr.setSelection(NodeSelection.create(this.pm!.state.doc, pos))); } catch (e) { /* 忽略 */ }
+    try { this.pm!.dispatch(this.pm!.state.tr.setSelection(NodeSelection.create(this.pm!.state.doc, pos))); } catch { /* 忽略 */ }
   }
 
   // 依目前位置開啟連結對話框：新增、編輯網址連結、筆記連結（Wiki 或 Markdown）、或把網址文字變成連結
@@ -1422,7 +1456,7 @@ export class WordModeView extends TextFileView {
     let init: LinkDialogInit;
     let range: TextRange;
     if (info && info.kind === 'wikilink') {
-      const a = info.node.attrs;
+      const a = info.node.attrs as WikilinkAttrs;
       const f = this.app.metadataCache.getFirstLinkpathDest(a.target.split('#')[0], this.sourcePath());
       init = { existing: true, text: a.alias || '', mode: 'file', file: f || null, query: a.target, href: a.target };
       range = { from: info.pos, to: info.pos + 1 };
@@ -1462,10 +1496,10 @@ export class WordModeView extends TextFileView {
       // 原本是 [[筆記連結]] 就維持 Wiki 連結；原本是 Markdown 連結就維持 Markdown；新的連結依保管庫設定
       const asWiki = kind === 'wikilink' ? true : kind === 'link' ? false : l.wiki;
       if (asWiki) {
-        const target = kind === 'wikilink' && res.unchanged ? info!.node!.attrs.target
+        const target = kind === 'wikilink' && res.unchanged ? (info!.node!.attrs as WikilinkAttrs).target
           : l.wiki ? l.target : this.app.metadataCache.fileToLinktext(f, this.sourcePath(), true);
         const alias = res.text && res.text !== f.basename ? res.text : null;
-        const embed = kind === 'wikilink' && !!info!.node!.attrs.embed;
+        const embed = kind === 'wikilink' && !!(info!.node!.attrs as WikilinkAttrs).embed;
         tr.replaceWith(from, to, schema.nodes.wikilink.create({ target, alias, embed }));
         tr.setSelection(TextSelection.create(tr.doc, from + 1));
       } else {
@@ -1482,8 +1516,9 @@ export class WordModeView extends TextFileView {
     const tr = this.pm!.state.tr;
     if (info.kind === 'link') tr.removeMark(info.from, info.to, schema.marks.link);
     else if (info.kind === 'wikilink') {
-      const a = info.node.attrs;
-      const text = a.alias || a.target.replace(/\.md$/i, '').split('/').pop();
+      const a = info.node.attrs as WikilinkAttrs;
+      // split() 至少回傳一個元素，pop() 不會是 undefined
+      const text = a.alias || a.target.replace(/\.md$/i, '').split('/').pop()!;
       tr.replaceWith(info.pos, info.pos + 1, this.pm!.state.schema.text(text));
     } else return;
     this.pm!.dispatch(tr);
@@ -1498,7 +1533,7 @@ export class WordModeView extends TextFileView {
     }
     const f = wiki ? this.app.metadataCache.getFirstLinkpathDest(target.split('#')[0], this.sourcePath()) : this.resolvePath(target);
     let label = target;
-    try { label = decodeURIComponent(target); } catch (e) { /* 保持原樣 */ }
+    try { label = decodeURIComponent(target); } catch { /* 保持原樣 */ }
     if (f instanceof TFolder) return { icon: 'folder', label: f.path + '/', title: t('資料夾：') + f.path, missing: false };
     if (f instanceof TFile) {
       const icon = f.extension === 'md' ? 'file-text' : IMAGE_EXT.test(f.extension) ? 'image' : f.extension === 'pdf' ? 'file-text' : 'file';
@@ -1512,7 +1547,7 @@ export class WordModeView extends TextFileView {
       host: this.page,
       icon: (el, name, fallback) => { setIcon(el, name); if (!el.querySelector('svg') && fallback) el.setText(fallback); },
       describe: (tv, wiki) => this.describe(tv, wiki),
-      open: (info, newTab) => this.openLink(info.kind === 'wikilink' ? info.node.attrs.target : info.href!, newTab),
+      open: (info, newTab) => this.openLink(info.kind === 'wikilink' ? (info.node.attrs as WikilinkAttrs).target : info.href!, newTab),
       edit: info => this.openLinkDialog(info),
       copy: tv => this.copyText(tv),
       unlink: info => this.unlink(info),
@@ -1537,7 +1572,7 @@ export class WordModeView extends TextFileView {
   // 圖片「小／中／大／滿版」的基準寬度：Obsidian 閱讀畫面的行寬（預設 700px），避免全寬頁面時圖片被放得過大
   refWidth(): number {
     let line = 0;
-    try { line = parseInt(getComputedStyle(document.body).getPropertyValue('--file-line-width'), 10) || 0; } catch (e) { /* 預設值 */ }
+    try { line = parseInt(getComputedStyle(activeDocument.body).getPropertyValue('--file-line-width'), 10) || 0; } catch { /* 預設值 */ }
     return Math.min(this.pageWidth(), line > 200 ? line : 700);
   }
 
@@ -1558,7 +1593,7 @@ export class WordModeView extends TextFileView {
   editImageAlt(pos: number): void {
     const n = this.imageAt(pos);
     if (!n) return;
-    const cur = (n.attrs.alt || '').replace(/\|\d+(x\d+)?$/, '');
+    const cur = ((n.attrs as ImageAttrs).alt || '').replace(/\|\d+(x\d+)?$/, '');
     new PromptModal(this.app, t('圖片的替代文字（說明）'), cur, t('例如：2026 年 10 月發電量趨勢圖'), v => {
       const node = this.imageAt(pos);
       if (!node) return;
@@ -1570,8 +1605,9 @@ export class WordModeView extends TextFileView {
   }
 
   openImage(a: Attrs): void {
-    if (/^https?:/i.test(a.src)) { window.open(a.src); return; }
-    const f = this.resolveFile(a.src);
+    const { src } = a as ImageAttrs;
+    if (/^https?:/i.test(src)) { window.open(src); return; }
+    const f = this.resolveFile(src);
     if (f) void this.app.workspace.getLeaf('tab').openFile(f);
   }
 
@@ -1623,8 +1659,9 @@ export class WordModeView extends TextFileView {
   insertImageAttrs(attrs: NewImageAttrs, replacePos?: number | null): void {
     const old = replacePos != null ? this.imageAt(replacePos) : null;
     if (old) {
-      const a = Object.assign({}, attrs, { width: old.attrs.width, title: old.attrs.title });
-      if (old.attrs.alt) a.alt = old.attrs.alt;
+      const oa = old.attrs as ImageAttrs;
+      const a = Object.assign({}, attrs, { width: oa.width, title: oa.title });
+      if (oa.alt) a.alt = oa.alt;
       const tr = this.pm!.state.tr.setNodeMarkup(replacePos!, null, a);
       tr.setSelection(NodeSelection.create(tr.doc, replacePos!));
       this.pm!.dispatch(tr);
@@ -1651,13 +1688,13 @@ export class WordModeView extends TextFileView {
     if (!folder) { new Notice(t('請先啟用 Templater 外掛，或在 Obsidian 的核心外掛「範本」設定範本資料夾')); return; }
     const list = this.app.vault.getMarkdownFiles().filter(f => f.path.startsWith(folder + '/')).sort((a, b) => a.path.localeCompare(b.path));
     if (!list.length) { new Notice(t('找不到範本（範本資料夾：') + folder + t('）')); return; }
-    new FilePicker(this.app, list, t('選擇要套用的範本…'), async tf => {
+    new FilePicker(this.app, list, t('選擇要套用的範本…'), tf => { void (async () => {
       try {
         let text = await this.app.vault.cachedRead(tf);
         const now = (fmt: string) => (window.moment ? window.moment().format(fmt) : new Date().toLocaleString());
         text = text.replace(/^---\r?\n[\s\S]*?\r?\n(---|\.\.\.)\r?\n?/, '') // 範本自己的文件屬性不插入
           .replace(/\{\{title\}\}/gi, this.file ? this.file.basename : '')
-          .replace(/\{\{(date|time)(?::([^}]+))?\}\}/gi, (m, kind, f) => now(f || (kind.toLowerCase() === 'date' ? ((opts as TemplateOptions).dateFormat || 'YYYY-MM-DD') : ((opts as TemplateOptions).timeFormat || 'HH:mm'))));
+          .replace(/\{\{(date|time)(?::([^}]+))?\}\}/gi, (m: string, kind: string, f: string | undefined) => now(f || (kind.toLowerCase() === 'date' ? ((opts as TemplateOptions).dateFormat || 'YYYY-MM-DD') : ((opts as TemplateOptions).timeFormat || 'HH:mm'))));
         const frag = stripBids(this.plugin.converter.parseFragment(text).content);
         this.pm!.dispatch(this.pm!.state.tr.replaceSelection(new Slice(frag, 0, 0)).scrollIntoView());
         this.pm!.focus();
@@ -1665,7 +1702,7 @@ export class WordModeView extends TextFileView {
         console.error('[Word Mode]', e);
         new Notice(t('套用範本失敗：') + (e && (e as CaughtError).message ? (e as CaughtError).message : String(e)));
       }
-    }).open();
+    })(); }).open();
   }
 
   // 套用 Templater 範本：空白筆記直接寫入；已有內容時切到 Markdown 再插入到游標處
@@ -1677,7 +1714,7 @@ export class WordModeView extends TextFileView {
     const list = this.app.vault.getMarkdownFiles().filter(f => !folder || f.path.startsWith(folder + '/'))
       .sort((a, b) => a.path.localeCompare(b.path));
     if (!list.length) { new Notice(t('找不到範本（範本資料夾：') + (folder || t('未設定')) + t('）')); return; }
-    new FilePicker(this.app, list, t('選擇要套用的範本…'), async tf => {
+    new FilePicker(this.app, list, t('選擇要套用的範本…'), tf => { void (async () => {
       try {
         const doc = this.pm!.state.doc;
         const empty = doc.childCount === 1 && doc.firstChild!.isTextblock && doc.firstChild!.content.size === 0;
@@ -1694,7 +1731,7 @@ export class WordModeView extends TextFileView {
         console.error('[Word 模式] 套用範本失敗', e);
         new Notice(t('套用範本失敗：') + (e && (e as CaughtError).message ? (e as CaughtError).message : String(e)));
       }
-    }).open();
+    })(); }).open();
   }
 
   openImageMenu(btn: HTMLElement | null | undefined, replacePos?: number | null, evt?: MouseEvent): void {
@@ -1706,9 +1743,9 @@ export class WordModeView extends TextFileView {
       new FilePicker(this.app, imgs, t('輸入圖片檔名…'), f => this.insertImageFile(f, replacePos)).open();
     }));
     m.addItem(i => i.setTitle(t('從電腦上傳圖片…')).setIcon('upload').onClick(() => {
-      const input = document.createElement('input');
+      const input = createEl('input');
       input.type = 'file'; input.accept = 'image/*'; input.multiple = replacePos == null;
-      input.addEventListener('change', () => this.insertUploadedImages(Array.from(input.files || []), replacePos));
+      input.addEventListener('change', () => { void this.insertUploadedImages(Array.from(input.files || []), replacePos); });
       input.click();
     }));
     m.addItem(i => i.setTitle(verb + t('網路圖片（網址）…')).setIcon('globe').onClick(() => {

@@ -76,6 +76,8 @@ Word Mode 替 `.md` 筆記多加一種編輯器。畫面上看到的是排版好
 - **遙測**：沒有。
 - **帳號與付費**：不需要。
 - **vault 以外的檔案**：不會讀取或寫入。
+- **vault 裡的檔案名稱**：外掛會列出 vault 裡的檔案，用在連結、圖片、範本的選擇視窗，以及輸入 `[[` 之後的建議清單。清單只留在你的裝置上。
+- **剪貼簿**：只有在你按工具列或右鍵選單的「貼上」時才讀取；只有在你按「剪下」「複製」或複製按鈕時才寫入。
 - **外掛會建立的檔案**：貼上的圖片會存到附件資料夾。同步衝突時如果選擇兩份都保留，你的版本會另存在筆記旁邊。
 
 ## 已知限制
@@ -95,8 +97,8 @@ Word Mode 替 `.md` 筆記多加一種編輯器。畫面上看到的是排版好
 | `npm run typecheck` | 用 `tsc` 檢查型別。 |
 | `npm run lint` | 執行 ESLint，使用 Obsidian 審查社群外掛的同一套規則。 |
 | `npm test` | 先檢查型別，再執行轉換測試與編輯測試（以 jsdom 模擬 Obsidian）。最後一行應是 `ALL PASS`。 |
-| `npm run build` | 建置到 `dist/`，不壓縮。 |
-| `npm run build:prod` | 建置 `main.js`、`manifest.json`、`styles.css` 到 `dist/`。 |
+| `npm run build` | 建置 `main.js`、`manifest.json`、`styles.css` 到 `dist/`。這是正式建置。 |
+| `npm run dev` | 建置到 `dist/`，不壓縮。 |
 | `npm run test:vault -- <vault 路徑>` | 對 vault 裡每一份筆記做往返檢查。唯讀，只輸出統計與檔案路徑。 |
 
 修改 `src/markdown.ts` 或 `src/schema.ts` 之後，請對真實的 vault 執行 `npm run test:vault`，確認 `notExact` 與 `lossyBlocks` 都是 `0`。
@@ -113,13 +115,20 @@ Obsidian 沒有公開的 API 集中宣告在 `src/obsidian-internal.d.ts`，全�
 
 版本號寫在 `package.json`，`manifest.json` 與 `versions.json` 會跟著更新。
 
-1. 執行 `npm version patch`、`npm version minor` 或 `npm version major`。這會更新 `package.json`、`manifest.json`、`versions.json`，並建立 commit 與 tag（例如 `1.2.1`）。
-2. 執行 `git push origin main`。
-3. 執行 `npm run release:local`。這會跑測試、建置外掛、推 tag，並建立附有 `main.js`、`manifest.json`、`styles.css` 的 GitHub Release。需要 [GitHub CLI](https://cli.github.com)，不使用 GitHub Actions。
+1. 執行 `npm version patch`、`npm version minor` 或 `npm version major`。這會更新 `package.json`、`manifest.json`、`versions.json`，並建立 commit 與 tag（例如 `1.3.1`）。
+2. 執行 `git push origin main --follow-tags`。
+
+推上 tag 之後，GitHub Actions 的 release workflow 會跑測試、建置外掛，為 `main.js`、`manifest.json`、`styles.css` 產生[建置來源證明](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations/using-artifact-attestations-to-establish-provenance-for-builds)，再附到 GitHub Release。發佈檔一律在那裡建置，任何人都能驗證檔案確實來自這份原始碼：
+
+```sh
+gh attestation verify main.js --repo NatLee/obsidian-word-mode
+```
 
 tag 必須與版本號完全相同，前面不加 `v`，因為 Obsidian 會找這個 tag 的 Release。
 
-CI 與 release workflow 都不會自動執行。要執行時，到 **Actions** 分頁選擇 workflow，再選 **Run workflow**。release workflow 要在「Use workflow from」選擇要發佈的 tag。
+`npm run build` 是正式建置，Obsidian 社群目錄也是執行它來核對發佈檔與原始碼是否一致。
+
+CI workflow 不會自動執行。要執行時，到 **Actions** 分頁選 **CI**，再選 **Run workflow**。
 
 ## 致謝
 

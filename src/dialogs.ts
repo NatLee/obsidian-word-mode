@@ -73,7 +73,7 @@ export class SourceModal extends Modal {
     const ok = bar.createEl('button', { text: t('套用'), cls: 'mod-cta' });
     ok.addEventListener('click', () => { this.close(); this.onSave(ta.value); });
     ta.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); ok.click(); } });
-    setTimeout(() => ta.focus(), 10);
+    window.setTimeout(() => ta.focus(), 10);
   }
   onClose(): void { this.contentEl.empty(); }
 }
@@ -94,7 +94,7 @@ export class PromptModal extends Modal {
     const ok = bar.createEl('button', { text: t('確定'), cls: 'mod-cta' });
     ok.addEventListener('click', () => { this.close(); this.onSave(i.value); });
     i.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); ok.click(); } });
-    setTimeout(() => { i.focus(); i.select(); }, 10);
+    window.setTimeout(() => { i.focus(); i.select(); }, 10);
   }
   onClose(): void { this.contentEl.empty(); }
 }
@@ -187,7 +187,7 @@ export class LinkDialog extends Modal {
     this.tabFile.toggleClass('is-active', m === 'file');
     this.urlPane.style.display = m === 'url' ? '' : 'none';
     this.filePane.style.display = m === 'file' ? '' : 'none';
-    setTimeout(() => (this.init.text || this.text.value ? (m === 'url' ? this.href : this.query) : this.text).focus(), 10);
+    window.setTimeout(() => (this.init.text || this.text.value ? (m === 'url' ? this.href : this.query) : this.text).focus(), 10);
     if (m === 'file') this.search();
   }
   search(): void {
@@ -271,7 +271,7 @@ function renderKeys(parent: HTMLElement, combo: string): void {
   combo.split('／').forEach((alt, i) => {
     if (i) box.createSpan({ cls: 'wm-sc-or', text: '/' });
     const parts = alt.split('+');
-    const isText = parts.length === 1 && !/^(Tab|Enter|Esc|Shift)$/.test(alt) && !/^[A-Z0-9`\/]$/.test(alt);
+    const isText = parts.length === 1 && !/^(Tab|Enter|Esc|Shift)$/.test(alt) && !/^[A-Z0-9`/]$/.test(alt);
     // alt、p 是從按鍵組合字串切出來的片段：可能是說明文字（例如「按一下」），也可能是按鍵名稱（例如 B、↑），找不到翻譯時 t() 原樣回傳
     if (isText) { box.createSpan({ cls: 'wm-sc-text', text: t(alt as I18nKey) }); return; }
     parts.forEach((p, j) => {
@@ -368,7 +368,7 @@ export class EquationModal extends Modal {
     this.field = new MathField(this.fieldHost, {
       label: s => t(s),
       // 視覺化編輯的內容隨時寫回 LaTeX（LaTeX 那一格是唯一的來源，套用時讀它）
-      onChange: latex => { this.ta.value = latex; clearTimeout(this.timer); this.timer = setTimeout(() => this.preview(), 150); },
+      onChange: latex => { this.ta.value = latex; window.clearTimeout(this.timer); this.timer = window.setTimeout(() => this.preview(), 150); },
     });
     this.fieldHost.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); ok.click(); } });
     this.fieldHint = c.createDiv({ cls: 'wm-eq-visual-hint', text: t('點格子直接輸入；按 ^ 或 _ 加上標、下標；Tab 跳到下一格；格子開頭按 Backspace 刪除前面的結構。') });
@@ -383,7 +383,7 @@ export class EquationModal extends Modal {
     const copy = lab.createEl('button', { cls: 'clickable-icon wm-eq-copy' });
     copy.setAttribute('aria-label', t('複製 LaTeX'));
     setIcon(copy, 'copy');
-    copy.addEventListener('click', () => navigator.clipboard && navigator.clipboard.writeText(this.ta.value.trim()).then(() => new Notice(t('已複製：') + this.ta.value.trim())));
+    copy.addEventListener('click', () => { if (navigator.clipboard) void navigator.clipboard.writeText(this.ta.value.trim()).then(() => new Notice(t('已複製：') + this.ta.value.trim())); });
     this.prev = c.createDiv('wm-eq-preview');
     const bar = c.createDiv('modal-button-container');
     if (this.init.existing && this.init.onDelete) {
@@ -400,7 +400,7 @@ export class EquationModal extends Modal {
       }
       this.close(); this.onSave(v, this.display);
     });
-    this.ta.addEventListener('input', () => { clearTimeout(this.timer); this.timer = setTimeout(() => this.preview(), 150); });
+    this.ta.addEventListener('input', () => { window.clearTimeout(this.timer); this.timer = window.setTimeout(() => this.preview(), 150); });
     this.ta.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); ok.click(); } });
     showGroup(recent.length && !this.init.src ? 0 : (recent.length ? 1 : 0));
     setMode(this.display);
@@ -414,8 +414,8 @@ export class EquationModal extends Modal {
     this.fieldHost.toggle(mode === 'visual');
     this.fieldHint.toggle(mode === 'visual');
     this.ta.toggle(mode === 'latex');
-    if (mode === 'visual') { this.field.setLatex(this.ta.value); setTimeout(() => this.field.focus(true), 10); }
-    else setTimeout(() => { this.ta.focus(); this.ta.setSelectionRange(this.ta.value.length, this.ta.value.length); }, 10);
+    if (mode === 'visual') { this.field.setLatex(this.ta.value); window.setTimeout(() => this.field.focus(true), 10); }
+    else window.setTimeout(() => { this.ta.focus(); this.ta.setSelectionRange(this.ta.value.length, this.ta.value.length); }, 10);
   }
   insertRaw(text: string): void {
     if (this.editMode === 'visual') { this.field.insert(text); return; }
@@ -450,9 +450,9 @@ export class EquationModal extends Modal {
     for (const ch of v.replace(/\\[{}]/g, '')) { if (ch === '{') depth++; else if (ch === '}') depth--; if (depth < 0) break; }
     if (depth !== 0) this.err.setText(t('大括號 { } 沒有成對'));
     this.render(v, this.prev, this.display);
-    setTimeout(() => { if (this.prev && this.prev.querySelector('mjx-merror, .merror, [data-mjx-error]')) this.err.setText(t('語法錯誤，請檢查 LaTeX')); }, 120);
+    window.setTimeout(() => { if (this.prev && this.prev.querySelector('mjx-merror, .merror, [data-mjx-error]')) this.err.setText(t('語法錯誤，請檢查 LaTeX')); }, 120);
   }
-  onClose(): void { clearTimeout(this.timer); this.contentEl.empty(); }
+  onClose(): void { window.clearTimeout(this.timer); this.contentEl.empty(); }
 }
 
 export class ShortcutModal extends Modal {
@@ -494,7 +494,7 @@ export class ShortcutModal extends Modal {
       }
       empty.toggle(!any);
     });
-    setTimeout(() => search.focus(), 0);
+    window.setTimeout(() => search.focus(), 0);
   }
   onClose(): void { this.contentEl.empty(); }
 }

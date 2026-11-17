@@ -181,7 +181,7 @@ function parseRow(s: string, pos: number, stops: string[]): RowResult {
 // 解析 LaTeX；括號不成對等看不懂的情況，整段當成一格文字（不會遺失內容）
 export function parseLatex(src?: string | null): MathRow {
   const s = String(src || '');
-  try { return normalize(parseRow(s, 0, []).row); } catch (e) { return normalize([{ t: 'text', v: s }]); }
+  try { return normalize(parseRow(s, 0, []).row); } catch { return normalize([{ t: 'text', v: s }]); }
 }
 
 const trimRow = (row: MathRow): string => toLatex(row).trim();
@@ -274,7 +274,7 @@ export class MathField {
       if (node) r.setStart(node, Math.max(0, Math.min(offset, node.textContent!.length))); else r.setStart(span, 0);
       r.collapse(true);
       sel.removeAllRanges(); sel.addRange(r);
-    } catch (e) { /* 測試環境 */ }
+    } catch { /* 測試環境 */ }
   }
 
   caret(span: HTMLElement): { start: number; end: number } {

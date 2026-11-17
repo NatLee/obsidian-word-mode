@@ -35,6 +35,9 @@ export interface BubbleContext {
 // nodeDOM 可能是文字節點（沒有 getBoundingClientRect），所以 position() 先檢查再呼叫
 type MaybeElement = Node & Partial<Pick<Element, 'getBoundingClientRect'>>;
 
+// wikilink 節點的屬性（見 schema.ts）；這裡只讀 target（連到的筆記）
+interface WikilinkAttrs { readonly target: string; }
+
 export const IMAGE_SIZES = [
   { label: t('小'), pct: 0.25 }, { label: t('中'), pct: 0.5 }, { label: t('大'), pct: 0.75 }, { label: t('滿版'), pct: 1 },
 ];
@@ -60,8 +63,8 @@ class Bubble {
     ctx.host.appendChild(this.dom);
     this.info = null;
     this.key = '';
-    this.onBlur = () => setTimeout(() => {
-      if (!this.view.hasFocus() && !this.dom.contains(document.activeElement)) this.hide();
+    this.onBlur = () => window.setTimeout(() => {
+      if (!this.view.hasFocus() && !this.dom.contains(activeDocument.activeElement)) this.hide();
     }, 150);
     view.dom.addEventListener('blur', this.onBlur);
     this.update(view, null);
@@ -79,7 +82,7 @@ class Bubble {
     const key = info.kind + ':' + (info.pos != null ? info.pos : info.from + '-' + info.to) + ':' + JSON.stringify(info.node ? info.node.attrs : info.href);
     this.info = info;
     if (key !== this.key) { this.key = key; this.render(info); }
-    this.dom.style.display = '';
+    this.dom.show();
     this.position(info);
   }
 
@@ -95,7 +98,7 @@ class Bubble {
         const a = v.coordsAtPos(info.from);
         rect = { left: a.left, bottom: a.bottom, top: a.top };
       }
-    } catch (e) { return; }
+    } catch { return; }
     const host = this.ctx.host.getBoundingClientRect();
     const maxLeft = Math.max(0, host.width - (this.dom.offsetWidth || 320) - 8);
     this.dom.style.left = Math.min(maxLeft, Math.max(0, rect.left - host.left)) + 'px';
@@ -118,7 +121,7 @@ class Bubble {
     this.dom.dataset.kind = info.kind;
     if (info.kind === 'image') { this.renderImage(info); return; }
 
-    const target = info.kind === 'wikilink' ? info.node.attrs.target : info.href;
+    const target = info.kind === 'wikilink' ? (info.node.attrs as WikilinkAttrs).target : info.href;
     const d = c.describe(target, info.kind === 'wikilink');
     const link = el('a', 'wm-bubble-url' + (d.missing ? ' is-missing' : ''), this.dom);
     const ic = el('span', 'wm-bubble-icon', link);
@@ -134,7 +137,7 @@ class Bubble {
       return;
     }
     this.btn(this.dom, 'pencil', withKey('編輯連結', 'Mod+K'), i => c.edit(i));
-    this.btn(this.dom, 'copy', t('複製連結'), (i: WikilinkContext | TextLinkContext) => c.copy(i.kind === 'wikilink' ? i.node.attrs.target : i.href));
+    this.btn(this.dom, 'copy', t('複製連結'), (i: WikilinkContext | TextLinkContext) => c.copy(i.kind === 'wikilink' ? (i.node.attrs as WikilinkAttrs).target : i.href));
     this.btn(this.dom, 'unlink', t('移除連結（保留文字）'), i => c.unlink(i));
   }
 

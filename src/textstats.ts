@@ -11,6 +11,6 @@ export interface TextStats {
 
 export function countText(text: string): TextStats {
   const cjk = (text.match(CJK) || []).length;
-  const latin = (text.replace(CJK, ' ').match(/[A-Za-z0-9]+(?:['’.\-][A-Za-z0-9]+)*/g) || []).length;
+  const latin = (text.replace(CJK, ' ').match(/[A-Za-z0-9]+(?:['’.-][A-Za-z0-9]+)*/g) || []).length;
   return { cjk, latin, words: cjk + latin, chars: text.replace(/\s/g, '').length, charsWithSpaces: text.replace(/\n/g, '').length };
 }

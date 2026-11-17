@@ -1,5 +1,6 @@
 // 多語系：介面文字以繁體中文為鍵，英文翻譯放在 en.js
 import { Platform } from 'obsidian';
+import * as obsidian from 'obsidian';
 import EN from './i18n-en.js';
 import JA from './i18n-ja.js';
 import KO from './i18n-ko.js';
@@ -13,10 +14,13 @@ let lang: string = 'zh-TW';
 // 快速鍵要顯示 Cmd／Option 的平台：macOS、iPhone、iPad
 const isMac = Platform.isMacOS || Platform.isIosApp;
 
+// getLanguage() 是 Obsidian 1.8.7 才有的公開 API，1.5.7 的型別定義裡沒有；較舊的版本沒有這個函式
+const getAppLanguage = (obsidian as { getLanguage?: () => string }).getLanguage;
+
 export function detectLanguage(): Language {
   let l: string | null | undefined = null;
-  try { l = window.localStorage.getItem('language'); } catch (e) { /* 預設 */ }
-  if (!l) { try { l = window.moment && window.moment.locale(); } catch (e) { /* 預設 */ } }
+  try { l = getAppLanguage ? getAppLanguage() : null; } catch { /* 預設 */ }
+  if (!l) { try { l = window.moment && window.moment.locale(); } catch { /* 預設 */ } }
   if (!l) l = (typeof navigator !== 'undefined' && navigator.language) || 'en';
   if (/^zh/i.test(l)) return 'zh-TW';
   if (/^ja/i.test(l)) return 'ja';

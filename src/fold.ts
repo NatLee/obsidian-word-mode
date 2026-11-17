@@ -10,6 +10,8 @@ export interface FoldState { folded: number[]; set: DecorationSet; }
 export interface FoldMeta { toggle?: number; clear?: boolean; all?: boolean; }
 // icon(el, name, fallback)：放圖示，沒有圖示時改用 fallback 文字
 export interface FoldContext { icon(el: HTMLElement, name: string, fallback: string): void; }
+// heading 節點的屬性（見 schema.ts）；這裡只讀 level（1～6）
+interface HeadingAttrs { readonly level: number; }
 
 export const foldKey = new PluginKey<FoldState>('wmFold');
 
@@ -25,7 +27,7 @@ function buildDecos(doc: PMNode, folded: number[], ctx: FoldContext): Decoration
     if (!isHeading) return;
     const isFolded = folded.includes(pos);
     decos.push(Decoration.widget(pos + 1, view => {
-      const b = document.createElement('span');
+      const b = createSpan();
       b.className = 'wm-fold-toggle' + (isFolded ? ' is-folded' : '');
       b.contentEditable = 'false';
       b.setAttribute('aria-label', isFolded ? t('展開') : t('摺疊'));
@@ -34,7 +36,7 @@ function buildDecos(doc: PMNode, folded: number[], ctx: FoldContext): Decoration
       const toggle = (e: MouseEvent) => {
         e.preventDefault(); e.stopPropagation();
         let at;
-        try { at = view.state.doc.resolve(view.posAtDOM(b, 0)).before(1); } catch (err) { return; }
+        try { at = view.state.doc.resolve(view.posAtDOM(b, 0)).before(1); } catch { return; }
         view.dispatch(view.state.tr.setMeta(foldKey, { toggle: at }));
       };
       b.addEventListener('mousedown', toggle);
@@ -42,7 +44,7 @@ function buildDecos(doc: PMNode, folded: number[], ctx: FoldContext): Decoration
     }, { side: -1, key: 'fold-' + isFolded, ignoreSelection: true }));
     if (isFolded) {
       decos.push(Decoration.node(pos, pos + node.nodeSize, { class: 'wm-heading-folded' }));
-      hideUntilLevel = node.attrs.level;
+      hideUntilLevel = (node.attrs as HeadingAttrs).level;
     }
   });
   return DecorationSet.create(doc, decos);
@@ -66,7 +68,7 @@ export function foldPlugin(ctx: FoldContext): Plugin<FoldState> {
     state: {
       init: (_, state) => ({ folded: [], set: buildDecos(state.doc, [], ctx) }),
       apply(tr, old, oldState, newState) {
-        const meta: FoldMeta | undefined = tr.getMeta(foldKey);
+        const meta = tr.getMeta(foldKey) as FoldMeta | undefined;
         if (!tr.docChanged && !meta) return old;
         let list = old.folded;
         if (tr.docChanged) list = list.map(p => tr.mapping.mapResult(p)).filter(r => !r.deleted).map(r => r.pos);
