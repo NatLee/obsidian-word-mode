@@ -491,6 +491,10 @@ export class Toolbar {
     tb('arrow-right-to-line', '在右側插入欄', T.addColumnAfter, '→欄');
     tb('rows-3', '刪除列', T.deleteRow, '刪列');
     tb('columns-3', '刪除欄', T.deleteColumn, '刪欄');
+    tb('arrow-up', '列上移', C.moveBlock(-1), '列↑');
+    tb('arrow-down', '列下移', C.moveBlock(1), '列↓');
+    tb('arrow-left', '欄左移', C.moveTableColumn(-1), '欄←');
+    tb('arrow-right', '欄右移', C.moveTableColumn(1), '欄→');
     tb('arrow-down-a-z', '依此欄排序（遞增）', C.sortTableByColumn(1), '排↑');
     tb('arrow-up-z-a', '依此欄排序（遞減）', C.sortTableByColumn(-1), '排↓');
     tb('trash-2', '刪除表格', T.deleteTable, '刪表');

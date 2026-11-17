@@ -925,5 +925,9 @@ export default {
  "重新命名…": "Rename…",
  "重新命名屬性": "Rename property",
  "程式碼區塊顯示行號": "Show line numbers in code blocks",
- "在程式碼左邊顯示行號。開啟時太長的行不會自動換行，改成左右捲動。": "Show line numbers to the left of the code. When this is on, long lines scroll sideways instead of wrapping."
+ "在程式碼左邊顯示行號。開啟時太長的行不會自動換行，改成左右捲動。": "Show line numbers to the left of the code. When this is on, long lines scroll sideways instead of wrapping.",
+ "列上移": "Move row up",
+ "列下移": "Move row down",
+ "欄左移": "Move column left",
+ "欄右移": "Move column right"
 };

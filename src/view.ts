@@ -1240,6 +1240,10 @@ export class WordModeView extends TextFileView {
       cmd(t('在右側插入欄'), 'arrow-right-to-line', T.addColumnAfter);
       cmd(t('刪除列'), 'rows-3', T.deleteRow);
       cmd(t('刪除欄'), 'columns-3', T.deleteColumn);
+      cmd(t('列上移'), 'arrow-up', C.moveBlock(-1));
+      cmd(t('列下移'), 'arrow-down', C.moveBlock(1));
+      cmd(t('欄左移'), 'arrow-left', C.moveTableColumn(-1));
+      cmd(t('欄右移'), 'arrow-right', C.moveTableColumn(1));
       cmd(t('整欄靠左'), 'align-left', T.alignColumn('left'), false);
       cmd(t('整欄置中'), 'align-center', T.alignColumn('center'), false);
       cmd(t('整欄靠右'), 'align-right', T.alignColumn('right'), false);

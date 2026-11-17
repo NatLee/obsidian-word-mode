@@ -19,7 +19,8 @@ Your files stay plain Markdown. When you edit a note, only the blocks you change
 ![The Insert tab of the ribbon toolbar (illustration)](docs/images/ribbon.en.svg)
 
 - **Ribbon toolbar** with Home, Insert, Review, and View tabs.
-- **Tables** you edit in place: add and remove rows and columns, set alignment, and paste cells from a spreadsheet.
+- **Tables** you edit in place: add, remove, and move rows and columns, sort by a column, set alignment, and paste cells from a spreadsheet.
+- **Properties** as a form: tags and links appear as chips that you can select to open, nested values appear as a tree, and you can change a property's type or rename it from its icon.
 - **Images**: paste or pick an image, then drag to resize it.
 - **Links** to notes, headings, and web pages, with a small toolbar that appears when the cursor is on a link.
 - **Find and replace**, with whole-word and regular-expression options.
@@ -31,7 +32,7 @@ Your files stay plain Markdown. When you edit a note, only the blocks you change
 - **Equations**: a visual editor where fractions, roots, superscripts, and matrices are boxes you type in, or plain LaTeX. You choose the default in the settings.
 - **Embeds**: embedded notes, headings, audio, video, PDFs, and YouTube links are shown in place.
 - **Footnotes**: insert a footnote, hover over its number to read it, and edit its text without touching the syntax.
-- **Callouts** (including foldable ones), **task lists** with custom statuses such as `[/]` and `[-]`, **tags**, and **code blocks** with syntax highlighting.
+- **Callouts** (including foldable ones), **task lists** with custom statuses such as `[/]` and `[-]`, **tags**, and **code blocks** with syntax highlighting and optional line numbers.
 - **Paste Markdown text** and convert it to formatted text in one step.
 - **Sync conflict handling**: if a note changes on disk while you have unsaved edits, you choose which version to keep.
 - Interface in Traditional Chinese, English, Japanese, and Korean.

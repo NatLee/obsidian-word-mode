@@ -514,6 +514,32 @@ await fresh('---\ntags:\n  - 會議\nrelated:\n  - [[其他筆記]]\n  - https:/
   plugin.settings.codeLineNumbers = false;
 }
 
+// ======== 表格：搬移列與欄 ========
+{
+  const cellAt = text => { let p = -1; view.pm.state.doc.descendants((n, pos) => { if (p < 0 && n.isText && n.text === text) p = pos; }); return p; };
+  const put = text => { const p = cellAt(text); view.pm.dispatch(view.pm.state.tr.setSelection(TextSelection.create(view.pm.state.doc, p + 1))); };
+  const run = c => c(view.pm.state, tr => view.pm.dispatch(tr), view.pm);
+  await fresh('| 甲 | 乙 | 丙 |\n| :--- | :---: | ---: |\n| a1 | b1 | c1 |\n| a2 | b2 | c2 |\n');
+  put('b1');
+  assert(run(B.C.moveTableColumn(1)), '欄右移：可以執行');
+  assert(out() === '| 甲 | 丙 | 乙 |\n| :--- | ---: | :---: |\n| a1 | c1 | b1 |\n| a2 | c2 | b2 |\n', '欄右移：整欄（含標題與對齊）一起搬：' + JSON.stringify(out()));
+  assert(view.pm.state.selection.$from.parent.textContent === 'b1' && view.pm.state.selection.$from.parentOffset === 1, '欄右移後游標還在同一格、同一個位置');
+  assert(!run(B.C.moveTableColumn(1)), '已經在最右邊：不能再右移');
+  run(B.C.moveTableColumn(-1)); run(B.C.moveTableColumn(-1));
+  assert(out() === '| 乙 | 甲 | 丙 |\n| :---: | :--- | ---: |\n| b1 | a1 | c1 |\n| b2 | a2 | c2 |\n', '欄左移兩次：' + JSON.stringify(out()));
+  assert(!run(B.C.moveTableColumn(-1)), '已經在最左邊：不能再左移');
+  undo(); undo(); undo();
+  assert(out() === '| 甲 | 乙 | 丙 |\n| :--- | :---: | ---: |\n| a1 | b1 | c1 |\n| a2 | b2 | c2 |\n', '搬移欄可以復原：' + JSON.stringify(out()));
+  // 列：標題列固定在最上面
+  put('a1');
+  assert(!run(B.C.moveBlock(-1)), '第一列資料不能搬到標題列上面');
+  assert(run(B.C.moveBlock(1)) && out().endsWith('| a2 | b2 | c2 |\n| a1 | b1 | c1 |\n'), '列下移：' + JSON.stringify(out()));
+  put('甲');
+  assert(!run(B.C.moveBlock(1)), '標題列不能往下搬');
+  const first = view.pm.state.doc.firstChild.firstChild;
+  assert(first.firstChild.type.name === 'table_header' && first.textContent === '甲乙丙', '標題列還是標題列');
+}
+
 //@@MORE@@
 
 finish();
