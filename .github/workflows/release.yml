@@ -1,10 +1,15 @@
 name: Release
 
+# 目前只能手動執行，推 tag 不會自動觸發（平常用 `npm run release:local` 在本機發佈）。
+# 手動執行：Actions 分頁 → Release → Run workflow，並在「Use workflow from」選要發佈的 tag。
+# 要恢復推 tag 自動發佈時，把下面的 workflow_dispatch 換成註解裡的設定。
+#
 # Obsidian 會從「tag 與 manifest.json 的 version 完全相同」的 GitHub Release 下載外掛，
 # 所以 tag 不加 v，例如 1.2.0。
 on:
-  push:
-    tags: ['[0-9]+.[0-9]+.[0-9]+']
+  workflow_dispatch:
+  # push:
+  #   tags: ['[0-9]+.[0-9]+.[0-9]+']
 
 permissions:
   contents: write
@@ -26,7 +31,7 @@ jobs:
         run: |
           version="$(node -p "require('./package.json').version")"
           if [ "$TAG" != "$version" ]; then
-            echo "::error::tag $TAG 與 package.json 的版本 $version 不一致"
+            echo "::error::目前的 ref 是 $TAG，與 package.json 的版本 $version 不一致。請在 tag $version 上執行。"
             exit 1
           fi
       - run: npm ci
@@ -39,12 +44,16 @@ jobs:
             dist/main.js
             dist/manifest.json
             dist/styles.css
-      - name: 建立 GitHub Release
+      - name: 建立 GitHub Release（已存在就更新檔案）
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
-          gh release create "$TAG" \
-            dist/main.js dist/manifest.json dist/styles.css \
-            --title "$TAG" \
-            --generate-notes
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/main.js dist/manifest.json dist/styles.css --clobber
+          else
+            gh release create "$TAG" \
+              dist/main.js dist/manifest.json dist/styles.css \
+              --title "$TAG" \
+              --generate-notes
+          fi
