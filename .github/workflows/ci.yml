@@ -1,0 +1,29 @@
+name: CI
+
+# 目前只能手動執行（Actions 分頁 → CI → Run workflow），push 與 PR 不會自動觸發。
+# 要恢復自動執行時，把下面的 workflow_dispatch 換成註解裡的設定。
+on:
+  workflow_dispatch:
+  # push:
+  #   branches: [main]
+  # pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build:prod

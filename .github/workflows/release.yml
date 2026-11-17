@@ -1,0 +1,50 @@
+name: Release
+
+# Obsidian 會從「tag 與 manifest.json 的 version 完全相同」的 GitHub Release 下載外掛，
+# 所以 tag 不加 v，例如 1.2.0。
+on:
+  push:
+    tags: ['[0-9]+.[0-9]+.[0-9]+']
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: 確認 tag 與版本號一致
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "$TAG" != "$version" ]; then
+            echo "::error::tag $TAG 與 package.json 的版本 $version 不一致"
+            exit 1
+          fi
+      - run: npm ci
+      - run: npm test
+      - run: npm run build:prod
+      - name: 產生建置來源證明
+        uses: actions/attest@v4
+        with:
+          subject-path: |
+            dist/main.js
+            dist/manifest.json
+            dist/styles.css
+      - name: 建立 GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$TAG" \
+            dist/main.js dist/manifest.json dist/styles.css \
+            --title "$TAG" \
+            --generate-notes
