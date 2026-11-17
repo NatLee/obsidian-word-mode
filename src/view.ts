@@ -124,7 +124,7 @@ interface MermaidLike { parse?(text: string): Promise<unknown>; }
 // - toolbarHost、findHost、bannerHost、scroller、page、toolbar、findBar、bubble、fold：在 onOpen() 建立，
 //   之後一直存在，所以不標成可省略
 // - bottomBar、countEl、statusBox、zoomRange、zoomLabel：下方狀態列（buildBottomBar）建立的元素；
-//   桌機的狀態列沒有 countEl；還沒建立狀態列時都不存在
+//   還沒建立狀態列時都不存在
 // - marks、code、suggest：第一次 editorPlugins() 時才建立
 // - prism：Obsidian 的 Prism（非同步載入，載入前不存在）
 // - propsOpen：文件屬性區塊是否展開；還沒設定過時是 undefined（視為展開）
@@ -345,12 +345,10 @@ export class WordModeView extends TextFileView {
 
   buildBottomBar(bar: HTMLElement, inStatusBar: boolean): void {
     this.bottomBar = bar;
-    if (!inStatusBar) {
-      this.countEl = bar.createDiv('wm-bb-count');
-      this.countEl.setAttribute('aria-label', t('中文字以字計、英文以單字計（點一下看詳細統計）'));
-      this.countEl.addEventListener('click', () => this.openWordCount());
-      bar.createDiv('wm-bb-spacer');
-    }
+    // 字數：手機在筆記下方的列，桌機在 Obsidian 的狀態列（Obsidian 內建的字數只算 Markdown 編輯器）
+    this.countEl = bar.createDiv('wm-bb-count');
+    this.countEl.addEventListener('click', () => this.openWordCount());
+    if (!inStatusBar) bar.createDiv('wm-bb-spacer');
     this.statusBox = bar.createDiv('wm-bb-status');
     const views = bar.createDiv('wm-bb-views');
     const vbtn = (icon: string, title: string, run: () => void, active?: boolean) => {
@@ -379,6 +377,7 @@ export class WordModeView extends TextFileView {
     this.zoomLabel.addEventListener('click', () => { void this.plugin.setZoom(100); });
     this.renderStatus();
     this.applyZoom();
+    this.updateCount();
   }
 
   applyZoom(): void {
@@ -409,6 +408,9 @@ export class WordModeView extends TextFileView {
       const sel = count(st.doc.textBetween(st.selection.from, st.selection.to, '\n', ' '));
       this.countEl.setText(t('已選取 {a}／{b} 字', { a: fmt(sel.words), b: fmt(all.words) }));
     } else this.countEl.setText(t('{a} 字・{b} 個字元', { a: fmt(all.words), b: fmt(all.chars) }));
+    // 閱讀時間：中文每分鐘 400 字、英文每分鐘 200 個單字（與「字數統計」視窗相同）
+    const minutes = Math.max(1, Math.round(all.cjk / 400 + all.latin / 200));
+    this.countEl.setAttribute('aria-label', t('預估閱讀時間') + t('：') + t('{n} 分鐘', { n: minutes }) + ' · ' + t('中文字以字計、英文以單字計（點一下看詳細統計）'));
   }
 
   // ---------------------------------------------------------- 編輯器外掛
@@ -977,6 +979,7 @@ export class WordModeView extends TextFileView {
       notice: msg => new Notice(msg),
       renderBlock: (src, el) => this.renderBlock(src, el),
       canPreview: lang => this.canPreview(lang),
+      lineNumbers: () => !!this.plugin.settings.codeLineNumbers,
       editMermaid: pos => this.openMermaid(pos),
       footnoteText: id => footnoteText(this.pm!.state.doc, id),
       gotoFootnote: id => this.gotoFootnote(id),

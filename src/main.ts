@@ -80,6 +80,8 @@ export interface Settings {
   mathMode: EquationEditMode;
   mermaidMode: MermaidTab;
   codePreview: boolean;
+  // 程式碼區塊顯示行號（開啟時不自動換行）
+  codeLineNumbers: boolean;
   // 最近使用的方程式（LaTeX 原始碼，最新的在前）
   recentMath: string[];
   // ---- 同步與檔案
@@ -158,6 +160,7 @@ const DEFAULTS: Settings = {
   mathMode: 'visual',
   mermaidMode: 'visual',
   codePreview: true,
+  codeLineNumbers: false,
   recentMath: [],
   // 同步與檔案
   conflict: 'ask',
@@ -177,6 +180,7 @@ export default class WordModePlugin extends Plugin {
   declare barView?: WordModeView | MarkdownView | null;
   declare mdStatusKey?: string | null;
   declare outlineTimer?: number;
+  declare outlineDirty?: boolean;
   declare unloaded?: boolean;
   declare restoreSetViewState?: () => void;
 
@@ -431,14 +435,20 @@ export default class WordModePlugin extends Plugin {
 
   outlineChanged(view: WordModeView | MarkdownView, docChanged: boolean): void {
     if (!this.outlineOpen()) return;
-    window.clearTimeout(this.outlineTimer);
-    this.outlineTimer = window.setTimeout(() => {
+    // 內容改過就記下來：之後只移動游標的更新不能把「要重讀標題」蓋掉
+    if (docChanged) this.outlineDirty = true;
+    const run = () => {
+      const dirty = this.outlineDirty;
+      this.outlineDirty = false;
       for (const l of this.app.workspace.getLeavesOfType(OUTLINE_TYPE)) {
         const ov = l.view;
         if (!(ov instanceof OutlineView)) continue;
-        if (docChanged || ov.source !== this.docView()) ov.refresh(); else ov.markCurrent();
+        if (dirty || ov.source !== this.docView()) ov.refresh(); else ov.markCurrent();
       }
-    }, docChanged ? 300 : 120);
+    };
+    window.clearTimeout(this.outlineTimer);
+    // 只移動游標：立刻標出目前的標題；內容有改：停手一下再重讀標題
+    if (this.outlineDirty) this.outlineTimer = window.setTimeout(run, 300); else run();
   }
 
   applyOptions(): void {
@@ -694,6 +704,8 @@ function settingSections(settingTab: WordModeSettings): SettingSection[] {
         t('顯示空白（·）、全形空白（□）、Tab（→）、換行（↵）與段落結尾（¶）。也可以用工具列的 ¶ 按鈕隨時切換。'), 'showMarks'),
       toggleRow(t('顯示圖表與查詢的結果'),
         t('Mermaid 圖表、Dataview 查詢與其他外掛的程式碼區塊顯示成結果（像 Obsidian 的閱讀畫面）。游標進到區塊裡，或按區塊上方的「原始碼」按鈕，才顯示程式碼。關閉後一律顯示程式碼。'), 'codePreview', () => p.refreshViews()),
+      toggleRow(t('程式碼區塊顯示行號'),
+        t('在程式碼左邊顯示行號。開啟時太長的行不會自動換行，改成左右捲動。'), 'codeLineNumbers', () => p.refreshViews()),
       toggleRow(t('一直標示奇怪符號'),
         t('即使沒開編輯標記，也用紅色波浪底線標出看不見的字元、亂碼、殘留的 ** == [[ 與落單的引號。可到「校閱 → 清理符號」一次清除。'), 'highlightWeird', () => p.refreshViews()),
     ] },

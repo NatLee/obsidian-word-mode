@@ -919,5 +919,11 @@ export default {
  "Π": "Π",
  "Σ": "Σ",
  "Φ": "Φ",
- "Ω": "Ω"
+ "Ω": "Ω",
+ "{n} 個屬性": "{n} properties",
+ "變更類型或重新命名": "Change type or rename",
+ "重新命名…": "Rename…",
+ "重新命名屬性": "Rename property",
+ "程式碼區塊顯示行號": "Show line numbers in code blocks",
+ "在程式碼左邊顯示行號。開啟時太長的行不會自動換行，改成左右捲動。": "Show line numbers to the left of the code. When this is on, long lines scroll sideways instead of wrapping."
 };
