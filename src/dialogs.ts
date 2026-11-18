@@ -293,7 +293,7 @@ export const MATH_SNIPPETS: readonly MathSnippetGroup[] = [
   ['希臘字母', [['α', '\\alpha'], ['β', '\\beta'], ['γ', '\\gamma'], ['δ', '\\delta'], ['ε', '\\epsilon'], ['η', '\\eta'], ['θ', '\\theta'], ['λ', '\\lambda'], ['μ', '\\mu'], ['ν', '\\nu'], ['π', '\\pi'], ['ρ', '\\rho'], ['σ', '\\sigma'], ['τ', '\\tau'], ['φ', '\\phi'], ['χ', '\\chi'], ['ψ', '\\psi'], ['ω', '\\omega'], ['Γ', '\\Gamma'], ['Δ', '\\Delta'], ['Θ', '\\Theta'], ['Λ', '\\Lambda'], ['Π', '\\Pi'], ['Σ', '\\Sigma'], ['Φ', '\\Phi'], ['Ω', '\\Omega']]],
 ];
 
-// 方程式編輯器：上方分類按鈕、輸入框、即時預覽（含語法錯誤提示）、最近使用
+// 方程式編輯器：上方分類按鈕、編輯區（視覺化的格子或 LaTeX，可以復原）、即時預覽（含語法錯誤提示）、最近使用
 export class EquationModal extends Modal {
   declare init: EquationInit;
   declare render: MathRenderer;
@@ -310,6 +310,10 @@ export class EquationModal extends Modal {
   declare prev: HTMLDivElement;
   declare timer: number | undefined;
   declare editMode: EquationEditMode;
+  declare undoBtn: HTMLButtonElement;
+  declare redoBtn: HTMLButtonElement;
+  // 視覺化的格子目前對應的 LaTeX（LaTeX 那一格跟它不同，表示在 LaTeX 模式改過）；還沒建立格子時是 null
+  declare fieldSrc: string | null;
   constructor(app: App, init: EquationInit, render: MathRenderer, onSave: EquationSaveCallback, plugin?: WordModePlugin | null) {
     super(app); this.init = init; this.render = render; this.onSave = onSave; this.plugin = plugin; this.display = !!init.display;
   }
@@ -318,23 +322,28 @@ export class EquationModal extends Modal {
     this.modalEl.addClass('wm-eq-modal');
     const c = this.contentEl;
     c.addClass('wm-eq');
+    this.fieldSrc = null;
+
+    // ---- 上方：方程式放在哪裡、用哪種方式編輯
     const top = c.createDiv('wm-eq-top');
-    const modes = top.createDiv('wm-link-tabs');
+    const modes = top.createDiv('wm-seg');
     const mInline = modes.createEl('button', { text: t('文字中（行內）') });
     const mBlock = modes.createEl('button', { text: t('獨立一行（置中）') });
     const setMode = (d: boolean) => { this.display = d; mInline.toggleClass('is-active', !d); mBlock.toggleClass('is-active', d); this.preview(); };
     mInline.addEventListener('click', () => setMode(false));
     mBlock.addEventListener('click', () => setMode(true));
     // 編輯方式：視覺化（分數、根號等顯示成一格一格，可以直接點進去打）或 LaTeX 原始碼
-    const edits = top.createDiv('wm-link-tabs wm-eq-modes');
+    const edits = top.createDiv('wm-seg wm-eq-modes');
     this.tabVisual = edits.createEl('button', { text: t('視覺化') });
     this.tabLatex = edits.createEl('button', { text: 'LaTeX' });
     this.tabVisual.addEventListener('click', () => this.setEdit('visual'));
     this.tabLatex.addEventListener('click', () => this.setEdit('latex'));
     top.createDiv({ cls: 'wm-eq-hint', text: t('{k} 套用・Esc 取消', { k: key('Mod+Enter') }) });
-    // 分類（像 Word 的方程式工具列）
-    const cats = c.createDiv('wm-eq-cats');
-    const pal = c.createDiv('wm-eq-palette');
+
+    // ---- 結構與符號（像 Word 的方程式工具列）：上面選分類，下面是那一類的按鈕
+    const palBox = c.createDiv('wm-eq-card wm-eq-palbox');
+    const cats = palBox.createDiv('wm-eq-cats');
+    const pal = palBox.createDiv('wm-eq-palette');
     const recent: string[] = (this.plugin && this.plugin.settings.recentMath) || [];
     const groups = MATH_SNIPPETS.slice();
     if (recent.length) groups.unshift(['最近使用', recent.map(r => [r.length > 18 ? r.slice(0, 17) + '…' : r, r, true])]);
@@ -349,11 +358,15 @@ export class EquationModal extends Modal {
         // 按鈕上直接顯示公式的樣子
         if (!raw && /^(\\[a-z]|[\^_])/i.test(snip) && label.length > 1) {
           b.empty();
+          b.addClass('is-struct');
           const pv = b.createSpan('wm-eq-btn-math');
-          const demo = (/^[\^_]/.test(snip) ? 'x' : '') + snip.replace(/\\(text|mathrm)\{\}/g, '\\$1{abc}').replace(/\{\}/g, '{\\square}');
+          // \tag 在行內的公式裡不會顯示，示意圖改畫成 (1)
+          const demo = /^\\tag/.test(snip) ? '(1)' : (/^[\^_]/.test(snip) ? 'x' : '') + snip.replace(/\\(text|mathrm)\{\}/g, '\\$1{abc}').replace(/\{\}/g, '{\\square}');
           this.render(demo, pv, false);
           b.createSpan({ cls: 'wm-eq-btn-label', text: t(label) });
         }
+        // 最近使用：直接顯示公式的樣子（比一串 LaTeX 好認）
+        if (raw) { b.empty(); this.render(snip, b.createSpan('wm-eq-btn-math'), false); }
         b.setAttribute('aria-label', snip);
         b.addEventListener('mousedown', e => e.preventDefault());
         b.addEventListener('click', () => (raw ? this.insertRaw(snip) : this.insert(snip)));
@@ -364,27 +377,48 @@ export class EquationModal extends Modal {
       b.addEventListener('mousedown', e => e.preventDefault());
       b.addEventListener('click', () => showGroup(i));
     });
-    this.fieldHost = c.createDiv('wm-eq-visual');
+
+    // ---- 編輯區：標題列右邊是復原／取消復原（視覺化編輯時）
+    const editor = c.createDiv('wm-eq-card wm-eq-editor');
+    const head = editor.createDiv('wm-eq-label');
+    head.createSpan({ text: t('編輯') });
+    const tools = head.createDiv('wm-eq-tools');
+    const tool = (icon: string, label: string, run: () => void) => {
+      const b = tools.createEl('button', { cls: 'clickable-icon wm-eq-tool' });
+      b.setAttribute('aria-label', label);
+      setIcon(b, icon);
+      b.addEventListener('mousedown', e => e.preventDefault()); // 游標留在格子裡
+      b.addEventListener('click', run);
+      return b;
+    };
+    this.undoBtn = tool('undo-2', t('復原') + ' (' + key('Mod+Z') + ')', () => { this.field.undo(); });
+    this.redoBtn = tool('redo-2', t('取消復原') + ' (' + key('Mod+Y') + ')', () => { this.field.redo(); });
+    this.fieldHost = editor.createDiv('wm-eq-visual');
     this.field = new MathField(this.fieldHost, {
       label: s => t(s),
       // 視覺化編輯的內容隨時寫回 LaTeX（LaTeX 那一格是唯一的來源，套用時讀它）
-      onChange: latex => { this.ta.value = latex; window.clearTimeout(this.timer); this.timer = window.setTimeout(() => this.preview(), 150); },
+      onChange: latex => { this.ta.value = latex; this.fieldSrc = latex; window.clearTimeout(this.timer); this.timer = window.setTimeout(() => this.preview(), 150); },
+      onHistory: (canUndo, canRedo) => { this.undoBtn.disabled = !canUndo; this.redoBtn.disabled = !canRedo; },
     });
     this.fieldHost.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); ok.click(); } });
-    this.fieldHint = c.createDiv({ cls: 'wm-eq-visual-hint', text: t('點格子直接輸入；按 ^ 或 _ 加上標、下標；Tab 跳到下一格；格子開頭按 Backspace 刪除前面的結構。') });
-    this.ta = c.createEl('textarea', { cls: 'wm-eq-input' });
+    this.ta = editor.createEl('textarea', { cls: 'wm-eq-input' });
     this.ta.value = this.init.src || '';
     this.ta.rows = 3;
     this.ta.spellcheck = false;
     this.ta.placeholder = t('輸入 LaTeX，例如 E = mc^2，或點上方按鈕插入');
-    const lab = c.createDiv('wm-eq-label');
+    this.fieldHint = editor.createDiv({ cls: 'wm-eq-visual-hint', text: t('點格子直接輸入。^、_：上標、下標；Tab 或 Enter：下一格；方向鍵：移動；空格子裡按 Backspace：拿掉這個結構；{k}：復原。也可以打 \\frac、\\sqrt、\\alpha 再按空白。', { k: key('Mod+Z') }) });
+
+    // ---- 預覽
+    const pvBox = c.createDiv('wm-eq-card');
+    const lab = pvBox.createDiv('wm-eq-label');
     lab.createSpan({ text: t('預覽') });
     this.err = lab.createSpan({ cls: 'wm-eq-error' });
     const copy = lab.createEl('button', { cls: 'clickable-icon wm-eq-copy' });
     copy.setAttribute('aria-label', t('複製 LaTeX'));
     setIcon(copy, 'copy');
     copy.addEventListener('click', () => { if (navigator.clipboard) void navigator.clipboard.writeText(this.ta.value.trim()).then(() => new Notice(t('已複製：') + this.ta.value.trim())); });
-    this.prev = c.createDiv('wm-eq-preview');
+    this.prev = pvBox.createDiv('wm-eq-preview');
+
     const bar = c.createDiv('modal-button-container');
     if (this.init.existing && this.init.onDelete) {
       const del = bar.createEl('button', { text: t('刪除方程式'), cls: 'mod-warning' });
@@ -406,16 +440,21 @@ export class EquationModal extends Modal {
     setMode(this.display);
     this.setEdit(this.plugin && this.plugin.settings.mathMode === 'latex' ? 'latex' : 'visual');
   }
-  // 切換編輯方式。切到視覺化時用目前的 LaTeX 建立格子；沒有在格子裡改東西就不會動到原本的 LaTeX
+  // 切換編輯方式。切到視覺化時，LaTeX 有改過才重新建立格子（當成可以復原的一步）；
+  // 沒有在格子裡改東西就不會動到原本的 LaTeX
   setEdit(mode: EquationEditMode): void {
     this.editMode = mode;
     this.tabVisual.toggleClass('is-active', mode === 'visual');
     this.tabLatex.toggleClass('is-active', mode === 'latex');
     this.fieldHost.toggle(mode === 'visual');
     this.fieldHint.toggle(mode === 'visual');
+    this.undoBtn.toggle(mode === 'visual');
+    this.redoBtn.toggle(mode === 'visual');
     this.ta.toggle(mode === 'latex');
-    if (mode === 'visual') { this.field.setLatex(this.ta.value); window.setTimeout(() => this.field.focus(true), 10); }
-    else window.setTimeout(() => { this.ta.focus(); this.ta.setSelectionRange(this.ta.value.length, this.ta.value.length); }, 10);
+    if (mode === 'visual') {
+      if (this.fieldSrc !== this.ta.value) { this.field.setLatex(this.ta.value, this.fieldSrc != null); this.fieldSrc = this.ta.value; }
+      window.setTimeout(() => this.field.focus(true), 10);
+    } else window.setTimeout(() => { this.ta.focus(); this.ta.setSelectionRange(this.ta.value.length, this.ta.value.length); }, 10);
   }
   insertRaw(text: string): void {
     if (this.editMode === 'visual') { this.field.insert(text); return; }

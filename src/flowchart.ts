@@ -193,5 +193,5 @@ export const MERMAID_TEMPLATES: [I18nKey, I18nKey][] = [
   ['類別圖', 'classDiagram\n    class 訂單 {\n        +編號\n        +金額\n        +送出()\n    }\n    class 客戶\n    客戶 "1" --> "*" 訂單'],
   ['心智圖', 'mindmap\n  root((主題))\n    分支一\n      細項\n    分支二'],
   ['時間軸', 'timeline\n    title 里程碑\n    2025 : 啟動\n    2026 : 上線'],
-  ['ER 圖', 'erDiagram\n    客戶 ||--o{ 訂單 : 下單\n    訂單 ||--|{ 明細 : 包含'],
+  ['ER 圖', 'erDiagram\n    "客戶" ||--o{ "訂單" : "下單"\n    "訂單" ||--|{ "明細" : "包含"'],
 ];

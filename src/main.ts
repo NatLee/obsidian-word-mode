@@ -14,7 +14,7 @@ import type { EditorView } from 'prosemirror-view';
 import type { Language, I18nKey } from './i18n.js';
 import type { DocMeta } from './markdown.js';
 import type { OutlineSource } from './outline.js';
-import type { RibbonLayout, ButtonStyle, TabId, GroupId } from './toolbar.js';
+import type { RibbonLayout, ButtonStyle, TabId, GroupId, TabStyle } from './toolbar.js';
 import type { EquationEditMode } from './dialogs.js';
 import type { MermaidTab } from './mermaid.js';
 import type { CommandManager } from './obsidian-internal.js';
@@ -71,8 +71,16 @@ export interface Settings {
   mdToolbar: boolean;
   mdStatusBar: boolean;
   outlinePlace: OutlinePlace;
+  // 分頁列的樣式（文字、圖示、圖示加文字、收成選單）與自訂的分頁名稱（分頁 id → 名稱）
+  tabStyle: TabStyle;
+  tabLabels: Partial<Record<TabId, string>>;
   // 上次選的字型色彩（CSS 色碼）
   lastFontColor?: string;
+  // 上次選的醒目提示色彩（CSS 色碼）；空字串＝預設黃色
+  lastHighlight?: string;
+  // 最近使用的自訂色彩（最新的在前）
+  recentFontColors?: string[];
+  recentHighlights?: string[];
   // ---- 右鍵選單與方程式
   ctxMenu: boolean;
   hiddenCtx: ContextMenuSection[];
@@ -149,6 +157,8 @@ const DEFAULTS: Settings = {
   groupLabels: false,
   hiddenTabs: [],
   hiddenGroups: [],
+  tabStyle: 'text',
+  tabLabels: {},
   richHints: false,
   mdToolbar: true,
   mdStatusBar: true,
@@ -603,6 +613,8 @@ export default class WordModePlugin extends Plugin {
     this.forceMarkdown.set(leaf, path);
     const state = mode === 'preview' ? { file: path, mode: 'preview' } : { file: path, mode: 'source', source: false };
     await leaf.setViewState({ type: 'markdown', state, active: true });
+    // 馬上放上 Markdown 的工具列（不等版面事件），切換時上方不會空一下
+    this.syncMdBars();
     window.setTimeout(() => { const nv: LeafView = leaf.view; if (nv && nv.editor && mode !== 'preview') nv.editor.focus(); }, 50);
   }
 
@@ -718,6 +730,26 @@ function settingSections(settingTab: WordModeSettings): SettingSection[] {
       row(t('按鈕樣式'), t('「自動」：常用功能只顯示圖示，插入、校閱、檢視的按鈕下方有名稱。「只顯示圖示」最精簡；「圖示加文字」每個按鈕都有名稱。'),
         s => s.addDropdown(d => d.addOptions({ auto: t('自動'), icon: t('只顯示圖示'), label: t('圖示加文字') })
           .setValue(S.buttonStyle || 'auto').onChange(async v => { S.buttonStyle = v as ButtonStyle; S.buttonStyleSet = true; await rebuild(); }))),
+      row(t('分頁列的樣式'), t('「常用／插入／校閱／檢視」這一列的顯示方式。「只顯示圖示」最省空間；「收成選單」不佔一列，改成按鈕列最前面的一個按鈕，按下去選分頁。版面是「分頁」時才有作用。'),
+        s => s.addDropdown(d => d.addOptions({ text: t('文字'), icon: t('只顯示圖示'), both: t('圖示加文字'), menu: t('收成選單（不佔一列）') })
+          .setValue(S.tabStyle || 'text').onChange(async v => { S.tabStyle = v as TabStyle; await rebuild(); }))),
+      { kind: 'grid', name: t('分頁名稱'), desc: t('可以把分頁改成自己習慣的名稱；留白就用預設名稱。'), cls: 'wm-settings-groups wm-settings-tabnames', fill: box => {
+        for (const [tab, tabLabel] of TABS) {
+          const l = box.createEl('label', { cls: 'wm-settings-tabname' });
+          l.createSpan({ text: t(tabLabel) });
+          const input = l.createEl('input', { type: 'text' });
+          input.placeholder = t(tabLabel);
+          input.value = (S.tabLabels || {})[tab] || '';
+          input.maxLength = 20;
+          input.addEventListener('change', () => {
+            const labels = Object.assign({}, S.tabLabels);
+            const v = input.value.trim();
+            if (v) labels[tab] = v; else delete labels[tab];
+            S.tabLabels = labels;
+            void rebuild();
+          });
+        }
+      } },
       toggleRow(t('顯示群組名稱'), t('在每組按鈕下方顯示「剪貼簿」「字型」「段落」等名稱（像 Word）。'), 'groupLabels', () => p.refreshToolbars()),
       row(t('工具列位置'), t('「自動」在手機上放在畫面下方（靠近鍵盤，單手好按），平板與電腦放在上方。'),
         s => s.addDropdown(d => d.addOptions({ auto: t('自動'), top: t('上方'), bottom: t('下方') })
@@ -799,8 +831,8 @@ function settingSections(settingTab: WordModeSettings): SettingSection[] {
       row(t('方程式編輯器預設的編輯方式'), t('「視覺化」把分數、根號、上下標顯示成一格一格，可以直接點進去輸入；「LaTeX」直接編輯原始碼。在編輯器裡隨時可以切換。'),
         s => s.addDropdown(d => d.addOptions({ visual: t('視覺化'), latex: 'LaTeX' })
           .setValue(S.mathMode === 'latex' ? 'latex' : 'visual').onChange(async v => { S.mathMode = v as EquationEditMode; await save(); }))),
-      row(t('圖表編輯器預設的編輯方式'), t('「表單」用步驟與連線的清單編輯流程圖；其他種類的圖表，或用了表單不支援的寫法時，會自動改用程式碼。'),
-        s => s.addDropdown(d => d.addOptions({ visual: t('表單（流程圖）'), code: t('程式碼') })
+      row(t('圖表編輯器預設的編輯方式'), t('「表單」用清單編輯圖表的內容（流程圖、循序圖、甘特圖、圓餅圖、狀態圖、類別圖、心智圖、時間軸、ER 圖），也可以直接點預覽圖上的文字修改；用了表單不支援的寫法時，會自動改用程式碼。'),
+        s => s.addDropdown(d => d.addOptions({ visual: t('表單'), code: t('程式碼') })
           .setValue(S.mermaidMode === 'code' ? 'code' : 'visual').onChange(async v => { S.mermaidMode = v as MermaidTab; await save(); }))),
       toggleRow(t('新方程式預設為獨立一行'),
         t('關閉時新插入的方程式放在文字中（$…$），開啟時獨立一行置中（$$…$$）。在方程式編輯器裡都可以切換。'), 'mathDisplay'),

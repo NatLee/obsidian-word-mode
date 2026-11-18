@@ -608,7 +608,7 @@ let mpos = null; p16.state.doc.descendants((n, p) => { if (n.type.name === 'raw_
 p16.dom.querySelector('.wm-raw-inline').dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
 eq = mock.Modal.last;
 assert(eq.ta.value === 'E = mc^{2}', '按兩下方程式開啟方程式編輯器');
-[...eq.contentEl.querySelectorAll('.wm-link-tabs button')][1].click();
+[...eq.contentEl.querySelectorAll('.wm-seg button')][1].click();
 eq.ta.value = '\\sum_{i=1}^{n} i';
 eq.contentEl.querySelector('button.mod-cta').click();
 assert(view.getViewData().includes('$$\n\\sum_{i=1}^{n} i\n$$'), '改成獨立一行方程式：' + JSON.stringify(view.getViewData()));
