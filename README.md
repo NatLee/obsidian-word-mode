@@ -36,6 +36,8 @@ Your files stay plain Markdown. When you edit a note, only the blocks you change
 - **Callouts** (including foldable ones), **task lists** with custom statuses such as `[/]` and `[-]`, **tags**, and **code blocks** with syntax highlighting and optional line numbers. Inside a code block, the buttons that do not apply to plain text are turned off.
 - **Paste Markdown text** and convert it to formatted text in one step.
 - **Sync conflict handling**: if a note changes on disk while you have unsaved edits, you choose which version to keep.
+- **Shortcut list**: search it or pick a category, and select a shortcut to watch a short animation of what it does.
+- **Settings in categories**: a row of tabs at the top of the settings shows one category at a time.
 - Interface in Traditional Chinese, English, Japanese, and Korean.
 
 Anything Word Mode can't edit visually, such as HTML blocks, is shown as a raw block and saved unchanged.
@@ -154,6 +156,7 @@ Obsidian APIs that aren't public are declared in one place, `src/obsidian-intern
 | `src/commands.ts` | Editing commands. Pure ProseMirror, no Obsidian dependency. |
 | `src/toolbar.ts` | Ribbon toolbar, and the order, tab, and name of each button group. |
 | `src/groupsettings.ts` | Settings list for customizing tabs and button groups. |
+| `src/settingsnav.ts` | Category tabs at the top of the settings. |
 | `src/colorpicker.ts` | Color panel for font color and highlight. |
 | `src/mdbar.ts` | Toolbar shown in Markdown and reading mode. |
 | `src/bubble.ts` | Floating toolbar for links and images. |
