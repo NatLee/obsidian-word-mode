@@ -2,7 +2,7 @@ import { TableView } from 'prosemirror-tables';
 import { CALLOUT_TYPES, calloutIcon, CODE_LANGUAGES } from './commands.js';
 import { t, key } from './i18n.js';
 import { FOOTNOTE_DEF, FOOTNOTE_REF, footnoteBody } from './footnotes.js';
-import { el } from './dom.js';
+import { el, whenVisible } from './dom.js';
 import { propType, isTagKey, summarize, propLink, convertProp, renameProp, propsSummary } from './props.js';
 import type { PropType } from './props.js';
 import type { Attrs, Node as PMNode } from 'prosemirror-model';
@@ -43,6 +43,8 @@ export interface NodeViewContext {
   canPreview?(lang: string): boolean;
   // 程式碼區塊要不要顯示行號
   lineNumbers?(): boolean;
+  // 很長的圖表與查詢結果要不要先收合（設定「很長的圖表先收合」）
+  collapseTall?(): boolean;
   // ---- 對話框、選單、通知
   editSource(title: string, src: string, onSave: TextCallback): void;
   prompt(title: string, value: string, placeholder: string, onSave: TextCallback): void;
@@ -116,6 +118,8 @@ class WikilinkView implements NodeView {
   declare ctx: NodeViewContext;
   declare dom: HTMLSpanElement;
   declare handle: EmbedHandle | null | undefined;
+  // 取消「捲到看得到才載入」的等待
+  declare cancelVisible: (() => void) | null | undefined;
   constructor(node: PMNode, view: EditorView, getPos: GetPos, ctx: NodeViewContext) {
     this.node = node; this.view = view; this.getPos = getPos; this.ctx = ctx;
     this.dom = el('span', 'wm-wikilink');
@@ -142,11 +146,15 @@ class WikilinkView implements NodeView {
     // 內嵌（![[筆記]]、![[錄音.mp3]]、![[文件.pdf]]…）：顯示內容，跟 Obsidian 的閱讀畫面一樣
     const embed = !!a.embed && !!this.ctx.renderEmbed;
     this.dom.classList.toggle('wm-embed', embed);
-    if (embed) { this.handle = this.ctx.renderEmbed!(a.target, this.dom); return; }
+    // 看得到才載入：內嵌的筆記要讀檔、整份顯示，一份筆記嵌了很多份時開啟會很慢
+    if (embed) { this.cancelVisible = whenVisible(this.dom, () => { this.handle = this.ctx.renderEmbed!(a.target, this.dom); }); return; }
     if (a.embed) { const i = el('span', 'wm-inline-icon', this.dom); this.ctx.icon(i, 'file-text', ''); }
     this.dom.appendChild(activeDocument.createTextNode(a.alias || displayTarget(a.target)));
   }
-  dispose(): void { if (this.handle) { try { this.handle.unload(); } catch { /* 忽略 */ } this.handle = null; } }
+  dispose(): void {
+    if (this.cancelVisible) { this.cancelVisible(); this.cancelVisible = null; }
+    if (this.handle) { try { this.handle.unload(); } catch { /* 忽略 */ } this.handle = null; }
+  }
   destroy(): void { this.dispose(); }
   update(node: PMNode): boolean {
     if (node.type !== this.node.type) return false;
@@ -725,6 +733,9 @@ class ListItemView implements NodeView {
 // 程式碼區塊：上方可選語言、複製。
 // Obsidian 會把某些語言顯示成結果（mermaid 圖表、dataview 查詢、其他外掛註冊的區塊…），這裡也一樣：
 // 平常顯示結果，游標進到區塊裡（或按「原始碼」）才顯示程式碼，像 Obsidian 的即時預覽。
+// 程式碼區塊的結果（圖表、查詢）超過這個高度（像素）就先收合
+const TALL_LIMIT = 640;
+
 class CodeBlockView implements NodeView {
   declare node: PMNode;
   declare view: EditorView;
@@ -745,8 +756,15 @@ class CodeBlockView implements NodeView {
   declare timer: number | undefined;
   declare handle: EmbedHandle | null | undefined;
   declare rendered: string | null | undefined;
+  // 取消「捲到看得到才畫」的等待
+  declare cancelVisible: (() => void) | null | undefined;
+  // 很長的結果：收合時下方的「顯示完整內容」按鈕；expanded 是使用者按開了
+  declare more: HTMLButtonElement;
+  declare expanded: boolean;
+  declare sizer: ResizeObserver | null | undefined;
   constructor(node: PMNode, view: EditorView, getPos: GetPos, ctx?: NodeViewContext) {
     this.node = node; this.view = view; this.getPos = getPos; this.ctx = ctx || {};
+    this.expanded = false;
     this.dom = el('div', 'wm-codeblock');
     this.head = el('div', 'wm-code-head', this.dom);
     this.head.contentEditable = 'false';
@@ -796,6 +814,15 @@ class CodeBlockView implements NodeView {
       }
     });
     this.preview.addEventListener('click', e => { if ((e.target as Element).closest && (e.target as Element).closest('a')) e.preventDefault(); }, true);
+    // 很長的圖表或查詢結果先收合成固定的高度，按這顆按鈕展開或收回
+    this.more = el('button', 'wm-code-more', this.dom);
+    this.more.type = 'button';
+    this.more.contentEditable = 'false';
+    this.more.hidden = true;
+    this.more.addEventListener('mousedown', e => e.preventDefault());
+    this.more.addEventListener('click', () => { this.expanded = !this.expanded; this.syncTall(); });
+    // 結果是另外非同步畫出來的（圖表、查詢），大小變了就重新判斷要不要收合
+    if (typeof ResizeObserver !== 'undefined') { this.sizer = new ResizeObserver(() => this.syncTall()); this.sizer.observe(this.preview); }
     this.syncSelect();
     this.syncLines();
     this.syncPreview(true);
@@ -841,7 +868,16 @@ class CodeBlockView implements NodeView {
   }
   dispose(): void {
     window.clearTimeout(this.timer);
+    if (this.cancelVisible) { this.cancelVisible(); this.cancelVisible = null; }
     if (this.handle) { try { this.handle.unload(); } catch { /* 忽略 */ } this.handle = null; }
+  }
+  // 結果很高（超過 TALL_LIMIT）時收合成固定的高度，下面放「顯示完整內容」；游標在區塊裡編輯時不收合
+  syncTall(): void {
+    const on = !this.ctx.collapseTall || this.ctx.collapseTall();
+    const tall = on && this.dom.classList.contains('has-preview') && this.preview.scrollHeight > TALL_LIMIT;
+    this.dom.classList.toggle('is-tall', tall && !this.expanded);
+    this.more.hidden = !tall;
+    if (tall) this.more.textContent = this.expanded ? t('收合') : t('顯示完整內容');
   }
   // 顯示結果：內容或語言變了才重畫（打字時延後一下，不要每個字都重畫）
   syncPreview(now: boolean): void {
@@ -851,7 +887,7 @@ class CodeBlockView implements NodeView {
     this.dom.classList.toggle('is-empty', !text.trim());
     this.srcBtn.hidden = !on;
     this.editBtn.hidden = !(on && this.lang() === 'mermaid');
-    if (!on) { this.dispose(); this.preview.replaceChildren(); this.rendered = null; return; }
+    if (!on) { this.dispose(); this.preview.replaceChildren(); this.rendered = null; this.syncTall(); return; }
     const key = this.node.attrs.params + '\n' + text;
     if (key === this.rendered) return;
     window.clearTimeout(this.timer);
@@ -863,8 +899,14 @@ class CodeBlockView implements NodeView {
       const ticks = text.match(/`{3,}/g);
       const fence = ticks ? ticks.sort().slice(-1)[0] + '`' : '```';
       this.handle = this.ctx.renderBlock!(fence + this.node.attrs.params + '\n' + text + '\n' + fence, this.preview);
+      // 畫好之後判斷要不要收合（沒有 ResizeObserver 的環境靠這裡）
+      const h = this.handle;
+      if (h.ready) void h.ready.then(() => { if (this.handle === h) this.syncTall(); });
     };
-    if (now) run(); else this.timer = window.setTimeout(run, 400);
+    // 開啟筆記時：捲到看得到才畫（長筆記裡有很多圖表時，不用一開始全部畫完）。
+    // 編輯時：停下來才重畫；內容越長畫得越久，等的時間也跟著拉長（0.4 到 1.5 秒）
+    if (now) this.cancelVisible = whenVisible(this.dom, run);
+    else this.timer = window.setTimeout(run, 400 + Math.min(1100, Math.floor(text.length / 8)));
   }
   update(node: PMNode): boolean {
     if (node.type !== this.node.type) return false;
@@ -875,10 +917,10 @@ class CodeBlockView implements NodeView {
     this.syncPreview(false);
     return true;
   }
-  destroy(): void { this.dispose(); }
-  stopEvent(e: Event): boolean { return this.head.contains(e.target as Node | null) || this.preview.contains(e.target as Node | null); }
+  destroy(): void { this.dispose(); if (this.sizer) { this.sizer.disconnect(); this.sizer = null; } }
+  stopEvent(e: Event): boolean { const n = e.target as Node | null; return this.head.contains(n) || this.preview.contains(n) || this.more.contains(n); }
   ignoreMutation(m: ViewMutationRecord): boolean {
-    return this.head.contains(m.target) || this.preview.contains(m.target) || this.gutter.contains(m.target) || (m.target === this.dom && m.type === 'attributes');
+    return this.head.contains(m.target) || this.preview.contains(m.target) || this.more.contains(m.target) || this.gutter.contains(m.target) || (m.target === this.dom && m.type === 'attributes');
   }
 }
 

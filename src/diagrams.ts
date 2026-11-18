@@ -983,6 +983,24 @@ export function findSlot(slots: TextSlot[], label: string, nth = 0): TextSlot | 
   return best;
 }
 
+// 兩個欄位位置是不是同一個（同一列的同一個欄位、多行欄位裡的同一行）
+export function sameSlot(a: Pick<TextSlot, 'field' | 'row' | 'line'>, b: Pick<TextSlot, 'field' | 'row' | 'line'>): boolean {
+  return a.field === b.field && a.row === b.row && a.line === b.line;
+}
+
+// findSlot 的反方向：這個欄位在「值相同的欄位」裡排第幾個，也就是圖上同樣文字裡的第幾個（找不到時是 -1）
+export function slotNth(slots: TextSlot[], slot: Pick<TextSlot, 'field' | 'row' | 'line'>): number {
+  const me = slots.find(s => sameSlot(s, slot));
+  if (!me) return -1;
+  const want = squash(me.value);
+  return slots.filter(s => squash(s.value) === want).findIndex(s => sameSlot(s, slot));
+}
+
+// 某一列的第一個有內容的文字欄位（在圖上標出這一列時用它來找位置）
+export function rowSlot(slots: TextSlot[], row: Row): TextSlot | null {
+  return slots.find(s => s.row === row) || null;
+}
+
 // 改一個欄位的值。欄位屬於某一類名稱（group）而且 everywhere 為 true 時，同一類裡原本同名的欄位一起改
 // （在圖上把「使用者」改名，所有訊息裡的「使用者」都跟著改）
 export function setValue(kind: DiagramKind, m: DiagramModel, slot: { field: Field; list: ListSpec | null; row: Row | null; line?: number }, value: string, everywhere: boolean): void {

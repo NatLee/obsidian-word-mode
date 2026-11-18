@@ -9,7 +9,8 @@ import type { WordModeView } from './view.js';
 export type MediaKind = 'youtube' | 'audio' | 'video' | 'image' | 'missing' | 'file';
 
 // renderEmbed 回傳的釋放把手（view.renderBlock 回傳的也是這個形狀）
-export interface EmbedHandle { unload(): void; }
+// ready：內容交給畫面之後完成（圖表是另外非同步畫的，可能更晚才出現）
+export interface EmbedHandle { unload(): void; ready?: Promise<unknown>; }
 
 const IMAGE = /^(png|jpe?g|gif|bmp|svg|webp|avif|heic|tiff?)$/i;
 const AUDIO = /^(mp3|wav|m4a|ogg|3gp|flac|oga|opus)$/i;

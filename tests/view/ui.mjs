@@ -270,7 +270,7 @@ await fresh('第一段\n');
   const kind = id => qa('.wm-mmd-kind').find(b => b.dataset.kind === id);
   const lists = () => qa('.wm-mmd-list').map(l => l.querySelectorAll('.wm-mmd-row').length).join();
   const setInput = (el, v) => { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); };
-  assert(qa('.wm-mmd-kind').length === 11 && kind('flowchart').classList.contains('is-active'), '上方列出十一種圖表，標出目前的種類');
+  assert(qa('.wm-mmd-kind[data-kind]').length === 11 && kind('flowchart').classList.contains('is-active') && q('.wm-mmd-kind.wm-mmd-mine'), '上方列出十一種圖表，標出目前的種類，最後是「我的範本」');
   // 每一種範本都開在表單
   for (const k of ['sequence', 'gantt', 'pie', 'state', 'class', 'mindmap', 'timeline', 'er', 'journey', 'quadrant', 'flowchart']) {
     click(kind(k));
@@ -346,7 +346,7 @@ await fresh('第一段\n');
   click(rect);
   inline = q('.wm-mmd-inline');
   assert(inline && inline.querySelector('input').value === '處理', '流程圖：點節點的方框也能編輯');
-  click(inline.querySelectorAll('.wm-mmd-inline-btn')[1]);
+  click(inline.querySelectorAll('.wm-mmd-inline-btn')[2]);
   assert(lists() === '5,5' && mm.src.includes('C --> N5') && document.activeElement.value === '新步驟', '在圖上新增下一步：多一個步驟與一條連線，游標在新步驟：' + JSON.stringify(mm.src));
   // 狀態圖：在圖上改名，所有出現的地方一起改
   click(kind('state'));
@@ -468,7 +468,7 @@ await fresh('第一段\n');
   mm.preview();
   assert(q('.wm-mmd-canvas').style.zoom === '1.5' && q('.wm-mmd-canvas').textContent.startsWith('RENDERED:'), '重畫之後保留縮放倍率');
   for (let i = 0; i < 9; i++) click(zoom[0]);
-  assert(mm.zoom === 0.5, '最小縮到 50%');
+  assert(mm.zoom === 0.25, '最小縮到 25%（很長的圖可以縮小看全貌）');
   click(q('.wm-mmd-zoomlabel'));
   assert(mm.zoom === 1 && q('.wm-mmd-canvas').style.zoom === '1', '按百分比恢復 100%');
   // 旅程圖
@@ -494,6 +494,276 @@ await fresh('第一段\n');
   q('.wm-mmd-inline input').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
   assert(mm.src.includes('    quadrant-1 "現在做"') && q('.wm-mmd-head .wm-mmd-f-q1').value === '現在做', '在圖上改象限名稱：' + JSON.stringify(mm.src));
   mm.close();
+}
+
+// ======== 圖表編輯器：我的範本、設定裡的預設圖表與要列出的種類 ========
+{
+  await fresh('第一段\n');
+  plugin.settings.diagramTemplates = [{ name: '審核流程', src: 'flowchart LR\n    A[送出] --> B{主管審核}\n    B -->|通過| C[完成]' }];
+  let saves = 0;
+  plugin.saveSettings = () => { saves++; };
+  view.openMermaid();
+  let mm = mock.Modal.last;
+  const q = s => mm.contentEl.querySelector(s);
+  const qa = s => [...mm.contentEl.querySelectorAll(s)];
+  assert(q('.wm-mmd-mine').textContent === '我的範本 1' && q('.wm-mmd-templates').style.display === 'none', '上方有「我的範本」按鈕與數量，面板預設收著');
+  click(q('.wm-mmd-mine'));
+  assert(q('.wm-mmd-templates').style.display !== 'none' && qa('.wm-mmd-tpl').map(b => b.textContent).join() === '審核流程' && q('.wm-mmd-tpl-name').value === '流程圖', '展開面板：列出存過的範本，新範本的名稱先填圖表的種類');
+  // 把目前的圖表存成範本
+  q('.wm-mmd-tpl-name').value = '我的流程';
+  click(q('.wm-mmd-tpl-save button'));
+  assert(plugin.settings.diagramTemplates.map(x => x.name).join() === '審核流程,我的流程' && plugin.settings.diagramTemplates[1].src === 'flowchart TD\n    A[開始] --> B[結束]' && saves === 1, '存成範本：寫進設定並存檔：' + JSON.stringify(plugin.settings.diagramTemplates[1]));
+  assert(q('.wm-mmd-mine').textContent === '我的範本 2' && qa('.wm-mmd-tpl').length === 2 && mock.log.some(x => x[1] === '已存成範本「我的流程」'), '面板與按鈕上的數量跟著更新，並顯示通知');
+  // 套用另一個範本：目前的內容就是剛存的範本，不用問
+  click(qa('.wm-mmd-tpl')[0]);
+  assert(mm.src.startsWith('flowchart LR\n    A[送出]') && q('.wm-mmd-confirm').style.display === 'none' && qa('.wm-mmd-list')[0].querySelectorAll('.wm-mmd-row').length === 3, '套用自己的範本：內容換掉，表單跟著更新');
+  // 改過之後再換範本：先問
+  const first = q('.wm-mmd-row input[type="text"]');
+  first.value = '提出申請'; first.dispatchEvent(new Event('input', { bubbles: true }));
+  click(qa('.wm-mmd-tpl')[1]);
+  assert(q('.wm-mmd-confirm').style.display !== 'none' && q('.wm-mmd-confirm').textContent.includes('我的流程') && mm.src.includes('提出申請'), '內容改過之後套用範本：先確認，還沒換掉');
+  click(q('.wm-mmd-confirm button.mod-warning'));
+  assert(mm.src === 'flowchart TD\n    A[開始] --> B[結束]', '確認之後才換成範本的內容');
+  // 同名：換掉內容，不會多一個
+  first.dispatchEvent(new Event('focus'));
+  const again = q('.wm-mmd-row input[type="text"]');
+  again.value = '起點'; again.dispatchEvent(new Event('input', { bubbles: true }));
+  q('.wm-mmd-tpl-name').value = '我的流程';
+  click(q('.wm-mmd-tpl-save button'));
+  assert(plugin.settings.diagramTemplates.length === 2 && plugin.settings.diagramTemplates[1].src.includes('A[起點]') && mock.log.some(x => x[1] === '已更新範本「我的流程」'), '同名的範本：換成新的內容');
+  mm.close();
+  // 設定：新圖表一開始的內容、要列出的種類
+  plugin.settings.defaultDiagram = 'tpl:審核流程';
+  plugin.settings.hiddenDiagramKinds = ['er', 'journey'];
+  view.openMermaid();
+  mm = mock.Modal.last;
+  assert(mm.src.startsWith('flowchart LR\n    A[送出]') && mm.contentEl.querySelectorAll('.wm-mmd-kind[data-kind]').length === 9 && !mm.contentEl.querySelector('.wm-mmd-kind[data-kind="er"]'), '設定：新圖表從自己的範本開始，取消勾選的種類不列出來');
+  mm.close();
+  plugin.settings.defaultDiagram = 'kind:gantt';
+  view.openMermaid();
+  assert(mock.Modal.last.src.startsWith('gantt'), '設定：新圖表從內建的甘特圖開始');
+  mock.Modal.last.close();
+  plugin.settings.defaultDiagram = 'tpl:已經刪掉的';
+  view.openMermaid();
+  assert(mock.Modal.last.src.startsWith('flowchart TD'), '設定指到已經刪掉的範本：用預設的流程圖');
+  mock.Modal.last.close();
+  plugin.settings.defaultDiagram = ''; plugin.settings.hiddenDiagramKinds = [];
+}
+
+// ======== 圖表編輯器：很長的圖表（表單分段、篩選、選單的選項按下去才產生）========
+{
+  const N = 100;
+  const lines = ['flowchart TD'];
+  for (let i = 1; i <= N; i++) lines.push('    S' + i + '[步驟 ' + i + ']');
+  for (let i = 1; i < N; i++) lines.push('    S' + i + ' --> S' + (i + 1));
+  await fresh('```mermaid\n' + lines.join('\n') + '\n```\n\n後面\n');
+  view.pm.dom.querySelector('.wm-code-edit').click();
+  const mm = mock.Modal.last;
+  const q = s => mm.contentEl.querySelector(s);
+  const qa = s => [...mm.contentEl.querySelectorAll(s)];
+  const rowsOf = i => [...qa('.wm-mmd-list')[i].querySelectorAll('.wm-mmd-row')];
+  assert(rowsOf(0).length === 40 && rowsOf(1).length === 40 && qa('.wm-mmd-count').map(x => x.textContent).join() === '100,99', '很長的清單只先畫前 40 列，數量顯示全部');
+  assert(qa('.wm-mmd-morebtn').map(b => b.textContent).join('|') === '再顯示 40 列（還有 60 列）|再顯示 40 列（還有 59 列）', '下面有「再顯示」：' + qa('.wm-mmd-morebtn').map(b => b.textContent).join('|'));
+  // 下拉選單：選項很多時只放目前選的那一個
+  const from = rowsOf(1)[0].querySelector('select.wm-mmd-f-from');
+  assert(from.options.length === 1 && from.value === 'S1' && from.options[0].textContent.includes('步驟 1'), '「從」的選單只有目前選的那一個選項：' + from.options.length);
+  assert(mm.contentEl.querySelectorAll('option').length < 800, '整個表單的選項元素很少（原本是每個選單各放一百個）：' + mm.contentEl.querySelectorAll('option').length);
+  from.dispatchEvent(new Event('focus'));
+  assert(from.options.length === N && from.value === 'S1', '按下去（取得焦點）才補齊所有選項，選的值不變');
+  from.value = 'S50'; from.dispatchEvent(new Event('change'));
+  assert(mm.src.includes('    S50 --> S2') && !mm.src.includes('    S1 --> S2'), '補齊之後可以選別的步驟');
+  from.dispatchEvent(new Event('blur'));
+  assert(from.options.length === 1 && from.value === 'S50', '離開之後收回只剩一個');
+  // 改步驟的名稱：連線選單上的名稱跟著改（不用補齊選項）
+  const name = rowsOf(0)[1].querySelector('input[type="text"]');
+  name.value = '第二步'; name.dispatchEvent(new Event('input', { bubbles: true }));
+  const to = rowsOf(1)[0].querySelector('select.wm-mmd-f-to');
+  assert(to.options.length === 1 && to.options[0].textContent.includes('第二步'), '步驟改名：只有一個選項的選單，名稱也跟著更新：' + to.options[0].textContent);
+  // 再顯示
+  click(qa('.wm-mmd-morebtn')[0]);
+  assert(rowsOf(0).length === 80 && qa('.wm-mmd-morebtn')[0].textContent === '再顯示 20 列（還有 20 列）', '按「再顯示」多畫 40 列');
+  // 篩選
+  const filter = q('.wm-mmd-filter');
+  filter.value = '步驟 9'; filter.dispatchEvent(new Event('input', { bubbles: true }));
+  assert(rowsOf(0).map(r => r.querySelector('input').value).join() === '步驟 9,步驟 90,步驟 91,步驟 92,步驟 93,步驟 94,步驟 95,步驟 96,步驟 97,步驟 98,步驟 99' && qa('.wm-mmd-count')[0].textContent === '11 / 100', '篩選：只列出符合的列，數量顯示「符合／全部」');
+  const edgeFilter = qa('.wm-mmd-filter')[1];
+  edgeFilter.value = '第二步'; edgeFilter.dispatchEvent(new Event('input', { bubbles: true }));
+  assert(rowsOf(1).length === 2, '篩選連線：比對選單上顯示的步驟名稱（不是代號）：' + rowsOf(1).length);
+  filter.value = '沒有這個'; filter.dispatchEvent(new Event('input', { bubbles: true }));
+  assert(rowsOf(0).length === 0 && qa('.wm-mmd-more')[0].textContent === '沒有符合的列', '沒有符合的列時說明');
+  // 新增步驟：換到最後一段，游標在新的那一列
+  click(qa('.wm-mmd-add')[0]);
+  assert(rowsOf(0).length === 21 && rowsOf(0)[0].querySelector('input').value === '步驟 81' && document.activeElement.value === '新步驟' && q('.wm-mmd-filter').value === '' && qa('.wm-mmd-morebtn')[0].textContent === '顯示前面 40 列（前面還有 80 列）', '新增步驟：拿掉篩選、換到最後一段（第 81 列起）：' + qa('.wm-mmd-morebtn')[0].textContent);
+  click(qa('.wm-mmd-morebtn')[0]);
+  assert(rowsOf(0).length === 61 && rowsOf(0)[0].querySelector('input').value === '步驟 41', '按「顯示前面」往前多畫 40 列');
+  // 點圖上的步驟：表單換到那一列所在的那一段
+  const NS = 'http://www.w3.org/2000/svg';
+  const fake = () => {
+    // 假的預覽圖：每個步驟一個 g.node（代號跟 Mermaid 一樣寫在 id 上）
+    const svg = document.createElementNS(NS, 'svg');
+    for (const n of mm.data.model.lists.nodes) {
+      const g = document.createElementNS(NS, 'g'); g.setAttribute('class', 'node'); g.id = 'flowchart-' + n.id + '-0';
+      const tx = document.createElementNS(NS, 'text'); tx.textContent = n.text; g.appendChild(tx); svg.appendChild(g);
+    }
+    return svg;
+  };
+  mm.opts.render = (src, el) => { el.appendChild(fake()); return { unload() {} }; };
+  mm.preview();
+  const node = id => mm.canvas.querySelector('#flowchart-' + id + '-0 text');
+  click(node('S5'));
+  assert(q('.wm-mmd-inline input').value === '步驟 5' && q('.wm-mmd-row.is-current input').value === '步驟 5' && rowsOf(0).length === 40, '點圖上第 5 個步驟：表單換到它所在的那一段並標出來');
+  assert(mm.prev.querySelector('.wm-mmd-marker:not(.is-hover)'), '圖上用外框標出表單目前的那一列');
+  // Tab：套用並跳到下一段文字
+  q('.wm-mmd-inline input').value = '第五步';
+  q('.wm-mmd-inline input').dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
+  assert(mm.src.includes('S5[第五步]') && q('.wm-mmd-inline') && q('.wm-mmd-inline input').value === '步驟 6', '圖上按 Tab：套用，並在下一個步驟開輸入框：' + (q('.wm-mmd-inline') && q('.wm-mmd-inline input').value));
+  q('.wm-mmd-inline input').dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true }));
+  assert(q('.wm-mmd-inline input').value === '第五步', 'Shift+Tab：回到上一段（沒有修改就不重畫）');
+  click(q('.wm-mmd-inline .wm-mmd-inline-btn:nth-child(3)'));
+  assert(q('.wm-mmd-inline input').value === '步驟 6', '輸入框旁邊的「下一段文字」按鈕（螢幕鍵盤沒有 Tab）');
+  mm.closeInline();
+  // 游標進到表單的一列：圖上的外框跟著移過去
+  rowsOf(0)[9].querySelector('input').dispatchEvent(new Event('focusin', { bubbles: true }));
+  assert(mm.current.row.id === 'S10' && mm.prev.querySelectorAll('.wm-mmd-marker:not(.is-hover)').length === 1, '游標進到表單的一列：記下目前的那一列，圖上只有一個外框');
+  // 滑鼠移到圖上可以改的文字：淡淡的外框
+  node('S3').dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+  assert(mm.prev.querySelector('.wm-mmd-marker.is-hover'), '滑鼠移到圖上的文字：顯示可以修改的外框');
+  mm.prev.dispatchEvent(new MouseEvent('mouseleave'));
+  assert(!mm.prev.querySelector('.wm-mmd-marker.is-hover'), '滑鼠離開：外框消失');
+
+  // 預覽重畫：新的圖先在背後畫，畫好才換上去（舊圖留著，不會閃、不會跳回最上面）
+  let finishDraw = null; let unloaded = 0;
+  mm.opts.render = (src, el) => {
+    const ready = new Promise(res => { finishDraw = () => { el.appendChild(fake()); res(); }; });
+    return { ready, unload() { unloaded++; } };
+  };
+  const old = mm.canvas;
+  mm.preview();
+  assert(mm.canvas === old && old.isConnected && mm.prev.contains(old) && mm.contentEl.querySelectorAll('.wm-mmd-canvas').length === 2 && mm.pending.canvas.classList.contains('is-pending'), '重畫時舊的圖還在畫面上，新的在背後');
+  mm.preview();
+  assert(mm.contentEl.querySelectorAll('.wm-mmd-canvas').length === 2 && unloaded === 1, '還沒畫好又重畫：放棄前一份，不會越積越多');
+  finishDraw();
+  await sleep(20);
+  assert(mm.canvas !== old && !old.isConnected && mm.prev.contains(mm.canvas) && !mm.canvas.classList.contains('is-pending') && mm.contentEl.querySelectorAll('.wm-mmd-canvas').length === 1 && !mm.pending, '新的圖出現之後才換上去，舊的拿掉');
+  // 縮放：圖以原本的大小為準；符合寬度
+  const big = fake(); big.setAttribute('viewBox', '0 0 2000 800');
+  mm.opts.render = (src, el) => { el.appendChild(big); return { unload() {} }; };
+  mm.prev.empty(); mm.canvas = null;
+  Object.defineProperty(mm.prev, 'clientWidth', { value: 424, configurable: true });
+  mm.preview();
+  assert(mm.natural === 2000 && big.style.width === '2000px' && big.classList.contains('wm-mmd-natural') && mm.zoom === 1, '很寬的圖：維持原本的大小（不整張縮小到字看不見），用捲的');
+  click(q('.wm-mmd-fit'));
+  assert(mm.zoom === 0.2 && q('.wm-mmd-zoomlabel').textContent === '20%' && mm.canvas.style.zoom === '0.2', '按「符合寬度」：縮到看得到整張圖：' + mm.zoom);
+  const mid = fake(); mid.setAttribute('viewBox', '0 0 500 300');
+  mm.opts.render = (src, el) => { el.appendChild(mid); return { unload() {} }; };
+  mm.autoZoom = true; mm.prev.empty(); mm.canvas = null;
+  mm.preview();
+  assert(mm.zoom === 0.8 && q('.wm-mmd-zoomlabel').textContent === '80%', '只比預覽寬一點的圖：縮到剛好：' + mm.zoom);
+  mm.close();
+}
+
+// ======== 方程式編輯器：我的公式 ========
+{
+  await fresh('面積\n');
+  plugin.settings.mathTemplates = [{ name: '複利', src: 'A = P(1 + r)^{n}' }];
+  let saves = 0;
+  plugin.saveSettings = () => { saves++; };
+  view.openEquation();
+  let eq = mock.Modal.last;
+  await sleep(25);
+  const q = s => eq.contentEl.querySelector(s);
+  const qa = s => [...eq.contentEl.querySelectorAll(s)];
+  const cat = name => qa('.wm-eq-cat').find(b => b.textContent === name);
+  assert(cat('我的公式') && qa('.wm-eq-cat').pop().textContent === '我的公式', '有存過公式：多一個「我的公式」分類');
+  click(cat('我的公式'));
+  const mine = qa('.wm-eq-btn.is-formula');
+  assert(mine.length === 1 && mine[0].querySelector('.wm-eq-btn-label').textContent === '複利' && mine[0].getAttribute('aria-label') === 'A = P(1 + r)^{n}', '我的公式：顯示自己取的名稱');
+  click(mine[0]);
+  assert(eq.ta.value === 'A = P(1 + r)^{n}', '按一下插入整條公式：' + eq.ta.value);
+  // 存成我的公式
+  click(q('.wm-eq-keep'));
+  assert(q('.wm-eq-save').style.display !== 'none' && q('.wm-eq-save-name').value === '公式', '按書籤按鈕：出現名稱輸入框，先填一個沒用過的名稱');
+  q('.wm-eq-save-name').value = '本利和';
+  click(q('.wm-eq-save button.mod-cta'));
+  assert(plugin.settings.mathTemplates.map(x => x.name).join() === '複利,本利和' && plugin.settings.mathTemplates[1].src === 'A = P(1 + r)^{n}' && saves === 1 && q('.wm-eq-save').style.display === 'none', '存成我的公式：寫進設定並存檔');
+  assert(qa('.wm-eq-btn.is-formula').length === 2 && cat('我的公式').classList.contains('is-active'), '存完之後「我的公式」馬上多一顆按鈕');
+  eq.close();
+  // 沒有內容時不能存
+  plugin.settings.mathTemplates = [];
+  view.openEquation();
+  eq = mock.Modal.last;
+  await sleep(25);
+  assert(!cat('我的公式'), '沒有存過公式：不顯示「我的公式」分類');
+  click(q('.wm-eq-keep'));
+  assert(q('.wm-eq-save').style.display === 'none' && mock.log.some(x => x[1] === '先輸入方程式再存'), '還沒輸入方程式：不能存，並說明');
+  eq.close();
+}
+
+// ======== 設定頁：管理我的公式與圖表範本 ========
+{
+  let list = [{ name: '甲', src: 'a' }, { name: '乙', src: 'b\nc' }, { name: '丙', src: 'd' }];
+  const box = document.body.appendChild(document.createElement('div'));
+  B.buildTemplateManager(box, {
+    get: () => list, set: next => { list = next; },
+    addLabel: '＋ 新增', newName: '範本', newSrc: 'x', srcLabel: '內容', empty: '還沒有',
+    badge: src => (src === 'a' ? '流程圖' : ''),
+  });
+  const names = () => [...box.querySelectorAll('.wm-tpl-name')].map(i => i.value).join();
+  const item = i => box.querySelectorAll('.wm-tpl-item')[i];
+  const tool = (i, n) => item(i).querySelectorAll('.wm-tpl-btn')[n];
+  const change = (el, v) => { el.value = v; el.dispatchEvent(new Event('change', { bubbles: true })); };
+  assert(names() === '甲,乙,丙' && item(1).querySelector('.wm-tpl-src').value === 'b\nc' && item(0).querySelector('.wm-tpl-badge').textContent === '流程圖' && !item(1).querySelector('.wm-tpl-badge'), '列出每個範本的名稱、內容與種類');
+  assert(tool(0, 0).disabled && tool(2, 1).disabled && !tool(1, 0).disabled, '第一個不能上移、最後一個不能下移');
+  change(item(1).querySelector('.wm-tpl-name'), '乙二');
+  assert(names() === '甲,乙二,丙' && list[1].name === '乙二', '改名');
+  change(item(1).querySelector('.wm-tpl-name'), '甲');
+  assert(names() === '甲,乙二,丙' && mock.log.some(x => x[1] === '名稱不能是空的，也不能跟其他範本一樣'), '改成別的範本的名稱：改回原本的並說明');
+  change(item(2).querySelector('.wm-tpl-src'), 'd\ne\n');
+  assert(list[2].src === 'd\ne', '改內容');
+  change(item(2).querySelector('.wm-tpl-src'), '   ');
+  assert(list[2].src === 'd\ne' && item(2).querySelector('.wm-tpl-src').value === 'd\ne', '內容清空：不改，改回原本的');
+  click(tool(2, 0));
+  assert(names() === '甲,丙,乙二', '上移');
+  click(tool(0, 1));
+  assert(names() === '丙,甲,乙二', '下移');
+  click(tool(1, 2));
+  assert(names() === '丙,甲,乙二' && tool(1, 2).textContent === '確定刪除？', '刪除要按兩次：第一次只變成「確定刪除？」');
+  click(tool(1, 2));
+  assert(names() === '丙,乙二' && list.length === 2, '再按一次才刪除');
+  click(box.querySelector('.wm-tpl-add'));
+  assert(names() === '丙,乙二,範本' && list[2].src === 'x', '新增：加在最後，名稱不重複');
+  click(box.querySelector('.wm-tpl-add'));
+  assert(names() === '丙,乙二,範本,範本 2', '再新增：名稱自動加編號');
+  list = [];
+  box.remove();
+  const empty = document.body.appendChild(document.createElement('div'));
+  B.buildTemplateManager(empty, { get: () => list, set: next => { list = next; }, addLabel: '＋', newName: 'n', newSrc: 's', srcLabel: 'c', empty: '還沒有範本' });
+  assert(empty.querySelector('.wm-tpl-empty').textContent === '還沒有範本' && !empty.querySelector('.wm-tpl-item'), '沒有範本時顯示說明');
+  empty.remove();
+}
+
+// ======== 文件裡很高的圖表：先收合，按按鈕展開 ========
+{
+  await fresh('前面\n\n```mermaid\nflowchart TD\n    A --> B\n```\n\n後面\n');
+  await sleep(20);
+  const block = view.pm.dom.querySelector('.wm-codeblock');
+  const more = block.querySelector('.wm-code-more');
+  assert(more.hidden && !block.classList.contains('is-tall'), '一般大小的圖表：不收合，沒有按鈕');
+  // jsdom 沒有版面，假裝這張圖有 2000 像素高，再改一下程式碼讓它重畫
+  Object.defineProperty(block.querySelector('.wm-code-preview'), 'scrollHeight', { value: 2000, configurable: true });
+  let pos = null; view.pm.state.doc.descendants((n, p) => { if (n.type.name === 'code_block') pos = p; });
+  view.pm.dispatch(view.pm.state.tr.insertText('\n    B --> C', pos + view.pm.state.doc.nodeAt(pos).nodeSize - 1));
+  await sleep(520);
+  assert(block.classList.contains('is-tall') && !more.hidden && more.textContent === '顯示完整內容', '很高的圖表：先收合，下面有「顯示完整內容」');
+  click(more);
+  assert(!block.classList.contains('is-tall') && more.textContent === '收合', '按下去展開，按鈕變成「收合」');
+  click(more);
+  assert(block.classList.contains('is-tall'), '再按一次收回去');
+  plugin.settings.collapseTall = false;
+  view.pm.dispatch(view.pm.state.tr.insertText('\n    C --> D', pos + view.pm.state.doc.nodeAt(pos).nodeSize - 1));
+  await sleep(540);
+  assert(!block.classList.contains('is-tall') && more.hidden, '設定關閉「很長的圖表先收合」：一律顯示完整的內容');
+  delete plugin.settings.collapseTall;
 }
 
 finish();
