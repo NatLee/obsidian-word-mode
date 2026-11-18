@@ -700,7 +700,6 @@
 /* Markdown／閱讀模式的工具列 */
 .wm-mdbar { flex: 0 0 auto; border-bottom: 1px solid var(--background-modifier-border); }
 .wm-mdbar .wm-toolbar { border-bottom: none; }
-.wm-mdbar .wm-group { flex-direction: row; align-items: center; }
 .is-mobile .wm-mdbar .wm-toolbar { flex-wrap: nowrap; overflow-x: auto; }
 .is-mobile .wm-mdbar button.wm-btn { min-width: 36px; height: 36px; }
 
@@ -946,6 +945,30 @@ audio.wm-embed-media { width: 100%; }
 .wm-statusbar .wm-bb-count { color: var(--text-muted); white-space: nowrap; }
 .wm-statusbar .wm-bb-count:hover { color: var(--text-normal); }
 
+/* ---------- 分頁列的樣式：圖示、圖示加文字、收成選單 ---------- */
+.wm-tabs button.wm-tab { display: inline-flex; align-items: center; gap: 5px; }
+.wm-tab .wm-tab-icon { margin-right: 0; vertical-align: 0; }
+.wm-tab .wm-tab-icon svg { width: 15px; height: 15px; }
+.wm-tabstyle-icon .wm-tabs button.wm-tab { padding: 0 10px; }
+.wm-toolbar button.wm-tab-switch { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 6px 0 8px; margin-right: 2px; background: var(--background-modifier-hover); box-shadow: none; border: 1px solid transparent; border-radius: 6px; color: var(--text-accent); font-size: var(--font-ui-small); font-weight: 600; cursor: pointer; }
+.wm-toolbar button.wm-tab-switch:hover { border-color: var(--interactive-accent); }
+.wm-tab-switch-label { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.wm-tab-switch-label .wm-tab-icon { margin-right: 0; }
+.wm-tab-switch-label .wm-tab-icon svg { width: 15px; height: 15px; }
+.wm-tab-switch-arrow { display: inline-flex; color: var(--text-faint); }
+.wm-tab-switch-arrow svg { width: 12px; height: 12px; }
+.wm-tabstyle-menu .wm-tabs-quick { margin-left: auto; border-left: 1px solid var(--background-modifier-border); padding-left: 6px; }
+.wm-tabstyle-menu .wm-tabs-quick button.wm-btn { height: 28px; }
+.wm-mobile .wm-toolbar button.wm-tab-switch { height: 38px; padding: 0 10px; }
+.wm-settings-tabnames .wm-settings-groups-grid { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+.wm-settings-tabname { display: flex; flex-direction: column; gap: 4px; font-size: var(--font-ui-small); color: var(--text-muted); }
+.wm-settings-tabname input { width: 100%; }
+
+/* ---------- 功能區的高度固定：切換分頁、切換到 Markdown／閱讀模式時，下面的內容不會上下跳動 ---------- */
+.wm-layout-tabs.wm-btnstyle-auto .wm-toolbar { min-height: 53px; }
+.wm-layout-tabs.wm-btnstyle-auto.wm-group-labels .wm-toolbar { min-height: 67px; }
+.wm-mobile .wm-layout-tabs.wm-btnstyle-auto .wm-toolbar, .wm-mobile.wm-layout-tabs.wm-btnstyle-auto .wm-toolbar { min-height: 59px; }
+
 /* ---------- 色彩面板（字型色彩、醒目提示） ---------- */
 .wm-popup.wm-cp { width: 276px; padding: 12px; border-radius: 10px; box-shadow: var(--shadow-l, var(--shadow-s)); }
 .wm-cp-title { font-size: var(--font-ui-small); font-weight: 600; margin-bottom: 8px; }
@@ -973,3 +996,8 @@ audio.wm-embed-media { width: 100%; }
 .wm-cp .wm-popup-note { max-width: none; }
 .wm-popup.wm-cp.is-mobile { width: min(320px, calc(100vw - 8px)); }
 .wm-popup.wm-cp.is-mobile .wm-cp-grid { gap: 6px; }
+/* 分頁收成選單：選單按鈕、按鈕列、右邊的快速按鈕排在同一列；按鈕太多時只有中間的按鈕列換行 */
+.wm-tabstyle-menu.wm-layout-tabs .wm-toolbar { flex-wrap: nowrap; }
+.wm-tabstyle-menu.wm-layout-tabs .wm-panel { flex: 1 1 0; flex-wrap: wrap; }
+.wm-tabstyle-menu.wm-layout-tabs .wm-tabs-quick { flex: 0 0 auto; }
+.wm-mobile .wm-tabstyle-menu.wm-layout-tabs .wm-panel, .wm-mobile.wm-tabstyle-menu.wm-layout-tabs .wm-panel { flex: 0 0 auto; flex-wrap: nowrap; }

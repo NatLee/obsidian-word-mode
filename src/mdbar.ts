@@ -1,10 +1,13 @@
 // Markdown 編輯與閱讀模式上方的工具列（設定「切換到 Markdown／閱讀模式時保留工具列」）
-// 編輯模式用 Obsidian 編輯器的指令；閱讀模式只能檢視，編輯按鈕會停用並說明原因
-import { MarkdownView, setIcon, Menu } from 'obsidian';
+// 編輯模式用 Obsidian 編輯器的指令；閱讀模式只能檢視，編輯按鈕會停用並說明原因。
+// 版面跟 Word 模式的功能區一樣（同樣的分頁、群組、按鈕大小與位置），切換模式時畫面不會跳動
+import { MarkdownView, setIcon, Menu, Platform } from 'obsidian';
 import { t, key } from './i18n.js';
 import { attachHint, hideHint } from './hints.js';
 import { CODE_LANGUAGES } from './commands.js';
 import { el } from './dom.js';
+import { TABS, GROUPS, TAB_ICONS, tabName, fillTab } from './toolbar.js';
+import type { TabId, GroupId, TabStyle, RibbonLayout, ButtonStyle } from './toolbar.js';
 import type { App, Editor, MarkdownViewModeType } from 'obsidian';
 import type WordModePlugin from './main.js';
 import type { I18nKey } from './i18n.js';
@@ -28,7 +31,7 @@ interface MdButtonSpec {
 interface MdButtonItem { dom: HTMLButtonElement; spec: MdButtonSpec; title: string; reason?: string | null; }
 
 // 下拉選單的一項（標題已翻譯）
-interface MdMenuItem { title: string; run: () => void; }
+interface MdMenuItem { title: string; icon?: string; run: () => void; }
 
 // 在選取文字前後加上（或拿掉）符號
 function wrap(editor: Editor, open: string, close: string = open): void {
@@ -66,24 +69,34 @@ export class MarkdownBar {
   declare plugin: WordModePlugin;
   declare view: MarkdownView;
   declare app: App;
-  declare layout: string;
-  declare buttonStyle: string;
+  declare layout: RibbonLayout;
+  declare buttonStyle: ButtonStyle;
+  declare tabStyle: TabStyle;
   declare richHints: boolean;
   declare hidden: Set<string>;
+  declare hiddenTabs: Set<string>;
   declare dom: HTMLDivElement;
   declare items: MdButtonItem[];
   declare mode: MarkdownViewModeType | null;
+  declare panels: Partial<Record<TabId, HTMLDivElement>>;
+  declare tabBtns: Partial<Record<TabId, HTMLButtonElement>>;
+  declare tabNames: Partial<Record<TabId, string>>;
+  declare tabSwitch: HTMLButtonElement | null;
+  declare seen: Set<string>;
 
   constructor(plugin: WordModePlugin, view: MarkdownView) {
     this.plugin = plugin;
     this.view = view;
     this.app = plugin.app;
     const S = plugin.settings;
-    this.layout = S.ribbonLayout === 'tabs' ? 'wrap' : (S.ribbonLayout || 'wrap');
+    this.layout = S.ribbonLayout || 'tabs';
     this.buttonStyle = S.buttonStyle || 'auto';
-    this.richHints = !!S.richHints;
+    this.tabStyle = S.tabStyle || 'text';
+    this.richHints = !!S.richHints && !Platform.isMobile;
     this.hidden = new Set(S.hiddenGroups || []);
-    this.dom = el('div', 'wm-ribbon wm-mdbar wm-layout-' + this.layout + ' wm-btnstyle-' + this.buttonStyle);
+    this.hiddenTabs = new Set(S.hiddenTabs || []);
+    this.dom = el('div', 'wm-ribbon wm-mdbar wm-layout-' + this.layout + ' wm-btnstyle-' + this.buttonStyle + ' wm-tabstyle-' + this.tabStyle
+      + (S.groupLabels ? ' wm-group-labels' : '') + (Platform.isMobile ? ' wm-mobile' : ''));
     view.containerEl.insertBefore(this.dom, view.contentEl);
     this.items = [];
     this.mode = null;
@@ -100,34 +113,72 @@ export class MarkdownBar {
   render(): void {
     this.dom.replaceChildren();
     this.items = [];
+    this.seen = new Set();
+    this.panels = {}; this.tabBtns = {}; this.tabNames = {}; this.tabSwitch = null;
     this.mode = this.isReading() ? 'preview' : 'source';
+    const S = this.plugin.settings;
+    const tabs = this.layout === 'tabs';
+    const menuTabs = tabs && this.tabStyle === 'menu';
+    const icon = (target: HTMLElement, name: string, fallback: string) => { setIcon(target, name); if (!target.querySelector('svg') && fallback) target.setText(fallback); };
+    const tabsEl = el('div', 'wm-tabs', this.dom);
     const bar = el('div', 'wm-toolbar', this.dom);
-    const group = (id: string) => (this.hidden.has(id) ? null : el('div', 'wm-group wm-group-' + id, bar));
+    bar.setAttribute('role', 'toolbar');
+    let all: HTMLDivElement | null = null;
+    if (tabs) {
+      if (menuTabs) {
+        const sw = el('button', 'wm-tab-switch', bar);
+        sw.type = 'button';
+        el('span', 'wm-tab-switch-label', sw);
+        icon(el('span', 'wm-tab-switch-arrow', sw), 'chevron-down', '▾');
+        sw.addEventListener('mousedown', e => e.preventDefault());
+        sw.addEventListener('click', () => this.menu(sw, TABS.filter(([id]) => this.tabNames[id] != null)
+          .map(([id]) => ({ title: this.tabNames[id]!, icon: TAB_ICONS[id], run: () => this.showTab(id) }))));
+        this.tabSwitch = sw;
+      }
+      for (const [id, label] of TABS) {
+        if (this.hiddenTabs.has(id)) continue;
+        this.panels[id] = el('div', 'wm-panel', bar);
+        const name = tabName(id, label, S.tabLabels);
+        this.tabNames[id] = name;
+        if (menuTabs) continue;
+        const b = el('button', 'wm-tab', tabsEl);
+        b.type = 'button';
+        fillTab(b, id, name, this.tabStyle, icon);
+        b.addEventListener('mousedown', e => e.preventDefault());
+        b.addEventListener('click', () => this.showTab(id));
+        this.tabBtns[id] = b;
+      }
+    } else all = el('div', 'wm-panel', bar);
+    // 群組的順序與所在分頁跟 Word 模式相同（同一份 GROUPS）
+    const G: Partial<Record<GroupId, HTMLDivElement | null>> = {};
+    for (const [id, tab, label] of GROUPS) {
+      const panel = tabs ? this.panels[tab] : all;
+      if (!panel || this.hidden.has(id) || this.hiddenTabs.has(tab)) { G[id] = null; continue; }
+      const g = el('div', 'wm-group wm-group-' + id, panel);
+      G[id] = el('div', 'wm-group-body', g);
+      el('div', 'wm-group-name', g, t(label));
+    }
     const E = (fn: (ed: Editor) => void) => () => { const ed = this.editor; if (ed) { fn(ed); ed.focus(); } };
+    const toWord: MdButtonSpec = { icon: 'file-text', title: '切換到 Word 模式', keys: S.ctrlE !== false ? 'Mod+E' : null, label: 'Word 模式', big: true, demo: 'markdown', desc: '用 Word 模式編輯這份筆記。', run: () => { void this.plugin.switchToWord(this.view.leaf); }, always: true };
 
-    let g = group('views');
-    this.button(g, { icon: 'file-text', title: '切換到 Word 模式', keys: this.plugin.settings.ctrlE !== false ? 'Mod+E' : null, label: 'Word 模式', demo: 'markdown', desc: '用 Word 模式編輯這份筆記。', run: () => { void this.plugin.switchToWord(this.view.leaf); }, always: true });
-    this.button(g, { icon: 'code-2', title: 'Markdown 編輯', label: 'Markdown', active: () => this.mode === 'source', run: () => { void this.setMode('source'); }, always: true });
-    this.button(g, { icon: 'book-open', title: '閱讀模式', label: '閱讀', demo: 'reading', active: () => this.mode === 'preview', run: () => { void this.setMode('preview'); }, always: true });
-
-    g = group('undo');
+    // ---- 常用
+    let g = G.undo;
     this.button(g, { icon: 'undo-2', title: '復原', keys: 'Mod+Z', run: E(ed => ed.undo()) });
     this.button(g, { icon: 'redo-2', title: '取消復原', keys: 'Mod+Y', run: E(ed => ed.redo()) });
 
-    g = group('styles');
+    g = G.styles;
     this.button(g, { icon: 'heading', title: '段落樣式', demo: 'style', desc: '把這一行改成標題 1～6 或內文。', run: (e, b) => this.headingMenu(b) });
 
-    g = group('font');
+    g = G.font;
     this.button(g, { icon: 'bold', title: '粗體', keys: 'Mod+B', demo: 'bold', run: E(ed => wrap(ed, '**')) });
     this.button(g, { icon: 'italic', title: '斜體', keys: 'Mod+I', demo: 'italic', run: E(ed => wrap(ed, '*')) });
     this.button(g, { icon: 'underline', title: '底線', demo: 'underline', run: E(ed => wrap(ed, '<u>', '</u>')) });
     this.button(g, { icon: 'strikethrough', title: '刪除線', demo: 'strike', run: E(ed => wrap(ed, '~~')) });
-    this.button(g, { icon: 'highlighter', title: '醒目提示', demo: 'highlight', run: E(ed => wrap(ed, '==')) });
     this.button(g, { icon: 'superscript', title: '上標', demo: 'sup', run: E(ed => wrap(ed, '<sup>', '</sup>')) });
     this.button(g, { icon: 'subscript', title: '下標', demo: 'sub', run: E(ed => wrap(ed, '<sub>', '</sub>')) });
-    this.button(g, { icon: 'code', title: '行內程式碼', demo: 'code', run: E(ed => wrap(ed, '`')) });
+    this.button(g, { icon: 'highlighter', title: '醒目提示', demo: 'highlight', run: E(ed => wrap(ed, '==')) });
 
-    g = group('paragraph');
+    g = G.paragraph;
     this.button(g, { icon: 'list', title: '項目符號', demo: 'bullet', run: this.cmd('editor:toggle-bullet-list') });
     this.button(g, { icon: 'list-ordered', title: '編號', demo: 'ordered', run: this.cmd('editor:toggle-numbered-list') });
     this.button(g, { icon: 'list-checks', title: '核取清單', demo: 'task', run: this.cmd('editor:toggle-checklist-status') });
@@ -135,34 +186,81 @@ export class MarkdownBar {
     this.button(g, { icon: 'indent-increase', title: '增加縮排', demo: 'indent', run: this.cmd('editor:indent-list') });
     this.button(g, { icon: 'quote', title: '引文', demo: 'quote', run: this.cmd('editor:toggle-blockquote') });
 
-    g = group('links');
-    this.button(g, { icon: 'link', title: '超連結', demo: 'link', run: this.cmd('editor:insert-link') });
-    this.button(g, { icon: 'file-symlink', title: '連結到筆記', demo: 'notelink', run: this.cmd('editor:insert-wikilink') });
-    g = group('text');
-    this.button(g, { icon: 'table', title: '插入表格', demo: 'table', run: this.cmd('editor:insert-table') });
-    this.button(g, { icon: 'info', title: '插入提示框', demo: 'callout', run: this.cmd('editor:insert-callout') });
-    this.button(g, { icon: 'square-code', title: '插入程式碼區塊', demo: 'codeblock', run: (e, b) => this.codeMenu(b) });
-    this.button(g, { icon: 'sigma', title: '插入方程式', demo: 'equation', run: E(ed => { const s = ed.getSelection(); ed.replaceSelection('$' + (s || 'x^2') + '$'); }) });
-    this.button(g, { icon: 'message-square', title: '插入註解', demo: 'comment', run: this.cmd('editor:toggle-comments') });
-    this.button(g, { icon: 'minus', title: '水平線', demo: 'hr', run: E(ed => { const c = ed.getCursor(); ed.replaceRange('\n---\n', { line: c.line, ch: ed.getLine(c.line).length }); }) });
-
-    g = group('editing');
+    g = G.editing;
     this.button(g, { icon: 'search', title: '尋找', keys: 'Mod+F', demo: 'find', run: this.cmd('editor:open-search'), always: true });
     this.button(g, { icon: 'replace', title: '取代', keys: 'Mod+H', demo: 'replace', run: this.cmd('editor:open-search-replace') });
 
-    g = group('show');
-    this.button(g, { icon: 'list-tree', title: '大綱', demo: 'outline', run: () => { void this.plugin.toggleOutline(); }, active: () => this.plugin.outlineOpen(), always: true });
-    this.button(g, { icon: 'chevrons-down-up', title: '摺疊全部標題', demo: 'fold', run: this.cmd('editor:fold-all') });
-    this.button(g, { icon: 'chevrons-up-down', title: '展開全部標題', demo: 'unfold', run: this.cmd('editor:unfold-all') });
-    g = group('help');
-    this.button(g, { icon: 'settings', title: 'Word 模式設定', run: () => this.plugin.openSettings(), always: true });
-    for (const x of bar.querySelectorAll('.wm-group')) if (!x.childElementCount) x.remove();
+    // ---- 插入
+    this.button(G.tables, { icon: 'table', title: '插入表格', label: '表格', big: true, demo: 'table', run: this.cmd('editor:insert-table') });
+    this.button(G.illustrations, { icon: 'sigma', title: '插入方程式', label: '方程式', big: true, demo: 'equation', run: E(ed => { const sel = ed.getSelection(); ed.replaceSelection('$' + (sel || 'x^2') + '$'); }) });
+    g = G.links;
+    this.button(g, { icon: 'link', title: '超連結', label: '連結', big: true, demo: 'link', run: this.cmd('editor:insert-link') });
+    this.button(g, { icon: 'file-symlink', title: '連結到筆記', label: '筆記', big: true, demo: 'notelink', run: this.cmd('editor:insert-wikilink') });
+    g = G.code;
+    this.button(g, { icon: 'code', title: '行內程式碼', label: '行內', big: true, demo: 'code', run: E(ed => wrap(ed, '`')) });
+    this.button(g, { icon: 'square-code', title: '插入程式碼區塊', label: '程式碼區塊', big: true, demo: 'codeblock', run: (e, b) => this.codeMenu(b) });
+    g = G.text;
+    this.button(g, { icon: 'info', title: '插入提示框', label: '提示框', big: true, demo: 'callout', run: this.cmd('editor:insert-callout') });
+    this.button(g, { icon: 'message-square', title: '插入註解', label: '註解', big: true, demo: 'comment', run: this.cmd('editor:toggle-comments') });
+    this.button(g, { icon: 'minus', title: '水平線', label: '分隔線', big: true, demo: 'hr', run: E(ed => { const c = ed.getCursor(); ed.replaceRange('\n---\n', { line: c.line, ch: ed.getLine(c.line).length }); }) });
+
+    // ---- 校閱
+    g = G.proofing;
+    this.button(g, { icon: 'search', title: '尋找', keys: 'Mod+F', label: '尋找', big: true, demo: 'find', run: this.cmd('editor:open-search'), always: true });
+    this.button(g, { icon: 'replace', title: '取代', keys: 'Mod+H', label: '取代', big: true, demo: 'replace', run: this.cmd('editor:open-search-replace') });
+
+    // ---- 檢視：前三個按鈕的位置、大小跟 Word 模式的「檢視」分頁一樣
+    g = G.views;
+    this.button(g, toWord);
+    this.button(g, { icon: 'code-2', title: 'Markdown 編輯', label: 'Markdown', big: true, active: () => this.mode === 'source', run: () => { void this.setMode('source'); }, always: true });
+    this.button(g, { icon: 'book-open', title: '閱讀模式', label: '閱讀', big: true, demo: 'reading', active: () => this.mode === 'preview', run: () => { void this.setMode('preview'); }, always: true });
+    g = G.show;
+    this.button(g, { icon: 'list-tree', title: '大綱', label: '大綱', big: true, demo: 'outline', run: () => { void this.plugin.toggleOutline(); }, active: () => this.plugin.outlineOpen(), always: true });
+    this.button(g, { icon: 'chevrons-down-up', title: '摺疊全部標題', label: '全部摺疊', big: true, demo: 'fold', run: this.cmd('editor:fold-all') });
+    this.button(g, { icon: 'chevrons-up-down', title: '展開全部標題', label: '全部展開', big: true, demo: 'unfold', run: this.cmd('editor:unfold-all') });
+    this.button(G.help, { icon: 'settings', title: 'Word 模式設定', label: '設定', big: true, run: () => this.plugin.openSettings(), always: true });
+
+    for (const x of bar.querySelectorAll('.wm-group')) if (!x.querySelector('.wm-btn')) x.remove();
+    for (const [id] of TABS) {
+      const panel = this.panels[id];
+      if (panel && !panel.querySelector('.wm-btn')) { panel.remove(); delete this.panels[id]; delete this.tabNames[id]; if (this.tabBtns[id]) { this.tabBtns[id].remove(); delete this.tabBtns[id]; } }
+    }
+    // 右邊固定的快速按鈕（位置跟 Word 模式一樣）：尋找、切回 Word 模式
+    const quickHost = !tabs ? all! : menuTabs ? bar : tabsEl;
+    if (tabs && !menuTabs) el('div', 'wm-tabs-spacer', tabsEl);
+    const quick = el('div', 'wm-tabs-quick', quickHost);
+    this.seen = new Set();
+    this.button(quick, { icon: 'search', title: '尋找', keys: 'Mod+F', demo: 'find', run: this.cmd('editor:open-search'), always: true });
+    this.button(quick, Object.assign({}, toWord, { big: false, label: undefined }));
+    tabsEl.classList.toggle('is-hidden', !tabs || menuTabs);
+    if (tabs) {
+      const want = this.plugin.lastTab;
+      const first = TABS.find(([id]) => this.panels[id]);
+      this.showTab(want && this.panels[want] ? want : first ? first[0] : 'home', true);
+    }
     this.update();
   }
 
-  button(parent: HTMLElement | null, spec: MdButtonSpec): HTMLButtonElement | null {
+  // 切換分頁；跟 Word 模式共用「上次的分頁」，切換模式後停在同一個分頁
+  showTab(id: TabId, initial?: boolean): void {
+    for (const [k, panel] of Object.entries(this.panels)) panel.classList.toggle('is-hidden', k !== id);
+    for (const [k, b] of Object.entries(this.tabBtns)) b.classList.toggle('is-active', k === id);
+    if (this.tabSwitch) {
+      const name = this.tabNames[id] || '';
+      const label = this.tabSwitch.querySelector<HTMLElement>('.wm-tab-switch-label');
+      if (label) fillTab(label, id, name, 'both', (target, icon) => setIcon(target, icon));
+      this.tabSwitch.setAttribute('aria-label', t('切換分頁') + t('：') + name);
+    }
+    if (!initial) this.plugin.lastTab = id;
+  }
+
+  button(parent: HTMLElement | null | undefined, spec: MdButtonSpec): HTMLButtonElement | null {
     if (!parent) return null;
     const title = spec.keys ? t(spec.title) + ' (' + key(spec.keys) + ')' : t(spec.title);
+    if (this.layout !== 'tabs') {
+      if (this.seen.has(spec.title)) return null;
+      this.seen.add(spec.title);
+    }
     const showLabel = this.buttonStyle === 'label' || (this.buttonStyle === 'auto' && spec.big);
     const b = el('button', 'wm-btn' + (showLabel && spec.label ? ' has-label' : ''), parent);
     b.type = 'button';
@@ -183,7 +281,7 @@ export class MarkdownBar {
 
   update(): void {
     const reading = this.isReading();
-    if ((reading ? 'preview' : 'source') !== this.mode) { this.render(); return; }
+    this.mode = reading ? 'preview' : 'source';
     for (const it of this.items) {
       const off = reading && !it.spec.always;
       it.dom.classList.toggle('is-disabled', off);
@@ -198,13 +296,13 @@ export class MarkdownBar {
     st.mode = mode;
     if (mode === 'source') st.source = false;
     await this.view.setState(st, { history: false });
-    this.render();
+    this.update();
     if (mode === 'source' && this.editor) this.editor.focus();
   }
 
   menu(owner: HTMLElement, items: MdMenuItem[]): void {
     const m = new Menu();
-    for (const it of items) m.addItem(i => i.setTitle(it.title).onClick(it.run));
+    for (const it of items) m.addItem(i => { i.setTitle(it.title).onClick(it.run); if (it.icon) i.setIcon(it.icon); });
     const r = owner.getBoundingClientRect();
     m.showAtPosition({ x: r.left, y: r.bottom + 4 });
   }

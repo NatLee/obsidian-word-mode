@@ -9,4 +9,5 @@ export * as I18N from '../../src/i18n.js';
 export * as MARKS from '../../src/marks.js';
 export { undo, redo } from 'prosemirror-history';
 export * as AUTO from '../../src/autoformat.js';
+export { MarkdownBar } from '../../src/mdbar.js';
 export * as COLOR from '../../src/colorpicker.js';

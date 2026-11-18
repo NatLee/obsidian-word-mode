@@ -32,6 +32,8 @@ export type GroupEntry = readonly [id: GroupId, tab: TabId, label: I18nKey];
 export type RibbonLayout = 'tabs' | 'single' | 'wrap';
 // 設定裡的按鈕樣式：自動（大按鈕才加文字）、只顯示圖示、圖示加文字
 export type ButtonStyle = 'auto' | 'icon' | 'label';
+// 分頁列的樣式：文字、圖示、圖示加文字、收成一個選單按鈕（不佔一列）
+export type TabStyle = 'text' | 'icon' | 'both' | 'menu';
 // 「貼上」按鈕與選單的模式：auto＝一般貼上、text＝只貼文字、markdown＝把 Markdown 轉成格式
 export type PasteMode = 'auto' | 'text' | 'markdown';
 // 「剪下」「複製」按鈕
@@ -52,6 +54,9 @@ export interface ToolbarContext {
     hiddenTabs?: readonly string[];
     richHints?: boolean;
     groupLabels?: boolean;
+    tabStyle?: TabStyle;
+    // 自訂的分頁名稱（分頁 id → 名稱；沒有或空白時用預設名稱）
+    tabLabels?: Partial<Record<string, string>>;
     // 上次選的字型色彩（CSS 色碼）
     lastFontColor?: string;
     // 上次選的醒目提示色彩（CSS 色碼）；空字串或沒有＝預設黃色
@@ -203,6 +208,23 @@ export const GROUPS: readonly GroupEntry[] = [
 // 游標在程式碼區塊裡時停用的按鈕（程式碼區塊只能放純文字）：停用並在提示裡說明原因
 const NO_CODE: Pick<ButtonSpec, 'enabled' | 'why'> = { enabled: C.notInCode, why: C.codeBlocked };
 
+// 分頁的圖示（分頁列樣式為「圖示」「圖示加文字」「收成選單」時顯示）
+export const TAB_ICONS: Record<TabId, string> = { home: 'home', insert: 'plus-circle', review: 'spell-check', viewtab: 'eye' };
+
+// 分頁顯示的名稱：使用者在設定裡自訂的名稱，沒有時用預設名稱
+export function tabName(id: TabId, label: I18nKey, custom?: Partial<Record<string, string>> | null): string {
+  const c = custom && custom[id];
+  return c && c.trim() ? c.trim() : t(label);
+}
+
+// 在分頁按鈕裡放圖示與名稱（依分頁列的樣式）；只有圖示時名稱放在提示裡
+export function fillTab(b: HTMLElement, id: TabId, name: string, style: TabStyle, icon: ToolbarContext['icon']): void {
+  b.replaceChildren();
+  if (style !== 'text') icon(el('span', 'wm-tab-icon', b), TAB_ICONS[id], '');
+  if (style !== 'icon' || !b.querySelector('svg')) el('span', 'wm-tab-text', b, name);
+  if (style === 'icon') b.setAttribute('aria-label', name);
+}
+
 // 不讓編輯區失去焦點（手機上鍵盤才不會收起來）
 export function keepFocus(b: HTMLElement): void {
   b.addEventListener('mousedown', e => e.preventDefault());
@@ -218,6 +240,9 @@ export class Toolbar {
   declare hiddenTabs: Set<string>;
   declare richHints: boolean;
   declare groupLabels: boolean;
+  declare tabStyle: TabStyle;
+  declare tabNames: Partial<Record<TabId, string>>;
+  declare tabSwitch: HTMLButtonElement | null;
   declare dom: HTMLDivElement;
   declare tabsEl: HTMLDivElement;
   declare toolbarEl: HTMLDivElement;
@@ -254,7 +279,10 @@ export class Toolbar {
     this.hiddenTabs = new Set(S.hiddenTabs || []);
     this.richHints = !!S.richHints && !ctx.isMobile;
     this.groupLabels = !!S.groupLabels;
-    this.dom = el('div', 'wm-ribbon wm-layout-' + this.layout + ' wm-btnstyle-' + this.buttonStyle + (this.groupLabels ? ' wm-group-labels' : ''), container);
+    this.tabStyle = S.tabStyle || 'text';
+    this.tabNames = {};
+    this.tabSwitch = null;
+    this.dom = el('div', 'wm-ribbon wm-layout-' + this.layout + ' wm-btnstyle-' + this.buttonStyle + ' wm-tabstyle-' + this.tabStyle + (this.groupLabels ? ' wm-group-labels' : ''), container);
     this.tabsEl = el('div', 'wm-tabs', this.dom);
     this.toolbarEl = el('div', 'wm-toolbar', this.dom);
     this.toolbarEl.setAttribute('role', 'toolbar');
@@ -295,6 +323,12 @@ export class Toolbar {
     this.activeTab = id;
     for (const [k, p] of Object.entries(this.panels)) p.classList.toggle('is-hidden', k !== id);
     for (const [k, b] of Object.entries(this.tabBtns)) b.classList.toggle('is-active', k === id);
+    if (this.tabSwitch) {
+      const name = this.tabNames[id] || '';
+      const label = this.tabSwitch.querySelector('.wm-tab-switch-label');
+      if (label) fillTab(label as HTMLElement, id, name, 'both', this.ctx.icon);
+      this.tabSwitch.setAttribute('aria-label', t('切換分頁') + t('：') + name);
+    }
     if (this.ctx.onTab) this.ctx.onTab(id);
   }
 
@@ -369,12 +403,29 @@ export class Toolbar {
   }
 
   build(): void {
+    const custom = (this.ctx.settings || {}).tabLabels;
+    const menuTabs = this.layout === 'tabs' && this.tabStyle === 'menu';
     if (this.layout === 'tabs') {
+      // 收成選單：分頁列不佔一列，改成按鈕列最前面的一個按鈕，按下去選分頁
+      if (menuTabs) {
+        const sw = el('button', 'wm-tab-switch', this.toolbarEl);
+        sw.type = 'button';
+        el('span', 'wm-tab-switch-label', sw);
+        this.ctx.icon(el('span', 'wm-tab-switch-arrow', sw), 'chevron-down', '▾');
+        keepFocus(sw);
+        sw.addEventListener('click', () => this.openMenu(sw, TABS.filter(([id]) => this.tabNames[id] != null)
+          .map(([id]) => ({ title: this.tabNames[id]!, icon: TAB_ICONS[id], run: () => this.showTab(id) }))));
+        this.tabSwitch = sw;
+      }
       for (const [id, label] of TABS) {
         this.panels[id] = el('div', 'wm-panel', this.toolbarEl);
         if (this.hiddenTabs.has(id)) { this.panels[id].classList.add('is-empty'); continue; }
-        const b = el('button', 'wm-tab', this.tabsEl, t(label));
+        const name = tabName(id, label, custom);
+        this.tabNames[id] = name;
+        if (menuTabs) continue;
+        const b = el('button', 'wm-tab', this.tabsEl);
         b.type = 'button';
+        fillTab(b, id, name, this.tabStyle, this.ctx.icon);
         keepFocus(b);
         b.addEventListener('click', () => this.showTab(id));
         this.tabBtns[id] = b;
@@ -394,19 +445,19 @@ export class Toolbar {
     // 沒有任何群組的分頁不顯示
     for (const [id] of TABS) {
       const p = this.panels[id];
-      if (p && !p.querySelector('.wm-btn')) { p.classList.add('is-empty'); if (this.tabBtns[id]) { this.tabBtns[id].remove(); delete this.tabBtns[id]; } }
+      if (p && !p.querySelector('.wm-btn')) { p.classList.add('is-empty'); delete this.tabNames[id]; if (this.tabBtns[id]) { this.tabBtns[id].remove(); delete this.tabBtns[id]; } }
     }
     for (const g of this.toolbarEl.querySelectorAll('.wm-group')) if (!g.querySelector('.wm-btn')) g.remove();
     // 右上角固定的快速按鈕（分頁版面放在分頁列，其他版面放在最後）
-    const quickHost = this.layout === 'tabs' ? this.tabsEl : this.allPanel;
-    if (this.layout === 'tabs') el('div', 'wm-tabs-spacer', this.tabsEl);
+    const quickHost = this.layout !== 'tabs' ? this.allPanel : menuTabs ? this.toolbarEl : this.tabsEl;
+    if (this.layout === 'tabs' && !menuTabs) el('div', 'wm-tabs-spacer', this.tabsEl);
     const quick = el('div', 'wm-tabs-quick', quickHost);
     const prevSeen = this.seen; this.seen = new Set();
     this.findBtn = this.button(quick, { icon: 'search', title: '尋找與取代', keys: 'Mod+F', text: '找', desc: '在這份筆記裡尋找文字，再按一次關閉。', demo: 'find', onClick: () => this.d.find(), active: () => this.isFindOpen() });
     if (!this.hiddenGroups.has('help')) this.button(quick, { icon: 'help-circle', title: '快速鍵說明', keys: 'Mod+/', text: '?', onClick: () => this.d.shortcuts() });
     this.button(quick, { icon: 'code-2', title: '切換到 Markdown 編輯', keys: 'Mod+E', text: 'MD', desc: '用 Obsidian 原本的 Markdown 編輯這份筆記，再按一次（或在 Markdown 畫面按同樣的快速鍵）切回 Word 模式。', demo: 'markdown', onClick: () => this.d.markdown() });
     this.seen = prevSeen;
-    if (!this.tabsEl.childElementCount || this.layout !== 'tabs') this.tabsEl.classList.add('is-hidden');
+    if (!this.tabsEl.childElementCount || this.layout !== 'tabs' || menuTabs) this.tabsEl.classList.add('is-hidden');
   }
 
   isFindOpen(): boolean { return !!(this.ctx.findState && this.ctx.findState().open); }

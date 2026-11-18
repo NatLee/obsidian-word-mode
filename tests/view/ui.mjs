@@ -54,6 +54,32 @@ await fresh('| 甲 | 乙 |\n| --- | --- |\n| a1 | b1 |\n');
   assert(plain.every(i => !i.submenu) && plain.some(i => i.title === '項目符號'), '不在表格裡：選單照原本的方式直接列出');
 }
 
+// ======== 分頁列的樣式與名稱 ========
+{
+  plugin.settings.tabStyle = 'both';
+  plugin.settings.tabLabels = { home: '我的常用' };
+  view.buildToolbar();
+  const tabs = [...view.toolbar.dom.querySelectorAll('.wm-tab')];
+  assert(tabs.length === 4 && tabs[0].querySelector('.wm-tab-icon').dataset.icon === 'home' && tabs[0].textContent === '我的常用' && tabs[1].textContent === '插入', '分頁：圖示加文字、自訂名稱：' + tabs.map(x => x.textContent).join('、'));
+  plugin.settings.tabStyle = 'icon';
+  view.buildToolbar();
+  assert(view.toolbar.dom.querySelector('.wm-tab').getAttribute('aria-label') === '我的常用' && view.toolbar.dom.classList.contains('wm-tabstyle-icon'), '分頁：只顯示圖示時名稱在提示裡');
+  plugin.settings.tabStyle = 'menu';
+  view.buildToolbar();
+  const tb = view.toolbar;
+  assert(tb.tabsEl.classList.contains('is-hidden') && tb.tabSwitch && tb.tabSwitch.textContent.includes('我的常用') && !tb.dom.querySelector('.wm-tab'), '分頁收成選單：分頁列不佔一列');
+  assert(tb.toolbarEl.querySelector(':scope > .wm-tabs-quick .wm-btn'), '收成選單時右邊的快速按鈕放在按鈕列');
+  click(tb.tabSwitch);
+  const menu = [...document.querySelectorAll('.wm-menu-popup .wm-menu-item')];
+  assert(menu.map(x => x.textContent).join() === '我的常用,插入,校閱,檢視', '選單列出所有分頁：' + menu.map(x => x.textContent).join());
+  click(menu[1]);
+  assert(!tb.panels.insert.classList.contains('is-hidden') && tb.panels.home.classList.contains('is-hidden') && tb.tabSwitch.textContent.includes('插入'), '從選單切換分頁');
+  plugin.settings.tabStyle = 'text';
+  plugin.settings.tabLabels = {};
+  view.buildToolbar();
+  assert(view.toolbar.dom.querySelectorAll('.wm-tab').length === 4 && !view.toolbar.tabSwitch, '改回文字的分頁列');
+}
+
 // ======== 色彩面板：醒目提示可以自訂色彩 ========
 await fresh('一段文字\n');
 {
@@ -98,6 +124,43 @@ await fresh('一段文字\n');
   view.toolbar.openColorPopup(view.toolbar.colorBtn);
   click(document.querySelector('.wm-color-popup .wm-cp-clear'));
   assert(out() === '一段文字\n', '自動：清除字型色彩');
+}
+
+// ======== Markdown／閱讀模式的工具列：版面跟 Word 模式的功能區一樣 ========
+{
+  const containerEl = document.createElement('div');
+  const contentEl = containerEl.createDiv('view-content');
+  document.body.appendChild(containerEl);
+  const md = { containerEl, contentEl, leaf: {}, mode: 'source', getMode() { return this.mode; }, editor: { focus() {} }, getState() { return {}; }, async setState(st) { this.mode = st.mode; } };
+  plugin.lastTab = 'viewtab';
+  plugin.switchToWord = () => { plugin.toWord = (plugin.toWord || 0) + 1; };
+  const bar = new B.MarkdownBar(plugin, md);
+  assert(bar.dom.classList.contains('wm-layout-tabs') && bar.dom.querySelectorAll('.wm-tab').length === 4 && containerEl.firstChild === bar.dom, 'Markdown 工具列也有同樣的四個分頁');
+  assert(!bar.panels.viewtab.classList.contains('is-hidden') && bar.panels.home.classList.contains('is-hidden'), '切換模式後停在同一個分頁（檢視）');
+  const labels = root => [...root.querySelectorAll('.wm-group-views .wm-btn')].map(b => b.classList.contains('has-label') + ':' + b.querySelector('.wm-btn-label').textContent);
+  assert(labels(bar.dom).join() === 'true:Word 模式,true:Markdown,true:閱讀' && labels(bar.dom).join() === labels(view.toolbar.dom).join(), '檢視模式的三個按鈕跟 Word 模式一樣大、一樣的位置：' + labels(bar.dom).join());
+  const groups = root => [...root.querySelectorAll('.wm-panel:not(.is-hidden) .wm-group[class*="wm-group-"]')].map(g => g.className.replace(/.*wm-group-(\w+).*/, '$1'));
+  view.toolbar.showTab('viewtab');
+  assert(groups(bar.dom)[0] === 'views' && groups(view.toolbar.dom)[0] === 'views', '檢視分頁的第一個群組都是檢視模式');
+  const first = bar.dom.querySelector('.wm-group-views .wm-btn');
+  const mdBtn = [...bar.dom.querySelectorAll('.wm-group-views .wm-btn')][1];
+  assert(mdBtn.classList.contains('is-active'), 'Markdown 按鈕顯示成目前的模式');
+  await bar.setMode('preview');
+  assert(bar.dom.querySelector('.wm-group-views .wm-btn') === first && bar.mode === 'preview' && !mdBtn.classList.contains('is-active'), '切換編輯／閱讀：只更新按鈕狀態，不重畫工具列');
+  const bold = bar.items.find(i => i.title.startsWith('粗體')).dom;
+  assert(bold.classList.contains('is-disabled') && bold.getAttribute('aria-label').includes('閱讀模式不能編輯'), '閱讀模式：編輯按鈕停用並說明原因');
+  click(bar.tabBtns.home);
+  assert(plugin.lastTab === 'home' && !bar.panels.home.classList.contains('is-hidden'), 'Markdown 工具列切換分頁，也會記住分頁');
+  click(first);
+  assert(plugin.toWord === 1, '按「Word 模式」切回 Word 模式');
+  bar.destroy();
+  plugin.settings.ribbonLayout = 'wrap';
+  const flat = new B.MarkdownBar(plugin, md);
+  const finds = flat.items.filter(i => i.title.startsWith('尋找'));
+  assert(flat.dom.querySelector('.wm-tabs').classList.contains('is-hidden') && finds.length === 2, '全部排在一起的版面：同一個功能只出現一次（外加右邊的快速按鈕）：' + finds.length);
+  flat.destroy();
+  delete plugin.settings.ribbonLayout;
+  view.toolbar.showTab('home');
 }
 
 
