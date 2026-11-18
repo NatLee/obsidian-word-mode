@@ -36,7 +36,7 @@ Word Mode 是 Obsidian 外掛：用 ProseMirror 把 Markdown 筆記變成像 Wor
 - 遵守 Obsidian 外掛規範：不用 `innerHTML`、不用全域的 `app`、靜態樣式寫在 CSS 不寫在 JS、指令不設預設快速鍵、英文介面文字用 sentence case。
 - 新用到的 Obsidian API 要在 1.5.7 存在。非公開的 API 一律宣告在 `src/obsidian-internal.d.ts` 並標成可能不存在，呼叫前先檢查，壞掉時只少一項功能。
 - 功能有變動時，四份 README（`README.md`、`.zh-TW`、`.ja`、`.ko`）都要更新。
-- GitHub Actions 目前不用（額度用完）：`ci.yml`、`release.yml` 只能手動觸發，維持這樣。驗證都在本機做。
+- GitHub Actions：`ci.yml` 只能手動觸發，維持這樣，平常的驗證都在本機做。`release.yml` 會在推版本 tag 時自動執行（測試、建置、來源證明、建立 GitHub Release）。
 - 程式碼註解用繁體中文，說明「為什麼」。
 - Commit 與 PR：英文，標題 `type(scope): what`；作者只用 git config 的 NatLee，不加任何 Claude／AI 的署名或字樣。交付流程用 `ship` skill（拆成主題 commit、開 PR、merge commit、刪分支）。
 
@@ -44,8 +44,9 @@ Word Mode 是 Obsidian 外掛：用 ProseMirror 把 Markdown 筆記變成像 Wor
 
 - **有更新就要升版號**（NatLee，2026-11-18）。每次交付改到外掛的更新，合併到 `main` 之後在 `main` 上執行 `npm version patch`（修正、重構）或 `npm version minor`（新功能）。只改 `.claude/` 這類不屬於外掛的檔案不算。
 - 版本號的來源是 `package.json`；`npm version` 會同步 `manifest.json`、`versions.json` 並建立 commit 與 tag（不加 `v`）。不要手改版號。
-- 升版後直接 `git push origin main --follow-tags`，不用先問（NatLee，2026-11-18）。推 tag 不會自動發 release（workflow 是手動觸發）。
-- 建立 GitHub Release 之前先問使用者。
+- **推 tag 就是公開發佈**：tag 一推上去，release workflow 就會建立 GitHub Release，使用者會收到更新。
+- 升版後直接 `git push origin main --follow-tags`，不用先問（NatLee，2026-11-18，確認時已知道這會發佈）。推完用 `gh run list --limit 1` 與 `gh release view <版本>` 確認 workflow 成功、Release 有三個檔案。
+- Actions 不能用的時候才用 `npm run release:local`（沒有來源證明）；這個要先問使用者。
 
 ## Vault
 
