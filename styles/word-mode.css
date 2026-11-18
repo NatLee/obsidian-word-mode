@@ -1122,3 +1122,85 @@ audio.wm-embed-media { width: 100%; }
 .wm-tabstyle-menu.wm-layout-tabs .wm-panel { flex: 1 1 0; flex-wrap: wrap; }
 .wm-tabstyle-menu.wm-layout-tabs .wm-tabs-quick { flex: 0 0 auto; }
 .wm-mobile .wm-tabstyle-menu.wm-layout-tabs .wm-panel, .wm-mobile.wm-tabstyle-menu.wm-layout-tabs .wm-panel { flex: 0 0 auto; flex-wrap: nowrap; }
+
+/* ---------- v1.6：方程式與圖表編輯器的新控制項 ---------- */
+/* 方程式：編輯區的工具（上一格、下一格、拿掉結構｜復原、取消復原）、常用公式 */
+.wm-eq-tools-sep { width: 1px; height: 16px; margin: 0 4px; background: var(--background-modifier-border); }
+.wm-eq button.wm-eq-btn.is-formula { min-height: 58px; padding: 6px 12px 4px; gap: 4px; justify-content: space-between; }
+.wm-eq button.wm-eq-btn.is-formula .wm-eq-btn-math { flex: 1 1 auto; display: flex; align-items: center; font-size: 13px; white-space: nowrap; }
+/* 圖表：預覽的縮放 */
+.wm-mmd-zoom { display: inline-flex; align-items: center; gap: 0; margin-left: auto; }
+.wm-mmd-zoom button.wm-mmd-zoombtn { height: 24px; padding: 2px 5px; }
+.wm-mmd-zoom button.wm-mmd-zoombtn svg { width: 15px; height: 15px; }
+.wm-mmd-zoom button.wm-mmd-zoomlabel { min-width: 44px; height: 24px; padding: 0 4px; background: transparent; box-shadow: none; border: none; color: var(--text-muted); font-size: var(--font-ui-smaller); font-weight: 400; font-variant-numeric: tabular-nums; cursor: pointer; }
+.wm-mmd-zoom button.wm-mmd-zoomlabel:hover { color: var(--text-normal); }
+.wm-mmd-canvas { min-width: 100%; }
+/* 圖表：色彩欄位（流程圖節點的底色）。按鈕顯示目前的顏色，色塊展開在這一列下面或圖上的輸入框裡 */
+.wm-mmd button.wm-mmd-color { flex: 0 0 auto; width: 30px; height: 28px; padding: 0; background: transparent; box-shadow: none; border: 1px solid var(--background-modifier-border); border-radius: 5px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.wm-mmd button.wm-mmd-color:hover { border-color: var(--interactive-accent); }
+.wm-mmd-color-dot { width: 16px; height: 16px; border-radius: 4px; background: var(--wm-mmd-fill, transparent); border: 1px solid rgba(128, 128, 128, .45); }
+.wm-mmd-color-dot.is-none, .wm-mmd button.wm-mmd-swatch.is-none { background: linear-gradient(to top right, transparent calc(50% - 1px), var(--text-faint) calc(50% - 1px), var(--text-faint) calc(50% + 1px), transparent calc(50% + 1px)); }
+.wm-mmd-swatches { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 5px; padding: 3px 2px; }
+.wm-mmd button.wm-mmd-swatch { width: 24px; height: 24px; padding: 0; background: var(--wm-mmd-fill, transparent); box-shadow: none; border: 1px solid rgba(128, 128, 128, .45); border-radius: 6px; cursor: pointer; }
+.wm-mmd button.wm-mmd-swatch:hover { box-shadow: 0 0 0 2px var(--background-primary), 0 0 0 3px var(--text-muted); }
+.wm-mmd button.wm-mmd-swatch.is-active { box-shadow: 0 0 0 2px var(--background-primary), 0 0 0 4px var(--interactive-accent); }
+.wm-mmd-inline { flex-wrap: wrap; max-width: calc(100% - 4px); }
+.wm-mmd-inline .wm-mmd-swatches { padding: 4px 3px 2px; border-top: 1px solid var(--background-modifier-border); margin-top: 3px; }
+.wm-mmd-head .wm-mmd-opt input.is-s { width: 110px; }
+
+/* ---------- 手機與平板：方程式與圖表編輯器 ---------- */
+/* 輸入框用 16px：iOS 對小於 16px 的輸入框會自動放大整個畫面 */
+.is-mobile .wm-eq .wm-eq-hint, .is-mobile .wm-mmd .wm-eq-hint { display: none; }
+.is-mobile .wm-seg button { height: 34px; padding: 0 14px; }
+.is-mobile .wm-eq-cats, .is-mobile .wm-mmd-kinds { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.is-mobile .wm-eq-cats::-webkit-scrollbar, .is-mobile .wm-mmd-kinds::-webkit-scrollbar { display: none; }
+.is-mobile .wm-eq-cats button.wm-eq-cat { flex: 0 0 auto; height: 36px; padding: 0 12px; }
+.is-mobile .wm-eq-tools button.wm-eq-tool { height: 36px; padding: 6px 9px; }
+.is-mobile .wm-eq-tools button.wm-eq-tool svg { width: 19px; height: 19px; }
+.is-mobile .wm-eq-input { font-size: 16px; }
+.is-mobile .wm-mv-text { min-width: 8px; padding: 2px 3px; }
+.is-mobile .wm-mv-text.is-slot { min-width: 1.2em; min-height: 1.3em; }
+.is-mobile .wm-mv-env-tools { opacity: 1; }
+.is-mobile .wm-mv-env-tools button.wm-mv-env-btn { height: 24px; padding: 0 6px; font-size: 12px; }
+.is-mobile .wm-mmd-kinds button.wm-mmd-kind { flex: 0 0 auto; height: 36px; }
+.is-mobile .wm-mmd-row .wm-mmd-text, .is-mobile .wm-mmd-row select, .is-mobile .wm-mmd-opt input, .is-mobile .wm-mmd-opt select { height: 38px; font-size: 16px; }
+.is-mobile .wm-mmd-row textarea.wm-mmd-lines, .is-mobile .wm-mmd-input { font-size: 16px; }
+.is-mobile .wm-mmd-tools button.wm-mmd-iconbtn, .is-mobile .wm-mmd-level button.wm-mmd-levelbtn { height: 38px; padding: 6px 8px; }
+.is-mobile .wm-mmd-tools button.wm-mmd-iconbtn svg, .is-mobile .wm-mmd-level svg { width: 18px; height: 18px; }
+.is-mobile .wm-mmd button.wm-mmd-color { width: 40px; height: 38px; }
+.is-mobile .wm-mmd button.wm-mmd-swatch { width: 34px; height: 34px; }
+.is-mobile .wm-mmd-zoom button.wm-mmd-zoombtn { height: 34px; padding: 6px 9px; }
+.is-mobile .wm-mmd-zoom button.wm-mmd-zoomlabel { height: 34px; }
+.is-mobile .wm-mmd button.wm-mmd-add { height: 38px; }
+.is-mobile .wm-mmd-inline input.wm-mmd-inline-input { height: 38px; font-size: 16px; }
+.is-mobile .wm-mmd-inline button.wm-mmd-inline-btn { height: 38px; padding: 8px 9px; }
+.is-mobile .wm-mmd-inline svg { width: 18px; height: 18px; }
+.is-mobile .wm-mmd-tip { display: none; }
+/* 手機：編輯的東西放最上面並固定住，螢幕鍵盤開著、往下捲選按鈕時都還看得到 */
+.is-phone .wm-eq { gap: 8px; }
+.is-phone .wm-eq-top { order: -2; }
+.is-phone .wm-eq-editor { order: -1; position: sticky; top: 0; z-index: 3; box-shadow: 0 6px 10px -8px rgba(0, 0, 0, .35); }
+.is-phone .wm-eq-editor .wm-eq-visual { min-height: 64px; padding: 10px 12px; font-size: 1.25em; }
+.is-phone .wm-eq-editor .wm-eq-visual-hint { display: none; }
+.is-phone .wm-eq-palbox .wm-eq-palette { max-height: none; min-height: 0; }
+.is-phone .wm-eq-card .wm-eq-preview { min-height: 44px; }
+.is-phone .wm-mmd { gap: 8px; }
+.is-phone .wm-mmd-body { display: flex; flex-direction: column; min-height: 0; }
+.is-phone .wm-mmd-right { order: -1; position: sticky; top: 0; z-index: 3; box-shadow: 0 6px 10px -8px rgba(0, 0, 0, .35); }
+.is-phone .wm-mmd-stage .wm-mmd-preview { min-height: 150px; max-height: 32vh; }
+.is-phone .wm-mmd-edit { max-height: none; overflow: visible; padding-right: 10px; }
+.is-phone .wm-mmd-row { padding-top: 5px; padding-bottom: 5px; gap: 6px; }
+.is-phone .wm-mmd-row .wm-mmd-text.is-l { flex-basis: 100%; }
+.is-phone .wm-mmd-row textarea.wm-mmd-lines { flex-basis: 100%; }
+.is-phone .wm-mmd-head .wm-mmd-opt { flex: 1 1 100%; }
+.is-phone .wm-mmd-head .wm-mmd-opt input, .is-phone .wm-mmd-head .wm-mmd-opt select { flex: 1 1 auto; width: auto; min-width: 0; }
+.is-phone .wm-mmd-input { min-height: 240px; }
+.wm-mmd-inline .wm-mmd-swatches { gap: 4px; }
+.wm-mmd-inline button.wm-mmd-swatch { width: 22px; height: 22px; }
+.is-mobile .wm-mmd-inline button.wm-mmd-swatch { width: 30px; height: 30px; }
+/* 圖上的輸入框：上面一列是輸入框與按鈕，下面一列是色塊；寬度跟著內容 */
+.wm-mmd-inline { flex-direction: column; flex-wrap: nowrap; align-items: stretch; }
+.wm-mmd-inline-row { display: flex; align-items: center; gap: 2px; }
+.wm-mmd-inline .wm-mmd-swatches { flex: 0 0 auto; flex-wrap: nowrap; }
+/* 手機：短的設定欄位（象限圖的座標軸與象限）兩個排一列，名稱放在輸入框上面 */
+.is-phone .wm-mmd-head .wm-mmd-opt:has(input.is-s) { flex: 1 1 44%; flex-direction: column; align-items: stretch; gap: 2px; }

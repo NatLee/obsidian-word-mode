@@ -6,7 +6,7 @@ import { schema } from './schema.js';
 import { t, key } from './i18n.js';
 import { marksOn } from './marks.js';
 import { attachHint, hideHint } from './hints.js';
-import { el } from './dom.js';
+import { el, keepFocus } from './dom.js';
 import { buildColorPanel, TEXT_COLORS, SHADING } from './colorpicker.js';
 import type { ColorKind } from './colorpicker.js';
 import type { Command, EditorState } from 'prosemirror-state';
@@ -225,11 +225,7 @@ export function fillTab(b: HTMLElement, id: TabId, name: string, style: TabStyle
   if (style === 'icon') b.setAttribute('aria-label', name);
 }
 
-// 不讓編輯區失去焦點（手機上鍵盤才不會收起來）
-export function keepFocus(b: HTMLElement): void {
-  b.addEventListener('mousedown', e => e.preventDefault());
-  b.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse') e.preventDefault(); });
-}
+export { keepFocus };
 
 // 功能區；popup 是目前開著的下拉面板（沒有時是 null 或 undefined），painter 是格式刷記住的格式
 export class Toolbar {

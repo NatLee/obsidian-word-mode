@@ -440,7 +440,7 @@ export class MathField {
     span.addEventListener('keyup', here);
     span.addEventListener('input', () => {
       const raw = span.textContent.replace(/\n/g, '');
-      if (!plain && this.typedCommand(row, index, span, raw)) return;
+      if (!plain && (this.typedCommand(row, index, span, raw) || this.typedScript(row, index, span, raw))) return;
       it.v = plain ? raw : fromDisplay(raw);
       span.classList.toggle('is-slot', row.length === 1 && !it.v);
       this.changed('type');
@@ -540,6 +540,57 @@ export class MathField {
       span.classList.remove('is-slot');
       this.place(span, (before + shown).length);
       this.changed('type');
+      return true;
+    }
+    return false;
+  }
+
+  // 螢幕鍵盤打的 ^ 與 _ 常常沒有按鍵事件（onKey 攔不到），字會直接進到格子裡：
+  // 拿掉那個字，改成上標／下標的格子
+  typedScript(row: MathRow, index: number, span: HTMLElement, raw: string): boolean {
+    const c = this.caret(span);
+    if (c.start !== c.end || c.start < 1) return false;
+    const ch = raw[c.start - 1];
+    if (ch !== '^' && ch !== '_') return false;
+    const it = row[index] as TextItem;
+    const before = raw.slice(0, c.start - 1); const after = raw.slice(c.start);
+    it.v = fromDisplay(before + after);
+    span.textContent = before + after;
+    this.place(span, before.length);
+    this.insertItems([{ t: ch === '^' ? 'sup' : 'sub', a: [{ t: 'text', v: '' }] }], row, index, span);
+    return true;
+  }
+
+  // 目前游標所在的格子（按按鈕之前最後停留的那一格）；還沒點過任何格子時是 null
+  slot(): MathSlot | null {
+    return this.active && this.dom.contains(this.active.span) ? this.active : null;
+  }
+
+  // 往後（dir = 1）或往前（dir = -1）一格。螢幕鍵盤沒有 Tab 與方向鍵，編輯器上有對應的按鈕
+  move(dir: number): boolean {
+    const spans = this.spans();
+    const a = this.slot();
+    const i = a ? spans.indexOf(a.span) : -1;
+    const next = spans[i < 0 ? (dir > 0 ? 0 : spans.length - 1) : i + dir];
+    if (!next) return false;
+    this.place(next, dir > 0 ? 0 : next.textContent.length);
+    this.active = this.findActive(next);
+    return true;
+  }
+
+  // 拿掉游標所在的結構（內容留著；矩陣這類則整個拿掉）。游標不在任何結構裡時，拿掉游標前面最近的一個結構。
+  // 螢幕鍵盤的 Backspace 在空格子裡常常沒有事件，所以另外有按鈕
+  removeStructure(): boolean {
+    const a = this.slot();
+    if (!a) return false;
+    const own = this.owner.get(a.row);
+    if (own && own.item.t !== 'env') { this.unwrap(own, a.row); return true; }
+    const row = own ? own.row : a.row;
+    for (let i = own ? row.indexOf(own.item) : a.index - 1; i > 0; i--) {
+      if (row[i].t === 'text') continue;
+      (row[i - 1] as TextItem).v += MARK; // normalize 之後結構前面一定是文字
+      row.splice(i, 1);
+      this.settle(row);
       return true;
     }
     return false;

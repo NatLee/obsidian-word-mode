@@ -48,7 +48,9 @@ export interface SelectField extends FieldBase { kind: 'select'; options: (m: Di
 export interface CheckField extends FieldBase { kind: 'check'; }
 // 階層（心智圖）：用縮排表示，值是 '0'、'1'、'2'…
 export interface LevelField extends FieldBase { kind: 'level'; }
-export type Field = TextField | LinesField | SelectField | CheckField | LevelField;
+// 色彩（流程圖節點的底色）：值是 CSS 色碼，空字串＝預設。colors 是可以選的色彩：[色碼, 名稱]
+export interface ColorField extends FieldBase { kind: 'color'; colors: readonly (readonly [color: string, name: I18nKey])[]; }
+export type Field = TextField | LinesField | SelectField | CheckField | LevelField | ColorField;
 
 // 一列上的額外按鈕（例如流程圖的「新增下一步」）；回傳新增的那一列（介面會把游標放過去）
 export interface RowAction { icon: string; label: I18nKey; run(m: DiagramModel, row: Row, tr: Translate): Row | null; }
@@ -120,6 +122,18 @@ function ensure(rows: Row[], name: string, make: (name: string) => Row): void {
 
 // ---------------------------------------------------------------- 流程圖（解析與產生在 flowchart.ts）
 
+// 節點的底色：淺色，配上深一點的框線與深色的字（深色佈景主題裡字才看得清楚）
+export const NODE_FILLS: [string, I18nKey][] = [
+  ['#ffe3e3', '紅色'], ['#ffe8cc', '橘色'], ['#fff3bf', '黃色'], ['#d3f9d8', '綠色'],
+  ['#c5f6fa', '青色'], ['#d0ebff', '藍色'], ['#e5dbff', '紫色'], ['#e9ecef', '灰色'],
+];
+const NODE_TEXT = '#1f2328';
+// 框線的顏色：底色加深
+const strokeOf = (fill: string): string => '#' + [1, 3, 5].map(i => Math.round(parseInt(fill.slice(i, i + 2), 16) * 0.62).toString(16).padStart(2, '0')).join('');
+const styleOf = (id: string, fill: string): string => 'style ' + id + ' fill:' + fill + ',stroke:' + strokeOf(fill) + ',color:' + NODE_TEXT;
+// 表單認得的寫法：只有底色，或是這裡產生的「底色＋框線＋字色」；其他 style 行原樣保留
+const NODE_STYLE = /^style\s+(\S+)\s+fill:(#[0-9a-fA-F]{6})(,stroke:#[0-9a-fA-F]{6},color:#[0-9a-fA-F]{6})?$/;
+
 const flowchart: DiagramKind = {
   id: 'flowchart', name: '流程圖', icon: 'workflow', head: /^(flowchart|graph)\b/, template: template('流程圖'),
   parse(src) {
@@ -132,9 +146,15 @@ const flowchart: DiagramKind = {
       m.pre.push(line.trim());
     }
     m.opts = { keyword: f.keyword, dir: f.dir };
-    m.lists.nodes = f.nodes.map(n => ({ id: n.id, text: n.text == null ? '' : n.text, shape: n.shape || 'rect' }));
+    m.lists.nodes = f.nodes.map(n => ({ id: n.id, text: n.text == null ? '' : n.text, shape: n.shape || 'rect', fill: '' }));
     m.lists.edges = f.edges.map(e => ({ from: e.from, style: e.style, to: e.to, text: e.text || '' }));
-    m.extra = f.extra;
+    for (const line of f.extra) {
+      const x = NODE_STYLE.exec(line);
+      const node = x ? m.lists.nodes.find(n => n.id === x[1]) : undefined;
+      const fill = x ? x[2].toLowerCase() : '';
+      if (node && !node.fill && (!x![3] || line === styleOf(node.id, fill))) node.fill = fill;
+      else m.extra.push(line);
+    }
     return m;
   },
   generate(m) {
@@ -142,7 +162,7 @@ const flowchart: DiagramKind = {
       keyword: m.opts.keyword, dir: m.opts.dir,
       nodes: m.lists.nodes.map(r => ({ id: r.id, text: r.text, shape: r.shape })),
       edges: m.lists.edges.map(r => ({ from: r.from, to: r.to, text: r.text, style: r.style })),
-      extra: m.extra,
+      extra: [...m.lists.nodes.filter(r => /^#[0-9a-f]{6}$/.test(r.fill || '')).map(r => styleOf(r.id, r.fill)), ...m.extra],
     })].join('\n');
   },
   opts: [{ kind: 'select', key: 'dir', label: '方向', options: fixed(DIRECTIONS) }],
@@ -152,12 +172,13 @@ const flowchart: DiagramKind = {
       fields: [
         { kind: 'text', key: 'text', label: '步驟的文字', placeholder: '步驟的文字', size: 'l', multiline: true },
         { kind: 'select', key: 'shape', label: '形狀', options: fixed(SHAPES.map(s => [s[0], s[1]] as const)) },
+        { kind: 'color', key: 'fill', label: '底色', colors: NODE_FILLS },
       ],
-      make: (m, tr) => ({ id: flowId(m), text: tr('新步驟'), shape: 'rect' }),
+      make: (m, tr) => ({ id: flowId(m), text: tr('新步驟'), shape: 'rect', fill: '' }),
       actions: [{
         icon: 'corner-down-right', label: '新增下一步（接在這個步驟後面）',
         run(m, row, tr) {
-          const next: Row = { id: flowId(m), text: tr('新步驟'), shape: 'rect' };
+          const next: Row = { id: flowId(m), text: tr('新步驟'), shape: 'rect', fill: '' };
           m.lists.nodes.push(next);
           m.lists.edges.push({ from: row.id, style: 'arrow', to: next.id, text: '' });
           return next;
@@ -771,10 +792,139 @@ const er: DiagramKind = {
   ],
 };
 
+// ---------------------------------------------------------------- 旅程圖
+
+const journey: DiagramKind = {
+  id: 'journey', name: '旅程圖', icon: 'map', head: /^journey\s*$/, template: template('旅程圖'),
+  parse(src) {
+    const s = split(src, this.head);
+    if (!s) return 'unknownKind';
+    const m = emptyModel();
+    m.pre = s.pre;
+    const steps: Row[] = [];
+    let section = '';
+    for (const { text } of s.body) {
+      let x: RegExpExecArray | null;
+      if (/^%%/.test(text)) { m.extra.push(text); continue; }
+      if ((x = /^title\s+(.*)$/.exec(text))) { m.opts.title = x[1]; continue; }
+      if ((x = /^section\s+(.*)$/.exec(text))) { section = x[1]; continue; }
+      if (/^(accTitle|accDescr)(\s|$)/.test(text)) return 'blocks';
+      // 步驟：名稱: 分數（1～5）: 參與的人（可不寫）
+      if (!(x = /^([^:]+?)\s*:\s*([1-5])\s*(?::\s*(.*))?$/.exec(text))) return 'syntax';
+      steps.push({ section, name: x[1], score: x[2], actors: (x[3] || '').split(',').map(v => v.trim()).filter(Boolean).join(', ') });
+    }
+    m.lists.steps = steps;
+    return m;
+  },
+  generate(m) {
+    const out: string[] = [];
+    if (one(m.opts.title)) out.push(INDENT + 'title ' + one(m.opts.title));
+    let section = '';
+    for (const r of m.lists.steps) {
+      const name = one(r.name).replace(/:/g, '：');
+      if (!name) continue;
+      if (one(r.section) !== section) { section = one(r.section); if (section) out.push(INDENT + 'section ' + section); }
+      const actors = one(r.actors).replace(/:/g, '：');
+      out.push(INDENT + '  ' + name + ': ' + (/^[1-5]$/.test(r.score) ? r.score : '3') + (actors ? ': ' + actors : ''));
+    }
+    return join(m, 'journey', out);
+  },
+  opts: [{ kind: 'text', key: 'title', label: '標題', placeholder: '圖表的標題（可不填）', size: 'l' }],
+  lists: [{
+    key: 'steps', title: '步驟', add: '＋ 新增步驟', hint: '感受從 1（最糟）到 5（最好）。參與的人用逗號分開。',
+    fields: [
+      { kind: 'text', key: 'name', label: '步驟', placeholder: '做了什麼', size: 'l' },
+      { kind: 'select', key: 'score', label: '感受', options: (_m, tr) => [['1', '1 ' + tr('（最糟）')], ['2', '2'], ['3', '3'], ['4', '4'], ['5', '5 ' + tr('（最好）')]], size: 's' },
+      { kind: 'text', key: 'actors', label: '參與的人', placeholder: '參與的人' },
+      { kind: 'text', key: 'section', label: '區段', placeholder: '區段（可不填）', size: 's', group: 'section', suggest: m => [...new Set(m.lists.steps.map(r => r.section).filter(Boolean))] },
+    ],
+    make(m, tr) {
+      const last = m.lists.steps[m.lists.steps.length - 1];
+      return { section: last ? last.section : '', name: tr('新步驟'), score: '3', actors: last ? last.actors : '' };
+    },
+  }],
+};
+
+// ---------------------------------------------------------------- 象限圖
+
+// Mermaid 規定：座標軸、象限、點的名稱只要不是英數字就要加引號（標題不用），所以一律加
+const quoted = (v: string): string => '"' + one(v).replace(/"/g, '\'') + '"';
+const QUAD_TEXT = '("[^"]*"|[^"\\s][^"]*?)';
+const QUAD_AXIS = new RegExp('^([xy])-axis\\s+' + QUAD_TEXT + '(?:\\s*-->\\s*' + QUAD_TEXT + ')?$');
+const QUAD_POINT = new RegExp('^' + QUAD_TEXT + '\\s*:\\s*\\[\\s*(\\d*\\.?\\d+)\\s*,\\s*(\\d*\\.?\\d+)\\s*\\]$');
+const unit = (v: string): string => { const n = parseFloat(v); return String(n >= 0 && n <= 1 ? n : 0.5); };
+const quadrant: DiagramKind = {
+  id: 'quadrant', name: '象限圖', icon: 'layout-grid', head: /^quadrantChart\s*$/, template: template('象限圖'),
+  parse(src) {
+    const s = split(src, this.head);
+    if (!s) return 'unknownKind';
+    const m = emptyModel();
+    m.pre = s.pre;
+    const points: Row[] = [];
+    for (const { text } of s.body) {
+      let x: RegExpExecArray | null;
+      if (/^%%/.test(text)) { m.extra.push(text); continue; }
+      if ((x = /^title\s+(.*)$/.exec(text))) { m.opts.title = x[1]; continue; }
+      if ((x = QUAD_AXIS.exec(text))) { m.opts[x[1] + '1'] = unquote(x[2]); m.opts[x[1] + '2'] = x[3] ? unquote(x[3]) : ''; continue; }
+      if ((x = /^quadrant-([1-4])\s+(.+)$/.exec(text))) { m.opts['q' + x[1]] = unquote(x[2]); continue; }
+      if (/^(classDef|accTitle|accDescr)(\s|$)/.test(text)) return 'blocks';
+      if (!(x = QUAD_POINT.exec(text))) return 'syntax';
+      points.push({ name: unquote(x[1]), x: String(parseFloat(x[2])), y: String(parseFloat(x[3])) });
+    }
+    m.lists.points = points;
+    return m;
+  },
+  generate(m) {
+    const o = m.opts;
+    const out: string[] = [];
+    if (one(o.title)) out.push(INDENT + 'title ' + one(o.title));
+    for (const a of ['x', 'y']) if (one(o[a + '1'])) out.push(INDENT + a + '-axis ' + quoted(o[a + '1']) + (one(o[a + '2']) ? ' --> ' + quoted(o[a + '2']) : ''));
+    for (const n of ['1', '2', '3', '4']) if (one(o['q' + n])) out.push(INDENT + 'quadrant-' + n + ' ' + quoted(o['q' + n]));
+    for (const r of m.lists.points) if (one(r.name)) out.push(INDENT + quoted(r.name) + ': [' + unit(r.x) + ', ' + unit(r.y) + ']');
+    return join(m, 'quadrantChart', out);
+  },
+  opts: [
+    { kind: 'text', key: 'title', label: '標題', placeholder: '圖表的標題（可不填）', size: 'l' },
+    { kind: 'text', key: 'x1', label: '橫軸（左）', size: 's' }, { kind: 'text', key: 'x2', label: '橫軸（右）', size: 's' },
+    { kind: 'text', key: 'y1', label: '縱軸（下）', size: 's' }, { kind: 'text', key: 'y2', label: '縱軸（上）', size: 's' },
+    { kind: 'text', key: 'q1', label: '右上的象限', size: 's' }, { kind: 'text', key: 'q2', label: '左上的象限', size: 's' },
+    { kind: 'text', key: 'q3', label: '左下的象限', size: 's' }, { kind: 'text', key: 'q4', label: '右下的象限', size: 's' },
+  ],
+  lists: [{
+    key: 'points', title: '項目', add: '＋ 新增項目', hint: '位置是 0 到 1 的數字：橫向 0 在最左、1 在最右；縱向 0 在最下、1 在最上。',
+    fields: [
+      { kind: 'text', key: 'name', label: '項目名稱', placeholder: '項目名稱', size: 'l' },
+      { kind: 'text', key: 'x', label: '橫向的位置', placeholder: '0–1', size: 'xs' },
+      { kind: 'text', key: 'y', label: '縱向的位置', placeholder: '0–1', size: 'xs' },
+    ],
+    make: (m, tr) => ({ name: unique(m.lists.points, tr('新項目')), x: '0.5', y: '0.5' }),
+  }],
+};
+
 // ---------------------------------------------------------------- 對外的函式
 
 // 所有能用表單編輯的圖表種類（順序也是範本列的順序）
-export const DIAGRAM_KINDS: readonly DiagramKind[] = [flowchart, sequence, gantt, pie, state, classDiagram, mindmap, timeline, er];
+export const DIAGRAM_KINDS: readonly DiagramKind[] = [flowchart, sequence, gantt, pie, state, classDiagram, mindmap, timeline, er, journey, quadrant];
+
+// 圖表的外觀（Mermaid 的佈景）：寫成最前面的一行 %%{init: {"theme": "…"}}%%。空字串＝不指定，跟著 Obsidian
+export const THEMES: [string, I18nKey][] = [['', '跟著 Obsidian'], ['default', '預設（淺紫）'], ['neutral', '黑白'], ['forest', '綠色'], ['dark', '深色'], ['base', '米色']];
+const THEME_LINE = /^%%\{\s*init\s*:\s*\{\s*["']theme["']\s*:\s*["'](default|neutral|forest|dark|base)["']\s*\}\s*\}%%$/;
+// 每一種圖表都有的設定（表單裡排在各自的設定後面）
+export const COMMON_OPTS: Field[] = [{ kind: 'select', key: 'theme', label: '外觀', options: fixed(THEMES) }];
+
+// 讀成資料：各種圖表自己的 parse，再把外觀那一行從開頭的註解裡拿出來變成設定
+export function parseDiagram(kind: DiagramKind, src: string): DiagramModel | DiagramReason {
+  const m = kind.parse(src);
+  if (typeof m === 'string') return m;
+  const i = m.pre.findIndex(l => THEME_LINE.test(l));
+  if (i >= 0) { m.opts.theme = THEME_LINE.exec(m.pre[i])![1]; m.pre.splice(i, 1); }
+  return m;
+}
+// 寫回程式碼：有指定外觀時加在最前面
+export function generateDiagram(kind: DiagramKind, m: DiagramModel): string {
+  const src = kind.generate(m);
+  return m.opts.theme ? '%%{init: {"theme": "' + m.opts.theme + '"}}%%\n' + src : src;
+}
 
 // 這段程式碼是哪一種圖表（看第一個不是註解的行）；不認得時回傳 null
 export function detectKind(src: string): DiagramKind | null {
@@ -791,9 +941,9 @@ export const sameModel = (a: DiagramModel, b: DiagramModel): boolean => JSON.str
 export function editableDiagram(src: string): DiagramResult {
   const kind = detectKind(src);
   if (!kind) return { ok: false, kind: null, reason: 'unknownKind' };
-  const model = kind.parse(src);
+  const model = parseDiagram(kind, src);
   if (typeof model === 'string') return { ok: false, kind, reason: model };
-  const again = kind.parse(kind.generate(model));
+  const again = parseDiagram(kind, generateDiagram(kind, model));
   if (typeof again === 'string' || !sameModel(model, again)) return { ok: false, kind, reason: 'roundtrip' };
   return { ok: true, kind, model };
 }

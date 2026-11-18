@@ -3,9 +3,10 @@
 // opts: { src, existing, mode: 'visual'|'code', render(src, el) → { unload() }, validate(src) → Promise<錯誤訊息|null> }
 import { Modal, setIcon } from 'obsidian';
 import { t, key } from './i18n.js';
-import { DIAGRAM_KINDS, DIAGRAM_REASONS, editableDiagram, detectKind, textSlots, findSlot, setValue, squash } from './diagrams.js';
+import { keepFocus } from './dom.js';
+import { DIAGRAM_KINDS, DIAGRAM_REASONS, COMMON_OPTS, editableDiagram, generateDiagram, detectKind, textSlots, findSlot, setValue, squash } from './diagrams.js';
 import type { App } from 'obsidian';
-import type { DiagramKind, DiagramModel, DiagramReason, Field, ListSpec, Row, SelectField, TextField, TextSlot } from './diagrams.js';
+import type { ColorField, DiagramKind, DiagramModel, DiagramReason, Field, ListSpec, Row, SelectField, TextField, TextSlot } from './diagrams.js';
 
 // opts.render 的回傳值：關掉預覽時呼叫 unload()
 export interface MermaidPreviewHandle { unload(): void; }
@@ -67,11 +68,17 @@ export class MermaidModal extends Modal {
   declare tip: HTMLSpanElement;
   declare stage: HTMLDivElement;
   declare prev: HTMLDivElement;
+  // 預覽圖畫在 canvas 裡（prev 是可以捲動的外框）；zoom 是預覽的縮放倍率
+  declare canvas: HTMLDivElement;
+  declare zoom: number;
+  declare zoomLabel: HTMLButtonElement;
   declare ok: HTMLButtonElement;
   declare selects: SelectRef[];
   declare inline: HTMLDivElement | null;
   // 取消圖上正在編輯的文字（關掉小輸入框時呼叫，之後輸入框失去焦點也不會套用）
   declare cancelInline: (() => void) | null;
+  // 圖上的輸入框開啟的時間（開啟時把文字捲到看得到的地方，那次捲動不能把輸入框關掉）
+  declare inlineAt: number;
   declare listId: number;
   declare timer?: number;
   declare handle?: MermaidPreviewHandle | null;
@@ -86,8 +93,10 @@ export class MermaidModal extends Modal {
     this.data = undefined;
     this.tab = opts.mode === 'code' ? 'code' : 'visual';
     this.selects = [];
+    this.zoom = 1;
     this.inline = null;
     this.cancelInline = null;
+    this.inlineAt = 0;
     this.listId = 0;
   }
 
@@ -147,11 +156,29 @@ export class MermaidModal extends Modal {
     lab.createSpan({ text: t('預覽') });
     this.tip = lab.createSpan({ cls: 'wm-mmd-tip', text: t('點圖上的文字可以直接修改') });
     this.err = lab.createSpan({ cls: 'wm-eq-error' });
+    // 預覽的縮放：大張的圖可以放大看細節，也可以按住 Ctrl 滾動滑鼠滾輪
+    const zoomBox = lab.createDiv('wm-mmd-zoom');
+    const zoomBtn = (icon: string, label: string, delta: number) => {
+      const b = zoomBox.createEl('button', { cls: 'clickable-icon wm-mmd-zoombtn' });
+      b.setAttribute('aria-label', label);
+      setIcon(b, icon);
+      b.addEventListener('click', () => this.setZoom(this.zoom + delta));
+    };
+    zoomBtn('zoom-out', t('縮小'), -0.25);
+    this.zoomLabel = zoomBox.createEl('button', { cls: 'wm-mmd-zoomlabel', text: '100%' });
+    this.zoomLabel.setAttribute('aria-label', t('恢復 100%'));
+    this.zoomLabel.addEventListener('click', () => this.setZoom(1));
+    zoomBtn('zoom-in', t('放大'), 0.25);
     // stage 包住預覽與「在圖上編輯」的小輸入框（預覽重畫時輸入框不會被清掉）
     this.stage = right.createDiv('wm-mmd-stage');
     this.prev = this.stage.createDiv('wm-mmd-preview');
     this.prev.addEventListener('click', e => this.onPreviewClick(e));
-    this.prev.addEventListener('scroll', () => this.closeInline());
+    this.prev.addEventListener('scroll', () => { if (Date.now() - this.inlineAt > 250) this.closeInline(); });
+    this.prev.addEventListener('wheel', e => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      e.preventDefault();
+      this.setZoom(this.zoom + (e.deltaY < 0 ? 0.25 : -0.25));
+    }, { passive: false });
 
     const bar = c.createDiv('modal-button-container');
     bar.createEl('button', { text: t('取消') }).addEventListener('click', () => { this.closeInline(); this.close(); });
@@ -245,7 +272,7 @@ export class MermaidModal extends Modal {
     const d = this.data;
     if (!d) return; // 只有表單會呼叫，這時一定有資料
     if (d.kind.fix) d.kind.fix(d.model);
-    this.src = d.kind.generate(d.model);
+    this.src = generateDiagram(d.kind, d.model);
     this.ta.value = this.src;
     if (rebuild) this.buildVisual(); else this.refreshSelects();
     if (now) this.preview(); else this.schedulePreview();
@@ -305,7 +332,7 @@ export class MermaidModal extends Modal {
     const badge = head.createDiv('wm-mmd-badge');
     setIcon(badge.createSpan('wm-mmd-kind-icon'), kind.icon);
     badge.createSpan({ text: t(kind.name) });
-    for (const f of kind.opts) this.field(head, f, null, null, true);
+    for (const f of [...kind.opts, ...COMMON_OPTS]) this.field(head, f, null, null, true);
     // ---- 各個清單
     for (const list of kind.lists) {
       const rows = model.lists[list.key] || (model.lists[list.key] = []);
@@ -423,6 +450,23 @@ export class MermaidModal extends Modal {
       cb.checked = !!store[f.key];
       l.createSpan({ text: label });
       cb.addEventListener('change', () => { store[f.key] = cb.checked ? '1' : ''; this.changed(false); });
+    } else if (f.kind === 'color') {
+      // 色彩：一顆顯示目前顏色的按鈕；按下去在這一列下面展開色塊（不用浮動視窗，手機上也好按）
+      const b = parent.createEl('button', { cls: 'wm-mmd-color ' + cls });
+      b.setAttribute('aria-label', label);
+      const dot = b.createSpan('wm-mmd-color-dot');
+      const paint = () => {
+        dot.toggleClass('is-none', !store[f.key]);
+        if (store[f.key]) dot.style.setProperty('--wm-mmd-fill', store[f.key]); else dot.style.removeProperty('--wm-mmd-fill');
+      };
+      paint();
+      let strip: HTMLDivElement | null = null;
+      const close = () => { if (strip) { strip.remove(); strip = null; } };
+      b.addEventListener('click', () => {
+        if (strip) { close(); return; }
+        strip = parent.createDiv('wm-mmd-swatches');
+        this.swatches(strip, f, store[f.key] || '', c => { store[f.key] = c; paint(); close(); this.changed(false); });
+      });
     } else {
       // 階層：縮排表示層級，兩個按鈕往外一層、往內一層
       const level = Math.max(0, +store[f.key] || 0);
@@ -443,6 +487,27 @@ export class MermaidModal extends Modal {
       step('chevron-left', t('往外一層'), -1, first || level <= 1);
       step('chevron-right', t('往內一層'), 1, first);
     }
+  }
+
+  // 一排色塊：第一個是「預設」（不指定色彩），其餘是這個欄位可以選的色彩
+  swatches(parent: HTMLElement, f: ColorField, current: string, pick: (color: string) => void): void {
+    const one = (color: string, name: string) => {
+      const b = parent.createEl('button', { cls: 'wm-mmd-swatch' + (color ? '' : ' is-none') + (color === current ? ' is-active' : '') });
+      b.setAttribute('aria-label', name);
+      if (color) b.style.setProperty('--wm-mmd-fill', color);
+      keepFocus(b);
+      b.addEventListener('click', () => pick(color));
+    };
+    one('', t('預設的色彩'));
+    for (const [color, name] of f.colors) one(color, t(name));
+  }
+
+  // 預覽的縮放倍率（50%～300%）
+  setZoom(zoom: number): void {
+    this.zoom = Math.max(0.5, Math.min(3, Math.round(zoom * 4) / 4));
+    this.closeInline();
+    if (this.canvas) this.canvas.style.zoom = String(this.zoom);
+    this.zoomLabel.setText(Math.round(this.zoom * 100) + '%');
   }
 
   // ---------------------------------------------------------- 在圖上編輯
@@ -481,7 +546,9 @@ export class MermaidModal extends Modal {
     const multiline = field.kind === 'text' && !!field.multiline;
     const box = this.stage.createDiv('wm-mmd-inline');
     this.inline = box;
-    const input = box.createEl('input', { type: 'text', cls: 'wm-mmd-inline-input' });
+    // 第一列：輸入框與按鈕；色塊（有的話）在下面一列
+    const top = box.createDiv('wm-mmd-inline-row');
+    const input = top.createEl('input', { type: 'text', cls: 'wm-mmd-inline-input' });
     input.value = multiline ? showLines(current) : current.trim();
     input.setAttribute('aria-label', t(field.label));
     let done = false;
@@ -498,10 +565,10 @@ export class MermaidModal extends Modal {
       if (list && row) this.markRow(list, row, false);
     };
     const button = (name: string, label: string, run: () => void, cls = ''): void => {
-      const b = box.createEl('button', { cls: 'clickable-icon wm-mmd-inline-btn' + (cls ? ' ' + cls : '') });
+      const b = top.createEl('button', { cls: 'clickable-icon wm-mmd-inline-btn' + (cls ? ' ' + cls : '') });
       b.setAttribute('aria-label', label);
       setIcon(b, name);
-      b.addEventListener('mousedown', ev => ev.preventDefault()); // 游標留在輸入框，才不會先觸發「離開就套用」
+      keepFocus(b); // 游標留在輸入框，才不會先觸發「離開就套用」；螢幕鍵盤也不會收起來
       b.addEventListener('click', run);
     };
     button('check', t('套用'), commit, 'is-apply');
@@ -511,18 +578,36 @@ export class MermaidModal extends Modal {
       }
       const pinned = !!list.fixedFirst && d.model.lists[list.key].indexOf(row) === 0;
       if (!pinned) button('trash-2', t('刪除這一列'), () => { done = true; this.closeInline(); this.removeRow(list, row); this.preview(); }, 'is-danger');
+      // 這一列有色彩欄位（流程圖節點的底色）：直接在圖上選
+      for (const f of list.fields) {
+        if (f.kind !== 'color') continue;
+        this.swatches(box.createDiv('wm-mmd-swatches'), f, row[f.key] || '', c => {
+          done = true;
+          this.closeInline();
+          row[f.key] = c;
+          this.changed(true, true);
+          this.markRow(list, row, false);
+        });
+      }
     }
     input.addEventListener('keydown', e => {
       if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); commit(); }
     });
     input.addEventListener('blur', () => window.setTimeout(commit, 0));
-    // 位置：蓋在那段文字上（以 stage 為基準）
-    const a = anchor.getBoundingClientRect();
+    // 那段文字不在預覽框看得到的範圍裡（圖比框大，手機上常見）：先捲到看得到的地方。
+    // 捲動會關掉輸入框（見 onOpen），所以記下時間，剛開啟時的捲動不算
+    this.inlineAt = Date.now();
+    const p = this.prev.getBoundingClientRect();
+    let a = anchor.getBoundingClientRect();
+    if (a.top < p.top || a.bottom > p.bottom) this.prev.scrollTop += a.top + a.height / 2 - (p.top + p.height / 2);
+    if (a.left < p.left || a.right > p.right) this.prev.scrollLeft += a.left + a.width / 2 - (p.left + p.width / 2);
+    a = anchor.getBoundingClientRect();
+    // 位置：蓋在那段文字上（以 stage 為基準），整個框留在預覽的範圍裡
     const s = this.stage.getBoundingClientRect();
-    const width = Math.max(150, Math.min(320, a.width + 60));
-    box.style.left = Math.max(0, Math.min(a.left - s.left + a.width / 2 - width / 2, Math.max(0, s.width - width - 90))) + 'px';
-    box.style.top = Math.max(0, a.top - s.top + a.height / 2 - 16) + 'px';
-    input.style.width = width + 'px';
+    input.style.width = Math.max(120, Math.min(260, a.width + 60, s.width - 120)) + 'px';
+    const fit = (want: number, size: number, room: number) => Math.max(0, Math.min(want, room - size));
+    box.style.left = fit(a.left - s.left + a.width / 2 - box.offsetWidth / 2, box.offsetWidth, s.width) + 'px';
+    box.style.top = fit(a.top - s.top + a.height / 2 - 18, box.offsetHeight, s.height) + 'px';
     input.focus();
     input.select();
   }
@@ -544,7 +629,9 @@ export class MermaidModal extends Modal {
     this.err.setText('');
     const src = this.src.trim();
     if (!src) { this.prev.createSpan({ cls: 'wm-eq-empty', text: t('（輸入後顯示預覽）') }); return; }
-    this.handle = this.opts.render(src, this.prev);
+    this.canvas = this.prev.createDiv('wm-mmd-canvas');
+    this.canvas.style.zoom = String(this.zoom);
+    this.handle = this.opts.render(src, this.canvas);
     if (this.opts.validate) {
       const stamp = this.stamp = (this.stamp || 0) + 1;
       Promise.resolve(this.opts.validate(src)).then(msg => { if (stamp === this.stamp && this.err) this.err.setText(msg ? t('語法錯誤：') + msg : ''); }).catch(() => {});

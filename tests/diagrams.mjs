@@ -1,5 +1,5 @@
 // 圖表 ⇄ 表單資料：九種圖表的解析、產生、不支援的寫法、圖上的文字對應到欄位（表單介面的操作測試在 tests/view/features.mjs）
-import { DIAGRAM_KINDS, editableDiagram, detectKind, textSlots, findSlot, setValue, sameModel } from '../src/diagrams.js';
+import { DIAGRAM_KINDS, editableDiagram, detectKind, textSlots, findSlot, setValue, sameModel, parseDiagram, generateDiagram, NODE_FILLS } from '../src/diagrams.js';
 import { MERMAID_TEMPLATES } from '../src/flowchart.js';
 
 let fails = 0;
@@ -9,7 +9,7 @@ const kind = id => DIAGRAM_KINDS.find(k => k.id === id);
 const edit = src => { const r = editableDiagram(src); if (!r.ok) throw new Error('不能用表單編輯：' + r.reason + '\n' + src); return r; };
 
 // ---- 每一種範本都能用表單編輯，而且「讀進來再寫出去」內容不變
-ok('九種圖表', DIAGRAM_KINDS.length === 9 && MERMAID_TEMPLATES.length === 9);
+ok('十一種圖表', DIAGRAM_KINDS.length === 11 && MERMAID_TEMPLATES.length === 11);
 for (const k of DIAGRAM_KINDS) {
   const r = editableDiagram(k.template);
   ok('範本可以用表單編輯：' + k.name, r.ok && r.kind === k, r.ok ? '' : r.reason);
@@ -139,10 +139,10 @@ for (const k of DIAGRAM_KINDS) {
 
 // ---- 流程圖：開頭的註解與設定會保留
 {
-  const r = edit('%%{init: {"theme": "dark"}}%%\nflowchart LR\n    A[開始] --> B{判斷}\n    style A fill:#f9f');
-  ok('流程圖：開頭的設定保留', r.model.pre.join() === '%%{init: {"theme": "dark"}}%%' && r.model.extra.join() === 'style A fill:#f9f');
+  const r = edit('%%{init: {"flowchart": {"curve": "linear"}}}%%\nflowchart LR\n    A[開始] --> B{判斷}\n    style A fill:#f9f');
+  ok('流程圖：開頭的設定保留', r.model.pre.join() === '%%{init: {"flowchart": {"curve": "linear"}}}%%' && r.model.extra.join() === 'style A fill:#f9f');
   const out = r.kind.generate(r.model);
-  ok('流程圖：寫回程式碼', out === '%%{init: {"theme": "dark"}}%%\nflowchart LR\n    A[開始]\n    B{判斷}\n    A --> B\n    style A fill:#f9f', out);
+  ok('流程圖：寫回程式碼', out === '%%{init: {"flowchart": {"curve": "linear"}}}%%\nflowchart LR\n    A[開始]\n    B{判斷}\n    A --> B\n    style A fill:#f9f', out);
   const next = r.kind.lists[0].actions[0].run(r.model, r.model.lists.nodes[1], tr);
   ok('流程圖：新增下一步', next.id === 'N3' && r.model.lists.edges[1].from === 'B' && r.model.lists.edges[1].to === 'N3');
   r.kind.lists[0].onDelete(r.model, r.model.lists.nodes[0]);
@@ -151,7 +151,7 @@ for (const k of DIAGRAM_KINDS) {
 }
 
 // ---- 不認得的圖表、圖上的文字
-ok('不認得的圖表種類', editableDiagram('journey\n    title 一天').reason === 'unknownKind' && detectKind('journey') === null);
+ok('不認得的圖表種類', editableDiagram('gitGraph\n    commit').reason === 'unknownKind' && detectKind('gitGraph') === null);
 {
   const r = edit('pie showData title 佔比\n    "項目一" : 45\n    "項目二" : 30');
   const slots = textSlots(r.kind, r.model);
@@ -161,6 +161,58 @@ ok('不認得的圖表種類', editableDiagram('journey\n    title 一天').reas
   ok('圖上的文字：找不到', findSlot(slots, '45%') === null);
   const f = edit('flowchart TD\n    A[是] --> B[是]');
   ok('圖上的文字：同樣的文字依出現的順序', findSlot(textSlots(f.kind, f.model), '是', 1).row === f.model.lists.nodes[1]);
+}
+
+// ---- 圖表的外觀：最前面的一行 %%{init: {"theme": "…"}}%%
+{
+  const r = edit('%%{init: {"theme": "forest"}}%%\n%% 註解\npie title 佔比\n    "甲" : 1');
+  ok('外觀：從開頭的設定讀出來，其他註解留著', r.model.opts.theme === 'forest' && r.model.pre.join() === '%% 註解');
+  ok('外觀：寫回最前面', generateDiagram(r.kind, r.model) === '%%{init: {"theme": "forest"}}%%\n%% 註解\npie title 佔比\n    "甲" : 1', generateDiagram(r.kind, r.model));
+  r.model.opts.theme = '';
+  ok('外觀：改回跟著 Obsidian 就不寫那一行', generateDiagram(r.kind, r.model) === '%% 註解\npie title 佔比\n    "甲" : 1');
+  const other = edit('%%{init: {"theme": "base", "themeVariables": {"primaryColor": "#ff0000"}}}%%\npie\n    "甲" : 1');
+  ok('外觀：設定裡還有別的東西時原樣保留，不當成外觀', other.model.opts.theme === undefined && other.model.pre.length === 1);
+  const k = kind('sequence');
+  const m = parseDiagram(k, k.template);
+  m.opts.theme = 'dark';
+  ok('外觀：每一種圖表都可以設定', generateDiagram(k, m).startsWith('%%{init: {"theme": "dark"}}%%\nsequenceDiagram\n') && editableDiagram(generateDiagram(k, m)).model.opts.theme === 'dark');
+}
+
+// ---- 流程圖節點的底色
+{
+  const fill = NODE_FILLS[0][0];
+  const r = edit('flowchart TD\n    A[開始] --> B[結束]\n    style A fill:' + fill + '\n    style B fill:#f9f,stroke:#333\n    style A stroke-width:4px');
+  ok('底色：只有底色的 style 行讀成節點的底色，其他 style 行原樣保留', r.model.lists.nodes[0].fill === fill && r.model.lists.nodes[1].fill === '' && r.model.extra.join('|') === 'style B fill:#f9f,stroke:#333|style A stroke-width:4px', JSON.stringify(r.model.extra));
+  r.model.lists.nodes[1].fill = NODE_FILLS[5][0];
+  const out = r.kind.generate(r.model);
+  ok('底色：寫成底色＋框線＋字色', out.includes('    style A fill:#ffe3e3,stroke:#9e8d8d,color:#1f2328\n    style B fill:#d0ebff,stroke:#81929e,color:#1f2328\n    style B fill:#f9f,stroke:#333'), out);
+  const again = edit(out);
+  ok('底色：寫出去再讀回來一樣', again.model.lists.nodes.map(n => n.fill).join() === '#ffe3e3,#d0ebff' && again.model.extra.length === 2);
+  again.model.lists.nodes[0].fill = '';
+  ok('底色：改回預設就不寫 style', !again.kind.generate(again.model).includes('style A fill'));
+}
+
+// ---- 旅程圖
+{
+  const r = edit('journey\n    title 我的一天\n    section 上午\n      泡茶: 5: 我\n      開會: 2: 我,同事\n    section 下午\n      寫報告: 3');
+  const m = r.model;
+  ok('旅程圖：步驟、分數、參與的人、區段', JSON.stringify(m.lists.steps[1]) === JSON.stringify({ section: '上午', name: '開會', score: '2', actors: '我, 同事' }) && m.lists.steps[2].actors === '' && m.lists.steps[2].section === '下午', JSON.stringify(m.lists.steps));
+  const out = r.kind.generate(m);
+  ok('旅程圖：寫回程式碼', out === 'journey\n    title 我的一天\n    section 上午\n      泡茶: 5: 我\n      開會: 2: 我, 同事\n    section 下午\n      寫報告: 3', out);
+  ok('旅程圖：分數不是 1～5 就改用程式碼', editableDiagram('journey\n    泡茶: 9: 我').reason === 'syntax');
+}
+
+// ---- 象限圖（Mermaid 規定：座標軸、象限、項目的名稱不是英數字就要加引號，標題不用）
+{
+  const r = edit('quadrantChart\n    title 優先順序\n    x-axis "不急" --> "很急"\n    y-axis Low --> High\n    quadrant-1 "馬上做"\n    quadrant-3 Later\n    "寫報告": [0.8, 0.9]\n    Inbox: [.3, 0.2]');
+  const m = r.model;
+  ok('象限圖：座標軸與象限', m.opts.title === '優先順序' && m.opts.x1 === '不急' && m.opts.x2 === '很急' && m.opts.y1 === 'Low' && m.opts.q1 === '馬上做' && m.opts.q3 === 'Later' && m.opts.q2 === undefined);
+  ok('象限圖：項目與位置', JSON.stringify(m.lists.points) === JSON.stringify([{ name: '寫報告', x: '0.8', y: '0.9' }, { name: 'Inbox', x: '0.3', y: '0.2' }]), JSON.stringify(m.lists.points));
+  m.lists.points[1].x = '7';
+  const out = r.kind.generate(m);
+  ok('象限圖：寫回程式碼（名稱加引號、超出範圍的位置改成 0.5）', out === 'quadrantChart\n    title 優先順序\n    x-axis "不急" --> "很急"\n    y-axis "Low" --> "High"\n    quadrant-1 "馬上做"\n    quadrant-3 "Later"\n    "寫報告": [0.8, 0.9]\n    "Inbox": [0.5, 0.2]', out);
+  ok('象限圖：圖上的象限名稱對應到設定', findSlot(textSlots(r.kind, m), '馬上做').field.key === 'q1');
+  ok('象限圖：點的樣式不能用表單', editableDiagram('quadrantChart\n    A: [0.1, 0.2] radius: 12').ok === false);
 }
 
 console.log(fails ? '\n' + fails + ' 個測試失敗' : '\nALL PASS');
