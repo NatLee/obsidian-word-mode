@@ -1,5 +1,5 @@
 // Word 模式：把 Obsidian 筆記變成像 Office Word 一樣編輯
-import { Plugin, PluginSettingTab, Setting, WorkspaceLeaf, MarkdownView, TFile, Notice, setIcon, Platform } from 'obsidian';
+import { Plugin, PluginSettingTab, Setting, WorkspaceLeaf, MarkdownView, TFile, Notice, setIcon, Platform, loadMathJax, renderMath, finishRenderMath } from 'obsidian';
 import { t, withKey, key, setLanguage, getLanguage } from './i18n.js';
 import { options as cmdOptions } from './commands.js';
 import { autoformatOptions } from './autoformat.js';
@@ -8,6 +8,9 @@ import { WordModeView, VIEW_TYPE } from './view.js';
 import { OutlineView, OUTLINE_TYPE } from './outline.js';
 import { MarkdownBar } from './mdbar.js';
 import { TABS, GROUPS } from './toolbar.js';
+import { DIAGRAM_KINDS, detectKind } from './diagrams.js';
+import { cleanTemplates } from './templates.js';
+import { buildTemplateManager } from './templateui.js';
 import type { App, Command, Editor, MarkdownViewModeType, View, ViewState } from 'obsidian';
 import type { EditorState } from 'prosemirror-state';
 import type { EditorView } from 'prosemirror-view';
@@ -17,6 +20,7 @@ import type { OutlineSource } from './outline.js';
 import type { RibbonLayout, ButtonStyle, TabId, GroupId, TabStyle } from './toolbar.js';
 import type { EquationEditMode } from './dialogs.js';
 import type { MermaidTab } from './mermaid.js';
+import type { SavedTemplate } from './templates.js';
 import type { CommandManager } from './obsidian-internal.js';
 
 // 1.5.7 的型別定義裡 Plugin 沒有宣告 onload（繼承 Component 的 onload(): void），
@@ -90,10 +94,19 @@ export interface Settings {
   mathMode: EquationEditMode;
   mermaidMode: MermaidTab;
   codePreview: boolean;
+  // 很長的圖表與查詢結果先收合成固定的高度
+  collapseTall: boolean;
   // 程式碼區塊顯示行號（開啟時不自動換行）
   codeLineNumbers: boolean;
   // 最近使用的方程式（LaTeX 原始碼，最新的在前）
   recentMath: string[];
+  // 自己存的公式與圖表範本（名稱加原始碼），在編輯器裡存、在設定頁管理
+  mathTemplates: SavedTemplate[];
+  diagramTemplates: SavedTemplate[];
+  // 圖表編輯器上方不列出來的內建圖表種類（DiagramKind 的 id）
+  hiddenDiagramKinds: string[];
+  // 插入新圖表時一開始的內容：''＝流程圖、'kind:<id>'＝某一種內建圖表、'tpl:<名稱>'＝自己存的範本
+  defaultDiagram: string;
   // ---- 同步與檔案
   conflict: ConflictMode;
   maxSizeMB: number;
@@ -173,8 +186,13 @@ const DEFAULTS: Settings = {
   mathMode: 'visual',
   mermaidMode: 'visual',
   codePreview: true,
+  collapseTall: true,
   codeLineNumbers: false,
   recentMath: [],
+  mathTemplates: [],
+  diagramTemplates: [],
+  hiddenDiagramKinds: [],
+  defaultDiagram: '',
   // 同步與檔案
   conflict: 'ask',
   maxSizeMB: 2,
@@ -204,6 +222,9 @@ export default class WordModePlugin extends Plugin {
     delete this.settings.ribbonLabels;
     if (this.settings.outlineSidebar === false) this.settings.outlinePlace = 'popup';
     delete this.settings.outlineSidebar;
+    this.settings.mathTemplates = cleanTemplates(this.settings.mathTemplates);
+    this.settings.diagramTemplates = cleanTemplates(this.settings.diagramTemplates);
+    if (!Array.isArray(this.settings.hiddenDiagramKinds)) this.settings.hiddenDiagramKinds = [];
     setLanguage(this.settings.language);
     this.applyOptions();
     this.converter = new MarkdownConverter();
@@ -719,6 +740,7 @@ function settingSections(settingTab: WordModeSettings): SettingSection[] {
         t('顯示空白（·）、全形空白（□）、Tab（→）、換行（↵）與段落結尾（¶）。也可以用工具列的 ¶ 按鈕隨時切換。'), 'showMarks'),
       toggleRow(t('顯示圖表與查詢的結果'),
         t('Mermaid 圖表、Dataview 查詢與其他外掛的程式碼區塊顯示成結果（像 Obsidian 的閱讀畫面）。游標進到區塊裡，或按區塊上方的「原始碼」按鈕，才顯示程式碼。關閉後一律顯示程式碼。'), 'codePreview', () => p.refreshViews()),
+      toggleRow(t('很長的圖表先收合'), t('圖表或查詢的結果很高時，先收合成固定的高度，下面有「顯示完整內容」可以展開。關閉後一律顯示完整的內容。'), 'collapseTall', () => p.refreshViews()),
       toggleRow(t('程式碼區塊顯示行號'),
         t('在程式碼左邊顯示行號。開啟時太長的行不會自動換行，改成左右捲動。'), 'codeLineNumbers', () => p.refreshViews()),
       toggleRow(t('一直標示奇怪符號'),
@@ -806,7 +828,7 @@ function settingSections(settingTab: WordModeSettings): SettingSection[] {
     ] },
 
     // ------------------------------------------------ 右鍵選單與方程式
-    { heading: '右鍵選單、方程式與圖表', icon: 'mouse-pointer-click', rows: [
+    { heading: '右鍵選單', icon: 'mouse-pointer-click', rows: [
       toggleRow(t('使用 Word 模式的右鍵選單'),
         t('在編輯區按右鍵時，顯示依游標位置變化的選單（連結、方程式、表格、程式碼…），以及下面勾選的功能。關閉時使用 Obsidian／系統原本的選單。手機上長按仍是選取文字。'), 'ctxMenu'),
       { kind: 'grid', name: t('右鍵選單要顯示的項目'), cls: 'wm-settings-groups wm-settings-ctx', fill: ctxGrid => {
@@ -832,6 +854,10 @@ function settingSections(settingTab: WordModeSettings): SettingSection[] {
           });
         }
       } },
+    ] },
+
+    // ------------------------------------------------ 方程式與圖表
+    { heading: '方程式與圖表', icon: 'sigma', rows: [
       row(t('方程式編輯器預設的編輯方式'), t('「視覺化」把分數、根號、上下標顯示成一格一格，可以直接點進去輸入；「LaTeX」直接編輯原始碼。在編輯器裡隨時可以切換。'),
         s => s.addDropdown(d => d.addOptions({ visual: t('視覺化'), latex: 'LaTeX' })
           .setValue(S.mathMode === 'latex' ? 'latex' : 'visual').onChange(async v => { S.mathMode = v as EquationEditMode; await save(); }))),
@@ -842,6 +868,54 @@ function settingSections(settingTab: WordModeSettings): SettingSection[] {
         t('關閉時新插入的方程式放在文字中（$…$），開啟時獨立一行置中（$$…$$）。在方程式編輯器裡都可以切換。'), 'mathDisplay'),
       row(t('清除最近使用的方程式'), t('方程式編輯器會記住最近 12 個方程式，方便重複使用。'),
         s => s.addButton(b => b.setButtonText(t('清除')).onClick(async () => { S.recentMath = []; await save(); new Notice(t('已清除')); }))),
+      { kind: 'grid', name: t('我的公式'), desc: t('自己存的公式，在方程式編輯器的「我的公式」分類裡按一下就插入。在編輯器裡按預覽旁邊的書籤按鈕，可以把目前的方程式存進來；這裡可以改名、修改、調整順序與刪除。'), cls: 'wm-settings-groups', fill: box => {
+        box.addClass('wm-tpl-manager');
+        buildTemplateManager(box, {
+          get: () => S.mathTemplates || [],
+          set: list => { S.mathTemplates = list; void save(); },
+          addLabel: t('＋ 新增公式'), newName: t('公式'), newSrc: 'E = mc^{2}', srcLabel: 'LaTeX',
+          empty: t('還沒有自己的公式。'),
+          // 公式直接顯示成結果，比一串 LaTeX 好認
+          preview: (src, el) => {
+            el.setText(src);
+            void Promise.resolve(loadMathJax()).then(() => { el.empty(); el.appendChild(renderMath(src, false)); return finishRenderMath(); }).catch(() => el.setText(src));
+          },
+        });
+      } },
+      { kind: 'grid', name: t('我的圖表範本'), desc: t('自己存的圖表，在圖表編輯器上方的「我的範本」裡按一下就套用。在編輯器裡可以把目前的圖表存進來；這裡可以改名、修改、調整順序與刪除。'), cls: 'wm-settings-groups', fill: box => {
+        box.addClass('wm-tpl-manager');
+        buildTemplateManager(box, {
+          get: () => S.diagramTemplates || [],
+          set: list => { S.diagramTemplates = list; void save(); },
+          addLabel: t('＋ 新增圖表範本'), newName: t('圖表'), newSrc: t('flowchart TD\n    A[開始] --> B[結束]'), srcLabel: t('Mermaid 程式碼'),
+          empty: t('還沒有自己的圖表範本。'),
+          badge: src => { const k = detectKind(src); return k ? t(k.name) : ''; },
+        });
+      } },
+      row(t('新圖表一開始的內容'), t('按「插入圖表」時，編輯器裡先放哪一種圖表。可以選內建的種類，或自己存的範本。'),
+        s => s.addDropdown(d => {
+          d.addOption('', t('流程圖'));
+          for (const k of DIAGRAM_KINDS) if (k.id !== 'flowchart') d.addOption('kind:' + k.id, t(k.name));
+          for (const x of S.diagramTemplates || []) d.addOption('tpl:' + x.name, t('我的範本') + t('：') + x.name);
+          // 選的範本已經被改名或刪除：顯示成預設的流程圖
+          const cur = S.defaultDiagram || '';
+          d.setValue(cur.startsWith('tpl:') && !(S.diagramTemplates || []).some(x => 'tpl:' + x.name === cur) ? '' : cur)
+            .onChange(async v => { S.defaultDiagram = v; await save(); });
+        })),
+      { kind: 'grid', name: t('圖表編輯器要列出的圖表種類'), desc: t('取消勾選用不到的種類，編輯器上方就不會列出來。已經畫好的圖表不受影響，仍然可以編輯。'), cls: 'wm-settings-groups', fill: box => {
+        for (const k of DIAGRAM_KINDS) {
+          const l = box.createEl('label', { cls: 'wm-settings-group' });
+          const cb = l.createEl('input', { type: 'checkbox' });
+          cb.checked = !(S.hiddenDiagramKinds || []).includes(k.id);
+          l.createSpan({ text: t(k.name) });
+          cb.addEventListener('change', () => {
+            const set = new Set(S.hiddenDiagramKinds || []);
+            if (cb.checked) set.delete(k.id); else set.add(k.id);
+            S.hiddenDiagramKinds = [...set];
+            void save();
+          });
+        }
+      } },
     ] },
 
     // ------------------------------------------------ 同步與檔案

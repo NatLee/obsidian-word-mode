@@ -22,6 +22,8 @@ import * as C from './commands.js';
 import { marksPlugin, marksKey, marksOn, scanWeird } from './marks.js';
 import { codePlugin, codeKey, codeActivePlugin } from './codehl.js';
 import { MermaidModal } from './mermaid.js';
+import { DIAGRAM_KINDS } from './diagrams.js';
+import { saveTemplate } from './templates.js';
 import { footnotes, footnoteText, footnoteBody, insertFootnote, setFootnoteBody, removeFootnote } from './footnotes.js';
 import { renderEmbed, mediaKind } from './embeds.js';
 import { foldKey } from './fold.js';
@@ -1011,6 +1013,7 @@ export class WordModeView extends TextFileView {
       notice: msg => new Notice(msg),
       renderBlock: (src, el) => this.renderBlock(src, el),
       canPreview: lang => this.canPreview(lang),
+      collapseTall: () => this.plugin.settings.collapseTall !== false,
       lineNumbers: () => !!this.plugin.settings.codeLineNumbers,
       editMermaid: pos => this.openMermaid(pos),
       footnoteText: id => footnoteText(this.pm!.state.doc, id),
@@ -1060,8 +1063,8 @@ export class WordModeView extends TextFileView {
   renderBlock(src: string, el: HTMLElement, sourcePath?: string): EmbedHandle {
     const comp = new Component();
     if (this.addChild) this.addChild(comp); else comp.load();
-    MarkdownRenderer.render(this.app, src, el, sourcePath || this.sourcePath(), comp).catch(e => { el.setText(src); console.error('[Word Mode]', e); });
-    return { unload: () => { if (this.removeChild) this.removeChild(comp); else comp.unload(); } };
+    const ready = MarkdownRenderer.render(this.app, src, el, sourcePath || this.sourcePath(), comp).catch(e => { el.setText(src); console.error('[Word Mode]', e); });
+    return { ready, unload: () => { if (this.removeChild) this.removeChild(comp); else comp.unload(); } };
   }
 
   // 這個語言的程式碼區塊在 Obsidian 會不會顯示成結果：內建的 mermaid、query、math、base，
@@ -1082,7 +1085,17 @@ export class WordModeView extends TextFileView {
     if (!this.pm || (pos == null && this.blockedInCode())) return;
     const existing = pos != null ? this.pm.state.doc.nodeAt(pos) : null;
     const isCode = existing && existing.type === schema.nodes.code_block;
+    const S = this.plugin.settings;
+    // 新圖表一開始的內容（設定「新圖表一開始的內容」）：某一種內建圖表的範本，或自己存的範本
+    const def = S.defaultDiagram || '';
+    let initial = '';
+    if (def.startsWith('tpl:')) { const x = (S.diagramTemplates || []).find(y => y.name === def.slice(4)); if (x) initial = x.src; }
+    else if (def.startsWith('kind:')) { const k = DIAGRAM_KINDS.find(y => y.id === def.slice(5)); if (k) initial = t(k.template); }
     new MermaidModal(this.app, {
+      initial,
+      hiddenKinds: S.hiddenDiagramKinds || [],
+      templates: () => S.diagramTemplates || [],
+      saveTemplate: (name, src) => { S.diagramTemplates = saveTemplate(S.diagramTemplates || [], name, src); void this.plugin.saveSettings(); },
       src: isCode ? existing.textContent : '',
       existing: !!isCode,
       mode: this.plugin.settings.mermaidMode === 'code' ? 'code' : 'visual',

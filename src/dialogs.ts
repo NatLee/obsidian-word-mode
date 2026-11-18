@@ -2,6 +2,8 @@
 import { Modal, FuzzySuggestModal, Notice, setIcon } from 'obsidian';
 import { countWeird, cleanWeird, WEIRD_KINDS } from './marks.js';
 import { MathField } from './mathvisual.js';
+import { saveTemplate, uniqueName } from './templates.js';
+import type { SavedTemplate } from './templates.js';
 import { keepFocus } from './dom.js';
 import { t, key, isMac } from './i18n.js';
 import type { App, TFile } from 'obsidian';
@@ -43,7 +45,8 @@ interface ShortcutCardEl { card: HTMLDivElement; list: ShortcutRowEl[]; group: s
 // 方程式工具列的一個按鈕：顯示文字、插入的 LaTeX；raw 為 true 表示「最近使用」，原樣插入
 // 一般按鈕的 label 是介面文字（翻譯前）；「最近使用」的 label 是使用者輸入過的公式，不翻譯
 // named：常用公式，公式下面顯示名稱（label 是翻譯前的名稱）
-export type MathSnippet = [label: I18nKey, snip: string, raw?: undefined, named?: undefined] | [label: string, snip: string, raw: true, named?: boolean];
+// named：按鈕下方顯示名稱。true＝內建的常用公式（名稱是介面文字，要翻譯）；'user'＝自己存的公式（名稱照原樣顯示）
+export type MathSnippet = [label: I18nKey, snip: string, raw?: undefined, named?: undefined] | [label: string, snip: string, raw: true, named?: boolean | 'user'];
 export type MathSnippetGroup = [name: I18nKey, items: MathSnippet[]];
 // 方程式對話框的初始值：src LaTeX 原文、display 是否獨立一行、existing 是否在編輯既有的方程式、onDelete 按「刪除方程式」時呼叫
 export interface EquationInit {
@@ -359,9 +362,7 @@ export class EquationModal extends Modal {
     const cats = palBox.createDiv('wm-eq-cats');
     const pal = palBox.createDiv('wm-eq-palette');
     const recent: string[] = (this.plugin && this.plugin.settings.recentMath) || [];
-    const groups = MATH_SNIPPETS.slice();
-    if (recent.length) groups.unshift(['最近使用', recent.map(r => [r.length > 18 ? r.slice(0, 17) + '…' : r, r, true])]);
-    groups.push(['常用公式', MATH_FORMULAS.map(([name, latex]) => [name, latex, true, true])]);
+    let groups: MathSnippetGroup[] = [];
     const showGroup = (i: number) => {
       pal.empty();
       [...cats.children].forEach((b, j) => b.toggleClass('is-active', i === j));
@@ -383,17 +384,27 @@ export class EquationModal extends Modal {
         // 最近使用：直接顯示公式的樣子（比一串 LaTeX 好認）
         if (raw) { b.empty(); this.render(snip, b.createSpan('wm-eq-btn-math'), false); }
         // 常用公式的名稱是介面文字（翻譯前的原文）
-        if (named) b.createSpan({ cls: 'wm-eq-btn-label', text: t(label as I18nKey) });
+        if (named) b.createSpan({ cls: 'wm-eq-btn-label', text: named === 'user' ? label : t(label as I18nKey) });
         b.setAttribute('aria-label', snip);
         keepFocus(b);
         b.addEventListener('click', () => (raw ? this.insertRaw(snip) : this.insert(snip)));
       }
     };
-    groups.forEach(([name], i) => {
-      const b = cats.createEl('button', { text: t(name), cls: 'wm-eq-cat' });
-      keepFocus(b);
-      b.addEventListener('click', () => showGroup(i));
-    });
+    // 分類：最近使用（有的話）、結構與符號、常用公式、我的公式（自己存過才有）
+    const buildGroups = () => {
+      const mine: SavedTemplate[] = (this.plugin && this.plugin.settings.mathTemplates) || [];
+      groups = MATH_SNIPPETS.slice();
+      if (recent.length) groups.unshift(['最近使用', recent.map(r => [r.length > 18 ? r.slice(0, 17) + '…' : r, r, true])]);
+      groups.push(['常用公式', MATH_FORMULAS.map(([name, latex]) => [name, latex, true, true])]);
+      if (mine.length) groups.push(['我的公式', mine.map(x => [x.name, x.src, true, 'user'])]);
+      cats.empty();
+      groups.forEach(([name], i) => {
+        const b = cats.createEl('button', { text: t(name), cls: 'wm-eq-cat' });
+        keepFocus(b);
+        b.addEventListener('click', () => showGroup(i));
+      });
+    };
+    buildGroups();
 
     // ---- 編輯區：標題列右邊是視覺化編輯用的按鈕。上一格、下一格、拿掉結構是給螢幕鍵盤用的
     // （沒有方向鍵與 Tab，空格子裡的 Backspace 也常常沒有事件），滑鼠操作時一樣可以按
@@ -440,6 +451,50 @@ export class EquationModal extends Modal {
     copy.setAttribute('aria-label', t('複製 LaTeX'));
     setIcon(copy, 'copy');
     copy.addEventListener('click', () => { if (navigator.clipboard) void navigator.clipboard.writeText(this.ta.value.trim()).then(() => new Notice(t('已複製：') + this.ta.value.trim())); });
+    // 把目前的方程式存成「我的公式」：按書籤按鈕，在預覽上方打名稱
+    const saveRow = pvBox.createDiv('wm-eq-save');
+    saveRow.hide();
+    const plugin = this.plugin;
+    if (plugin) {
+      const keep = lab.createEl('button', { cls: 'clickable-icon wm-eq-keep' });
+      keep.setAttribute('aria-label', t('存成我的公式'));
+      setIcon(keep, 'bookmark-plus');
+      let open = false;
+      const close = () => { open = false; saveRow.hide(); saveRow.empty(); };
+      keep.addEventListener('click', () => {
+        if (open) { close(); return; }
+        const v = this.ta.value.trim();
+        if (!v) { new Notice(t('先輸入方程式再存')); return; }
+        open = true;
+        saveRow.empty();
+        saveRow.show();
+        const name = saveRow.createEl('input', { type: 'text', cls: 'wm-eq-save-name' });
+        name.value = uniqueName(plugin.settings.mathTemplates || [], t('公式'));
+        name.placeholder = t('範本名稱');
+        name.setAttribute('aria-label', t('範本名稱'));
+        const run = () => {
+          const n = name.value.replace(/\s+/g, ' ').trim();
+          const src = this.ta.value.trim();
+          if (!n) { name.focus(); return; }
+          if (!src) return;
+          const list = plugin.settings.mathTemplates || [];
+          const existed = list.some(x => x.name === n);
+          plugin.settings.mathTemplates = saveTemplate(list, n, src);
+          void plugin.saveSettings();
+          new Notice(t(existed ? '已更新範本「{name}」' : '已存成範本「{name}」', { name: n }));
+          close();
+          buildGroups();
+          showGroup(groups.length - 1);
+        };
+        saveRow.createEl('button', { text: t('存成我的公式'), cls: 'mod-cta' }).addEventListener('click', run);
+        saveRow.createEl('button', { text: t('取消') }).addEventListener('click', close);
+        name.addEventListener('keydown', e => {
+          if (e.key === 'Enter' && !(e.ctrlKey || e.metaKey)) { e.preventDefault(); e.stopPropagation(); run(); }
+          else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); }
+        });
+        window.setTimeout(() => { name.focus(); name.select(); }, 0);
+      });
+    }
     this.prev = pvBox.createDiv('wm-eq-preview');
 
     const bar = c.createDiv('modal-button-container');

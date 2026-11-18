@@ -50,6 +50,7 @@ Open it with **Insert → Equation**, by double-clicking an equation, or by pres
 - **Keyboard**: `^` and `_` open a superscript or subscript. Tab or Enter moves to the next box, and the arrow keys move between boxes, including up and down between a numerator and a denominator. Backspace in an empty box removes the structure around it. Typing `\frac`, `\sqrt`, or `\alpha` followed by a space builds the structure or the symbol.
 - **Undo and redo** with the buttons or `Ctrl+Z` and `Ctrl+Y`.
 - **Common formulas and recent equations**: insert a whole formula, such as the quadratic formula or a standard deviation, and then change the parts you need.
+- **Your own formulas**: select the bookmark button next to the preview to save the current equation under a name. Saved formulas appear under **My formulas** in the palette, and one click inserts them.
 - **On phones and tablets**: buttons above the editing area move to the previous or next box and remove the structure at the cursor, because on-screen keyboards have no arrow keys. On a phone, the editing area stays at the top while you scroll the palette.
 
 ## Diagram editor
@@ -59,9 +60,12 @@ Open it with **Insert → Equation**, by double-clicking an equation, or by pres
 Open it with **Insert → Diagram**, or with the edit button on a Mermaid block. Diagrams are saved as ordinary Mermaid code blocks.
 
 - **Eleven kinds with a form**: flowchart, sequence diagram, Gantt chart, pie chart, state diagram, class diagram, mind map, timeline, ER diagram, user journey, and quadrant chart. Pick a kind at the top to start from a template, and then add, reorder, and delete rows.
-- **Editing on the diagram**: select a label on the preview to change it in place. From the same box you can delete that row, add the next flowchart step or a mind map sub-branch, and pick a fill color for a flowchart step. Renaming a participant, state, class, or entity there renames every reference to it.
+- **Editing on the diagram**: select a label on the preview to change it in place. Press Enter to apply, or Tab to apply and move on to the next label. From the same box you can delete that row, add the next flowchart step or a mind map sub-branch, and pick a fill color for a flowchart step. Renaming a participant, state, class, or entity there renames every reference to it.
 - **Appearance**: choose a Mermaid theme for a single diagram, and a fill color for each flowchart step.
-- **Preview**: zoom with the buttons, or with `Ctrl` and the mouse wheel.
+- **Preview**: zoom with the buttons, or with `Ctrl` and the mouse wheel. A diagram is shown at its real size instead of being shrunk until the text is unreadable, and one button fits the whole diagram to the width of the preview. While you edit, the preview keeps its scroll position and does not flicker.
+- **Finding your place**: put the cursor in a row of the form and the preview outlines that item and scrolls to it. Select an item on the preview and the form jumps to its row.
+- **Your own templates**: save the current diagram under a name from **My templates** at the top of the editor, and start from it next time. In the settings you choose which diagram a new one starts with and which built-in kinds are listed.
+- **Long diagrams**: lists in the form show forty rows at a time and can be filtered by typing, so a flowchart with hundreds of steps stays fast to edit. In a note, a very tall diagram is collapsed to a fixed height with a button to show all of it, and diagrams are drawn as you scroll to them.
 - **Nothing is lost**: a diagram opens in the form only when reading it and writing it back changes nothing. A diagram that uses syntax the form does not cover, such as loops, nested states, or custom styles, opens as code with the reason shown. A diagram you do not change is written back exactly as it was.
 - **On phones**: the preview stays at the top with the form below it, and the fields and buttons are sized for touch.
 
@@ -163,6 +167,7 @@ Obsidian APIs that aren't public are declared in one place, `src/obsidian-intern
 | `src/suggest.ts`, `src/complete.ts` | Suggestions for notes, headings, and tags. |
 | `src/dialogs.ts` | Dialogs: links, equations, shortcuts, cleanup, word count. |
 | `src/mathvisual.ts` | Visual equation editor. |
+| `src/templates.ts`, `src/templateui.ts` | Formulas and diagram templates you save yourself: the data operations, and the list in the settings that manages them. |
 | `src/mermaid.ts`, `src/diagrams.ts`, `src/flowchart.ts` | Diagram editor, the description of each diagram kind (parser, generator, and form fields) that drives its form and on-diagram editing, and the flowchart parser. |
 | `src/embeds.ts` | Embedded notes, media, and PDFs. |
 | `src/footnotes.ts` | Footnote commands. |
