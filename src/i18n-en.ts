@@ -1175,5 +1175,6 @@ export default {
  "要清空目前的內容，改成自己寫程式碼嗎？": "Clear the current diagram and write your own code instead?",
  "清空": "Clear",
  "在這裡寫 Mermaid 程式碼，例如：": "Write Mermaid code here, for example:",
- "可以寫任何 Mermaid 語法，不限上面列出的種類。預覽會即時更新，寫錯的地方會顯示在預覽上方。比較新的圖表種類要 Obsidian 內建的 Mermaid 支援才畫得出來。": "Any Mermaid syntax works here, not only the kinds listed above. The preview updates as you type, and mistakes are shown above it. Newer diagram kinds are drawn only if the Mermaid version built into Obsidian supports them."
+ "可以寫任何 Mermaid 語法，不限上面列出的種類。預覽會即時更新，寫錯的地方會顯示在預覽上方。比較新的圖表種類要 Obsidian 內建的 Mermaid 支援才畫得出來。": "Any Mermaid syntax works here, not only the kinds listed above. The preview updates as you type, and mistakes are shown above it. Newer diagram kinds are drawn only if the Mermaid version built into Obsidian supports them.",
+ "設定分類": "Setting categories"
 };

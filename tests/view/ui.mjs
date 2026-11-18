@@ -923,4 +923,53 @@ await fresh('第一段\n');
   delete plugin.settings.collapseTall;
 }
 
+// ======== 設定頁的分類列：一次只顯示一類 ========
+{
+  const { readFileSync } = await import('node:fs');
+  const box = document.body.createDiv();
+  const items = [{ id: 'general', label: '一般', icon: 'settings' }, { id: 'edit', label: '編輯', icon: 'pencil' }, { id: 'toolbar', label: '工具列', icon: 'layout-panel-top' }];
+  const picked = [];
+  const nav = B.SETNAV.buildSettingNav(box, items, 'edit', id => { picked.push(id); B.SETNAV.showSettingSection(box, id); });
+  const tabs = [...box.querySelectorAll('.wm-set-tab')];
+  const state = () => tabs.map(b => (b.classList.contains('is-active') ? '*' : '') + b.dataset.tab + ':' + b.getAttribute('aria-selected') + ':' + b.tabIndex).join();
+  const press = (el, key) => el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+  assert(tabs.length === 3 && nav.el.getAttribute('role') === 'tablist' && tabs[1].textContent === '編輯' && tabs[1].querySelector('[data-icon="pencil"]') && state() === 'general:false:-1,*edit:true:0,toolbar:false:-1',
+    '分類列：每一類一個頁籤（圖示加名稱），標出目前的分類，整條列只有它佔一個 Tab 停駐點：' + state());
+  click(tabs[2]);
+  assert(picked.join() === 'toolbar' && box.dataset.wmTab === 'toolbar' && state() === 'general:false:-1,edit:false:-1,*toolbar:true:0', '按頁籤：換到那一類，外框記下目前顯示的分類');
+  press(tabs[2], 'ArrowRight');
+  assert(picked.join() === 'toolbar,general' && document.activeElement === tabs[0] && box.dataset.wmTab === 'general', '方向鍵：最後一類再往右回到第一類，焦點跟著移');
+  press(tabs[0], 'ArrowLeft');
+  press(tabs[2], 'Home');
+  press(tabs[0], 'End');
+  assert(picked.join() === 'toolbar,general,toolbar,general,toolbar' && document.activeElement === tabs[2], '往左、Home、End 也可以換分類：' + picked.join());
+  press(tabs[2], 'a');
+  nav.select('edit');
+  assert(picked.length === 5 && state() === 'general:false:-1,*edit:true:0,toolbar:false:-1', '其他按鍵不換分類；select() 只換標示、不呼叫 onPick（設定搜尋跳到別類時用）');
+  box.remove();
+
+  // 分類列貼齊上緣：捲動時量出外框的上內距，每次畫設定頁之後只量一次
+  const scroller = document.body.createDiv();
+  scroller.style.paddingTop = '48px';
+  const again = B.SETNAV.trackSettingPadding(scroller);
+  assert(scroller.style.getPropertyValue('--wm-set-pad') === '', '還沒捲動：不量（設定頁可能還沒顯示）');
+  scroller.dispatchEvent(new Event('scroll'));
+  assert(scroller.style.getPropertyValue('--wm-set-pad') === '48px', '捲動時量出上內距，記在 --wm-set-pad');
+  scroller.style.paddingTop = '20px';
+  scroller.dispatchEvent(new Event('scroll'));
+  assert(scroller.style.getPropertyValue('--wm-set-pad') === '48px', '之後捲動不重量');
+  again();
+  scroller.dispatchEvent(new Event('scroll'));
+  assert(scroller.style.getPropertyValue('--wm-set-pad') === '20px', '重畫設定頁之後再量一次');
+  scroller.remove();
+
+  // 分類是用樣式表隱藏的：main.ts 的每一類在樣式表裡都要有對應的隱藏規則，少了一條那一類就會出現在每個分類裡
+  const main = readFileSync(new URL('../../src/main.ts', import.meta.url), 'utf8');
+  const css = readFileSync(new URL('../../styles/word-mode.css', import.meta.url), 'utf8');
+  const ids = [...main.match(/type SectionId = ([^;]+);/)[1].matchAll(/'([a-z]+)'/g)].map(m => m[1]);
+  const used = [...main.matchAll(/\{ id: '([a-z]+)', heading: /g)].map(m => m[1]);
+  const missing = ids.filter(id => !css.includes('.wm-settings[data-wm-tab="' + id + '"] .wm-set-sec:not(.wm-set-' + id + ')'));
+  assert(ids.length >= 8 && ids.join() === used.join() && !missing.length, '設定的每一類都有隱藏其他分類的樣式規則：' + (missing.join() || ids.join()));
+}
+
 finish();

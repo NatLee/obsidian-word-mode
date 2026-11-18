@@ -68,6 +68,11 @@ declare module 'obsidian' {
     dragManager?: DragManager;
     metadataTypeManager?: MetadataTypeManager;
   }
+  interface SettingTab {
+    // Obsidian 1.13 起：點設定搜尋的結果時，用這個方法找出那項設定畫在哪個元素上，再捲過去。
+    // def 是 getSettingDefinitions() 回傳的其中一項定義
+    getElementForDefinition?(def: object): HTMLElement | undefined;
+  }
   interface Vault {
     // 讀取 Obsidian 自己的設定（例如 'spellcheck'）
     getConfig?(key: string): unknown;
