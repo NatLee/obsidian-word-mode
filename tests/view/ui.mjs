@@ -163,5 +163,83 @@ await fresh('一段文字\n');
   view.toolbar.showTab('home');
 }
 
+// ======== 方程式編輯器：復原、拆掉結構、打指令 ========
+await fresh('公式：\n');
+{
+  const typeIn = (span, text) => { span.focus(); span.textContent = text; mock.Modal.last.field.place(span, text.length); span.dispatchEvent(new Event('input', { bubbles: true })); };
+  const keyOn = (span, key, mods = {}) => { span.focus(); span.dispatchEvent(new KeyboardEvent('keydown', Object.assign({ key, bubbles: true, cancelable: true }, mods))); };
+  view.openEquation();
+  const eq = mock.Modal.last;
+  await sleep(25);
+  const q = s => eq.contentEl.querySelector(s);
+  const qa = s => [...eq.contentEl.querySelectorAll(s)];
+  const snippet = s => qa('.wm-eq-btn').find(b => b.getAttribute('aria-label') === s);
+  assert(eq.undoBtn.disabled && eq.redoBtn.disabled, '一開始沒有東西可以復原');
+  click(snippet('\\frac{}{}'));
+  click(snippet('\\frac{}{}'));
+  assert(qa('.wm-mv-frac').length === 2 && qa('.wm-mv-text.is-slot').length === 3, '分數裡再放一個分數：三個格子');
+  // 在裡面那個（空的）分數按 Backspace：變回原本的分數
+  const inner = q('.wm-mv-num .wm-mv-num .wm-mv-text');
+  eq.field.place(inner, 0);
+  keyOn(inner, 'Backspace');
+  assert(qa('.wm-mv-frac').length === 1 && qa('.wm-mv-text.is-slot').length === 2 && eq.ta.value === '\\frac{}{}', '空格子裡按 Backspace：拿掉裡面的分數，變回一個分數：' + eq.ta.value);
+  assert(!eq.undoBtn.disabled, '有東西可以復原');
+  click(eq.undoBtn);
+  assert(qa('.wm-mv-frac').length === 2 && eq.ta.value === '\\frac{\\frac{}{}}{}', '復原：回到分數裡的分數：' + eq.ta.value);
+  click(eq.undoBtn);
+  assert(qa('.wm-mv-frac').length === 1 && !eq.redoBtn.disabled, '再復原：回到一個分數');
+  click(eq.redoBtn);
+  assert(qa('.wm-mv-frac').length === 2, '取消復原');
+  keyOn(qa('.wm-mv-text')[0], 'z', { ctrlKey: true });
+  keyOn(qa('.wm-mv-text')[0], 'z', { ctrlKey: true });
+  assert(!q('.wm-mv-frac') && eq.ta.value === '' && eq.undoBtn.disabled, 'Ctrl+Z 一路復原到空白：' + JSON.stringify(eq.ta.value));
+  keyOn(qa('.wm-mv-text')[0], 'y', { ctrlKey: true });
+  assert(qa('.wm-mv-frac').length === 1, 'Ctrl+Y 取消復原');
+  // 有內容的結構：拆掉結構，內容留著
+  typeIn(q('.wm-mv-num .wm-mv-text'), 'a');
+  typeIn(q('.wm-mv-den .wm-mv-text'), 'b');
+  const den = q('.wm-mv-den .wm-mv-text');
+  eq.field.place(den, 0);
+  keyOn(den, 'Backspace');
+  assert(!q('.wm-mv-frac') && eq.ta.value === 'ab', '有內容的分數按 Backspace：拿掉分數，內容留著：' + eq.ta.value);
+  click(eq.undoBtn);
+  assert(eq.ta.value === '\\frac{a}{b}', '復原回分數：' + eq.ta.value);
+  // 打「\指令」再按空白
+  const tail = qa('.wm-mv > .wm-mv-row > .wm-mv-text').pop();
+  typeIn(tail, '+\\sqrt ');
+  assert(q('.wm-mv-sqrt') && eq.ta.value === '\\frac{a}{b}+\\sqrt{}', '打 \\sqrt 再按空白：變成根號的格子：' + eq.ta.value);
+  typeIn(q('.wm-mv-radicand .wm-mv-text'), '\\alpha ');
+  assert(q('.wm-mv-radicand .wm-mv-text').textContent === 'α' && eq.ta.value === '\\frac{a}{b}+\\sqrt{\\alpha}', '打 \\alpha 再按空白：顯示成 α：' + eq.ta.value);
+  // 格子結尾按 Delete：刪掉後面的結構
+  const head = qa('.wm-mv > .wm-mv-row > .wm-mv-text')[0];
+  eq.field.place(head, 0);
+  keyOn(head, 'Delete');
+  assert(eq.ta.value === '+\\sqrt{\\alpha}', '格子結尾按 Delete：刪掉後面的分數：' + eq.ta.value);
+  // Enter：跳到下一格
+  const spans = qa('.wm-mv-text');
+  keyOn(spans[0], 'Enter');
+  assert(spans[1].contains(document.getSelection().anchorNode), 'Enter 跳到下一格');
+  eq.close();
+
+  // 既有的方程式：改了再復原，交回一字不差的原文
+  await fresh('公式 $x^2$ 結束\n');
+  view.pm.dom.querySelector('.wm-raw-inline.is-math').dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }));
+  const eq2 = mock.Modal.last;
+  await sleep(25);
+  typeIn(eq2.contentEl.querySelector('.wm-mv-sup .wm-mv-text'), '3');
+  assert(eq2.ta.value === 'x^{3}', '改上標：' + eq2.ta.value);
+  click(eq2.undoBtn);
+  assert(eq2.ta.value === 'x^2', '復原到沒改過的狀態：原本的寫法一字不動：' + eq2.ta.value);
+  // 在 LaTeX 模式改過再切回視覺化：也是可以復原的一步
+  eq2.setEdit('latex');
+  assert(eq2.undoBtn.style.display === 'none', 'LaTeX 模式不顯示復原按鈕（輸入框自己能復原）');
+  eq2.ta.value = '\\frac{1}{2}';
+  eq2.setEdit('visual');
+  assert(eq2.contentEl.querySelector('.wm-mv-frac') && !eq2.undoBtn.disabled, '從 LaTeX 切回視覺化：重新建立格子');
+  click(eq2.undoBtn);
+  assert(eq2.ta.value === 'x^2' && eq2.contentEl.querySelector('.wm-mv-sup'), '復原 LaTeX 模式的修改：' + eq2.ta.value);
+  eq2.close();
+}
+
 
 finish();

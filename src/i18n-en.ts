@@ -758,7 +758,6 @@ export default {
  "跳到註腳內容": "Go to footnote text",
  "編輯註腳…": "Edit footnote…",
  "刪除註腳（含內容）": "Delete footnote and its text",
- "點格子直接輸入；按 ^ 或 _ 加上標、下標；Tab 跳到下一格；格子開頭按 Backspace 刪除前面的結構。": "Click a box to type in it. Press ^ or _ for a superscript or subscript, Tab for the next box, and Backspace at the start of a box to delete the structure before it.",
  "找不到要內嵌的檔案：": "Embedded file not found: ",
  "這份筆記不能內嵌自己": "A note cannot embed itself",
  "載入中…": "Loading…",
@@ -952,5 +951,6 @@ export default {
  "刪除列、欄或表格": "Delete rows, columns or table",
  "移動列或欄": "Move rows or columns",
  "整欄對齊": "Align column",
- "依此欄排序": "Sort by this column"
+ "依此欄排序": "Sort by this column",
+ "點格子直接輸入。^、_：上標、下標；Tab 或 Enter：下一格；方向鍵：移動；空格子裡按 Backspace：拿掉這個結構；{k}：復原。也可以打 \\frac、\\sqrt、\\alpha 再按空白。": "Select a box and type. ^ and _ add a superscript or subscript. Tab or Enter moves to the next box and the arrow keys move around. Backspace in an empty box removes that structure, and {k} undoes. You can also type \\frac, \\sqrt or \\alpha followed by a space."
 };
