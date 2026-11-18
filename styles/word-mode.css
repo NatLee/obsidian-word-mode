@@ -766,25 +766,85 @@
 .wm-mdbar ~ .view-content.has-banner > .pp-image-buttons-row { top: calc(var(--header-height) + var(--wm-mdbar-height, 0px) + 16px); }
 
 /* 快速鍵表 */
-.wm-shortcuts-modal { width: min(920px, 94vw); max-width: none; }
-.wm-sc-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-.wm-sc-search { flex: 1 1 auto; height: 32px; }
-.wm-sc-platform { font-size: var(--font-ui-smaller); color: var(--text-faint); white-space: nowrap; }
-.wm-sc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; align-items: start; }
-.wm-sc-card { border: 1px solid var(--background-modifier-border); border-radius: 8px; background: var(--background-secondary); overflow: hidden; }
-.wm-sc-card-head { display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-weight: 600; border-bottom: 1px solid var(--background-modifier-border); background: var(--background-primary); }
-.wm-sc-icon { display: inline-flex; color: var(--text-accent); }
-.wm-sc-icon svg { width: 16px; height: 16px; }
-.wm-sc-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 12px; font-size: var(--font-ui-small); }
-.wm-sc-row + .wm-sc-row { border-top: 1px dashed var(--background-modifier-border); }
-.wm-sc-desc { color: var(--text-normal); line-height: 1.35; }
+.wm-shortcuts-modal { width: min(940px, 94vw); max-width: none; }
+/* 搜尋或換分類時內容的高度會變：視窗靠上對齊（不是垂直置中），搜尋框與分類才不會跟著上下跳 */
+body:not(.is-mobile) .wm-shortcuts-modal { align-self: flex-start; margin-top: 6vh; }
+.wm-sc-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.wm-sc-searchbox { flex: 1 1 auto; position: relative; display: flex; align-items: center; min-width: 0; }
+.wm-sc-search-icon { position: absolute; left: 11px; display: inline-flex; color: var(--text-faint); pointer-events: none; }
+.wm-sc-search-icon svg { width: 15px; height: 15px; }
+.wm-sc-searchbox input.wm-sc-search { width: 100%; height: 36px; padding-left: 34px; border-radius: 10px; }
+.wm-sc-count { flex: 0 0 auto; font-size: var(--font-ui-smaller); color: var(--text-muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.wm-sc-cats { margin-bottom: 12px; }
+/* 卡片分成兩欄各自往下排（分欄在 dialogs.ts）；視窗很窄時兩欄上下疊 */
+.wm-sc-grid { display: flex; align-items: flex-start; gap: 12px; }
+.wm-sc-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+@media (max-width: 700px) {
+  .wm-sc-grid { flex-direction: column; }
+  .wm-sc-col { flex: none; width: 100%; }
+}
+/* 卡片：開啟視窗、換分類或搜尋後重新出現時，一張接一張浮上來 */
+.wm-sc-card { padding-bottom: 6px; border: 1px solid var(--background-modifier-border); border-radius: 12px; background: var(--background-secondary); overflow: hidden; animation: wm-sc-in .34s cubic-bezier(.2, .8, .2, 1) backwards; transition: border-color .15s ease, box-shadow .15s ease; }
+.wm-sc-card:hover { border-color: var(--background-modifier-border-hover, var(--background-modifier-border)); box-shadow: 0 4px 14px rgba(0, 0, 0, .08); }
+.wm-sc-card:nth-child(2) { animation-delay: .04s; }
+.wm-sc-card:nth-child(3) { animation-delay: .08s; }
+.wm-sc-card:nth-child(4) { animation-delay: .12s; }
+.wm-sc-card:nth-child(n+5) { animation-delay: .16s; }
+.wm-sc-col + .wm-sc-col > .wm-sc-card { animation-delay: .06s; }
+.wm-sc-col + .wm-sc-col > .wm-sc-card:nth-child(2) { animation-delay: .1s; }
+.wm-sc-col + .wm-sc-col > .wm-sc-card:nth-child(3) { animation-delay: .14s; }
+.wm-sc-col + .wm-sc-col > .wm-sc-card:nth-child(n+4) { animation-delay: .18s; }
+@keyframes wm-sc-in { from { opacity: 0; transform: translateY(10px) scale(.985); } }
+.wm-sc-card-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px 6px; font-weight: 600; }
+/* 沒有 color-mix 的舊瀏覽器（iOS 16.1 以前）用前一行的底色 */
+.wm-sc-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 26px; height: 26px; border-radius: 8px; color: var(--text-accent); background: var(--background-modifier-hover); background: color-mix(in srgb, var(--interactive-accent) 14%, transparent); }
+.wm-sc-icon svg { width: 15px; height: 15px; }
+.wm-sc-card-title { flex: 1 1 auto; min-width: 0; }
+.wm-sc-card-count { flex: 0 0 auto; min-width: 20px; padding: 1px 7px; border-radius: 10px; background: var(--background-modifier-hover); color: var(--text-muted); font-size: var(--font-ui-smaller); font-weight: 500; text-align: center; }
+.wm-sc-row { margin: 0 6px; }
+.wm-sc-line { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 8px; border-radius: 8px; font-size: var(--font-ui-small); transition: background-color .12s ease; }
+.wm-sc-row:hover > .wm-sc-line, .wm-sc-row.is-open > .wm-sc-line { background: var(--background-modifier-hover); }
+.wm-sc-row.has-demo > .wm-sc-line { cursor: pointer; }
+.wm-sc-line:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: -2px; }
+.wm-sc-desc { display: flex; align-items: center; gap: 7px; min-width: 0; color: var(--text-normal); line-height: 1.35; }
+.wm-sc-mark { padding: 0 1px; border-radius: 3px; background: var(--text-highlight-bg, rgba(255, 208, 0, .4)); color: inherit; }
+/* 有示意動畫的記號：展開時轉成朝下 */
+.wm-sc-play { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 16px; height: 16px; border-radius: 50%; color: var(--text-accent); background: var(--background-modifier-hover); background: color-mix(in srgb, var(--interactive-accent) 14%, transparent); transition: transform .2s ease, background-color .15s ease, color .15s ease; }
+.wm-sc-play svg { width: 8px; height: 8px; margin-left: 1px; fill: currentColor; }
+.wm-sc-row.has-demo:hover .wm-sc-play, .wm-sc-row.is-open .wm-sc-play { background: var(--interactive-accent); color: var(--text-on-accent); }
+.wm-sc-row.is-open .wm-sc-play { transform: rotate(90deg); }
+/* 按鍵：畫成有厚度的鍵帽，滑鼠停在那一列時由左到右依序按下去 */
 .wm-sc-keys { display: inline-flex; align-items: center; gap: 3px; flex: 0 0 auto; flex-wrap: wrap; justify-content: flex-end; }
-.wm-sc-keys kbd.is-mouse { background: transparent; border-style: dashed; }
+.wm-sc-keys kbd { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; min-width: 24px; height: 23px; padding: 0 6px; border-bottom-width: 3px; border-radius: 6px; background: var(--background-primary); font-size: 11px; font-weight: 500; line-height: 1; box-shadow: 0 1px 1px rgba(0, 0, 0, .06); }
+.wm-sc-keys kbd.is-mouse { background: transparent; border-style: dashed; border-bottom-width: 1px; box-shadow: none; }
+.wm-sc-row:hover .wm-sc-keys kbd { animation: wm-sc-press .5s ease; }
+.wm-sc-row:hover .wm-sc-keys kbd:nth-of-type(2) { animation-delay: .09s; }
+.wm-sc-row:hover .wm-sc-keys kbd:nth-of-type(3) { animation-delay: .18s; }
+.wm-sc-row:hover .wm-sc-keys kbd:nth-of-type(n+4) { animation-delay: .27s; }
+@keyframes wm-sc-press { 40% { transform: translateY(2px); border-bottom-width: 1px; border-color: var(--interactive-accent); color: var(--text-accent); box-shadow: none; } }
 .wm-sc-plus, .wm-sc-or { color: var(--text-faint); font-size: 11px; }
 .wm-sc-or { margin: 0 3px; }
-.wm-sc-text { font-size: var(--font-ui-smaller); color: var(--text-muted); padding: 1px 6px; border-radius: 10px; background: var(--background-modifier-hover); }
-.wm-sc-empty { padding: 20px; text-align: center; color: var(--text-faint); }
-.is-mobile .wm-sc-grid { grid-template-columns: 1fr; }
+.wm-sc-text { font-size: var(--font-ui-smaller); color: var(--text-muted); padding: 2px 8px; border-radius: 10px; background: var(--background-modifier-hover); }
+/* 示意動畫：外層的格線列高從 0 變成內容的高度，展開與收合才有動畫（高度不能直接從 0 轉到 auto） */
+.wm-sc-demo-wrap { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .24s ease; }
+.wm-sc-row.is-open > .wm-sc-demo-wrap { grid-template-rows: 1fr; }
+.wm-sc-demo-clip { min-height: 0; overflow: hidden; }
+.wm-sc-demo-clip > .wm-sc-demo { margin: 4px 0 6px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); opacity: 0; transition: opacity .2s ease; }
+.wm-sc-row.is-open .wm-sc-demo { opacity: 1; }
+/* 收起來的動畫先停住，不在看不到的地方一直跑 */
+.wm-sc-row:not(.is-open) .wm-sc-demo *, .wm-sc-row:not(.is-open) .wm-sc-demo *::before { animation-play-state: paused; }
+.wm-sc-empty { padding: 28px 20px; text-align: center; color: var(--text-faint); animation: wm-sc-in .25s ease backwards; }
+.wm-sc-foot { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 16px; margin-top: 12px; font-size: var(--font-ui-smaller); color: var(--text-faint); }
+.wm-sc-hint, .wm-sc-platform { display: inline-flex; align-items: center; gap: 6px; }
+.wm-sc-platform { margin-left: auto; white-space: nowrap; }
+.wm-sc-platform-icon { display: inline-flex; }
+.wm-sc-platform-icon svg { width: 14px; height: 14px; }
+.is-mobile .wm-sc-line { padding: 9px 8px; }
+/* 系統設定成「減少動態效果」時，不做進場與按鍵的動畫（按了才展開的示意動畫照常，那是使用者自己要看的） */
+@media (prefers-reduced-motion: reduce) {
+  .wm-sc-card, .wm-sc-empty, .wm-sc-row:hover .wm-sc-keys kbd { animation: none; }
+  .wm-sc-demo-wrap, .wm-sc-play { transition: none; }
+}
 
 /* 設定：分頁與群組勾選 */
 .wm-settings-groups { padding: 12px 0; border-top: 1px solid var(--background-modifier-border); }

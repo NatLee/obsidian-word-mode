@@ -10,6 +10,7 @@ import { MarkdownBar } from './mdbar.js';
 import { TABS } from './toolbar.js';
 import { fillGroupSettings } from './groupsettings.js';
 import { buildSettingNav, showSettingSection, trackSettingPadding } from './settingsnav.js';
+import { ShortcutModal } from './dialogs.js';
 import { DIAGRAM_KINDS, detectKind } from './diagrams.js';
 import { cleanTemplates } from './templates.js';
 import { buildTemplateManager } from './templateui.js';
@@ -918,10 +919,7 @@ function settingSections(settingTab: WordModeSettings): SettingSection[] {
     // ------------------------------------------------ 進階
     { id: 'advanced', heading: '進階', icon: 'wrench', rows: [
       row(t('快速鍵說明'), t('查看 Word 模式所有的快速鍵。'),
-        s => s.addButton(b => b.setButtonText(t('開啟')).onClick(() => {
-          const v = p.views()[0];
-          if (v) v.toolbar.ctx.dialogs.shortcuts(); else new Notice(t('請先用 Word 模式開啟一份筆記'));
-        }))),
+        s => s.addButton(b => b.setButtonText(t('開啟')).onClick(() => { new ShortcutModal(p.app).open(); }))),
       row(t('還原預設設定'), t('把以上所有設定改回預設值（不會修改任何筆記）。'),
         s => s.addButton(b => b.setButtonText(t('還原')).setWarning().onClick(async () => {
           const lang = S.language;

@@ -124,6 +124,9 @@ const DEMOS = {
 // （以前是 string：「插入圖表」「插入註腳」指定的動畫不存在，提示卡就沒有動畫，也沒有任何錯誤）
 export type DemoName = keyof typeof DEMOS;
 
+// 在 box 裡畫出 name 這段示意動畫（快速鍵說明也用）。box 要有 wm-hint-demo 這個 class，動畫的時間設定才會套用
+export function buildDemo(name: DemoName, box: HTMLElement): void { DEMOS[name](box); }
+
 function ensureCard(): HTMLDivElement {
   if (card && card.isConnected) return card;
   card = el('div', 'wm-hint-card', activeDocument.body);

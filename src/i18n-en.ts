@@ -120,7 +120,6 @@ export default {
  "快速鍵說明": "Keyboard shortcuts",
  "查看 Word 模式所有的快速鍵。": "See all Word mode keyboard shortcuts.",
  "開啟": "Open",
- "請先用 Word 模式開啟一份筆記": "Open a note in Word mode first",
  "還原預設設定": "Restore defaults",
  "把以上所有設定改回預設值（不會修改任何筆記）。": "Reset all settings above to their defaults (no notes are changed).",
  "還原": "Restore",
@@ -1176,5 +1175,10 @@ export default {
  "清空": "Clear",
  "在這裡寫 Mermaid 程式碼，例如：": "Write Mermaid code here, for example:",
  "可以寫任何 Mermaid 語法，不限上面列出的種類。預覽會即時更新，寫錯的地方會顯示在預覽上方。比較新的圖表種類要 Obsidian 內建的 Mermaid 支援才畫得出來。": "Any Mermaid syntax works here, not only the kinds listed above. The preview updates as you type, and mistakes are shown above it. Newer diagram kinds are drawn only if the Mermaid version built into Obsidian supports them.",
- "設定分類": "Setting categories"
+ "設定分類": "Setting categories",
+ "全部": "All",
+ "快速鍵分類": "Shortcut categories",
+ "{n} 個快速鍵": "{n} shortcuts",
+ "看動畫示範": "Play the demo",
+ "有這個記號的項目，按一下可以看動畫示範。": "Click an item with this mark to see an animated demo."
 };
