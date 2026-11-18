@@ -139,6 +139,25 @@ await fresh('一段文字\n');
   assert(!bar.panels.viewtab.classList.contains('is-hidden') && bar.panels.home.classList.contains('is-hidden'), '切換模式後停在同一個分頁（檢視）');
   const labels = root => [...root.querySelectorAll('.wm-group-views .wm-btn')].map(b => b.classList.contains('has-label') + ':' + b.querySelector('.wm-btn-label').textContent);
   assert(labels(bar.dom).join() === 'true:Word 模式,true:Markdown,true:閱讀' && labels(bar.dom).join() === labels(view.toolbar.dom).join(), '檢視模式的三個按鈕跟 Word 模式一樣大、一樣的位置：' + labels(bar.dom).join());
+  // 設定「檢視模式的按鈕顯示文字」關閉：兩條功能區的這三個按鈕都只剩圖示，其他大按鈕不變
+  {
+    plugin.settings.viewButtonLabels = false;
+    view.buildToolbar();
+    const bar2 = new B.MarkdownBar(plugin, md);
+    const shape = root => [...root.querySelectorAll('.wm-group-views .wm-btn')].map(b => b.classList.contains('has-label') + ':' + !!b.querySelector('.wm-btn-label') + ':' + !!b.querySelector('.wm-btn-icon')).join();
+    assert(shape(bar2.dom) === 'false:false:true,false:false:true,false:false:true' && shape(bar2.dom) === shape(view.toolbar.dom), '關閉「檢視模式的按鈕顯示文字」：三個按鈕只顯示圖示，兩條功能區一致：' + shape(bar2.dom));
+    const names = root => [...root.querySelectorAll('.wm-group-views .wm-btn')].map(b => b.getAttribute('aria-label').split(' (')[0]).join();
+    assert(names(bar2.dom) === '切換到 Word 模式,Markdown 編輯,閱讀模式' && names(view.toolbar.dom) === 'Word 模式（目前）,切換到 Markdown 編輯,閱讀模式', '名稱仍在提示裡：' + names(bar2.dom));
+    assert(view.toolbar.dom.querySelector('.wm-group-show .wm-btn.has-label') && bar2.dom.querySelector('.wm-group-show .wm-btn.has-label'), '其他大按鈕（大綱等）照常顯示文字');
+    plugin.settings.buttonStyle = 'label';
+    view.buildToolbar();
+    assert(shape(view.toolbar.dom) === 'false:false:true,false:false:true,false:false:true' && view.toolbar.dom.querySelector('.wm-group-clipboard .wm-btn.has-label'), '按鈕樣式是「圖示加文字」時，這三個按鈕仍然只顯示圖示（其他按鈕有文字）');
+    plugin.settings.buttonStyle = 'auto';
+    bar2.destroy();
+    plugin.settings.viewButtonLabels = true;
+    view.buildToolbar();
+    assert(labels(view.toolbar.dom).join() === 'true:Word 模式,true:Markdown,true:閱讀', '重新開啟後恢復顯示文字');
+  }
   const groups = root => [...root.querySelectorAll('.wm-panel:not(.is-hidden) .wm-group[class*="wm-group-"]')].map(g => g.className.replace(/.*wm-group-(\w+).*/, '$1'));
   view.toolbar.showTab('viewtab');
   assert(groups(bar.dom)[0] === 'views' && groups(view.toolbar.dom)[0] === 'views', '檢視分頁的第一個群組都是檢視模式');

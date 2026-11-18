@@ -54,6 +54,8 @@ export interface ToolbarContext {
     hiddenTabs?: readonly string[];
     richHints?: boolean;
     groupLabels?: boolean;
+    // 「檢視」分頁的三個檢視模式按鈕要不要顯示文字（預設顯示）
+    viewButtonLabels?: boolean;
     tabStyle?: TabStyle;
     // 自訂的分頁名稱（分頁 id → 名稱；沒有或空白時用預設名稱）
     tabLabels?: Partial<Record<string, string>>;
@@ -136,6 +138,8 @@ export interface ButtonSpec {
   demo?: string;
   // 大按鈕：按鈕樣式為「自動」時也顯示文字
   big?: boolean;
+  // 檢視模式的按鈕（Word 模式／Markdown／閱讀）：設定可以讓這三個只顯示圖示
+  viewMode?: boolean;
   // 額外的 CSS class
   cls?: string;
   // 分割按鈕的箭頭：全部排在一起的版面也不去除重複
@@ -232,6 +236,7 @@ export class Toolbar {
   declare ctx: ToolbarContext;
   declare layout: RibbonLayout;
   declare buttonStyle: ButtonStyle;
+  declare hideViewLabels: boolean;
   declare hiddenGroups: Set<string>;
   declare hiddenTabs: Set<string>;
   declare richHints: boolean;
@@ -271,6 +276,7 @@ export class Toolbar {
     const S = ctx.settings || {};
     this.layout = S.ribbonLayout || 'tabs';
     this.buttonStyle = S.buttonStyle || 'auto';
+    this.hideViewLabels = S.viewButtonLabels === false;
     this.hiddenGroups = new Set(S.hiddenGroups || []);
     this.hiddenTabs = new Set(S.hiddenTabs || []);
     this.richHints = !!S.richHints && !ctx.isMobile;
@@ -355,7 +361,7 @@ export class Toolbar {
       if (this.seen.has(spec.title)) return null;
       this.seen.add(spec.title);
     }
-    const showLabel = this.buttonStyle === 'label' || (this.buttonStyle === 'auto' && spec.big);
+    const showLabel = (this.buttonStyle === 'label' || (this.buttonStyle === 'auto' && spec.big)) && !(spec.viewMode && this.hideViewLabels);
     const b = el('button', 'wm-btn' + (spec.cls ? ' ' + spec.cls : '') + (showLabel && spec.label ? ' has-label' : ''), parent);
     b.type = 'button';
     el('span', 'wm-sr', b);
@@ -614,9 +620,9 @@ export class Toolbar {
   // ----------------------------------------------------------- 檢視
   buildView(G: GroupBodies): void {
     let g = G.views;
-    this.button(g, { icon: 'file-text', title: 'Word 模式（目前）', text: 'W', label: 'Word 模式', big: true, cls: 'is-active' });
-    this.button(g, { icon: 'code-2', title: '切換到 Markdown 編輯', keys: 'Mod+E', text: 'MD', label: 'Markdown', big: true, demo: 'markdown', desc: '用 Obsidian 原本的 Markdown 編輯這份筆記。', onClick: () => this.d.markdown() });
-    this.button(g, { icon: 'book-open', title: '閱讀模式', text: '讀', label: '閱讀', big: true, demo: 'reading', desc: '用 Obsidian 的閱讀模式檢視（不能編輯）。', onClick: () => this.d.reading() });
+    this.button(g, { icon: 'file-text', title: 'Word 模式（目前）', text: 'W', label: 'Word 模式', big: true, viewMode: true, cls: 'is-active' });
+    this.button(g, { icon: 'code-2', title: '切換到 Markdown 編輯', keys: 'Mod+E', text: 'MD', label: 'Markdown', big: true, viewMode: true, demo: 'markdown', desc: '用 Obsidian 原本的 Markdown 編輯這份筆記。', onClick: () => this.d.markdown() });
+    this.button(g, { icon: 'book-open', title: '閱讀模式', text: '讀', label: '閱讀', big: true, viewMode: true, demo: 'reading', desc: '用 Obsidian 的閱讀模式檢視（不能編輯）。', onClick: () => this.d.reading() });
     g = G.show;
     this.button(g, { icon: 'pilcrow', title: '顯示／隱藏編輯標記', text: '¶', label: '編輯標記', big: true, demo: 'marks', desc: '顯示空白、換行與段落結尾，也會標出奇怪的符號。', onClick: () => this.d.toggleMarks(), active: s => marksOn(s) });
     this.button(g, { icon: 'list-tree', title: '大綱', text: '綱', label: '大綱', big: true, demo: 'outline', desc: '在筆記旁另外展開大綱欄，點標題可以跳過去。再按一次關閉。', onClick: (e, b) => this.d.outline(b), active: () => !!(this.ctx.outlineOpen && this.ctx.outlineOpen()) });
