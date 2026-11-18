@@ -855,6 +855,41 @@ assert(sc.contentEl.querySelectorAll('.wm-sc-card').length === 7 && sc.contentEl
 const scs = sc.contentEl.querySelector('.wm-sc-search');
 scs.value = '粗體'; scs.dispatchEvent(new Event('input'));
 assert([...sc.contentEl.querySelectorAll('.wm-sc-card')].filter(c => c.style.display !== 'none').length === 1, '快速鍵表可以搜尋');
+{
+  const q = s => sc.contentEl.querySelector(s);
+  const qa = s => [...sc.contentEl.querySelectorAll(s)];
+  const hit = el => el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+  const shownCards = () => qa('.wm-sc-card').filter(c => c.style.display !== 'none').map(c => c.querySelector('.wm-sc-card-title').textContent).join();
+  const search = v => { scs.value = v; scs.dispatchEvent(new Event('input')); };
+  const shownCols = () => qa('.wm-sc-col').filter(c => c.style.display !== 'none').length;
+  assert(q('.wm-sc-mark').textContent === '粗體' && q('.wm-sc-count').textContent === '1 個快速鍵' && shownCols() === 1, '搜尋：標出符合的字、顯示找到幾個，沒有卡片的那一欄收起來：' + q('.wm-sc-count').textContent);
+  search('zzz');
+  assert(q('.wm-sc-empty').style.display !== 'none' && q('.wm-sc-hint').style.display === 'none' && shownCards() === '', '找不到時顯示說明');
+  search('');
+  assert(qa('.wm-sc-col').length === 2 && shownCols() === 2 && shownCards().split(',').length === 7 && !q('.wm-sc-mark') && q('.wm-sc-count').textContent === '30 個快速鍵' && q('.wm-sc-empty').style.display === 'none', '清掉搜尋：七張卡片分成兩欄，全部回來');
+  // 分類：只看其中一類；打字搜尋時回到全部
+  const cats = qa('.wm-sc-cat');
+  assert(cats.length === 8 && cats[0].textContent === '全部' && cats[0].classList.contains('is-active') && cats[2].textContent === '文字格式', '分類：全部加上七類，一開始是全部');
+  hit(cats[2]);
+  assert(shownCards() === '文字格式' && cats[2].classList.contains('is-active') && cats[2].getAttribute('aria-pressed') === 'true' && !cats[0].classList.contains('is-active') && q('.wm-sc-count').textContent === '7 個快速鍵', '按分類：只顯示那一類');
+  search('貼上');
+  assert(cats[0].classList.contains('is-active') && shownCards().includes('尋找與編輯') && !shownCards().includes('文字格式'), '在某一類裡打字搜尋：回到全部分類再找：' + shownCards());
+  search('');
+  // 示意動畫：有動畫的列按一下展開，一次只開一段
+  const line = text => qa('.wm-sc-row').find(r => r.querySelector('.wm-sc-label').textContent === text).querySelector('.wm-sc-line');
+  const bold = line('粗體'); const italic = line('斜體'); const save = line('立即存檔');
+  assert(bold.parentElement.classList.contains('has-demo') && bold.getAttribute('role') === 'button' && bold.getAttribute('aria-expanded') === 'false' && !bold.parentElement.querySelector('.wm-sc-demo').hasChildNodes()
+    && !save.parentElement.classList.contains('has-demo') && !save.parentElement.querySelector('.wm-sc-demo'), '有示意動畫的列可以按（還沒按之前不建立動畫），沒有的列不能按');
+  hit(bold);
+  assert(bold.parentElement.classList.contains('is-open') && bold.getAttribute('aria-expanded') === 'true' && bold.parentElement.querySelector('.wm-sc-demo.wm-hint-demo .wm-anim-bold'), '按一下：展開粗體的示意動畫');
+  italic.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+  assert(italic.parentElement.classList.contains('is-open') && italic.parentElement.querySelector('.wm-anim-italic') && !bold.parentElement.classList.contains('is-open') && bold.getAttribute('aria-expanded') === 'false', '用鍵盤展開另一段：前一段收起來');
+  hit(italic);
+  assert(!qa('.wm-sc-row.is-open').length, '再按一次收起來');
+  hit(italic);
+  hit(cats[1]);
+  assert(!qa('.wm-sc-row.is-open').length && shownCards() === '檢視', '換到別的分類：展開的那一列跟著收起來');
+}
 sc.close();
 
 // ======== 方程式右鍵選單、選取文字變方程式、右鍵選單設定 ========

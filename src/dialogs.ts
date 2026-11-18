@@ -1,16 +1,18 @@
 // Word 模式的對話框：原文編輯、輸入框、超連結、檔案選擇、快速鍵說明、方程式編輯器、清理符號、字數統計
-import { Modal, FuzzySuggestModal, Notice, setIcon } from 'obsidian';
+import { Modal, FuzzySuggestModal, Notice, setIcon, Platform } from 'obsidian';
 import { countWeird, cleanWeird, WEIRD_KINDS } from './marks.js';
 import { MathField } from './mathvisual.js';
 import { saveTemplate, uniqueName } from './templates.js';
 import type { SavedTemplate } from './templates.js';
 import { keepFocus } from './dom.js';
+import { buildDemo } from './hints.js';
 import { t, key, isMac } from './i18n.js';
 import type { App, TFile } from 'obsidian';
 import type { WeirdKindId } from './marks.js';
 import type WordModePlugin from './main.js';
 import type { WordModeView } from './view.js';
 import type { I18nKey } from './i18n.js';
+import type { DemoName } from './hints.js';
 
 // 原文編輯、輸入框按「套用／確定」後收到輸入的文字
 export type TextCallback = (value: string) => void;
@@ -35,12 +37,16 @@ export type LinkSaveCallback = (result: LinkDialogResult) => void;
 // 檔案選擇器選好檔案後呼叫（可以是 async 函式）
 export type FileChooseCallback = (file: TFile) => void;
 
-// 快速鍵說明的一組：分類名稱、圖示、[按鍵組合, 說明] 的列表（文字在顯示時才翻譯）
-export type ShortcutRow = [combo: string, desc: I18nKey];
+// 快速鍵說明的一組：分類名稱、圖示、[按鍵組合, 說明, 示意動畫] 的列表（文字在顯示時才翻譯）。
+// 示意動畫是 hints.ts 的動畫名稱，與工具列的詳細提示共用；有動畫的那一列按一下會展開
+export type ShortcutRow = [combo: string, desc: I18nKey, demo?: DemoName];
 export type ShortcutGroup = [group: I18nKey, icon: string, rows: ShortcutRow[]];
-// 快速鍵說明視窗裡的一列與一張卡片，搜尋時用來顯示或隱藏
-interface ShortcutRowEl { row: HTMLDivElement; text: string; }
-interface ShortcutCardEl { card: HTMLDivElement; list: ShortcutRowEl[]; group: string; }
+// 快速鍵說明視窗裡的一列與一張卡片，搜尋或選分類時用來顯示或隱藏。
+// label 是放說明文字的元素、desc 是翻譯後的說明（搜尋時標出符合的字）、text 是搜尋比對用的小寫文字；
+// line、demo、demoBox 只有帶示意動畫的列才有：line 是可以按的那一行，demoBox 是放動畫的框
+interface ShortcutRowEl { row: HTMLDivElement; label: HTMLElement; desc: string; text: string; line?: HTMLElement; demo?: DemoName; demoBox?: HTMLElement; }
+// col 是卡片所在的那一欄
+interface ShortcutCardEl { card: HTMLDivElement; col: HTMLDivElement; list: ShortcutRowEl[]; group: string; index: number; }
 
 // 方程式工具列的一個按鈕：顯示文字、插入的 LaTeX；raw 為 true 表示「最近使用」，原樣插入
 // 一般按鈕的 label 是介面文字（翻譯前）；「最近使用」的 label 是使用者輸入過的公式，不翻譯
@@ -259,13 +265,13 @@ export class FilePicker extends FuzzySuggestModal<TFile> {
 
 // 快速鍵說明：Mod 顯示成 Ctrl 或 Cmd，文字在顯示時才翻譯；多個組合用「／」分開
 export const SHORTCUTS: readonly ShortcutGroup[] = [
-  ['檢視', 'eye', [['Mod+E', 'Word 模式 ⇄ Markdown 編輯（在 Markdown 畫面再按一次切回）'], ['Mod+滑鼠滾輪', '放大／縮小頁面'], ['Mod+/', '快速鍵說明']]],
-  ['文字格式', 'bold', [['Mod+B', '粗體'], ['Mod+I', '斜體'], ['Mod+U', '底線'], ['Mod+Shift+X', '刪除線'], ['Mod+Shift+H', '醒目提示（螢光筆）'], ['Mod+`', '行內程式碼'], ['（沒有選取時）', '格式套用到游標所在的詞']]],
-  ['段落', 'pilcrow', [['Mod+Alt+1～6', '標題 1～6'], ['Mod+Alt+0', '內文'], ['Mod+L／Mod+J', '靠左／左右對齊（置中、靠右在工具列）'], ['Tab', '段落開頭：首行縮排兩個字'], ['Alt+↑／Alt+↓', '上下移動段落、清單項目或表格列'], ['Shift+Enter', '同一段落內換行']]],
-  ['表格', 'table', [['Tab／Shift+Tab', '下一格／上一格（最後一格按 Tab 新增一列）'], ['Enter', '儲存格內換行'], ['貼上 Excel 範圍', '建立表格，或從目前儲存格開始填入']]],
-  ['連結與插入', 'link', [['Mod+K', '插入／編輯超連結'], ['Mod+點擊', '開啟連結'], ['選取文字後貼上網址', '把文字變成超連結']]],
-  ['尋找與編輯', 'search', [['Mod+F', '尋找'], ['Mod+H', '取代'], ['Mod+Z／Mod+Y', '復原／取消復原'], ['Mod+Shift+V', '貼上純文字'], ['Mod+S', '立即存檔'], ['Esc', '關閉尋找、結束格式刷']]],
-  ['格式刷', 'paintbrush', [['按一下', '刷一次'], ['按兩下', '連續刷，按 Esc 或再按一次結束']]],
+  ['檢視', 'eye', [['Mod+E', 'Word 模式 ⇄ Markdown 編輯（在 Markdown 畫面再按一次切回）', 'markdown'], ['Mod+滑鼠滾輪', '放大／縮小頁面', 'zoom'], ['Mod+/', '快速鍵說明']]],
+  ['文字格式', 'bold', [['Mod+B', '粗體', 'bold'], ['Mod+I', '斜體', 'italic'], ['Mod+U', '底線', 'underline'], ['Mod+Shift+X', '刪除線', 'strike'], ['Mod+Shift+H', '醒目提示（螢光筆）', 'highlight'], ['Mod+`', '行內程式碼', 'code'], ['（沒有選取時）', '格式套用到游標所在的詞']]],
+  ['段落', 'pilcrow', [['Mod+Alt+1～6', '標題 1～6', 'style'], ['Mod+Alt+0', '內文'], ['Mod+L／Mod+J', '靠左／左右對齊（置中、靠右在工具列）', 'justify'], ['Tab', '段落開頭：首行縮排兩個字'], ['Alt+↑／Alt+↓', '上下移動段落、清單項目或表格列', 'sort'], ['Shift+Enter', '同一段落內換行']]],
+  ['表格', 'table', [['Tab／Shift+Tab', '下一格／上一格（最後一格按 Tab 新增一列）', 'table'], ['Enter', '儲存格內換行'], ['貼上 Excel 範圍', '建立表格，或從目前儲存格開始填入']]],
+  ['連結與插入', 'link', [['Mod+K', '插入／編輯超連結', 'link'], ['Mod+點擊', '開啟連結'], ['選取文字後貼上網址', '把文字變成超連結']]],
+  ['尋找與編輯', 'search', [['Mod+F', '尋找', 'find'], ['Mod+H', '取代', 'replace'], ['Mod+Z／Mod+Y', '復原／取消復原', 'undo'], ['Mod+Shift+V', '貼上純文字', 'paste'], ['Mod+S', '立即存檔'], ['Esc', '關閉尋找、結束格式刷']]],
+  ['格式刷', 'paintbrush', [['按一下', '刷一次', 'painter'], ['按兩下', '連續刷，按 Esc 或再按一次結束']]],
 ];
 
 export const KEY_NAMES: Partial<Record<string, () => string>> = { Mod: () => key('Mod'), Alt: () => key('Alt'), Shift: () => 'Shift', Enter: () => 'Enter', Esc: () => 'Esc', Tab: () => 'Tab' };
@@ -571,6 +577,16 @@ export class EquationModal extends Modal {
   onClose(): void { window.clearTimeout(this.timer); this.contentEl.empty(); }
 }
 
+// 把 text 放進 el，符合 q（小寫）的那一段用 <mark> 標出來
+function markText(el: HTMLElement, text: string, q: string): void {
+  el.empty();
+  const i = q ? text.toLowerCase().indexOf(q) : -1;
+  if (i < 0) { el.setText(text); return; }
+  el.append(text.slice(0, i));
+  el.createEl('mark', { cls: 'wm-sc-mark', text: text.slice(i, i + q.length) });
+  el.append(text.slice(i + q.length));
+}
+
 export class ShortcutModal extends Modal {
   onOpen(): void {
     this.titleEl.setText(t('Word 模式快速鍵'));
@@ -578,38 +594,119 @@ export class ShortcutModal extends Modal {
     const c = this.contentEl;
     c.addClass('wm-shortcuts');
     const head = c.createDiv('wm-sc-head');
-    const search = head.createEl('input', { type: 'search', cls: 'wm-sc-search' });
+    const box = head.createDiv('wm-sc-searchbox');
+    setIcon(box.createSpan('wm-sc-search-icon'), 'search');
+    const search = box.createEl('input', { type: 'search', cls: 'wm-sc-search' });
     search.placeholder = t('搜尋快速鍵或功能…');
-    head.createDiv({ cls: 'wm-sc-platform', text: isMac ? t('Mac：Cmd 與 Option') : t('Windows：Ctrl 與 Alt') });
+    const count = head.createSpan('wm-sc-count');
+
+    // 分類：只看其中一類（手機上卡片排成一欄很長，不必一路捲）。cat 是選中的卡片編號，null 是全部
+    let cat: number | null = null;
+    const cats = c.createDiv('wm-pills wm-sc-cats');
+    cats.setAttribute('role', 'group');
+    cats.setAttribute('aria-label', t('快速鍵分類'));
+    const catBtns: [id: number | null, btn: HTMLButtonElement][] = [];
+    const catBtn = (id: number | null, icon: string, label: string) => {
+      const b = cats.createEl('button', { cls: 'wm-pill wm-sc-cat' });
+      b.type = 'button';
+      setIcon(b.createSpan('wm-pill-icon'), icon);
+      b.createSpan({ text: label });
+      b.addEventListener('click', () => { cat = id; apply(); });
+      catBtns.push([id, b]);
+    };
+    catBtn(null, 'layout-grid', t('全部'));
+
+    // 卡片分成兩欄各自往下排（每張放進目前比較短的那一欄）：卡片的高度不一樣，排成格線會在矮的卡片下面留下大片空白；
+    // 展開示意動畫時也只會推動同一欄。手機只有一欄
     const grid = c.createDiv('wm-sc-grid');
+    const cols = Array.from({ length: Platform.isMobile ? 1 : 2 }, () => ({ el: grid.createDiv('wm-sc-col'), rows: 0 }));
     const cards: ShortcutCardEl[] = [];
-    for (const [group, icon, rows] of SHORTCUTS) {
-      const card = grid.createDiv('wm-sc-card');
+    // 一次只展開一段示意動畫
+    let open: ShortcutRowEl | null = null;
+    const setOpen = (r: ShortcutRowEl, on: boolean) => {
+      r.row.toggleClass('is-open', on);
+      if (r.line) r.line.setAttribute('aria-expanded', on ? 'true' : 'false');
+      // 第一次展開時才建立動畫的內容
+      if (on && r.demo && r.demoBox && !r.demoBox.hasChildNodes()) buildDemo(r.demo, r.demoBox);
+      if (on) open = r; else if (open === r) open = null;
+    };
+    const toggleDemo = (r: ShortcutRowEl) => {
+      const on = open !== r;
+      if (open) setOpen(open, false);
+      if (on) setOpen(r, true);
+    };
+    SHORTCUTS.forEach(([group, icon, rows], index) => {
+      catBtn(index, icon, t(group));
+      const col = cols.reduce((a, b) => (b.rows < a.rows ? b : a));
+      // 卡片的標題大約是兩列的高度
+      col.rows += rows.length + 2;
+      const card = col.el.createDiv('wm-sc-card');
       const h = card.createDiv('wm-sc-card-head');
       setIcon(h.createSpan('wm-sc-icon'), icon);
-      h.createSpan({ text: t(group) });
+      h.createSpan({ cls: 'wm-sc-card-title', text: t(group) });
+      h.createSpan({ cls: 'wm-sc-card-count', text: String(rows.length) });
       const list: ShortcutRowEl[] = [];
-      for (const [k, d] of rows) {
+      for (const [k, d, demo] of rows) {
         const row = card.createDiv('wm-sc-row');
-        row.createDiv({ cls: 'wm-sc-desc', text: t(d) });
-        renderKeys(row, k);
+        const line = row.createDiv('wm-sc-line');
+        const desc = line.createDiv('wm-sc-desc');
+        const label = desc.createSpan({ cls: 'wm-sc-label', text: t(d) });
+        renderKeys(line, k);
         // k 是按鍵組合（例如 Mod+E），只有少數是說明文字（例如「按一下」）；找不到翻譯時 t() 原樣回傳
-        list.push({ row, text: (t(d) + ' ' + t(k as I18nKey) + ' ' + k).toLowerCase() });
+        const r: ShortcutRowEl = { row, label, desc: t(d), text: (t(d) + ' ' + t(k as I18nKey) + ' ' + k).toLowerCase() };
+        if (demo) {
+          row.addClass('has-demo');
+          setIcon(desc.createSpan('wm-sc-play'), 'play');
+          line.setAttribute('role', 'button');
+          line.tabIndex = 0;
+          line.setAttribute('aria-expanded', 'false');
+          line.setAttribute('title', t('看動畫示範'));
+          r.line = line;
+          r.demo = demo;
+          // 外面兩層負責展開、收合的高度動畫（一層決定高度，一層把超出的部分裁掉），最裡面才是動畫的框
+          r.demoBox = row.createDiv('wm-sc-demo-wrap').createDiv('wm-sc-demo-clip').createDiv('wm-hint-demo wm-sc-demo');
+          line.addEventListener('click', () => toggleDemo(r));
+          line.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleDemo(r); } });
+        }
+        list.push(r);
       }
-      cards.push({ card, list, group: t(group).toLowerCase() });
-    }
-    const empty = c.createDiv({ cls: 'wm-sc-empty', text: t('找不到符合的快速鍵') });
-    empty.hide();
-    search.addEventListener('input', () => {
-      const q = search.value.trim().toLowerCase();
-      let any = false;
-      for (const { card, list, group } of cards) {
-        let n = 0;
-        for (const { row, text } of list) { const ok = !q || text.includes(q) || group.includes(q); row.toggle(ok); if (ok) n++; }
-        card.toggle(n > 0); if (n) any = true;
-      }
-      empty.toggle(!any);
+      cards.push({ card, col: col.el, list, group: t(group).toLowerCase(), index });
     });
+    const empty = c.createDiv({ cls: 'wm-sc-empty', text: t('找不到符合的快速鍵') });
+    const foot = c.createDiv('wm-sc-foot');
+    const hint = foot.createDiv('wm-sc-hint');
+    setIcon(hint.createSpan('wm-sc-play'), 'play');
+    hint.createSpan({ text: t('有這個記號的項目，按一下可以看動畫示範。') });
+    const platform = foot.createDiv('wm-sc-platform');
+    setIcon(platform.createSpan('wm-sc-platform-icon'), 'keyboard');
+    platform.createSpan({ text: isMac ? t('Mac：Cmd 與 Option') : t('Windows：Ctrl 與 Alt') });
+
+    // 依搜尋文字與選中的分類，決定每一列、每張卡片要不要顯示
+    const apply = () => {
+      const q = search.value.trim().toLowerCase();
+      for (const [id, b] of catBtns) { b.toggleClass('is-active', id === cat); b.setAttribute('aria-pressed', id === cat ? 'true' : 'false'); }
+      let total = 0;
+      // 還有卡片要顯示的欄；沒有卡片的那一欄收起來，剩下的一欄才會佔滿整個寬度
+      const used = new Set<HTMLElement>();
+      for (const { card, col, list, group, index } of cards) {
+        let n = 0;
+        for (const r of list) {
+          const ok = (cat == null || cat === index) && (!q || r.text.includes(q) || group.includes(q));
+          r.row.toggle(ok);
+          if (ok) { n++; markText(r.label, r.desc, q); } else if (open === r) setOpen(r, false);
+        }
+        card.toggle(n > 0);
+        total += n;
+        if (n) used.add(col);
+      }
+      for (const col of cols) col.el.toggle(used.has(col.el));
+      empty.toggle(!total);
+      hint.toggle(total > 0);
+      count.setText(t('{n} 個快速鍵', { n: total }));
+    };
+    // 打字搜尋是找全部的快速鍵：先前只看某一類的話，回到全部，才不會明明有卻說找不到
+    search.addEventListener('input', () => { if (search.value.trim()) cat = null; apply(); });
+    apply();
     window.setTimeout(() => search.focus(), 0);
   }
   onClose(): void { this.contentEl.empty(); }
