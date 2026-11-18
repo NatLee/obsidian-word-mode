@@ -115,6 +115,19 @@ interface CodeBlockAttrs { readonly params: string; readonly bid: number | null;
 // Obsidian 載入的 mermaid（loadMermaid() 在型別定義裡是 any）：這裡只用到 parse()，語法錯誤時會丟出例外
 interface MermaidLike { parse?(text: string): Promise<unknown>; }
 
+// 右鍵選單的一個項目
+interface MenuEntry { title: string; icon: string; run: () => void; enabled: boolean; }
+
+// Obsidian 的選單能不能放子選單（MenuItem.setSubmenu 不是公開 API，舊版可能沒有）；只檢查一次
+let submenuSupport: boolean | null = null;
+function canSubmenu(): boolean {
+  if (submenuSupport == null) {
+    submenuSupport = false;
+    try { new Menu().addItem(i => { submenuSupport = typeof i.setSubmenu === 'function'; }); } catch { submenuSupport = false; }
+  }
+  return submenuSupport;
+}
+
 // ------------------------------------------------------------------ 檢視
 
 // 欄位說明（類別裡不能寫註解，寫在這裡）：
@@ -1193,9 +1206,25 @@ export class WordModeView extends TextFileView {
     const m = new Menu();
     let section = false;
     const sep = () => { if (section) m.addSeparator(); section = false; };
+    const put = (menu: Menu, e: MenuEntry) => menu.addItem(i => { i.setTitle(e.title).setIcon(e.icon).onClick(() => { e.run(); }); if (!e.enabled) i.setDisabled(true); });
+    // bucket 不是 null 時，item() 加的項目先收集起來，之後放進子選單
+    let bucket = null as MenuEntry[] | null;
     const item = (title: string, icon: string, run: () => void, enabled = true) => {
+      const e: MenuEntry = { title, icon, run, enabled };
+      if (bucket) { bucket.push(e); return; }
       section = true;
-      m.addItem(i => { i.setTitle(title).setIcon(icon).onClick(() => { run(); }); if (!enabled) i.setDisabled(true); });
+      put(m, e);
+    };
+    // 把 fill 裡加的項目收進一個子選單，主選單只多一項；Obsidian 不支援子選單（或 fold 為 false）時直接列在主選單
+    const submenu = (title: string, icon: string, fill: () => void, fold = true) => {
+      if (!fold || !canSubmenu()) { fill(); return; }
+      bucket = [];
+      fill();
+      const entries = bucket;
+      bucket = null;
+      if (!entries.length) return;
+      section = true;
+      m.addItem(i => { i.setTitle(title).setIcon(icon); const sm = i.setSubmenu!(); for (const e of entries) put(sm, e); });
     };
     const cmd = (title: string, icon: string, c: Command, check = true) => item(title, icon, () => { c(this.pm!.state, v => this.pm!.dispatch(v), this.pm!); this.pm!.focus(); }, check ? !!c(st) : true);
 
@@ -1239,24 +1268,36 @@ export class WordModeView extends TextFileView {
       sep();
     }
     // ---- 專屬：表格
-    if (C.table.isIn(st) && !hidden.has('table')) {
+    // 表格的功能很多：分成五個子選單（插入、刪除、移動、對齊、排序），主選單才不會太長
+    const inTable = C.table.isIn(st);
+    if (inTable && !hidden.has('table')) {
       const T = C.table;
-      cmd(t('在上方插入列'), 'arrow-up-to-line', T.addRowBefore);
-      cmd(t('在下方插入列'), 'arrow-down-to-line', T.addRowAfter);
-      cmd(t('在左側插入欄'), 'arrow-left-to-line', T.addColumnBefore);
-      cmd(t('在右側插入欄'), 'arrow-right-to-line', T.addColumnAfter);
-      cmd(t('刪除列'), 'rows-3', T.deleteRow);
-      cmd(t('刪除欄'), 'columns-3', T.deleteColumn);
-      cmd(t('列上移'), 'arrow-up', C.moveBlock(-1));
-      cmd(t('列下移'), 'arrow-down', C.moveBlock(1));
-      cmd(t('欄左移'), 'arrow-left', C.moveTableColumn(-1));
-      cmd(t('欄右移'), 'arrow-right', C.moveTableColumn(1));
-      cmd(t('整欄靠左'), 'align-left', T.alignColumn('left'), false);
-      cmd(t('整欄置中'), 'align-center', T.alignColumn('center'), false);
-      cmd(t('整欄靠右'), 'align-right', T.alignColumn('right'), false);
-      cmd(t('依此欄排序（遞增）'), 'arrow-down-a-z', C.sortTableByColumn(1));
-      cmd(t('依此欄排序（遞減）'), 'arrow-up-z-a', C.sortTableByColumn(-1));
-      cmd(t('刪除表格'), 'trash-2', T.deleteTable, false);
+      submenu(t('插入列或欄'), 'plus', () => {
+        cmd(t('在上方插入列'), 'arrow-up-to-line', T.addRowBefore);
+        cmd(t('在下方插入列'), 'arrow-down-to-line', T.addRowAfter);
+        cmd(t('在左側插入欄'), 'arrow-left-to-line', T.addColumnBefore);
+        cmd(t('在右側插入欄'), 'arrow-right-to-line', T.addColumnAfter);
+      });
+      submenu(t('刪除列、欄或表格'), 'trash-2', () => {
+        cmd(t('刪除列'), 'rows-3', T.deleteRow);
+        cmd(t('刪除欄'), 'columns-3', T.deleteColumn);
+        cmd(t('刪除表格'), 'trash-2', T.deleteTable, false);
+      });
+      submenu(t('移動列或欄'), 'move', () => {
+        cmd(t('列上移'), 'arrow-up', C.moveBlock(-1));
+        cmd(t('列下移'), 'arrow-down', C.moveBlock(1));
+        cmd(t('欄左移'), 'arrow-left', C.moveTableColumn(-1));
+        cmd(t('欄右移'), 'arrow-right', C.moveTableColumn(1));
+      });
+      submenu(t('整欄對齊'), 'align-center', () => {
+        cmd(t('整欄靠左'), 'align-left', T.alignColumn('left'), false);
+        cmd(t('整欄置中'), 'align-center', T.alignColumn('center'), false);
+        cmd(t('整欄靠右'), 'align-right', T.alignColumn('right'), false);
+      });
+      submenu(t('依此欄排序'), 'arrow-down-a-z', () => {
+        cmd(t('依此欄排序（遞增）'), 'arrow-down-a-z', C.sortTableByColumn(1));
+        cmd(t('依此欄排序（遞減）'), 'arrow-up-z-a', C.sortTableByColumn(-1));
+      });
       sep();
     }
     // 程式碼區塊裡只能放純文字：格式、段落、插入都用不到，不列出來
@@ -1281,22 +1322,26 @@ export class WordModeView extends TextFileView {
     }
     // ---- 段落
     if (!hidden.has('paragraph') && !inCode) {
-      cmd(t('項目符號'), 'list', C.toggleList('bullet'));
-      cmd(t('編號'), 'list-ordered', C.toggleList('ordered'));
-      cmd(t('增加縮排'), 'indent-increase', C.indent);
-      cmd(t('減少縮排'), 'indent-decrease', C.outdent);
-      sep();
+      submenu(t('段落'), 'pilcrow', () => {
+        cmd(t('項目符號'), 'list', C.toggleList('bullet'));
+        cmd(t('編號'), 'list-ordered', C.toggleList('ordered'));
+        cmd(t('增加縮排'), 'indent-increase', C.indent);
+        cmd(t('減少縮排'), 'indent-decrease', C.outdent);
+      }, inTable);
+      if (!inTable) sep();
     }
     // ---- 插入
     if (!hidden.has('insert') && !inCode) {
-      item(hasSel ? t('把選取文字變成超連結…') : t('插入超連結…'), 'link', () => this.openLinkDialog());
-      item(t('連結到筆記…'), 'file-symlink', () => this.openNoteLinkPicker());
-      item(hasSel ? t('把選取文字變成方程式…') : t('插入方程式…'), 'sigma', () => this.openEquation());
-      item(t('插入註解…'), 'message-square', () => this.insertComment());
-      sep();
+      submenu(t('插入'), 'plus-circle', () => {
+        item(hasSel ? t('把選取文字變成超連結…') : t('插入超連結…'), 'link', () => this.openLinkDialog());
+        item(t('連結到筆記…'), 'file-symlink', () => this.openNoteLinkPicker());
+        item(hasSel ? t('把選取文字變成方程式…') : t('插入方程式…'), 'sigma', () => this.openEquation());
+        item(t('插入註解…'), 'message-square', () => this.insertComment());
+      }, inTable);
+      if (!inTable) sep();
     }
     // ---- 工具
-    if (!hidden.has('tools')) {
+    if (!hidden.has('tools')) submenu(t('工具'), 'wrench', () => {
       if (hasSel) {
         item(t('複製為 Markdown'), 'file-code', () => this.copyText(this.selectionMarkdown()));
         const short = selText.length > 16 ? selText.slice(0, 15) + '…' : selText;
@@ -1309,7 +1354,7 @@ export class WordModeView extends TextFileView {
         item(t('字數統計'), 'bar-chart-3', () => this.openWordCount());
       }
       item(marksOn(st) ? t('隱藏編輯標記') : t('顯示編輯標記'), 'pilcrow', () => this.setMarks(!marksOn(this.pm!.state)));
-    }
+    }, inTable);
     m.showAtMouseEvent(e);
     e.preventDefault();
     return true;

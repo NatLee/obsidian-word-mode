@@ -930,5 +930,10 @@ export default {
  "列下移": "Move row down",
  "欄左移": "Move column left",
  "欄右移": "Move column right",
- "程式碼區塊裡只能放純文字，不能使用這個功能。請先把游標移到區塊外面。": "Code blocks hold plain text only, so this is not available here. Move the cursor outside the block first."
+ "程式碼區塊裡只能放純文字，不能使用這個功能。請先把游標移到區塊外面。": "Code blocks hold plain text only, so this is not available here. Move the cursor outside the block first.",
+ "插入列或欄": "Insert rows or columns",
+ "刪除列、欄或表格": "Delete rows, columns or table",
+ "移動列或欄": "Move rows or columns",
+ "整欄對齊": "Align column",
+ "依此欄排序": "Sort by this column"
 };

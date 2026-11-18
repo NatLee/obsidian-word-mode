@@ -56,6 +56,10 @@ export interface MetadataTypeManager {
 }
 
 declare module 'obsidian' {
+  // 選單項目的子選單：回傳子選單，在裡面加項目。不是公開 API，使用前先檢查有沒有這個函式
+  interface MenuItem {
+    setSubmenu?(): Menu;
+  }
   interface App {
     commands?: CommandManager;
     setting?: SettingManager;

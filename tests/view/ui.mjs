@@ -35,5 +35,24 @@ await fresh('一段\n\n```python\nprint(1)\n```\n');
   assert(!btn('粗體').classList.contains('is-disabled') && !btn('插入表格').classList.contains('is-disabled'), '游標離開程式碼區塊後恢復');
 }
 
+// ======== 表格的右鍵選單：收成子選單 ========
+await fresh('| 甲 | 乙 |\n| --- | --- |\n| a1 | b1 |\n');
+{
+  select(posOf('a1') + 1, posOf('a1') + 1);
+  const items = ctx(view.pm.dom.querySelector('td'));
+  const titles = items.map(i => i.title);
+  assert(!titles.includes('在上方插入列') && !titles.includes('刪除表格'), '表格的功能不直接列在主選單');
+  const sub = name => items.find(i => i.title === name).submenu.items.map(i => i.title);
+  assert(sub('插入列或欄').join() === '在上方插入列,在下方插入列,在左側插入欄,在右側插入欄', '子選單：插入列或欄');
+  assert(sub('刪除列、欄或表格').join() === '刪除列,刪除欄,刪除表格' && sub('移動列或欄').length === 4 && sub('整欄對齊').length === 3 && sub('依此欄排序').length === 2, '子選單：刪除、移動、對齊、排序');
+  assert(sub('段落').includes('項目符號') && sub('插入').some(x => x.includes('超連結')) && sub('工具').some(x => x.includes('字數統計')), '表格裡：段落、插入、工具也收成子選單');
+  assert(items.length <= 13, '表格右鍵選單的主選單不超過 13 項：' + items.length + '（' + titles.join('、') + '）');
+  items.find(i => i.title === '插入列或欄').submenu.items.find(i => i.title === '在下方插入列').fn();
+  assert(out() === '| 甲 | 乙 |\n| --- | --- |\n| a1 | b1 |\n|  |  |\n', '子選單的項目可以執行：' + JSON.stringify(out()));
+  await fresh('一段文字\n');
+  const plain = ctx(view.pm.dom.querySelector('p'));
+  assert(plain.every(i => !i.submenu) && plain.some(i => i.title === '項目符號'), '不在表格裡：選單照原本的方式直接列出');
+}
+
 
 finish();

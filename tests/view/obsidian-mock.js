@@ -29,7 +29,7 @@ export class Vault { static recurseChildren(root, cb) { cb(root); for (const c o
 export class Notice { constructor(m) { log.push(['notice', m]); } }
 export class Menu {
   constructor() { this.items = []; }
-  addItem(f) { const it = { title: '', disabled: false, setTitle(t) { this.title = t; return this; }, setIcon() { return this; }, setSection() { return this; }, onClick(fn) { this.fn = fn; return this; }, setDisabled(d) { this.disabled = d; return this; } }; f(it); this.items.push(it); return this; }
+  addItem(f) { const it = { title: '', disabled: false, setTitle(t) { this.title = t; return this; }, setIcon() { return this; }, setSection() { return this; }, onClick(fn) { this.fn = fn; return this; }, setDisabled(d) { this.disabled = d; return this; }, setSubmenu() { this.submenu = new Menu(); return this.submenu; } }; f(it); this.items.push(it); return this; }
   addSeparator() { return this; }
   showAtMouseEvent() { Menu.last = this; }
   showAtPosition() { Menu.last = this; }
@@ -47,6 +47,7 @@ export async function loadMathJax() {}
 export function setIcon(el, name) { el.dataset.icon = name; }
 export function normalizePath(p) { return p.replace(/\/+/g, '/').replace(/^\/|\/$/g, ''); }
 export const Platform = { isMobile: false };
+export class MenuItem {}
 
 class Events { on() { return {}; } }
 export class TextFileView {
