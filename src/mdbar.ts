@@ -22,6 +22,8 @@ interface MdButtonSpec {
   desc?: I18nKey;
   demo?: string;
   big?: boolean;
+  // 檢視模式的按鈕：設定可以讓這三個只顯示圖示（跟 toolbar.ts 相同）
+  viewMode?: boolean;
   always?: boolean;
   active?: () => boolean;
   run: (e: MouseEvent, b: HTMLButtonElement) => void;
@@ -71,6 +73,7 @@ export class MarkdownBar {
   declare app: App;
   declare layout: RibbonLayout;
   declare buttonStyle: ButtonStyle;
+  declare hideViewLabels: boolean;
   declare tabStyle: TabStyle;
   declare richHints: boolean;
   declare hidden: Set<string>;
@@ -91,6 +94,7 @@ export class MarkdownBar {
     const S = plugin.settings;
     this.layout = S.ribbonLayout || 'tabs';
     this.buttonStyle = S.buttonStyle || 'auto';
+    this.hideViewLabels = S.viewButtonLabels === false;
     this.tabStyle = S.tabStyle || 'text';
     this.richHints = !!S.richHints && !Platform.isMobile;
     this.hidden = new Set(S.hiddenGroups || []);
@@ -159,7 +163,7 @@ export class MarkdownBar {
       el('div', 'wm-group-name', g, t(label));
     }
     const E = (fn: (ed: Editor) => void) => () => { const ed = this.editor; if (ed) { fn(ed); ed.focus(); } };
-    const toWord: MdButtonSpec = { icon: 'file-text', title: '切換到 Word 模式', keys: S.ctrlE !== false ? 'Mod+E' : null, label: 'Word 模式', big: true, demo: 'markdown', desc: '用 Word 模式編輯這份筆記。', run: () => { void this.plugin.switchToWord(this.view.leaf); }, always: true };
+    const toWord: MdButtonSpec = { icon: 'file-text', title: '切換到 Word 模式', keys: S.ctrlE !== false ? 'Mod+E' : null, label: 'Word 模式', big: true, viewMode: true, demo: 'markdown', desc: '用 Word 模式編輯這份筆記。', run: () => { void this.plugin.switchToWord(this.view.leaf); }, always: true };
 
     // ---- 常用
     let g = G.undo;
@@ -212,8 +216,8 @@ export class MarkdownBar {
     // ---- 檢視：前三個按鈕的位置、大小跟 Word 模式的「檢視」分頁一樣
     g = G.views;
     this.button(g, toWord);
-    this.button(g, { icon: 'code-2', title: 'Markdown 編輯', label: 'Markdown', big: true, active: () => this.mode === 'source', run: () => { void this.setMode('source'); }, always: true });
-    this.button(g, { icon: 'book-open', title: '閱讀模式', label: '閱讀', big: true, demo: 'reading', active: () => this.mode === 'preview', run: () => { void this.setMode('preview'); }, always: true });
+    this.button(g, { icon: 'code-2', title: 'Markdown 編輯', label: 'Markdown', big: true, viewMode: true, active: () => this.mode === 'source', run: () => { void this.setMode('source'); }, always: true });
+    this.button(g, { icon: 'book-open', title: '閱讀模式', label: '閱讀', big: true, viewMode: true, demo: 'reading', active: () => this.mode === 'preview', run: () => { void this.setMode('preview'); }, always: true });
     g = G.show;
     this.button(g, { icon: 'list-tree', title: '大綱', label: '大綱', big: true, demo: 'outline', run: () => { void this.plugin.toggleOutline(); }, active: () => this.plugin.outlineOpen(), always: true });
     this.button(g, { icon: 'chevrons-down-up', title: '摺疊全部標題', label: '全部摺疊', big: true, demo: 'fold', run: this.cmd('editor:fold-all') });
@@ -261,7 +265,7 @@ export class MarkdownBar {
       if (this.seen.has(spec.title)) return null;
       this.seen.add(spec.title);
     }
-    const showLabel = this.buttonStyle === 'label' || (this.buttonStyle === 'auto' && spec.big);
+    const showLabel = (this.buttonStyle === 'label' || (this.buttonStyle === 'auto' && spec.big)) && !(spec.viewMode && this.hideViewLabels);
     const b = el('button', 'wm-btn' + (showLabel && spec.label ? ' has-label' : ''), parent);
     b.type = 'button';
     el('span', 'wm-sr', b);

@@ -1118,5 +1118,7 @@ export default {
  "橫向的位置": "Position across",
  "縱向的位置": "Position up",
  "0–1": "0–1",
- "quadrantChart\n    title 工作的優先順序\n    x-axis \"不急\" --> \"很急\"\n    y-axis \"不重要\" --> \"很重要\"\n    quadrant-1 \"馬上做\"\n    quadrant-2 \"排時間做\"\n    quadrant-3 \"有空再做\"\n    quadrant-4 \"交給別人\"\n    \"寫報告\": [0.8, 0.9]\n    \"整理信箱\": [0.3, 0.2]": "quadrantChart\n    title Task priorities\n    x-axis \"Not urgent\" --> \"Urgent\"\n    y-axis \"Not important\" --> \"Important\"\n    quadrant-1 \"Do now\"\n    quadrant-2 \"Schedule\"\n    quadrant-3 \"Later\"\n    quadrant-4 \"Delegate\"\n    \"Write report\": [0.8, 0.9]\n    \"Tidy inbox\": [0.3, 0.2]"
+ "quadrantChart\n    title 工作的優先順序\n    x-axis \"不急\" --> \"很急\"\n    y-axis \"不重要\" --> \"很重要\"\n    quadrant-1 \"馬上做\"\n    quadrant-2 \"排時間做\"\n    quadrant-3 \"有空再做\"\n    quadrant-4 \"交給別人\"\n    \"寫報告\": [0.8, 0.9]\n    \"整理信箱\": [0.3, 0.2]": "quadrantChart\n    title Task priorities\n    x-axis \"Not urgent\" --> \"Urgent\"\n    y-axis \"Not important\" --> \"Important\"\n    quadrant-1 \"Do now\"\n    quadrant-2 \"Schedule\"\n    quadrant-3 \"Later\"\n    quadrant-4 \"Delegate\"\n    \"Write report\": [0.8, 0.9]\n    \"Tidy inbox\": [0.3, 0.2]",
+ "檢視模式的按鈕顯示文字": "Show text on the view mode buttons",
+ "功能區「檢視」分頁的 Word 模式、Markdown、閱讀三個按鈕下方顯示名稱。關閉後這三個按鈕只顯示圖示（名稱仍在提示裡），Word 模式與 Markdown／閱讀模式的工具列都一樣。": "Shows names under the Word mode, Markdown and Reading buttons on the View tab of the ribbon. When off, these three buttons show icons only (the names stay in the tooltips), in both the Word mode toolbar and the Markdown and reading mode toolbar."
 };

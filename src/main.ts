@@ -65,6 +65,8 @@ export interface Settings {
   // 使用者自己選過按鈕樣式（之後不再依舊設定 ribbonLabels 改成只顯示圖示）
   buttonStyleSet?: boolean;
   groupLabels: boolean;
+  // 「檢視」分頁的三個檢視模式按鈕（Word 模式／Markdown／閱讀）要不要顯示文字
+  viewButtonLabels: boolean;
   hiddenTabs: TabId[];
   hiddenGroups: GroupId[];
   richHints: boolean;
@@ -155,6 +157,7 @@ const DEFAULTS: Settings = {
   ribbonLayout: 'tabs',
   buttonStyle: 'auto',
   groupLabels: false,
+  viewButtonLabels: true,
   hiddenTabs: [],
   hiddenGroups: [],
   tabStyle: 'text',
@@ -751,6 +754,7 @@ function settingSections(settingTab: WordModeSettings): SettingSection[] {
         }
       } },
       toggleRow(t('顯示群組名稱'), t('在每組按鈕下方顯示「剪貼簿」「字型」「段落」等名稱（像 Word）。'), 'groupLabels', () => p.refreshToolbars()),
+      toggleRow(t('檢視模式的按鈕顯示文字'), t('功能區「檢視」分頁的 Word 模式、Markdown、閱讀三個按鈕下方顯示名稱。關閉後這三個按鈕只顯示圖示（名稱仍在提示裡），Word 模式與 Markdown／閱讀模式的工具列都一樣。'), 'viewButtonLabels', () => p.refreshToolbars()),
       row(t('工具列位置'), t('「自動」在手機上放在畫面下方（靠近鍵盤，單手好按），平板與電腦放在上方。'),
         s => s.addDropdown(d => d.addOptions({ auto: t('自動'), top: t('上方'), bottom: t('下方') })
           .setValue(S.toolbarPosition || 'auto').onChange(async v => { S.toolbarPosition = v as ToolbarPosition; await rebuild(); }))),
