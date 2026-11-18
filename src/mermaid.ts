@@ -44,6 +44,8 @@ interface ListView { start: number; shown: number; filter: string; }
 interface PendingPreview { canvas: HTMLDivElement; handle: MermaidPreviewHandle; }
 
 const DEFAULT_SRC = 'flowchart TD\n    A[開始] --> B[結束]';
+// 「自由編寫」空白時顯示在輸入框裡的例子：一種沒有表單的圖表，讓人知道不限上面列出的種類
+const FREE_EXAMPLE = 'gitGraph\n    commit\n    branch develop\n    commit\n    checkout main\n    merge develop';
 // 清單一次顯示幾列（很長的圖表一次全部畫出來，表單會慢到不能用）
 const CHUNK = 40;
 // 清單超過這麼多列才顯示篩選的輸入框
@@ -82,6 +84,8 @@ export class MermaidModal extends Modal {
   declare tabVisual: HTMLButtonElement;
   declare tabCode: HTMLButtonElement;
   declare kindsEl: HTMLDivElement;
+  // 「自由編寫」：目前的內容不是上方任何一種圖表（或還是空白）時標在這一顆
+  declare freeBtn: HTMLButtonElement;
   declare confirmEl: HTMLDivElement;
   // 「我的範本」的面板（按上方的按鈕展開）
   declare tplEl: HTMLDivElement;
@@ -186,6 +190,12 @@ export class MermaidModal extends Modal {
       b.setAttribute('aria-label', t('換成「{name}」的範本', { name: t(k.name) }));
       b.addEventListener('click', () => this.pickKind(k));
     }
+    // 自由編寫：從空白開始自己寫 Mermaid 程式碼。Mermaid 畫得出來的都可以（不限有表單的種類），一樣有預覽
+    this.freeBtn = this.kindsEl.createEl('button', { cls: 'wm-mmd-kind wm-mmd-free' });
+    setIcon(this.freeBtn.createSpan('wm-mmd-kind-icon'), 'pencil');
+    this.freeBtn.createSpan({ text: t('自由編寫') });
+    this.freeBtn.setAttribute('aria-label', t('自己寫 Mermaid 程式碼，不限上面列出的種類'));
+    this.freeBtn.addEventListener('click', () => this.pickFree());
     if (this.opts.templates) {
       const b = this.kindsEl.createEl('button', { cls: 'wm-mmd-kind wm-mmd-mine' });
       setIcon(b.createSpan('wm-mmd-kind-icon'), 'bookmark');
@@ -221,6 +231,7 @@ export class MermaidModal extends Modal {
     this.codePane = left.createDiv('wm-mmd-code');
     this.ta = this.codePane.createEl('textarea', { cls: 'wm-mmd-input' });
     this.ta.spellcheck = false;
+    this.ta.placeholder = t('在這裡寫 Mermaid 程式碼，例如：') + '\n' + FREE_EXAMPLE;
     this.ta.value = this.src;
     // 打程式碼時只先換掉上方標示的種類；「能不能用表單」要把整段程式碼讀過一遍，等停下來重畫預覽時再算
     this.ta.addEventListener('input', () => { this.src = this.ta.value; this.invalidate(); this.markKind(true); this.schedulePreview(); });
@@ -233,6 +244,7 @@ export class MermaidModal extends Modal {
         this.ta.dispatchEvent(new Event('input'));
       }
     });
+    this.codePane.createDiv({ cls: 'wm-mmd-hint', text: t('可以寫任何 Mermaid 語法，不限上面列出的種類。預覽會即時更新，寫錯的地方會顯示在預覽上方。比較新的圖表種類要 Obsidian 內建的 Mermaid 支援才畫得出來。') });
     const right = body.createDiv('wm-mmd-right wm-eq-card');
     const lab = right.createDiv('wm-eq-label');
     lab.createSpan({ text: t('預覽') });
@@ -344,7 +356,9 @@ export class MermaidModal extends Modal {
   // light：只換上方的標示（看第一行就知道），不去讀整段程式碼
   markKind(light?: boolean): void {
     const kind = detectKind(this.src);
-    for (const b of this.kindsEl.querySelectorAll<HTMLElement>('.wm-mmd-kind')) b.toggleClass('is-active', !!kind && b.dataset.kind === kind.id);
+    // 只動各個種類的按鈕（「我的範本」那一顆的標示是面板開著沒有，不歸這裡管）
+    for (const b of this.kindsEl.querySelectorAll<HTMLElement>('.wm-mmd-kind[data-kind]')) b.toggleClass('is-active', !!kind && b.dataset.kind === kind.id);
+    this.freeBtn.toggleClass('is-active', !kind);
     if (!light) this.tip.toggle(!!this.getModel());
   }
 
@@ -355,8 +369,9 @@ export class MermaidModal extends Modal {
     return this.savedTemplates().some(x => x.src.trim() === cur);
   }
 
-  // 換成另一份內容（某一種圖表的範本，或自己存的範本）。目前的內容是自己改過的就先問一下，免得誤按把內容蓋掉
-  replaceWith(name: string, src: string): void {
+  // 換成另一份內容（某一種圖表的範本、自己存的範本，或「自由編寫」的空白）。目前的內容是自己改過的就先問一下，免得誤按把內容蓋掉。
+  // ask、yes：確認時問的話與按鈕上的字（沒有給就是換範本的問法）
+  replaceWith(name: string, src: string, ask?: string, yes?: string): void {
     const apply = () => {
       this.confirmEl.hide();
       this.setSource(src);
@@ -365,15 +380,21 @@ export class MermaidModal extends Modal {
     if (this.pristine()) { apply(); return; }
     this.confirmEl.empty();
     this.confirmEl.show();
-    this.confirmEl.createSpan({ text: t('要把目前的內容換成「{name}」的範本嗎？目前的內容會被取代。', { name }) });
-    const yes = this.confirmEl.createEl('button', { text: t('取代'), cls: 'mod-warning' });
+    this.confirmEl.createSpan({ text: ask || t('要把目前的內容換成「{name}」的範本嗎？目前的內容會被取代。', { name }) });
+    const go = this.confirmEl.createEl('button', { text: yes || t('取代'), cls: 'mod-warning' });
     const no = this.confirmEl.createEl('button', { text: t('取消') });
-    yes.addEventListener('click', apply);
+    go.addEventListener('click', apply);
     no.addEventListener('click', () => this.confirmEl.hide());
   }
 
   // 按了某一種圖表：換成那一種的範本（範本的文字也跟著介面語言）
   pickKind(k: DiagramKind): void { this.replaceWith(t(k.name), t(k.template)); }
+
+  // 按了「自由編寫」：清成空白，換到程式碼。已經是空白、或正在寫上方沒有的種類時，只換到程式碼，不動內容
+  pickFree(): void {
+    if (!detectKind(this.src)) { this.confirmEl.hide(); this.setTab('code'); return; }
+    this.replaceWith('', '', t('要清空目前的內容，改成自己寫程式碼嗎？'), t('清空'));
+  }
 
   // ---------------------------------------------------------- 我的範本
 

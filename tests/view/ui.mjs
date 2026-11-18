@@ -647,6 +647,66 @@ await fresh('第一段\n');
   plugin.settings.defaultDiagram = ''; plugin.settings.hiddenDiagramKinds = [];
 }
 
+// ======== 圖表編輯器：自由編寫（自己寫程式碼，不限有表單的種類） ========
+{
+  await fresh('第一段\n');
+  plugin.settings.diagramTemplates = [];
+  view.openMermaid();
+  let mm = mock.Modal.last;
+  const q = s => mm.contentEl.querySelector(s);
+  const qa = s => [...mm.contentEl.querySelectorAll(s)];
+  const active = () => qa('.wm-mmd-kind.is-active').map(b => b.dataset.kind || (b.classList.contains('wm-mmd-free') ? 'free' : 'mine')).join();
+  const code = v => { mm.ta.value = v; mm.ta.dispatchEvent(new Event('input', { bubbles: true })); };
+  const GIT = 'gitGraph\n    commit\n    branch develop\n    commit';
+  assert(q('.wm-mmd-free') && q('.wm-mmd-free').textContent === '自由編寫' && q('.wm-mmd-free').nextElementSibling === q('.wm-mmd-mine') && active() === 'flowchart', '種類的最後有「自由編寫」（在「我的範本」前面），一開始標的是流程圖');
+  // 還沒動過的範本：直接清成空白，換到程式碼
+  click(q('.wm-mmd-free'));
+  assert(mm.src === '' && mm.ta.value === '' && mm.tab === 'code' && active() === 'free' && q('.wm-mmd-confirm').style.display === 'none', '按「自由編寫」：清成空白、換到程式碼、標在「自由編寫」：' + JSON.stringify([mm.src, mm.tab, active()]));
+  assert(q('.wm-mmd-preview .wm-eq-empty') && mm.ta.placeholder.includes('gitGraph') && q('.wm-mmd-code .wm-mmd-hint'), '空白時預覽顯示提示，輸入框裡有例子，下面有說明');
+  // 寫一種沒有表單的圖表：一樣有預覽，可以插入
+  code(GIT);
+  mm.preview();
+  assert(q('.wm-mmd-preview').textContent.startsWith('RENDERED:```mermaid\ngitGraph') && active() === 'free' && q('.wm-mmd-tip').style.display === 'none', '沒有表單的種類（gitGraph）一樣畫預覽：' + JSON.stringify(q('.wm-mmd-preview').textContent.slice(0, 30)));
+  click(mm.tabVisual);
+  assert(q('.wm-mmd-blocked') && q('.wm-mmd-blocked').textContent.includes('還沒有表單'), '切到表單：說明這種圖表要用程式碼');
+  // 正在寫上方沒有的種類時再按一次：只回到程式碼，內容留著
+  click(q('.wm-mmd-free'));
+  assert(mm.src === GIT && mm.tab === 'code' && q('.wm-mmd-confirm').style.display === 'none', '已經在自由編寫：再按一次不會清掉內容');
+  // 打成有表單的種類：上方的標示跟著換
+  code('flowchart LR\n    A[自己寫的] --> B[結束]');
+  assert(active() === 'flowchart', '程式碼寫成流程圖：標示換到流程圖');
+  // 內容是自己寫的：清空前先問
+  click(q('.wm-mmd-free'));
+  assert(q('.wm-mmd-confirm').style.display !== 'none' && q('.wm-mmd-confirm').textContent.includes('清空') && mm.src.includes('自己寫的'), '內容改過：清空前先問，還沒清掉');
+  click([...q('.wm-mmd-confirm').querySelectorAll('button')][1]);
+  assert(q('.wm-mmd-confirm').style.display === 'none' && mm.src.includes('自己寫的'), '按取消：內容留著');
+  click(q('.wm-mmd-free'));
+  click(q('.wm-mmd-confirm button.mod-warning'));
+  assert(mm.src === '' && mm.tab === 'code' && active() === 'free', '確認之後才清空');
+  // 空白不能插入；寫了再插入：存成一般的 mermaid 程式碼區塊
+  click(mm.ok);
+  assert(mock.Modal.last === mm && mm.contentEl.querySelector('.wm-mmd-free') && !out().includes('mermaid'), '空白時按插入：不會插入空的圖表');
+  code(GIT);
+  click(mm.ok);
+  assert(out().includes('```mermaid\n' + GIT + '\n```'), '自由編寫的圖表插入成 mermaid 程式碼區塊：' + JSON.stringify(out()));
+  // 筆記裡原本就是沒有表單的種類：開在程式碼，標在「自由編寫」
+  await fresh('```mermaid\n' + GIT + '\n```\n\n後面\n');
+  view.pm.dom.querySelector('.wm-code-edit').click();
+  mm = mock.Modal.last;
+  assert(mm.tab === 'code' && active() === 'free' && mm.ta.value === GIT, '既有的 gitGraph：開在程式碼，標在「自由編寫」');
+  mm.close();
+  assert(out() === '```mermaid\n' + GIT + '\n```\n\n後面\n', '沒有修改就關閉：原文不變');
+  // 「我的範本」面板開著時，換種類或打程式碼不會把那顆按鈕的標示拿掉
+  await fresh('第一段\n');
+  view.openMermaid();
+  mm = mock.Modal.last;
+  click(q('.wm-mmd-mine'));
+  click(q('.wm-mmd-free'));
+  code(GIT);
+  assert(active() === 'free,mine', '面板開著：「我的範本」的標示還在：' + active());
+  mm.close();
+}
+
 // ======== 圖表編輯器：很長的圖表（表單分段、篩選、選單的選項按下去才產生）========
 {
   const N = 100;

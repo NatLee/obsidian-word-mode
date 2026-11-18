@@ -1169,5 +1169,11 @@ export default {
  "很長的圖表先收合": "Collapse very tall diagrams",
  "圖表或查詢的結果很高時，先收合成固定的高度，下面有「顯示完整內容」可以展開。關閉後一律顯示完整的內容。": "When a diagram or query result is very tall, it is collapsed to a fixed height with a Show all button below it. When off, results are always shown in full.",
  "顯示前面 {n} 列（前面還有 {rest} 列）": "Show {n} earlier rows ({rest} before this)",
- "縮到跟預覽一樣寬（看整張圖）": "Fit to the width of the preview (see the whole diagram)"
+ "縮到跟預覽一樣寬（看整張圖）": "Fit to the width of the preview (see the whole diagram)",
+ "自由編寫": "Freeform",
+ "自己寫 Mermaid 程式碼，不限上面列出的種類": "Write your own Mermaid code, not limited to the kinds listed here",
+ "要清空目前的內容，改成自己寫程式碼嗎？": "Clear the current diagram and write your own code instead?",
+ "清空": "Clear",
+ "在這裡寫 Mermaid 程式碼，例如：": "Write Mermaid code here, for example:",
+ "可以寫任何 Mermaid 語法，不限上面列出的種類。預覽會即時更新，寫錯的地方會顯示在預覽上方。比較新的圖表種類要 Obsidian 內建的 Mermaid 支援才畫得出來。": "Any Mermaid syntax works here, not only the kinds listed above. The preview updates as you type, and mistakes are shown above it. Newer diagram kinds are drawn only if the Mermaid version built into Obsidian supports them."
 };
