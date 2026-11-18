@@ -749,7 +749,6 @@
 .wm-settings-groups-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px 16px; margin-top: 10px; }
 .wm-settings-groups-col { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border: 1px solid var(--background-modifier-border); border-radius: 6px; }
 .wm-settings-tab { font-weight: 600; display: flex; align-items: center; gap: 6px; }
-.wm-settings-group { display: flex; align-items: center; gap: 6px; padding-left: 18px; font-size: var(--font-ui-small); color: var(--text-muted); }
 
 /* 方程式編輯器 v1.2 */
 .wm-eq-modal { width: min(760px, 94vw); max-width: none; }
@@ -979,6 +978,20 @@ audio.wm-embed-media { width: 100%; }
 .wm-settings-tabnames .wm-settings-groups-grid { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
 .wm-settings-tabname { display: flex; flex-direction: column; gap: 4px; font-size: var(--font-ui-small); color: var(--text-muted); }
 .wm-settings-tabname input { width: 100%; }
+/* 自訂分頁與按鈕群組：自己的外框佔滿整列（新舊兩種設定頁的格線容器欄寬不同），每個分頁一欄，每個群組一列 */
+.wm-settings-glist { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(270px, 100%), 1fr)); gap: 10px 16px; align-items: start; }
+.wm-settings-grow { display: flex; align-items: center; gap: 4px; }
+.wm-settings-grow input[type="checkbox"] { flex: 0 0 auto; }
+.wm-settings-grow input.wm-settings-gname { flex: 1 1 60px; min-width: 0; height: 28px; font-size: var(--font-ui-small); }
+.wm-settings-grow select.wm-settings-gtab { flex: 0 1 auto; min-width: 0; max-width: 96px; height: 28px; font-size: var(--font-ui-small); }
+.wm-settings-grow button.wm-settings-gmove { flex: 0 0 auto; width: 26px; height: 26px; padding: 0; background: transparent; box-shadow: none; border: none; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-muted); }
+.wm-settings-grow button.wm-settings-gmove:hover:not(:disabled) { background: var(--background-modifier-hover); color: var(--text-normal); }
+.wm-settings-grow button.wm-settings-gmove:disabled { opacity: .3; cursor: default; }
+.wm-settings-grow button.wm-settings-gmove svg { width: 14px; height: 14px; }
+.wm-settings-gempty { padding: 4px 0; font-size: var(--font-ui-small); color: var(--text-faint); }
+.wm-settings-greset { grid-column: 1 / -1; justify-self: start; }
+.is-mobile .wm-settings-grow input.wm-settings-gname, .is-mobile .wm-settings-grow select.wm-settings-gtab { height: 34px; }
+.is-mobile .wm-settings-grow button.wm-settings-gmove { width: 34px; height: 34px; }
 
 /* ---------- 功能區的高度固定：切換分頁、切換到 Markdown／閱讀模式時，下面的內容不會上下跳動 ---------- */
 .wm-layout-tabs.wm-btnstyle-auto .wm-toolbar { min-height: 53px; }

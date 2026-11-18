@@ -10,6 +10,7 @@ P.createEl = function (tag, o = {}) {
   if (o.cls) e.className = o.cls;
   if (o.text) e.textContent = o.text;
   if (o.type) e.type = o.type;
+  if (o.value != null) e.value = o.value;
   this.appendChild(e);
   return e;
 };

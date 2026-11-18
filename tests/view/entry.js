@@ -13,3 +13,5 @@ export { MarkdownBar } from '../../src/mdbar.js';
 export * as COLOR from '../../src/colorpicker.js';
 export { buildTemplateManager } from '../../src/templateui.js';
 export * as TEMPLATES from '../../src/templates.js';
+export * as TB from '../../src/toolbar.js';
+export { fillGroupSettings } from '../../src/groupsettings.js';

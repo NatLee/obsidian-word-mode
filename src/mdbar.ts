@@ -7,7 +7,7 @@ import { attachHint, hideHint } from './hints.js';
 import type { DemoName } from './hints.js';
 import { CODE_LANGUAGES } from './commands.js';
 import { el } from './dom.js';
-import { TABS, GROUPS, TAB_ICONS, tabName, fillTab } from './toolbar.js';
+import { TABS, TAB_ICONS, tabName, fillTab, groupLayout } from './toolbar.js';
 import type { TabId, GroupId, TabStyle, RibbonLayout, ButtonStyle } from './toolbar.js';
 import type { App, Editor, MarkdownViewModeType } from 'obsidian';
 import type WordModePlugin from './main.js';
@@ -170,14 +170,14 @@ export class MarkdownBar {
         this.tabBtns[id] = b;
       }
     } else all = el('div', 'wm-panel', bar);
-    // 群組的順序與所在分頁跟 Word 模式相同（同一份 GROUPS）
+    // 群組的名稱、順序與所在分頁跟 Word 模式相同（同一份 groupLayout，包含使用者自訂的部分）
     const G: Partial<Record<GroupId, HTMLDivElement | null>> = {};
-    for (const [id, tab, label] of GROUPS) {
+    for (const { id, tab, name } of groupLayout(S)) {
       const panel = tabs ? this.panels[tab] : all;
       if (!panel || this.hidden.has(id) || this.hiddenTabs.has(tab)) { G[id] = null; continue; }
       const g = el('div', 'wm-group wm-group-' + id, panel);
       G[id] = el('div', 'wm-group-body', g);
-      el('div', 'wm-group-name', g, t(label));
+      el('div', 'wm-group-name', g, name);
     }
     const E = (fn: (ed: Editor) => void) => () => { const ed = this.editor; if (ed) { fn(ed); ed.focus(); } };
     const toWord: MdButtonSpec = { icon: 'file-text', title: '切換到 Word 模式', keys: S.ctrlE !== false ? 'Mod+E' : null, label: 'Word 模式', big: true, viewMode: true, demo: 'markdown', desc: '用 Word 模式編輯這份筆記。', run: () => { void this.plugin.switchToWord(this.view.leaf); }, always: true };
