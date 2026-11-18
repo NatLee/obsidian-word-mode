@@ -18,7 +18,7 @@ Your files stay plain Markdown. When you edit a note, only the blocks you change
 
 ![The Insert tab of the ribbon toolbar (illustration)](docs/images/ribbon.en.svg)
 
-- **Ribbon toolbar** with Home, Insert, Review, and View tabs. The tab row can show text, icons, or both, collapse into a single menu button, and use your own tab names. The toolbar in Markdown and reading mode has the same layout, so nothing jumps when you switch modes. A setting hides the text on the three view mode buttons if you prefer icons only.
+- **Ribbon toolbar** with Home, Insert, Review, and View tabs. The tab row can show text, icons, or both, collapse into a single menu button, and use your own tab names. Button groups can be renamed, reordered, hidden, and moved to another tab. The toolbar in Markdown and reading mode has the same layout, so nothing jumps when you switch modes. A setting hides the text on the three view mode buttons if you prefer icons only.
 - **Font color and highlight**: a palette of standard colors with tints and shades, your recent custom colors, and a custom color you pick or type as a hex code. Highlights can use any color and opacity.
 - **Tables** you edit in place: add, remove, and move rows and columns, sort by a column, set alignment, and paste cells from a spreadsheet. The right-click menu groups these into short submenus.
 - **Properties** as a form: tags and links appear as chips that you can select to open, nested values appear as a tree, and you can change a property's type or rename it from its icon.
@@ -151,7 +151,8 @@ Obsidian APIs that aren't public are declared in one place, `src/obsidian-intern
 | `src/schema.ts` | Document model (ProseMirror schema). |
 | `src/editor.ts` | Editor state setup. |
 | `src/commands.ts` | Editing commands. Pure ProseMirror, no Obsidian dependency. |
-| `src/toolbar.ts` | Ribbon toolbar. |
+| `src/toolbar.ts` | Ribbon toolbar, and the order, tab, and name of each button group. |
+| `src/groupsettings.ts` | Settings list for customizing tabs and button groups. |
 | `src/colorpicker.ts` | Color panel for font color and highlight. |
 | `src/mdbar.ts` | Toolbar shown in Markdown and reading mode. |
 | `src/bubble.ts` | Floating toolbar for links and images. |
