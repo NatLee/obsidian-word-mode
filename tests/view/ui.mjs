@@ -180,6 +180,22 @@ await fresh('一段文字\n');
   flat.destroy();
   delete plugin.settings.ribbonLayout;
   view.toolbar.showTab('home');
+
+  // 工具列的高度記在 --wm-mdbar-height：樣式表用它把其他外掛貼在標題列正下方的東西（Pretty Properties 的按鈕列）往下移，不疊在工具列上
+  const observers = [];
+  globalThis.ResizeObserver = class { constructor(cb) { this.cb = cb; observers.push(this); } observe(target) { this.target = target; } disconnect() { this.off = true; } };
+  const sized = new B.MarkdownBar(plugin, md);
+  const height = () => containerEl.style.getPropertyValue('--wm-mdbar-height');
+  assert(height() === '0px' && observers.length === 1 && observers[0].target === sized.dom, 'Markdown 工具列：建立時記下高度，並跟著工具列的大小更新：' + height());
+  Object.defineProperty(sized.dom, 'offsetHeight', { value: 71, configurable: true });
+  observers[0].cb();
+  assert(height() === '71px', '工具列變高（換分頁、換行）時更新高度：' + height());
+  sized.destroy();
+  assert(height() === '' && observers[0].off, '移除工具列時清掉高度，其他外掛的東西回到原位');
+  delete globalThis.ResizeObserver;
+  const plain = new B.MarkdownBar(plugin, md);
+  assert(height() === '0px' && plain.sizer === null, '沒有 ResizeObserver 的環境：照常建立工具列');
+  plain.destroy();
 }
 
 // ======== 方程式編輯器：復原、拆掉結構、打指令 ========

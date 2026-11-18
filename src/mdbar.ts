@@ -87,6 +87,8 @@ export class MarkdownBar {
   declare tabNames: Partial<Record<TabId, string>>;
   declare tabSwitch: HTMLButtonElement | null;
   declare seen: Set<string>;
+  // 跟著工具列高度更新 --wm-mdbar-height；環境沒有 ResizeObserver 時是 null
+  declare sizer: ResizeObserver | null;
 
   constructor(plugin: WordModePlugin, view: MarkdownView) {
     this.plugin = plugin;
@@ -106,9 +108,23 @@ export class MarkdownBar {
     this.items = [];
     this.mode = null;
     this.render();
+    // 其他外掛會假設「標題列正下方就是筆記內容」，用 top: var(--header-height) 把自己的東西貼在那裡
+    // （Pretty Properties 的 BANNER／COVER／ICON 按鈕列），結果疊在這條工具列的分頁上。
+    // 把工具列的高度記在 containerEl 的 --wm-mdbar-height，樣式表用它把那些東西往下移。
+    // 高度會隨分頁、換行、視窗寬度改變，所以用 ResizeObserver 跟著更新；沒有 ResizeObserver 的環境只設一次
+    this.syncHeight();
+    this.sizer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => this.syncHeight());
+    if (this.sizer) this.sizer.observe(this.dom);
   }
 
-  destroy(): void { hideHint(); this.dom.remove(); }
+  syncHeight(): void { this.view.containerEl.style.setProperty('--wm-mdbar-height', this.dom.offsetHeight + 'px'); }
+
+  destroy(): void {
+    hideHint();
+    if (this.sizer) this.sizer.disconnect();
+    this.view.containerEl.style.removeProperty('--wm-mdbar-height');
+    this.dom.remove();
+  }
 
   get editor(): Editor { return this.view.editor; }
   isReading(): boolean { return this.view.getMode && this.view.getMode() === 'preview'; }

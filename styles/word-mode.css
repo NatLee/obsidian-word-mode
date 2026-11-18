@@ -717,6 +717,11 @@
 .wm-mdbar .wm-toolbar { border-bottom: none; }
 .is-mobile .wm-mdbar .wm-toolbar { flex-wrap: nowrap; overflow-x: auto; }
 .is-mobile .wm-mdbar button.wm-btn { min-width: 36px; height: 36px; }
+/* 其他外掛用 top: var(--header-height) 把東西貼在標題列正下方時，會疊在這條工具列上：往下移一條工具列的高度
+   （--wm-mdbar-height 由 mdbar.ts 設在 .workspace-leaf-content）。目前已知的是 Pretty Properties 的 BANNER／COVER／ICON 按鈕列；
+   第二條對應它自己「有橫幅時再往下 16px」的規則，選擇器比它多一層，所以不管樣式表載入的先後都會生效 */
+.wm-mdbar ~ .view-content > .pp-image-buttons-row { top: calc(var(--header-height) + var(--wm-mdbar-height, 0px)); }
+.wm-mdbar ~ .view-content.has-banner > .pp-image-buttons-row { top: calc(var(--header-height) + var(--wm-mdbar-height, 0px) + 16px); }
 
 /* 快速鍵表 */
 .wm-shortcuts-modal { width: min(920px, 94vw); max-width: none; }
