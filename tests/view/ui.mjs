@@ -251,9 +251,9 @@ await fresh('第一段\n');
   const kind = id => qa('.wm-mmd-kind').find(b => b.dataset.kind === id);
   const lists = () => qa('.wm-mmd-list').map(l => l.querySelectorAll('.wm-mmd-row').length).join();
   const setInput = (el, v) => { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); };
-  assert(qa('.wm-mmd-kind').length === 9 && kind('flowchart').classList.contains('is-active'), '上方列出九種圖表，標出目前的種類');
+  assert(qa('.wm-mmd-kind').length === 11 && kind('flowchart').classList.contains('is-active'), '上方列出十一種圖表，標出目前的種類');
   // 每一種範本都開在表單
-  for (const k of ['sequence', 'gantt', 'pie', 'state', 'class', 'mindmap', 'timeline', 'er', 'flowchart']) {
+  for (const k of ['sequence', 'gantt', 'pie', 'state', 'class', 'mindmap', 'timeline', 'er', 'journey', 'quadrant', 'flowchart']) {
     click(kind(k));
     assert(mm.tab === 'visual' && !q('.wm-mmd-blocked') && qa('.wm-mmd-row').length >= 2 && kind(k).classList.contains('is-active'), '範本可以用表單編輯：' + k + '（' + lists() + '）');
   }
@@ -399,6 +399,82 @@ await fresh('公式：\n');
   click(formulas[1]);
   assert(eq.ta.value === 'a^{2} + b^{2} = c^{2}' && qa('.wm-mv-sup').length === 3, '插入常用公式：變成可以直接改的格子：' + eq.ta.value);
   eq.close();
+}
+
+// ======== 圖表編輯器：外觀、節點底色、預覽縮放、旅程圖與象限圖 ========
+await fresh('第一段\n');
+{
+  view.openMermaid();
+  const mm = mock.Modal.last;
+  const q = s => mm.contentEl.querySelector(s);
+  const qa = s => [...mm.contentEl.querySelectorAll(s)];
+  const kind = id => qa('.wm-mmd-kind').find(b => b.dataset.kind === id);
+  const setInput = (el, v) => { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); };
+  // 外觀：每種圖表的設定列都有，寫成最前面的一行
+  const theme = q('.wm-mmd-head .wm-mmd-f-theme');
+  assert(theme && theme.options.length === 6 && theme.value === '', '設定列有「外觀」，預設跟著 Obsidian');
+  theme.value = 'forest'; theme.dispatchEvent(new Event('change'));
+  assert(mm.src.startsWith('%%{init: {"theme": "forest"}}%%\nflowchart TD\n'), '選外觀：寫在最前面：' + JSON.stringify(mm.src.split('\n')[0]));
+  mm.setTab('code'); mm.setTab('visual');
+  assert(q('.wm-mmd-head .wm-mmd-f-theme').value === 'forest' && !q('.wm-mmd-blocked'), '有外觀設定的圖仍然開在表單');
+  q('.wm-mmd-head .wm-mmd-f-theme').value = ''; q('.wm-mmd-head .wm-mmd-f-theme').dispatchEvent(new Event('change'));
+  assert(mm.src.startsWith('flowchart TD\n'), '改回跟著 Obsidian：拿掉那一行');
+  // 節點的底色：按鈕展開色塊
+  const colorBtn = q('.wm-mmd-row .wm-mmd-color');
+  assert(colorBtn && colorBtn.querySelector('.wm-mmd-color-dot').classList.contains('is-none') && !q('.wm-mmd-swatches'), '步驟有底色按鈕，預設沒有顏色');
+  click(colorBtn);
+  const sw = qa('.wm-mmd-row .wm-mmd-swatches .wm-mmd-swatch');
+  assert(sw.length === 9 && sw[0].classList.contains('is-active') && sw[4].getAttribute('aria-label') === '綠色', '展開色塊：預設加八種顏色');
+  click(sw[4]);
+  assert(mm.src.endsWith('    style A fill:#d3f9d8,stroke:#839a86,color:#1f2328') && !q('.wm-mmd-swatches') && !q('.wm-mmd-row .wm-mmd-color-dot').classList.contains('is-none'), '選底色：寫成 style 行，色塊收起來：' + JSON.stringify(mm.src.split('\n').pop()));
+  // 在圖上選底色
+  const NS = 'http://www.w3.org/2000/svg';
+  mm.prev.replaceChildren();
+  const svg = document.createElementNS(NS, 'svg');
+  const g = document.createElementNS(NS, 'g'); g.setAttribute('class', 'node'); g.id = 'flowchart-B-1';
+  const label = document.createElementNS(NS, 'text'); label.textContent = '結束';
+  g.appendChild(label); svg.appendChild(g); mm.prev.appendChild(svg);
+  click(label);
+  const inlineSw = qa('.wm-mmd-inline .wm-mmd-swatch');
+  assert(inlineSw.length === 9, '圖上的輸入框也有色塊');
+  click(inlineSw[1]);
+  assert(!q('.wm-mmd-inline') && mm.src.includes('    style B fill:#ffe3e3,stroke:#9e8d8d,color:#1f2328'), '在圖上選底色：' + JSON.stringify(mm.src));
+  click(q('.wm-mmd-row .wm-mmd-color'));
+  click(qa('.wm-mmd-row .wm-mmd-swatches .wm-mmd-swatch')[0]);
+  assert(!mm.src.includes('style A'), '選「預設的色彩」：拿掉那一行 style');
+  // 預覽縮放
+  const zoom = qa('.wm-mmd-zoombtn');
+  click(zoom[1]); click(zoom[1]);
+  assert(mm.zoom === 1.5 && q('.wm-mmd-zoomlabel').textContent === '150%', '放大預覽：' + q('.wm-mmd-zoomlabel').textContent);
+  mm.preview();
+  assert(q('.wm-mmd-canvas').style.zoom === '1.5' && q('.wm-mmd-canvas').textContent.startsWith('RENDERED:'), '重畫之後保留縮放倍率');
+  for (let i = 0; i < 9; i++) click(zoom[0]);
+  assert(mm.zoom === 0.5, '最小縮到 50%');
+  click(q('.wm-mmd-zoomlabel'));
+  assert(mm.zoom === 1 && q('.wm-mmd-canvas').style.zoom === '1', '按百分比恢復 100%');
+  // 旅程圖
+  click(kind('journey'));
+  click(q('.wm-mmd-confirm button.mod-warning'));
+  assert(mm.src.startsWith('journey\n    title 我的一天') && qa('.wm-mmd-row').length === 3 && q('.wm-mmd-f-score').value === '5', '旅程圖的範本開在表單');
+  q('.wm-mmd-f-score').value = '1'; q('.wm-mmd-f-score').dispatchEvent(new Event('change'));
+  setInput(qa('.wm-mmd-f-actors')[0], '我, 主管');
+  assert(mm.src.includes('      泡茶: 1: 我, 主管'), '旅程圖：改分數與參與的人：' + JSON.stringify(mm.src));
+  // 象限圖：座標軸與象限在設定列，圖上的象限名稱可以直接改
+  click(kind('quadrant'));
+  click(q('.wm-mmd-confirm button.mod-warning'));
+  assert(qa('.wm-mmd-head input').length === 9 && q('.wm-mmd-head .wm-mmd-f-q1').value === '馬上做' && qa('.wm-mmd-row').length === 2, '象限圖的範本開在表單：座標軸、象限、項目');
+  setInput(qa('.wm-mmd-f-x')[1], '0.25');
+  assert(mm.src.endsWith('    "整理信箱": [0.25, 0.2]'), '象限圖：改項目的位置：' + JSON.stringify(mm.src.split('\n').pop()));
+  mm.prev.replaceChildren();
+  const svg2 = document.createElementNS(NS, 'svg');
+  const quad = document.createElementNS(NS, 'text'); quad.textContent = '馬上做';
+  svg2.appendChild(quad); mm.prev.appendChild(svg2);
+  click(quad);
+  assert(q('.wm-mmd-inline input').value === '馬上做' && !q('.wm-mmd-inline .is-danger'), '點圖上的象限名稱：可以改，沒有刪除（它是設定，不是清單的一列）');
+  q('.wm-mmd-inline input').value = '現在做';
+  q('.wm-mmd-inline input').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+  assert(mm.src.includes('    quadrant-1 "現在做"') && q('.wm-mmd-head .wm-mmd-f-q1').value === '現在做', '在圖上改象限名稱：' + JSON.stringify(mm.src));
+  mm.close();
 }
 
 finish();

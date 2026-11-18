@@ -194,4 +194,6 @@ export const MERMAID_TEMPLATES: [I18nKey, I18nKey][] = [
   ['心智圖', 'mindmap\n  root((主題))\n    分支一\n      細項\n    分支二'],
   ['時間軸', 'timeline\n    title 里程碑\n    2025 : 啟動\n    2026 : 上線'],
   ['ER 圖', 'erDiagram\n    "客戶" ||--o{ "訂單" : "下單"\n    "訂單" ||--|{ "明細" : "包含"'],
+  ['旅程圖', 'journey\n    title 我的一天\n    section 上午\n      泡茶: 5: 我\n      開會: 2: 我, 同事\n    section 下午\n      寫報告: 3: 我'],
+  ['象限圖', 'quadrantChart\n    title 工作的優先順序\n    x-axis "不急" --> "很急"\n    y-axis "不重要" --> "很重要"\n    quadrant-1 "馬上做"\n    quadrant-2 "排時間做"\n    quadrant-3 "有空再做"\n    quadrant-4 "交給別人"\n    "寫報告": [0.8, 0.9]\n    "整理信箱": [0.3, 0.2]'],
 ];
