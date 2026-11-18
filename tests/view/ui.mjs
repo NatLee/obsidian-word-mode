@@ -279,6 +279,33 @@ await fresh('一段文字\n');
   view.toolbar.showTab('home');
 }
 
+// ======== Markdown／閱讀模式的工具列：可以只在其中一種模式顯示 ========
+{
+  const { mdToolbarMode, wantsMdBar } = B;
+  assert(mdToolbarMode(true) === 'both' && mdToolbarMode(undefined) === 'both' && mdToolbarMode(false) === 'none' && mdToolbarMode('preview') === 'preview' && mdToolbarMode('亂寫') === 'both',
+    '舊版的開關設定換成新的值：開＝都顯示、關＝都隱藏；不認得的值當成都顯示');
+  const table = ['both', 'source', 'preview', 'none'].map(m => m + ':' + wantsMdBar(m, 'source') + ',' + wantsMdBar(m, 'preview')).join(' ');
+  assert(table === 'both:true,true source:true,false preview:false,true none:false,false', '四種設定在 Markdown 編輯／閱讀模式要不要顯示工具列：' + table);
+  assert(wantsMdBar(true, 'source') && wantsMdBar(true, 'preview') && !wantsMdBar(false, 'source') && wantsMdBar('source', undefined), '還沒轉換的舊值照舊的意思；不知道模式時當成編輯');
+
+  // 用工具列自己的按鈕切換模式：切完會請外掛重新決定哪些檢視要有工具列（這裡的替身照設定收掉它）
+  const containerEl = document.createElement('div');
+  const contentEl = containerEl.createDiv('view-content');
+  document.body.appendChild(containerEl);
+  const md = { containerEl, contentEl, leaf: {}, mode: 'source', getMode() { return this.mode; }, editor: { focus() {} }, getState() { return {}; }, async setState(st) { this.mode = st.mode; } };
+  plugin.settings.mdToolbar = 'source';
+  const bar = new B.MarkdownBar(plugin, md);
+  let synced = 0;
+  plugin.syncMdBars = () => { synced++; if (!wantsMdBar(plugin.settings.mdToolbar, md.getMode())) bar.destroy(); };
+  await bar.setMode('source');
+  assert(synced === 1 && bar.dom.isConnected && bar.mode === 'source', '設定「只在 Markdown 編輯顯示」：留在編輯模式時工具列還在');
+  await bar.setMode('preview');
+  assert(synced === 2 && md.mode === 'preview' && !bar.dom.isConnected && containerEl.style.getPropertyValue('--wm-mdbar-height') === '', '切到閱讀模式後工具列收起來');
+  plugin.syncMdBars = () => {};
+  delete plugin.settings.mdToolbar;
+  containerEl.remove();
+}
+
 // ======== 方程式編輯器：復原、拆掉結構、打指令 ========
 await fresh('公式：\n');
 {

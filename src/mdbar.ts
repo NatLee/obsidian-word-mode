@@ -68,6 +68,23 @@ function linePrefix(editor: Editor, re: RegExp, prefix: string): void {
 
 const HEAD_RE = /^#{1,6}\s+/;
 
+// 設定「Markdown／閱讀模式的工具列」：兩種模式都顯示、只在 Markdown 編輯顯示、只在閱讀模式顯示、都隱藏
+export type MdToolbarMode = 'both' | 'source' | 'preview' | 'none';
+
+// 把設定檔裡的值換成上面四種之一。1.9.0 以前這個設定是開關：true＝都顯示、false＝都隱藏；
+// 其他不認得的值（沒設定過、手改的）當成預設的「都顯示」
+export function mdToolbarMode(value: unknown): MdToolbarMode {
+  if (value === false) return 'none';
+  return value === 'source' || value === 'preview' || value === 'none' ? value : 'both';
+}
+
+// 這個檢視目前的模式（viewMode：MarkdownView.getMode() 的結果）要不要顯示工具列
+export function wantsMdBar(value: unknown, viewMode: string | null | undefined): boolean {
+  const mode = mdToolbarMode(value);
+  if (mode === 'both' || mode === 'none') return mode === 'both';
+  return mode === (viewMode === 'preview' ? 'preview' : 'source');
+}
+
 export class MarkdownBar {
   declare plugin: WordModePlugin;
   declare view: MarkdownView;
@@ -317,6 +334,10 @@ export class MarkdownBar {
     st.mode = mode;
     if (mode === 'source') st.source = false;
     await this.view.setState(st, { history: false });
+    // 設定成只在其中一種模式顯示時，切換模式後這條工具列可能要收起來（或另一個檢視的要出現）。
+    // 不等 Obsidian 的 layout-change：直接用 setState 切換模式不一定會觸發它
+    this.plugin.syncMdBars();
+    if (!this.dom.isConnected) return;
     this.update();
     if (mode === 'source' && this.editor) this.editor.focus();
   }

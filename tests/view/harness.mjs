@@ -59,7 +59,7 @@ export async function makeEnv(initialFiles = {}, settings = {}) {
     app, statusCalls: 0, history: new Map(),
     storeHistory(p, e) { this.history.set(p, Object.assign({ at: Date.now() }, e)); },
     takeHistory(p) { const e = this.history.get(p); this.history.delete(p); return e || null; },
-    setFullWidth(on) { this.settings.fullWidth = on; }, outlineChanged() {}, outlineOpen() { return false; }, toggleOutline() {},
+    setFullWidth(on) { this.settings.fullWidth = on; }, outlineChanged() {}, outlineOpen() { return false; }, toggleOutline() {}, syncMdBars() {},
     saveSettings() {}, openSettings() {}, updateStatus() {}, setZoom(z) { this.settings.zoom = z; },
     settings: Object.assign({ fullWidth: false, zoom: 100 }, settings),
     converter: new B.MarkdownConverter(), switched: 0, switchToMarkdown() { this.switched++; },

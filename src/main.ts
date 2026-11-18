@@ -6,7 +6,8 @@ import { autoformatOptions } from './autoformat.js';
 import { MarkdownConverter } from './markdown.js';
 import { WordModeView, VIEW_TYPE } from './view.js';
 import { OutlineView, OUTLINE_TYPE } from './outline.js';
-import { MarkdownBar } from './mdbar.js';
+import { MarkdownBar, mdToolbarMode, wantsMdBar } from './mdbar.js';
+import type { MdToolbarMode } from './mdbar.js';
 import { TABS } from './toolbar.js';
 import { fillGroupSettings } from './groupsettings.js';
 import { buildSettingNav, showSettingSection, trackSettingPadding } from './settingsnav.js';
@@ -83,7 +84,8 @@ export interface Settings {
   groupTabs: Partial<Record<GroupId, TabId>>;
   groupOrder: GroupId[];
   richHints: boolean;
-  mdToolbar: boolean;
+  // Markdown／閱讀模式要不要顯示工具列：都顯示、只在其中一種模式顯示、都隱藏（舊版存的是 true／false，載入時轉換）
+  mdToolbar: MdToolbarMode;
   mdStatusBar: boolean;
   outlinePlace: OutlinePlace;
   // 分頁列的樣式（文字、圖示、圖示加文字、收成選單）與自訂的分頁名稱（分頁 id → 名稱）
@@ -188,7 +190,7 @@ const DEFAULTS: Settings = {
   tabStyle: 'text',
   tabLabels: {},
   richHints: false,
-  mdToolbar: true,
+  mdToolbar: 'both',
   mdStatusBar: true,
   outlinePlace: 'split',
   // 右鍵選單與方程式
@@ -234,6 +236,8 @@ export default class WordModePlugin extends Plugin {
     delete this.settings.ribbonLabels;
     if (this.settings.outlineSidebar === false) this.settings.outlinePlace = 'popup';
     delete this.settings.outlineSidebar;
+    // 1.9.0 以前是開關（true／false），換成四選一的值，設定頁的選單才會停在對的選項
+    this.settings.mdToolbar = mdToolbarMode(this.settings.mdToolbar);
     this.settings.mathTemplates = cleanTemplates(this.settings.mathTemplates);
     this.settings.diagramTemplates = cleanTemplates(this.settings.diagramTemplates);
     if (!Array.isArray(this.settings.hiddenDiagramKinds)) this.settings.hiddenDiagramKinds = [];
@@ -407,16 +411,17 @@ export default class WordModePlugin extends Plugin {
   }
 
   // ---- Markdown／閱讀模式的工具列
+  // 每個 Markdown 檢視依設定與它目前的模式（編輯／閱讀）決定要不要有工具列；切換模式、開關分頁、改設定後都會呼叫
   syncMdBars(): void {
-    const want = this.settings.mdToolbar !== false;
-    const live = new Set();
+    const wanted = new Set<MarkdownView>();
     for (const leaf of this.app.workspace.getLeavesOfType('markdown')) {
       const v = leaf.view;
       if (!(v instanceof MarkdownView) || !v.file) continue;
-      live.add(v);
-      if (want && !this.mdBars.has(v)) this.mdBars.set(v, new MarkdownBar(this, v));
+      if (!wantsMdBar(this.settings.mdToolbar, v.getMode())) continue;
+      wanted.add(v);
+      if (!this.mdBars.has(v)) this.mdBars.set(v, new MarkdownBar(this, v));
     }
-    for (const [v, bar] of this.mdBars) if (!want || !live.has(v)) { bar.destroy(); this.mdBars.delete(v); }
+    for (const [v, bar] of this.mdBars) if (!wanted.has(v)) { bar.destroy(); this.mdBars.delete(v); }
   }
 
   // 設定改變：重建所有工具列
@@ -799,8 +804,10 @@ function settingSections(settingTab: WordModeSettings): SettingSection[] {
       row(t('工具列位置'), t('「自動」在手機上放在畫面下方（靠近鍵盤，單手好按），平板與電腦放在上方。'),
         s => s.addDropdown(d => d.addOptions({ auto: t('自動'), top: t('上方'), bottom: t('下方') })
           .setValue(S.toolbarPosition || 'auto').onChange(async v => { S.toolbarPosition = v as ToolbarPosition; await rebuild(); }))),
-      toggleRow(t('切換到 Markdown／閱讀模式時保留工具列'),
-        t('在 Obsidian 的 Markdown 編輯與閱讀畫面上方也顯示工具列（粗體、標題、清單、連結、尋找、大綱等）。閱讀模式只能檢視，編輯按鈕會停用。'), 'mdToolbar', () => p.refreshToolbars()),
+      row(t('Markdown／閱讀模式的工具列'),
+        t('切換到 Obsidian 的 Markdown 編輯或閱讀模式時，要不要在畫面上方顯示工具列（粗體、標題、清單、連結、尋找、大綱等）。可以只在其中一種模式顯示；閱讀模式只能檢視，編輯按鈕會停用。隱藏時可以用狀態列的按鈕（下一項設定）切回 Word 模式。'),
+        s => s.addDropdown(d => d.addOptions({ both: t('兩種模式都顯示'), source: t('只在 Markdown 編輯顯示'), preview: t('只在閱讀模式顯示'), none: t('都隱藏') })
+          .setValue(mdToolbarMode(S.mdToolbar)).onChange(async v => { S.mdToolbar = mdToolbarMode(v); await rebuild(); }))),
       toggleRow(t('切換到 Markdown／閱讀模式時，狀態列保留檢視切換按鈕'),
         t('在 Obsidian 右下角的狀態列顯示 Word 模式、Markdown、閱讀三個按鈕（只有圖示），位置與 Word 模式時相同，方便切換回來。'), 'mdStatusBar', () => p.updateStatus(null)),
       row(t('大綱的位置'), t('「另開一欄」在筆記左邊再展開一個大綱欄（像第二個側邊欄，不會蓋掉檔案總管）；也可以放進 Obsidian 的左或右側邊欄，或用小型下拉選單。'),
