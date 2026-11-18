@@ -4,6 +4,7 @@
 import { MarkdownView, setIcon, Menu, Platform } from 'obsidian';
 import { t, key } from './i18n.js';
 import { attachHint, hideHint } from './hints.js';
+import type { DemoName } from './hints.js';
 import { CODE_LANGUAGES } from './commands.js';
 import { el } from './dom.js';
 import { TABS, GROUPS, TAB_ICONS, tabName, fillTab } from './toolbar.js';
@@ -20,7 +21,7 @@ interface MdButtonSpec {
   keys?: string | null;
   label?: I18nKey;
   desc?: I18nKey;
-  demo?: string;
+  demo?: DemoName;
   big?: boolean;
   // 檢視模式的按鈕：設定可以讓這三個只顯示圖示（跟 toolbar.ts 相同）
   viewMode?: boolean;

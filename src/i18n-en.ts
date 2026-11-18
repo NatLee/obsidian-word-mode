@@ -1010,6 +1010,7 @@ export default {
  "新工作": "New task",
  "在圖例顯示數值": "Show values in the legend",
  "＋ 新增項目": "+ Add item",
+ "結束": "End",
  "數值填多少都可以，圖上會自動換算成百分比。": "Enter any numbers. The chart converts them to percentages.",
  "項目名稱": "Item name",
  "數值": "Value",

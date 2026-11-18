@@ -840,6 +840,12 @@ const italB = view.toolbar.items.find(i => i.title.startsWith('斜體')).dom;
 italB.dispatchEvent(new MouseEvent('mouseenter'));
 await new Promise(r => setTimeout(r, 150));
 assert(document.querySelectorAll('.wm-hint-card').length === 1 && document.querySelector('.wm-hint-card .wm-anim-italic'), '移到下一個按鈕：同一張提示卡直接換內容，不會疊在一起');
+// 「插入圖表」「插入註腳」以前指定了不存在的動畫名稱，提示卡只有文字
+for (const [title, sel, n] of [['插入圖表', '.wm-hint-demo .wm-demo-flow .wm-demo-node', 3], ['插入註腳', '.wm-hint-demo .wm-demo-fnref', 1]]) {
+  view.toolbar.items.find(i => i.title.startsWith(title)).dom.dispatchEvent(new MouseEvent('mouseenter'));
+  await new Promise(r => setTimeout(r, 150));
+  assert(document.querySelectorAll('.wm-hint-card.is-shown ' + sel).length === n, '詳細提示：「' + title + '」也有動畫示意');
+}
 boldB.dispatchEvent(new MouseEvent('mousedown'));
 plugin.settings.richHints = false;
 view.buildToolbar();

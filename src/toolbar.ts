@@ -6,6 +6,7 @@ import { schema } from './schema.js';
 import { t, key } from './i18n.js';
 import { marksOn } from './marks.js';
 import { attachHint, hideHint } from './hints.js';
+import type { DemoName } from './hints.js';
 import { el, keepFocus } from './dom.js';
 import { buildColorPanel, TEXT_COLORS, SHADING } from './colorpicker.js';
 import type { ColorKind } from './colorpicker.js';
@@ -135,7 +136,7 @@ export interface ButtonSpec {
   // 詳細提示的說明
   desc?: I18nKey;
   // 詳細提示的示意動畫名稱（hints.ts 的 DEMOS）
-  demo?: string;
+  demo?: DemoName;
   // 大按鈕：按鈕樣式為「自動」時也顯示文字
   big?: boolean;
   // 檢視模式的按鈕（Word 模式／Markdown／閱讀）：設定可以讓這三個只顯示圖示
@@ -486,7 +487,7 @@ export class Toolbar {
     this.styleBtn = this.button(g, { title: '段落樣式', text: t('內文'), cls: 'wm-style-btn', desc: '把段落改成標題 1～6、內文或程式碼。', demo: 'style', onClick: (e, b) => this.openStylePopup(b) });
 
     g = G.font;
-    const mk = (icon: string, title: I18nKey, keys: string | null, cmd: Command, type: MarkType, text: string, demo: string, desc: I18nKey) => this.button(g, { icon, title, keys, cmd, text, demo, desc, active: s => C.markActive(s, type), ...NO_CODE });
+    const mk = (icon: string, title: I18nKey, keys: string | null, cmd: Command, type: MarkType, text: string, demo: DemoName, desc: I18nKey) => this.button(g, { icon, title, keys, cmd, text, demo, desc, active: s => C.markActive(s, type), ...NO_CODE });
     mk('bold', '粗體', 'Mod+B', C.toggleBold, M.strong, 'B', 'bold', '把選取的文字（或游標所在的詞）變粗體。');
     mk('italic', '斜體', 'Mod+I', C.toggleItalic, M.em, 'I', 'italic', '把文字變斜體。');
     mk('underline', '底線', 'Mod+U', C.toggleUnderline, M.underline, 'U', 'underline', '在文字下方加底線。');
