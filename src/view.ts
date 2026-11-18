@@ -268,7 +268,19 @@ export class WordModeView extends TextFileView {
       isFullWidth: () => !!this.plugin.settings.fullWidth,
       findState: () => ({ open: !!(this.findBar && this.findBar.isOpen), replace: !!(this.findBar && this.findBar.replacing) }),
       outlineOpen: () => this.plugin.outlineOpen(),
-      rememberColor: c => { this.plugin.settings.lastFontColor = c; void this.plugin.saveSettings(); },
+      rememberColor: (kind, c, custom) => {
+        const P = this.plugin.settings;
+        // 自訂色彩另外記進「最近使用」（最新的在前，不重複）
+        const recent = (list: readonly string[] | undefined, max: number) => [c!, ...(list || []).filter(x => x.toLowerCase() !== c!.toLowerCase())].slice(0, max);
+        if (kind === 'font') {
+          if (c) P.lastFontColor = c;
+          if (c && custom) P.recentFontColors = recent(P.recentFontColors, 10);
+        } else {
+          P.lastHighlight = c || '';
+          if (c && custom) P.recentHighlights = recent(P.recentHighlights, 8);
+        }
+        void this.plugin.saveSettings();
+      },
       formatDate: f => (window.moment ? window.moment().format(f) : new Date().toLocaleString()),
       dialogs: {
         link: () => this.openLinkDialog(),

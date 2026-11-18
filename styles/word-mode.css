@@ -71,10 +71,6 @@
   border-radius: 6px;
   padding: 8px;
 }
-.wm-color-auto { width: 100%; margin-bottom: 6px; }
-.wm-color-grid { display: grid; grid-template-columns: repeat(5, 22px); gap: 4px; }
-.wm-color-swatch { width: 22px; height: 22px; padding: 0; border: 1px solid var(--background-modifier-border); border-radius: 3px; cursor: pointer; }
-.wm-color-more { display: block; margin-top: 6px; font-size: var(--font-ui-smaller); color: var(--text-muted); }
 .wm-table-label { font-size: var(--font-ui-smaller); margin-bottom: 6px; color: var(--text-muted); }
 .wm-table-grid { display: grid; grid-template-columns: repeat(8, 18px); gap: 2px; }
 .wm-table-cell { width: 18px; height: 18px; border: 1px solid var(--background-modifier-border); border-radius: 2px; cursor: pointer; }
@@ -248,8 +244,6 @@
 .wm-toolbar-bottom .wm-tabs { border-bottom: none; border-top: 1px solid var(--background-modifier-border); }
 .wm-mobile .wm-table-cell { width: 26px; height: 26px; }
 .wm-mobile .wm-table-grid { grid-template-columns: repeat(8, 26px); gap: 3px; }
-.wm-mobile .wm-color-grid { grid-template-columns: repeat(5, 32px); gap: 6px; }
-.wm-mobile .wm-color-swatch { width: 32px; height: 32px; }
 .wm-mobile .wm-bubble { flex-wrap: wrap; white-space: normal; row-gap: 4px; max-width: calc(100% - 8px); }
 .wm-mobile .wm-bubble button.wm-bubble-btn, .wm-mobile .wm-bubble button.wm-bubble-size { height: 36px; min-width: 36px; }
 .wm-mobile .wm-bubble-url { max-width: 60vw; }
@@ -341,9 +335,6 @@
 .wm-toolbar button.wm-btn.wm-split-arrow svg { width: 12px; height: 12px; }
 .wm-popup-title { font-size: var(--font-ui-smaller); color: var(--text-muted); margin-bottom: 6px; }
 .wm-popup-note { font-size: var(--font-ui-smaller); color: var(--text-faint); margin-top: 6px; max-width: 220px; white-space: normal; }
-.wm-hl-popup .wm-color-grid { grid-template-columns: repeat(5, 24px); }
-.wm-hl-popup .wm-color-swatch { width: 24px; height: 24px; }
-.wm-hl-popup .wm-color-auto { margin-top: 6px; margin-bottom: 0; }
 
 /* 下方狀態列 */
 .wm-bottombar { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; padding: 2px 10px; min-height: 28px; border-top: 1px solid var(--background-modifier-border); background: var(--background-secondary); font-size: var(--font-ui-smaller); color: var(--text-muted); user-select: none; }
@@ -545,7 +536,6 @@
 .wm-layout-single .wm-tabs-quick, .wm-layout-wrap .wm-tabs-quick { margin-left: auto; border-left: 1px solid var(--background-modifier-border); padding-left: 6px; }
 .wm-layout-single .wm-tabs-quick button.wm-btn, .wm-layout-wrap .wm-tabs-quick button.wm-btn { height: 28px; }
 .wm-tabs-quick button.wm-btn.is-active { color: var(--text-accent); border-color: var(--interactive-accent); }
-.wm-color-swatch.is-active { outline: 2px solid var(--interactive-accent); outline-offset: 1px; }
 .wm-style-popup button.wm-style-item.is-disabled { opacity: .4; cursor: default; }
 .wm-btnstyle-label .wm-btn.has-label { min-height: 40px; }
 .wm-btnstyle-label.wm-btnstyle-label.wm-btnstyle-label .wm-btn.has-label svg { width: 16px; height: 16px; }
@@ -955,3 +945,31 @@ audio.wm-embed-media { width: 100%; }
 /* ---------- 狀態列的字數 ---------- */
 .wm-statusbar .wm-bb-count { color: var(--text-muted); white-space: nowrap; }
 .wm-statusbar .wm-bb-count:hover { color: var(--text-normal); }
+
+/* ---------- 色彩面板（字型色彩、醒目提示） ---------- */
+.wm-popup.wm-cp { width: 276px; padding: 12px; border-radius: 10px; box-shadow: var(--shadow-l, var(--shadow-s)); }
+.wm-cp-title { font-size: var(--font-ui-small); font-weight: 600; margin-bottom: 8px; }
+.wm-cp-label { font-size: var(--font-ui-smaller); color: var(--text-muted); margin: 10px 0 5px; }
+.wm-popup button.wm-cp-clear { display: flex; align-items: center; justify-content: flex-start; gap: 8px; width: 100%; height: 30px; margin: 0; padding: 0 8px; background: transparent; box-shadow: none; border: 1px solid var(--background-modifier-border); border-radius: 6px; color: var(--text-normal); font-size: var(--font-ui-small); cursor: pointer; }
+.wm-popup button.wm-cp-clear:hover { background: var(--background-modifier-hover); border-color: var(--background-modifier-border-hover); }
+.wm-cp-clear-chip { flex: 0 0 auto; width: 18px; height: 18px; border-radius: 4px; border: 1px solid var(--background-modifier-border-hover); background: linear-gradient(to top right, transparent calc(50% - 1px), var(--text-error, #e5484d) calc(50% - 1px), var(--text-error, #e5484d) calc(50% + 1px), transparent calc(50% + 1px)); }
+.wm-cp-clear-chip.is-auto { display: inline-flex; align-items: center; justify-content: center; background: none; font-size: 12px; font-weight: 700; line-height: 1; border-bottom: 3px solid var(--text-normal); }
+.wm-cp .wm-cp-grid { display: grid; grid-template-columns: repeat(var(--wm-cp-cols, 10), 1fr); gap: 4px; }
+.wm-cp .wm-cp-grid.is-tints { gap: 2px 4px; }
+.wm-popup button.wm-cp-swatch { position: relative; width: auto; height: auto; aspect-ratio: 1; min-width: 0; padding: 0; background: var(--wm-cp-color); box-shadow: none; border: 1px solid rgba(128, 128, 128, .35); border-radius: 5px; cursor: pointer; transition: transform .08s ease-out, box-shadow .08s ease-out; }
+.wm-popup button.wm-cp-swatch:hover { transform: scale(1.18); z-index: 1; box-shadow: 0 0 0 2px var(--background-primary), 0 0 0 3px var(--text-muted); }
+.wm-popup button.wm-cp-swatch.is-active { outline: none; box-shadow: 0 0 0 2px var(--background-primary), 0 0 0 4px var(--interactive-accent); }
+.wm-hl-popup.wm-cp .wm-cp-grid { gap: 6px; }
+.wm-hl-popup.wm-cp button.wm-cp-swatch { border-radius: 50%; }
+.wm-cp-custom { display: flex; align-items: center; gap: 6px; }
+.wm-cp input.wm-cp-well { flex: 0 0 auto; width: 32px; height: 30px; padding: 0; border: 1px solid var(--background-modifier-border); border-radius: 6px; background: none; cursor: pointer; }
+.wm-cp input.wm-cp-hex { flex: 1 1 0; min-width: 0; height: 30px; padding: 0 8px; font-family: var(--font-monospace); font-size: var(--font-ui-small); }
+.wm-cp input.wm-cp-hex.is-invalid { border-color: var(--text-error, #e5484d); }
+.wm-cp-preview { flex: 0 0 auto; padding: 3px 7px; border-radius: 4px; font-size: var(--font-ui-small); font-weight: 600; white-space: nowrap; }
+.wm-popup button.wm-cp-apply { flex: 0 0 auto; height: 30px; padding: 0 12px; }
+.wm-cp-alpha { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: var(--font-ui-smaller); color: var(--text-muted); }
+.wm-cp-alpha .wm-cp-range { flex: 1 1 auto; min-width: 0; }
+.wm-cp-alpha-value { min-width: 3em; text-align: right; font-variant-numeric: tabular-nums; }
+.wm-cp .wm-popup-note { max-width: none; }
+.wm-popup.wm-cp.is-mobile { width: min(320px, calc(100vw - 8px)); }
+.wm-popup.wm-cp.is-mobile .wm-cp-grid { gap: 6px; }

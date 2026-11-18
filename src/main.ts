@@ -73,6 +73,11 @@ export interface Settings {
   outlinePlace: OutlinePlace;
   // 上次選的字型色彩（CSS 色碼）
   lastFontColor?: string;
+  // 上次選的醒目提示色彩（CSS 色碼）；空字串＝預設黃色
+  lastHighlight?: string;
+  // 最近使用的自訂色彩（最新的在前）
+  recentFontColors?: string[];
+  recentHighlights?: string[];
   // ---- 右鍵選單與方程式
   ctxMenu: boolean;
   hiddenCtx: ContextMenuSection[];

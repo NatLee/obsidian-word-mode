@@ -7,6 +7,8 @@ import { t, key } from './i18n.js';
 import { marksOn } from './marks.js';
 import { attachHint, hideHint } from './hints.js';
 import { el } from './dom.js';
+import { buildColorPanel, TEXT_COLORS, SHADING } from './colorpicker.js';
+import type { ColorKind } from './colorpicker.js';
 import type { Command, EditorState } from 'prosemirror-state';
 import type { EditorView } from 'prosemirror-view';
 import type { Mark, MarkType } from 'prosemirror-model';
@@ -40,7 +42,7 @@ export interface ToolbarContext {
   // 目前的編輯器；還沒載入筆記時是 null
   getView(): EditorView | null;
   // 在 el 裡放 Obsidian 圖示；找不到圖示時改顯示 fallback 文字
-  icon(el: HTMLElement, name: string, fallback: string): void;
+  icon: (el: HTMLElement, name: string, fallback: string) => void;
   isMobile: boolean;
   // 外掛設定（只列出功能區會讀的欄位）
   settings?: {
@@ -52,6 +54,11 @@ export interface ToolbarContext {
     groupLabels?: boolean;
     // 上次選的字型色彩（CSS 色碼）
     lastFontColor?: string;
+    // 上次選的醒目提示色彩（CSS 色碼）；空字串或沒有＝預設黃色
+    lastHighlight?: string;
+    // 最近使用的自訂色彩（最新的在前）
+    recentFontColors?: readonly string[];
+    recentHighlights?: readonly string[];
   };
   // 一開始顯示的分頁（上次離開時的分頁）
   initialTab: TabId;
@@ -62,8 +69,8 @@ export interface ToolbarContext {
   findState?(): { open: boolean; replace: boolean };
   // 大綱是否開著
   outlineOpen?(): boolean;
-  // 記住使用者選的字型色彩（CSS 色碼）
-  rememberColor?(color: string): void;
+  // 記住使用者選的色彩（CSS 色碼；醒目提示的預設黃色是 null）。custom：使用者自己調的色彩，要加進「最近使用」
+  rememberColor?(kind: ColorKind, color: string | null, custom: boolean): void;
   // 依格式（moment.js 格式字串）把現在的時間轉成文字
   formatDate(format: string): string;
   // 按鈕要開的對話框、選單與其他動作；btn 是按下的按鈕（選單要顯示在它下方）
@@ -166,10 +173,7 @@ type DataNumbers = Record<string, string | number | undefined>;
 
 const M = schema.marks;
 
-export const TEXT_COLORS: readonly (readonly [color: string, name: I18nKey])[] = [
-  ['#000000', '黑色'], ['#7f7f7f', '灰色'], ['#c00000', '深紅'], ['#ff0000', '紅色'], ['#ff8c00', '橙色'],
-  ['#bf9000', '金色'], ['#00b050', '綠色'], ['#00b0f0', '淺藍'], ['#0070c0', '藍色'], ['#7030a0', '紫色'],
-];
+export { TEXT_COLORS };
 
 export const SYMBOLS: readonly (readonly [group: I18nKey, chars: string])[] = [
   ['常用', '©®™°±×÷≈≠≤≥∞✓✗★☆●○■□◆◇※§¶†…‰€£¥'],
@@ -184,7 +188,6 @@ export const SYMBOLS: readonly (readonly [group: I18nKey, chars: string])[] = [
 export const DATE_FORMATS: readonly string[] = ['YYYY-MM-DD', 'YYYY/MM/DD', 'YYYY年M月D日', 'YYYY-MM-DD HH:mm', 'HH:mm', 'YYYY-MM-DD dddd'];
 
 const CASE_MENU: readonly (readonly [kind: CaseKind, label: I18nKey])[] = [['upper', '全部大寫'], ['lower', '全部小寫'], ['title', '每個英文單字首字大寫'], ['sentence', '句首大寫'], ['half', '轉成半形'], ['full', '轉成全形']];
-const SHADING = '#9e9e9e59';
 
 // 分頁與群組（設定頁用同一份清單，讓使用者勾選要顯示的項目）
 export const TABS: readonly TabEntry[] = [['home', '常用'], ['insert', '插入'], ['review', '校閱'], ['viewtab', '檢視']];
@@ -201,7 +204,7 @@ export const GROUPS: readonly GroupEntry[] = [
 const NO_CODE: Pick<ButtonSpec, 'enabled' | 'why'> = { enabled: C.notInCode, why: C.codeBlocked };
 
 // 不讓編輯區失去焦點（手機上鍵盤才不會收起來）
-function keepFocus(b: HTMLElement): void {
+export function keepFocus(b: HTMLElement): void {
   b.addEventListener('mousedown', e => e.preventDefault());
   b.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse') e.preventDefault(); });
 }
@@ -260,7 +263,7 @@ export class Toolbar {
     this.tabBtns = {};
     this.seen = new Set();
     this.painter = null;
-    this.hlColor = null;
+    this.hlColor = S.lastHighlight || null;
     this.fontColor = S.lastFontColor || '#c00000';
     this.build();
     const first = TABS.find(([id]) => this.panels[id] && !this.panels[id].classList.contains('is-empty'));
@@ -444,6 +447,7 @@ export class Toolbar {
       active: st => { const h = C.currentHighlight(st); return !!h && h !== SHADING; },
       ...NO_CODE,
     });
+    if (this.hlBtn && this.hlColor) this.hlBtn.style.setProperty('--wm-hl', this.hlColor);
     this.arrow(g, '醒目提示色彩', (e, b) => this.openHighlightPopup(b), true);
     this.button(g, { icon: 'paint-bucket', title: '字元網底', text: '網', demo: 'shading', desc: '在文字後面加上灰色底色（Word 的「字元網底」）。',
       cmd: (st, dp) => C.setHighlight(C.currentHighlight(st) === SHADING ? 'none' : SHADING)(st, dp),
@@ -717,50 +721,40 @@ export class Toolbar {
     });
   }
 
+  // 字型色彩面板：標準色彩、深淺變化、最近使用的自訂色彩、自訂色彩
   openColorPopup(owner: HTMLElement): void {
-    const apply = (c: string | null) => {
+    const S = this.ctx.settings || {};
+    const apply = (c: string | null, custom: boolean) => {
       this.closePopup();
-      if (c) { this.fontColor = c; if (this.colorBtn) this.colorBtn.style.setProperty('--wm-current-color', c); if (this.ctx.rememberColor) this.ctx.rememberColor(c); }
+      if (c) {
+        this.fontColor = c;
+        if (this.colorBtn) this.colorBtn.style.setProperty('--wm-current-color', c);
+        if (this.ctx.rememberColor) this.ctx.rememberColor('font', c, custom);
+      }
       this.run(C.setColor(c));
     };
-    this.openPopup(owner, p => {
-      p.classList.add('wm-color-popup');
-      const auto = el('button', 'wm-color-auto', p, t('自動（清除色彩）'));
-      auto.type = 'button';
-      keepFocus(auto);
-      auto.addEventListener('click', () => apply(null));
-      const grid = el('div', 'wm-color-grid', p);
-      for (const [c, name] of TEXT_COLORS) {
-        const b = el('button', 'wm-color-swatch' + (c === this.fontColor ? ' is-active' : ''), grid);
-        b.type = 'button'; b.setAttribute('aria-label', t(name)); b.style.background = c;
-        keepFocus(b);
-        b.addEventListener('click', () => apply(c));
-      }
-      const more = el('label', 'wm-color-more', p, t('其他色彩…') + ' ');
-      const input = el('input', null, more);
-      input.type = 'color';
-      input.addEventListener('change', () => apply(input.value));
-    });
+    this.openPopup(owner, p => buildColorPanel(p, {
+      kind: 'font', current: this.fontColor, recent: S.recentFontColors || [],
+      icon: this.ctx.icon, keepFocus,
+      onPick: apply, onClear: () => apply(null, false),
+    }));
   }
 
+  // 醒目提示色彩面板：螢光筆色彩、較深的色彩、最近使用的自訂色彩、自訂色彩（可調不透明度）
   openHighlightPopup(owner: HTMLElement): void {
-    this.openPopup(owner, p => {
-      p.classList.add('wm-hl-popup');
-      el('div', 'wm-popup-title', p, t('醒目提示色彩'));
-      const grid = el('div', 'wm-color-grid', p);
-      for (const [color, name, css] of C.HIGHLIGHT_COLORS) {
-        if (color === SHADING) continue;
-        const b = el('button', 'wm-color-swatch', grid);
-        b.type = 'button'; b.setAttribute('aria-label', t(name)); b.style.background = (css || color)!;
-        keepFocus(b);
-        b.addEventListener('click', () => { this.closePopup(); this.hlColor = color; if (this.hlBtn) this.hlBtn.style.setProperty('--wm-hl', css || color); this.run(C.setHighlight(color)); });
-      }
-      const none = el('button', 'wm-color-auto', p, t('無色彩（移除醒目提示）'));
-      none.type = 'button';
-      keepFocus(none);
-      none.addEventListener('click', () => { this.closePopup(); this.run(C.setHighlight('none')); });
-      el('div', 'wm-popup-note', p, t('黃色存成 ==文字==；其他顏色存成 HTML，Obsidian 閱讀畫面也看得到。'));
-    });
+    const S = this.ctx.settings || {};
+    this.openPopup(owner, p => buildColorPanel(p, {
+      kind: 'highlight', current: this.hlColor, recent: S.recentHighlights || [],
+      icon: this.ctx.icon, keepFocus,
+      onPick: (color, custom) => {
+        this.closePopup();
+        this.hlColor = color;
+        if (this.hlBtn) { if (color) this.hlBtn.style.setProperty('--wm-hl', color); else this.hlBtn.style.removeProperty('--wm-hl'); }
+        if (this.ctx.rememberColor) this.ctx.rememberColor('highlight', color, custom);
+        this.run(C.setHighlight(color));
+      },
+      onClear: () => { this.closePopup(); this.run(C.setHighlight('none')); },
+    }));
   }
 
   openSymbolPopup(owner: HTMLElement): void {

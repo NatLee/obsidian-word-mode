@@ -54,5 +54,51 @@ await fresh('| 甲 | 乙 |\n| --- | --- |\n| a1 | b1 |\n');
   assert(plain.every(i => !i.submenu) && plain.some(i => i.title === '項目符號'), '不在表格裡：選單照原本的方式直接列出');
 }
 
+// ======== 色彩面板：醒目提示可以自訂色彩 ========
+await fresh('一段文字\n');
+{
+  const C = B.COLOR;
+  assert(C.normalizeColor('ABC') === '#aabbcc' && C.normalizeColor('#12ab3480') === '#12ab3480' && C.normalizeColor('xyz') === null, '色碼整理');
+  assert(C.shade('#000000', 0.5) === '#808080' && C.shade('#ff0000', -0.5) === '#800000', '深淺變化的計算');
+  select(1, 3);
+  view.toolbar.openHighlightPopup(view.toolbar.hlBtn);
+  let p = document.querySelector('.wm-hl-popup');
+  assert(p.querySelectorAll('.wm-cp-swatch').length === 16 && p.querySelector('.wm-cp-range'), '醒目提示面板：兩排色彩、可調不透明度');
+  const hex = p.querySelector('.wm-cp-hex');
+  hex.value = 'zz'; hex.dispatchEvent(new Event('input'));
+  assert(p.querySelector('.wm-cp-apply').disabled && hex.classList.contains('is-invalid'), '色碼打錯：不能套用');
+  hex.value = '#12AB34'; hex.dispatchEvent(new Event('input'));
+  const range = p.querySelector('.wm-cp-range');
+  range.value = '50'; range.dispatchEvent(new Event('input'));
+  assert(!p.querySelector('.wm-cp-apply').disabled && p.querySelector('.wm-cp-alpha-value').textContent === '50%', '調整不透明度');
+  click(p.querySelector('.wm-cp-apply'));
+  assert(out() === '<mark style="background: #12ab3480">一段</mark>文字\n', '自訂的醒目提示色彩：' + JSON.stringify(out()));
+  assert(plugin.settings.recentHighlights[0] === '#12ab3480' && plugin.settings.lastHighlight === '#12ab3480', '記住自訂的醒目提示色彩');
+  select(3, 5);
+  click(view.toolbar.hlBtn);
+  assert(out() === '<mark style="background: #12ab3480">一段文字</mark>\n', '主按鈕直接套用上次的色彩：' + JSON.stringify(out()));
+  view.toolbar.openHighlightPopup(view.toolbar.hlBtn);
+  p = document.querySelector('.wm-hl-popup');
+  assert(p.querySelectorAll('.wm-cp-swatch').length === 17 && p.querySelector('.wm-cp-swatch.is-active').getAttribute('aria-label') === '#12AB3480', '面板列出最近使用的自訂色彩，並標出目前的色彩');
+  select(1, 5);
+  click(p.querySelector('.wm-cp-clear'));
+  assert(out() === '一段文字\n', '無色彩：移除醒目提示');
+  plugin.settings.lastHighlight = '';
+  view.buildToolbar();
+  // 字型色彩
+  select(1, 3);
+  view.toolbar.openColorPopup(view.toolbar.colorBtn);
+  p = document.querySelector('.wm-color-popup');
+  assert(p.querySelectorAll('.wm-cp-swatch').length === 50 && !p.querySelector('.wm-cp-range'), '字型色彩面板：標準色彩與深淺變化');
+  const fhex = p.querySelector('.wm-cp-hex');
+  fhex.value = '#336699'; fhex.dispatchEvent(new Event('input'));
+  fhex.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+  assert(out() === '<span style="color: #336699">一段</span>文字\n' && plugin.settings.recentFontColors[0] === '#336699' && plugin.settings.lastFontColor === '#336699', '自訂的字型色彩（按 Enter 套用）：' + JSON.stringify(out()));
+  select(1, 3);
+  view.toolbar.openColorPopup(view.toolbar.colorBtn);
+  click(document.querySelector('.wm-color-popup .wm-cp-clear'));
+  assert(out() === '一段文字\n', '自動：清除字型色彩');
+}
+
 
 finish();
