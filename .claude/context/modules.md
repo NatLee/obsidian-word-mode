@@ -14,7 +14,7 @@
 | 連結、圖片、程式碼區塊、表格、提示框、文件屬性的畫面 | `nodeviews.ts`（每種節點一個 NodeView；需要 Obsidian 的功能由 `NodeViewContext` 傳入，在 `view.ts` 的 `nodeViewContext()`） |
 | 連結／圖片上的浮動小工具列 | `bubble.ts` |
 | 對話框（連結、方程式、快速鍵、清理符號、字數） | `dialogs.ts`；方程式的格子編輯在 `mathvisual.ts`（`MathField`） |
-| 圖表編輯器 | `mermaid.ts`（對話框、表單、圖上編輯）、`diagrams.ts`（九種圖表的描述）、`flowchart.ts`（流程圖的解析與範本 `MERMAID_TEMPLATES`） |
+| 圖表編輯器 | `mermaid.ts`（對話框、表單、圖上編輯）、`diagrams.ts`（十一種圖表的描述、圖表外觀、欄位種類）、`flowchart.ts`（流程圖的解析與範本 `MERMAID_TEMPLATES`） |
 | 設定 | `main.ts`：`Settings` 介面、`DEFAULTS`、`settingSections()` |
 | 尋找取代、摺疊、大綱、編輯標記、自動格式、`[[`／`#` 選單 | `find.ts`、`fold.ts`、`outline.ts`、`marks.ts`、`autoformat.ts`、`suggest.ts` + `complete.ts` |
 | 按鈕的詳細提示與示意動畫 | `hints.ts` 的 `DEMOS`（按鈕的 `demo` 屬性是它的鍵），動畫在 CSS 的 `wm-anim-*` |
@@ -27,15 +27,25 @@
 
 **加介面文字**：直接在程式裡寫中文原文（`t('…')` 或標成 `I18nKey` 的欄位），再把鍵加進 `i18n-en.ts`、`i18n-ja.ts`、`i18n-ko.ts` 的結尾。三個檔案每筆一行，格式是 `JSON.stringify` 的結果。帶變數的寫 `{name}`。
 
-**加一種圖表或一個表單欄位**：只改 `diagrams.ts`。新增一個 `DiagramKind`（`head`、`parse`、`generate`、`opts`、`lists`），加進 `DIAGRAM_KINDS`，並在 `flowchart.ts` 的 `MERMAID_TEMPLATES` 加範本。`parse` 遇到看不懂的寫法要回傳原因（`'blocks'`、`'syntax'`），不要硬猜。欄位的 `group` 讓同一類名稱在圖上改名時一起改，`def` 讓表單裡改名也連動。
+**加一種圖表或一個表單欄位**：只改 `diagrams.ts`（新的欄位種類才要動 `mermaid.ts` 的 `field()`；現有的種類是 text、lines、select、check、level、color）。新增一個 `DiagramKind`（`head`、`parse`、`generate`、`opts`、`lists`），加進 `DIAGRAM_KINDS`，並在 `flowchart.ts` 的 `MERMAID_TEMPLATES` 加範本。`parse` 遇到看不懂的寫法要回傳原因（`'blocks'`、`'syntax'`），不要硬猜。欄位的 `group` 讓同一類名稱在圖上改名時一起改，`def` 讓表單裡改名也連動。
 
 **用到 Obsidian 非公開的 API**：先在 `obsidian-internal.d.ts` 宣告成可能不存在，呼叫前檢查，並準備好沒有時的退路（例如右鍵子選單的 `canSubmenu()`）。
 
 ## Mermaid 的限制（實測 10.9.1 與 11.4.1）
 
 - ER 圖：實體名稱與關係的說明只要不是英數字就要加雙引號；欄位的型別與名稱只能用英數字與底線，中文說明寫在後面的引號裡。
-- 其他八種圖表可以直接用中文名稱。
+- 象限圖：座標軸、象限、項目的名稱不是英數字就要加雙引號，標題不能加（加了引號會直接畫出來）。
+- 其他九種圖表可以直接用中文名稱。
+- 圖表外觀是最前面的一行 `%%{init: {"theme": "…"}}%%`（`parseDiagram`／`generateDiagram` 處理，各種圖表的 `parse`／`generate` 不用管）；流程圖節點的底色是 `style <代號> fill:…,stroke:…,color:…`。
 - 表單產生的程式碼由 `generate` 負責加引號或換掉會出問題的字元；預覽上方會顯示 Mermaid 的語法錯誤。
+
+## 手機與平板
+
+- CSS 用 Obsidian 加在 body 上的 `.is-mobile`、`.is-phone`、`.is-tablet`（對話框、彈出面板不在 `.wm-view` 裡，吃不到 `.wm-mobile`）。
+- 手機上輸入框的字要 16px 以上，iOS 才不會在取得焦點時放大畫面。
+- 按鈕不能搶走輸入位置的焦點：用 `dom.ts` 的 `keepFocus()`（連 pointerdown 一起擋，螢幕鍵盤才不會收起來）。
+- 螢幕鍵盤常常沒有按鍵事件（`^`、Backspace 的 keydown 收不到）、也沒有方向鍵與 Tab：要靠 `input` 事件判斷打了什麼，並提供對應的按鈕。
+- README 的示意圖由 `node docs/images/generate.mjs` 產生（文字取自翻譯檔與圖表範本）；介面文字或範本有變就重跑。
 
 ## 測試
 

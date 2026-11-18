@@ -29,8 +29,8 @@ Your files stay plain Markdown. When you edit a note, only the blocks you change
 - **Formatting marks** such as `¶`, and a cleanup tool for invisible or stray characters.
 - **Formatting as you type**: start a paragraph with `- `, `1. `, `# `, `> `, or `[ ] `, or finish `**bold**`, `*italic*`, or `[[note]]`, and it turns into formatting. Each change is its own undo step, so one undo removes the formatting and keeps what you typed.
 - **Suggestions** for notes and headings when you type `[[`, and for tags when you type `#`.
-- **Diagrams**: Mermaid diagrams are shown as diagrams. A diagram editor lets you edit flowcharts, sequence diagrams, Gantt charts, pie charts, state diagrams, class diagrams, mind maps, timelines, and ER diagrams as a form, with a live preview. Select any text on the preview to change it in place, or add and delete items there. Diagrams that use syntax the form does not cover open as code. Dataview queries and code blocks from other plugins are shown as their results.
-- **Equations**: a visual editor where fractions, roots, superscripts, and matrices are boxes you type in, or plain LaTeX. The visual editor has undo and redo, removes a structure when you press Backspace in an empty box, and turns `\frac`, `\sqrt`, or `\alpha` followed by a space into the structure or symbol. You choose the default in the settings.
+- **Diagrams**: Mermaid diagrams are shown as diagrams, and eleven kinds can be edited as a form or directly on the preview. See [Diagram editor](#diagram-editor). Dataview queries and code blocks from other plugins are shown as their results.
+- **Equations**: a visual editor where fractions, roots, superscripts, and matrices are boxes you type in, or plain LaTeX. See [Equation editor](#equation-editor).
 - **Embeds**: embedded notes, headings, audio, video, PDFs, and YouTube links are shown in place.
 - **Footnotes**: insert a footnote, hover over its number to read it, and edit its text without touching the syntax.
 - **Callouts** (including foldable ones), **task lists** with custom statuses such as `[/]` and `[-]`, **tags**, and **code blocks** with syntax highlighting and optional line numbers. Inside a code block, the buttons that do not apply to plain text are turned off.
@@ -39,6 +39,31 @@ Your files stay plain Markdown. When you edit a note, only the blocks you change
 - Interface in Traditional Chinese, English, Japanese, and Korean.
 
 Anything Word Mode can't edit visually, such as HTML blocks, is shown as a raw block and saved unchanged.
+
+## Equation editor
+
+![The equation editor: a palette of structures, boxes you type in, and a live preview (illustration)](docs/images/equation.en.svg)
+
+Open it with **Insert → Equation**, by double-clicking an equation, or by pressing Enter on a selected one. Equations are saved as ordinary LaTeX (`$…$` or `$$…$$`), so they render wherever Obsidian renders math.
+
+- **Visual editing**: fractions, roots, superscripts, brackets, and matrices are boxes. Select a box and type, or pick a structure or symbol from the palette. You can switch to plain LaTeX at any time, and an equation you do not change is written back exactly as it was.
+- **Keyboard**: `^` and `_` open a superscript or subscript. Tab or Enter moves to the next box, and the arrow keys move between boxes, including up and down between a numerator and a denominator. Backspace in an empty box removes the structure around it. Typing `\frac`, `\sqrt`, or `\alpha` followed by a space builds the structure or the symbol.
+- **Undo and redo** with the buttons or `Ctrl+Z` and `Ctrl+Y`.
+- **Common formulas and recent equations**: insert a whole formula, such as the quadratic formula or a standard deviation, and then change the parts you need.
+- **On phones and tablets**: buttons above the editing area move to the previous or next box and remove the structure at the cursor, because on-screen keyboards have no arrow keys. On a phone, the editing area stays at the top while you scroll the palette.
+
+## Diagram editor
+
+![The diagram editor: a form on the left, the preview on the right, and a label being edited on the diagram (illustration)](docs/images/diagram.en.svg)
+
+Open it with **Insert → Diagram**, or with the edit button on a Mermaid block. Diagrams are saved as ordinary Mermaid code blocks.
+
+- **Eleven kinds with a form**: flowchart, sequence diagram, Gantt chart, pie chart, state diagram, class diagram, mind map, timeline, ER diagram, user journey, and quadrant chart. Pick a kind at the top to start from a template, and then add, reorder, and delete rows.
+- **Editing on the diagram**: select a label on the preview to change it in place. From the same box you can delete that row, add the next flowchart step or a mind map sub-branch, and pick a fill color for a flowchart step. Renaming a participant, state, class, or entity there renames every reference to it.
+- **Appearance**: choose a Mermaid theme for a single diagram, and a fill color for each flowchart step.
+- **Preview**: zoom with the buttons, or with `Ctrl` and the mouse wheel.
+- **Nothing is lost**: a diagram opens in the form only when reading it and writing it back changes nothing. A diagram that uses syntax the form does not cover, such as loops, nested states, or custom styles, opens as code with the reason shown. A diagram you do not change is written back exactly as it was.
+- **On phones**: the preview stays at the top with the form below it, and the fields and buttons are sized for touch.
 
 ## Usage
 
@@ -88,6 +113,7 @@ Requires Obsidian 1.5.7 or later.
 - Some buttons on the toolbar shown in Markdown and reading mode call built-in Obsidian commands and haven't all been tested individually.
 - The Japanese and Korean translations haven't been reviewed by native speakers.
 - Diagram and query results, embeds, and page previews are drawn by Obsidian. They are covered by automated tests that simulate Obsidian, and haven't been checked with every plugin and theme.
+- A diagram's appearance (Mermaid theme) and flowchart fill colors are drawn by Mermaid inside Obsidian. They were checked against Mermaid itself, not against every Obsidian theme.
 
 ## Development
 
@@ -147,7 +173,7 @@ Obsidian APIs that aren't public are declared in one place, `src/obsidian-intern
 | `src/globals.d.ts`, `src/markdown-it-mark.d.ts` | Declarations for globals and for a dependency that ships no types. |
 | `styles/word-mode.css` | Styles. |
 | `tests/` | Conversion tests, editing tests, and the vault round-trip check. `tests/run.mjs` bundles a test with esbuild before running it. |
-| `docs/images/` | The illustrations in the READMEs. `node docs/images/generate.mjs` redraws them in all four languages from the plugin's interface text. |
+| `docs/images/` | The illustrations in the READMEs. `node docs/images/generate.mjs` redraws them in all four languages from the plugin's interface text and diagram templates. |
 | `tsconfig.json` | TypeScript settings. |
 | `build.mjs` | Build script. |
 | `version-bump.mjs` | Syncs the version to `manifest.json` and `versions.json`. |

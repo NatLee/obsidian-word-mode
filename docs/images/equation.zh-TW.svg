@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 440" width="1200" height="440" role="img" aria-label="插入方程式">
+<title>插入方程式</title>
+<rect x="0.5" y="0.5" width="1199" height="439" rx="10" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1"/>
+<rect x="28" y="22" width="770" height="396" rx="12" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+<text x="50" y="56" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="17" fill="#1f2328" font-weight="600">插入方程式</text>
+<rect x="50" y="70" width="239.5" height="30" rx="8" fill="#e9ecf0"/>
+<rect x="52" y="72" width="111.5" height="26" rx="6" fill="#ffffff" stroke="#d5dae0" stroke-width="1"/>
+<text x="107.75" y="89.5" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="12.5" fill="#1f2328" font-weight="600" text-anchor="middle">文字中（行內）</text>
+<text x="225.5" y="89.5" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="12.5" fill="#656d76" text-anchor="middle">獨立一行（置中）</text>
+<rect x="299.5" y="70" width="124.5" height="30" rx="8" fill="#e9ecf0"/>
+<rect x="301.5" y="72" width="61.5" height="26" rx="6" fill="#ffffff" stroke="#d5dae0" stroke-width="1"/>
+<text x="332.25" y="89.5" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="12.5" fill="#1f2328" font-weight="600" text-anchor="middle">視覺化</text>
+<text x="392.5" y="89.5" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="12.5" fill="#656d76" text-anchor="middle">LaTeX</text>
+<rect x="50" y="112" width="726" height="112" rx="10" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1"/>
+<text x="86.5" y="136" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="12.5" fill="#6f52d9" font-weight="600" text-anchor="middle">結構</text>
+<rect x="64" y="145" width="45" height="2.5" rx="1" fill="#6f52d9"/>
+<text x="133.5" y="136" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="12.5" fill="#656d76" text-anchor="middle">運算</text>
+<text x="180.5" y="136" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="12.5" fill="#656d76" text-anchor="middle">標記</text>
+<text x="227.5" y="136" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="12.5" fill="#656d76" text-anchor="middle">關係</text>
+<text x="287" y="136" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="12.5" fill="#656d76" text-anchor="middle">希臘字母</text>
+<text x="359" y="136" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="12.5" fill="#656d76" text-anchor="middle">常用公式</text>
+<line x1="62" y1="147.5" x2="764" y2="147.5" stroke="#d0d7de" stroke-width="1"/>
+<rect x="64" y="156" width="76" height="58" rx="7" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+<rect x="96" y="162" width="12" height="11" rx="3" fill="none" stroke="#8c959f" stroke-width="1" stroke-dasharray="3 2"/>
+<line x1="91" y1="176" x2="113" y2="176" stroke="#1f2328" stroke-width="1"/>
+<rect x="96" y="179" width="12" height="11" rx="3" fill="none" stroke="#8c959f" stroke-width="1" stroke-dasharray="3 2"/>
+<text x="102" y="206" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="10.5" fill="#656d76" text-anchor="middle">分數</text>
+<rect x="148" y="156" width="76" height="58" rx="7" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+<text x="171" y="184" font-family="'Cambria Math', 'STIX Two Math', 'Times New Roman', serif" font-size="19" fill="#1f2328">√</text>
+<line x1="183" y1="167" x2="200" y2="167" stroke="#1f2328" stroke-width="1"/>
+<rect x="186" y="171" width="12" height="12" rx="3" fill="none" stroke="#8c959f" stroke-width="1" stroke-dasharray="3 2"/>
+<text x="186" y="206" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="10.5" fill="#656d76" text-anchor="middle">根號</text>
+<rect x="232" y="156" width="76" height="58" rx="7" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+<text x="260" y="184" font-family="'Cambria Math', 'STIX Two Math', 'Times New Roman', serif" font-size="18" fill="#1f2328" font-style="italic">x</text>
+<rect x="271" y="164" width="9" height="9" rx="3" fill="none" stroke="#8c959f" stroke-width="1" stroke-dasharray="3 2"/>
+<text x="270" y="206" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="10.5" fill="#656d76" text-anchor="middle">上標</text>
+<rect x="316" y="156" width="76" height="58" rx="7" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+<text x="344" y="181" font-family="'Cambria Math', 'STIX Two Math', 'Times New Roman', serif" font-size="18" fill="#1f2328" font-style="italic">x</text>
+<rect x="355" y="179" width="9" height="9" rx="3" fill="none" stroke="#8c959f" stroke-width="1" stroke-dasharray="3 2"/>
+<text x="354" y="206" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="10.5" fill="#656d76" text-anchor="middle">下標</text>
+<rect x="400" y="156" width="76" height="58" rx="7" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+<text x="424" y="184" font-family="'Cambria Math', 'STIX Two Math', 'Times New Roman', serif" font-size="20" fill="#1f2328">(</text>
+<rect x="432" y="169" width="12" height="13" rx="3" fill="none" stroke="#8c959f" stroke-width="1" stroke-dasharray="3 2"/>
+<text x="446" y="184" font-family="'Cambria Math', 'STIX Two Math', 'Times New Roman', serif" font-size="20" fill="#1f2328">)</text>
+<text x="438" y="206" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="10.5" fill="#656d76" text-anchor="middle">括號</text>
+<rect x="484" y="156" width="76" height="58" rx="7" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+<text x="505" y="185" font-family="'Cambria Math', 'STIX Two Math', 'Times New Roman', serif" font-size="26" fill="#1f2328">[</text>
+<text x="513" y="175" font-family="'Cambria Math', 'STIX Two Math', 'Times New Roman', serif" font-size="12" fill="#1f2328" font-style="italic">a  b</text>
+<text x="513" y="188" font-family="'Cambria Math', 'STIX Two Math', 'Times New Roman', serif" font-size="12" fill="#1f2328" font-style="italic">c  d</text>
+<text x="533" y="185" font-family="'Cambria Math', 'STIX Two Math', 'Times New Roman', serif" font-size="26" fill="#1f2328">]</text>
+<text x="522" y="206" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="10.5" fill="#656d76" text-anchor="middle">矩陣</text>
+<rect x="568" y="156" width="76" height="58" rx="7" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+<text x="586" y="186" font-family="'Cambria Math', 'STIX Two Math', 'Times New Roman', serif" font-size="28" fill="#1f2328">{</text>
+<text x="598" y="175" font-family="'Cambria Math', 'STIX Two Math', 'Times New Roman', serif" font-size="11" fill="#1f2328" font-style="italic">x,  x ≥ 0</text>
+<text x="598" y="188" font-family="'Cambria Math', 'STIX Two Math', 'Times New Roman', serif" font-size="11" fill="#1f2328" font-style="italic">−x, x &lt; 0</text>
+<text x="606" y="206" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="10.5" fill="#656d76" text-anchor="middle">分段函數</text>
+<rect x="50" y="234" width="726" height="112" rx="10" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1"/>
+<text x="64" y="257" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="12.5" fill="#656d76" font-weight="600">編輯</text>
+<text x="644" y="258" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="17" fill="#656d76" text-anchor="middle">‹</text>
+<text x="670" y="258" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="17" fill="#656d76" text-anchor="middle">›</text>
+<text x="696" y="258" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="14" fill="#656d76" text-anchor="middle">⌫</text>
+<text x="732" y="258" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="17" fill="#656d76" text-anchor="middle">↶</text>
+<text x="758" y="258" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="17" fill="#656d76" text-anchor="middle">↷</text>
+<line x1="714" y1="246" x2="714" y2="262" stroke="#d0d7de" stroke-width="1"/>
+<rect x="62" y="268" width="702" height="66" rx="8" fill="#ffffff" stroke="#6f52d9" stroke-width="1.5"/>
+<text x="86" y="307" font-family="'Cambria Math', 'STIX Two Math', 'Times New Roman', serif" font-size="22" fill="#1f2328">x =</text>
+<line x1="132" y1="300" x2="312" y2="300" stroke="#1f2328" stroke-width="1.2"/>
+<text x="140" y="292" font-family="'Cambria Math', 'STIX Two Math', 'Times New Roman', serif" font-size="20" fill="#1f2328">−b ±</text>
+<text x="190" y="293" font-family="'Cambria Math', 'STIX Two Math', 'Times New Roman', serif" font-size="22" fill="#1f2328">√</text>
+<line x1="204" y1="275" x2="306" y2="275" stroke="#1f2328" stroke-width="1.2"/>
+<text x="208" y="292" font-family="'Cambria Math', 'STIX Two Math', 'Times New Roman', serif" font-size="20" fill="#1f2328">b</text>
+<text x="220" y="283" font-family="'Cambria Math', 'STIX Two Math', 'Times New Roman', serif" font-size="13" fill="#1f2328">2</text>
+<text x="232" y="292" font-family="'Cambria Math', 'STIX Two Math', 'Times New Roman', serif" font-size="20" fill="#1f2328">− 4ac</text>
+<rect x="206" y="308" width="30" height="22" rx="3" fill="#efeafd" stroke="#6f52d9" stroke-width="1"/>
+<text x="210" y="326" font-family="'Cambria Math', 'STIX Two Math', 'Times New Roman', serif" font-size="20" fill="#1f2328">2a</text>
+<line x1="233" y1="311" x2="233" y2="327" stroke="#6f52d9" stroke-width="1.5"/>
+<rect x="50" y="356" width="726" height="50" rx="10" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1"/>
+<text x="64" y="386" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="12.5" fill="#656d76" font-weight="600">預覽</text>
+<text x="343" y="388" font-family="'Cambria Math', 'STIX Two Math', 'Times New Roman', serif" font-size="17" fill="#1f2328" font-style="italic">x =</text>
+<line x1="377" y1="382" x2="495" y2="382" stroke="#1f2328" stroke-width="1"/>
+<text x="436" y="377" font-family="'Cambria Math', 'STIX Two Math', 'Times New Roman', serif" font-size="13" fill="#1f2328" font-style="italic" text-anchor="middle">−b ± √(b² − 4ac)</text>
+<text x="436" y="397" font-family="'Cambria Math', 'STIX Two Math', 'Times New Roman', serif" font-size="13" fill="#1f2328" font-style="italic" text-anchor="middle">2a</text>
+<circle cx="849" cy="130" r="13" fill="#efeafd"/>
+<text x="849" y="135" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="13.5" fill="#6f52d9" font-weight="700" text-anchor="middle">1</text>
+<text x="874" y="135" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="14" fill="#1f2328">點格子直接輸入，</text>
+<text x="874" y="157" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="14" fill="#656d76">分數、根號、矩陣都是格子。</text>
+<circle cx="849" cy="226" r="13" fill="#efeafd"/>
+<text x="849" y="231" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="13.5" fill="#6f52d9" font-weight="700" text-anchor="middle">2</text>
+<text x="874" y="231" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="14" fill="#1f2328">在空格子裡按 Backspace，</text>
+<text x="874" y="253" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="14" fill="#656d76">拿掉外面的結構。</text>
+<circle cx="849" cy="322" r="13" fill="#efeafd"/>
+<text x="849" y="327" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="13.5" fill="#6f52d9" font-weight="700" text-anchor="middle">3</text>
+<text x="874" y="327" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="14" fill="#1f2328">可以復原、取消復原，</text>
+<text x="874" y="349" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="14" fill="#656d76">也能隨時切到 LaTeX。</text>
+<text x="1172" y="424" font-family="'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="11.5" fill="#8c959f" text-anchor="end">示意圖</text>
+</svg>
