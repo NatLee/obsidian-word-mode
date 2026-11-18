@@ -9,7 +9,7 @@ export interface HintInfo {
   title: string;
   keys?: string | null;
   desc?: string | null;
-  demo?: string | null;
+  demo?: DemoName | null;
   reason?: string | null;
 }
 
@@ -40,7 +40,7 @@ function linesDemo(box: HTMLElement, cls: string, n = 3, widths = [90, 70, 82]):
   return wrap;
 }
 
-const DEMOS: Record<string, DemoBuilder> = {
+const DEMOS = {
   bold: b => textDemo(b, 'wm-anim-bold'),
   italic: b => textDemo(b, 'wm-anim-italic'),
   underline: b => textDemo(b, 'wm-anim-underline'),
@@ -88,8 +88,18 @@ const DEMOS: Record<string, DemoBuilder> = {
   table: b => { const g = el('div', 'wm-demo-grid', b); for (let i = 0; i < 12; i++) el('span', 'wm-demo-cell wm-cell-' + i, g); },
   image: b => { const f = el('div', 'wm-demo-image wm-anim-pop', b); el('span', null, f, '🖼'); },
   equation: b => el('div', 'wm-demo-eq wm-anim-pop', b, 'E = mc²   ∑ xᵢ'),
+  // 圖表：流程圖的方塊與箭頭由左到右依序出現
+  mermaid: b => {
+    const f = el('div', 'wm-demo-flow', b);
+    (['開始', '步驟', '結束'] satisfies I18nKey[]).forEach((x, i) => {
+      if (i) el('span', 'wm-demo-arrow wm-step-' + (i * 2 - 1), f, '→');
+      el('span', 'wm-demo-node wm-step-' + i * 2 + (i === 1 ? '' : ' is-round'), f, t(x));
+    });
+  },
   symbol: b => { const l = el('div', 'wm-demo-line', b); ['→', '©', '℃', 'α', '①'].forEach((s, i) => el('span', 'wm-demo-sym wm-sym-' + i, l, s)); },
   link: b => textDemo(b, 'wm-anim-link', t('連結')),
+  // 註腳：內文後面冒出編號，下面出現對應的註腳內容
+  footnote: b => { const l = el('div', 'wm-demo-line', b); el('span', null, l, SAMPLE()); el('span', 'wm-demo-fnref wm-step-0', l, '1'); el('div', 'wm-demo-note wm-step-2', b, '1. ' + t('註腳')); },
   notelink: b => { const l = el('div', 'wm-demo-line', b); el('span', null, l, t('參考')); el('span', 'wm-demo-target wm-anim-link', l, t('另一份筆記')); },
   codeblock: b => { const c = el('div', 'wm-demo-codeblock', b); el('div', 'wm-demo-codehead', c, 'Python'); const l = el('div', 'wm-demo-codeline', c); el('span', 'wm-tk-kw', l, 'def '); el('span', 'wm-tk-fn', l, 'total'); el('span', null, l, '(x): '); el('span', 'wm-tk-kw', l, 'return '); el('span', 'wm-tk-str', l, '"ok"'); },
   comment: b => { const l = el('div', 'wm-demo-line', b); el('span', null, l, t('內文')); el('span', 'wm-demo-comment wm-anim-pop', l, '💬'); el('span', 'wm-demo-note', l, t('閱讀時看不到')); },
@@ -108,7 +118,11 @@ const DEMOS: Record<string, DemoBuilder> = {
   cut: b => { const l = el('div', 'wm-demo-line', b); el('span', null, l, t('剪下')); el('span', 'wm-demo-target wm-anim-undo', l, t('這段文字')); },
   copy: b => { const l = el('div', 'wm-demo-line', b); el('span', null, l, t('複製')); el('span', 'wm-demo-target wm-anim-copy', l, t('這段文字')); },
   wordcount: b => el('div', 'wm-demo-count wm-anim-pop', b, t('1,234 字・5 分鐘')),
-};
+} satisfies Record<string, DemoBuilder>;
+
+// 示意動畫的名稱。按鈕的 demo 用這個型別，指定了不存在的動畫時型別檢查會失敗
+// （以前是 string：「插入圖表」「插入註腳」指定的動畫不存在，提示卡就沒有動畫，也沒有任何錯誤）
+export type DemoName = keyof typeof DEMOS;
 
 function ensureCard(): HTMLDivElement {
   if (card && card.isConnected) return card;
@@ -164,4 +178,4 @@ export function attachHint(btn: HTMLElement, info: () => HintInfo): void {
   btn.addEventListener('mousedown', hideHint);
 }
 
-export function hasDemo(kind: string): boolean { return !!DEMOS[kind]; }
+export function hasDemo(kind: string): kind is DemoName { return Object.prototype.hasOwnProperty.call(DEMOS, kind); }

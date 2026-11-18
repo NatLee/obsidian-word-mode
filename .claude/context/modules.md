@@ -9,6 +9,7 @@
 | Markdown ⇄ 文件的轉換、哪些語法認得 | `markdown.ts`（切段、markdown-it 規則、序列化）、`schema.ts`（節點與 mark） |
 | 編輯指令（粗體、清單、表格、對齊、排序…） | `commands.ts`。表格指令在 `table` 物件；`inCode`／`codeBlocked` 判斷程式碼區塊 |
 | 功能區按鈕 | `toolbar.ts` 的 `buildHome`／`buildInsert`／`buildReview`／`buildView`；Markdown／閱讀模式的對應按鈕在 `mdbar.ts` 的 `render()` |
+| 功能區的分頁與群組（哪個群組在哪個分頁、順序、名稱） | `toolbar.ts` 的 `TABS`、`GROUPS` 是預設值；`groupLayout(settings)` 套用使用者的自訂（`groupNames`、`groupTabs`、`groupOrder`），兩條功能區與設定頁的清單（`groupsettings.ts`）都用它，不要直接讀 `GROUPS` 排版 |
 | 色彩面板 | `colorpicker.ts`（`buildColorPanel`）；由 `toolbar.ts` 的 `openColorPopup`／`openHighlightPopup` 開啟 |
 | 右鍵選單、快速鍵、貼上、拖放 | `view.ts` 的 `onContextMenu`、`onOpen`（scope 的快速鍵）、`onKeyDown`、`onPaste`、`onDrop` |
 | 連結、圖片、程式碼區塊、表格、提示框、文件屬性的畫面 | `nodeviews.ts`（每種節點一個 NodeView；需要 Obsidian 的功能由 `NodeViewContext` 傳入，在 `view.ts` 的 `nodeViewContext()`） |
@@ -18,7 +19,7 @@
 | 自己存的公式與圖表範本 | `templates.ts`（資料操作，純函式）、`templateui.ts`（設定頁的管理清單）；存在設定的 `mathTemplates`、`diagramTemplates`。方程式編輯器的「我的公式」在 `dialogs.ts`，圖表編輯器的「我的範本」在 `mermaid.ts` |
 | 設定 | `main.ts`：`Settings` 介面、`DEFAULTS`、`settingSections()` |
 | 尋找取代、摺疊、大綱、編輯標記、自動格式、`[[`／`#` 選單 | `find.ts`、`fold.ts`、`outline.ts`、`marks.ts`、`autoformat.ts`、`suggest.ts` + `complete.ts` |
-| 按鈕的詳細提示與示意動畫 | `hints.ts` 的 `DEMOS`（按鈕的 `demo` 屬性是它的鍵），動畫在 CSS 的 `wm-anim-*` |
+| 按鈕的詳細提示與示意動畫 | `hints.ts` 的 `DEMOS`（按鈕的 `demo` 屬性是它的鍵，型別是 `DemoName`，寫了不存在的名稱型別檢查會失敗），動畫在 CSS 的 `wm-anim-*`、`wm-step-*` |
 
 ## 常見修改的做法
 

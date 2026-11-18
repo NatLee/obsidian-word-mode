@@ -7,7 +7,8 @@ import { MarkdownConverter } from './markdown.js';
 import { WordModeView, VIEW_TYPE } from './view.js';
 import { OutlineView, OUTLINE_TYPE } from './outline.js';
 import { MarkdownBar } from './mdbar.js';
-import { TABS, GROUPS } from './toolbar.js';
+import { TABS } from './toolbar.js';
+import { fillGroupSettings } from './groupsettings.js';
 import { DIAGRAM_KINDS, detectKind } from './diagrams.js';
 import { cleanTemplates } from './templates.js';
 import { buildTemplateManager } from './templateui.js';
@@ -73,6 +74,11 @@ export interface Settings {
   viewButtonLabels: boolean;
   hiddenTabs: TabId[];
   hiddenGroups: GroupId[];
+  // 自訂的按鈕群組（toolbar.ts 的 groupLayout 套用）：名稱（群組 id → 名稱）、
+  // 移到哪個分頁（群組 id → 分頁 id，只存有移動過的）、順序（群組 id，空的＝預設順序）
+  groupNames: Partial<Record<GroupId, string>>;
+  groupTabs: Partial<Record<GroupId, TabId>>;
+  groupOrder: GroupId[];
   richHints: boolean;
   mdToolbar: boolean;
   mdStatusBar: boolean;
@@ -173,6 +179,9 @@ const DEFAULTS: Settings = {
   viewButtonLabels: true,
   hiddenTabs: [],
   hiddenGroups: [],
+  groupNames: {},
+  groupTabs: {},
+  groupOrder: [],
   tabStyle: 'text',
   tabLabels: {},
   richHints: false,
@@ -792,39 +801,8 @@ function settingSections(settingTab: WordModeSettings): SettingSection[] {
           }))),
       toggleRow(t('詳細提示（含動畫示意）'),
         t('滑鼠停在按鈕上時，顯示功能說明、快速鍵，以及一段動畫示範這個按鈕會做什麼。適合剛開始使用的人。'), 'richHints', () => p.refreshToolbars()),
-      // 要顯示的分頁與群組
-      { kind: 'grid', name: t('顯示的分頁與按鈕群組'), desc: t('取消勾選可以隱藏不常用的功能。隱藏整個分頁時，該分頁的按鈕都不會出現。'), cls: 'wm-settings-groups', fill: cols => {
-        for (const [tab, tabLabel] of TABS) {
-          const col = cols.createDiv('wm-settings-groups-col');
-          const tl = col.createEl('label', { cls: 'wm-settings-tab' });
-          const tcb = tl.createEl('input', { type: 'checkbox' });
-          tcb.checked = !(S.hiddenTabs || []).includes(tab);
-          tl.createSpan({ text: t(tabLabel) });
-          const inner: HTMLInputElement[] = [];
-          for (const [gid, gtab, gLabel] of GROUPS) {
-            if (gtab !== tab) continue;
-            const gl = col.createEl('label', { cls: 'wm-settings-group' });
-            const gcb = gl.createEl('input', { type: 'checkbox' });
-            gcb.checked = !(S.hiddenGroups || []).includes(gid);
-            gcb.disabled = !tcb.checked;
-            gl.createSpan({ text: t(gLabel) });
-            inner.push(gcb);
-            gcb.addEventListener('change', () => {
-              const set = new Set(S.hiddenGroups || []);
-              if (gcb.checked) set.delete(gid); else set.add(gid);
-              S.hiddenGroups = [...set];
-              void rebuild();
-            });
-          }
-          tcb.addEventListener('change', () => {
-            const set = new Set(S.hiddenTabs || []);
-            if (tcb.checked) set.delete(tab); else set.add(tab);
-            S.hiddenTabs = [...set];
-            for (const x of inner) x.disabled = !tcb.checked;
-            void rebuild();
-          });
-        }
-      } },
+      // 分頁與群組：顯示／隱藏，以及每個群組的名稱、順序、所在分頁
+      { kind: 'grid', name: t('自訂分頁與按鈕群組'), desc: t('取消勾選可以隱藏不常用的分頁或群組。每個群組可以改名稱（留白就用預設名稱）、用箭頭調整順序，或移到別的分頁。Word 模式與 Markdown／閱讀模式的工具列都會套用。'), cls: 'wm-settings-groups', fill: grid => fillGroupSettings(grid, S, () => { void rebuild(); }) },
     ] },
 
     // ------------------------------------------------ 右鍵選單與方程式

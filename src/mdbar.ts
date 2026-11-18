@@ -4,9 +4,10 @@
 import { MarkdownView, setIcon, Menu, Platform } from 'obsidian';
 import { t, key } from './i18n.js';
 import { attachHint, hideHint } from './hints.js';
+import type { DemoName } from './hints.js';
 import { CODE_LANGUAGES } from './commands.js';
 import { el } from './dom.js';
-import { TABS, GROUPS, TAB_ICONS, tabName, fillTab } from './toolbar.js';
+import { TABS, TAB_ICONS, tabName, fillTab, groupLayout } from './toolbar.js';
 import type { TabId, GroupId, TabStyle, RibbonLayout, ButtonStyle } from './toolbar.js';
 import type { App, Editor, MarkdownViewModeType } from 'obsidian';
 import type WordModePlugin from './main.js';
@@ -20,7 +21,7 @@ interface MdButtonSpec {
   keys?: string | null;
   label?: I18nKey;
   desc?: I18nKey;
-  demo?: string;
+  demo?: DemoName;
   big?: boolean;
   // 檢視模式的按鈕：設定可以讓這三個只顯示圖示（跟 toolbar.ts 相同）
   viewMode?: boolean;
@@ -86,6 +87,8 @@ export class MarkdownBar {
   declare tabNames: Partial<Record<TabId, string>>;
   declare tabSwitch: HTMLButtonElement | null;
   declare seen: Set<string>;
+  // 跟著工具列高度更新 --wm-mdbar-height；環境沒有 ResizeObserver 時是 null
+  declare sizer: ResizeObserver | null;
 
   constructor(plugin: WordModePlugin, view: MarkdownView) {
     this.plugin = plugin;
@@ -105,9 +108,23 @@ export class MarkdownBar {
     this.items = [];
     this.mode = null;
     this.render();
+    // 其他外掛會假設「標題列正下方就是筆記內容」，用 top: var(--header-height) 把自己的東西貼在那裡
+    // （Pretty Properties 的 BANNER／COVER／ICON 按鈕列），結果疊在這條工具列的分頁上。
+    // 把工具列的高度記在 containerEl 的 --wm-mdbar-height，樣式表用它把那些東西往下移。
+    // 高度會隨分頁、換行、視窗寬度改變，所以用 ResizeObserver 跟著更新；沒有 ResizeObserver 的環境只設一次
+    this.syncHeight();
+    this.sizer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => this.syncHeight());
+    if (this.sizer) this.sizer.observe(this.dom);
   }
 
-  destroy(): void { hideHint(); this.dom.remove(); }
+  syncHeight(): void { this.view.containerEl.style.setProperty('--wm-mdbar-height', this.dom.offsetHeight + 'px'); }
+
+  destroy(): void {
+    hideHint();
+    if (this.sizer) this.sizer.disconnect();
+    this.view.containerEl.style.removeProperty('--wm-mdbar-height');
+    this.dom.remove();
+  }
 
   get editor(): Editor { return this.view.editor; }
   isReading(): boolean { return this.view.getMode && this.view.getMode() === 'preview'; }
@@ -153,14 +170,14 @@ export class MarkdownBar {
         this.tabBtns[id] = b;
       }
     } else all = el('div', 'wm-panel', bar);
-    // 群組的順序與所在分頁跟 Word 模式相同（同一份 GROUPS）
+    // 群組的名稱、順序與所在分頁跟 Word 模式相同（同一份 groupLayout，包含使用者自訂的部分）
     const G: Partial<Record<GroupId, HTMLDivElement | null>> = {};
-    for (const [id, tab, label] of GROUPS) {
+    for (const { id, tab, name } of groupLayout(S)) {
       const panel = tabs ? this.panels[tab] : all;
       if (!panel || this.hidden.has(id) || this.hiddenTabs.has(tab)) { G[id] = null; continue; }
       const g = el('div', 'wm-group wm-group-' + id, panel);
       G[id] = el('div', 'wm-group-body', g);
-      el('div', 'wm-group-name', g, t(label));
+      el('div', 'wm-group-name', g, name);
     }
     const E = (fn: (ed: Editor) => void) => () => { const ed = this.editor; if (ed) { fn(ed); ed.focus(); } };
     const toWord: MdButtonSpec = { icon: 'file-text', title: '切換到 Word 模式', keys: S.ctrlE !== false ? 'Mod+E' : null, label: 'Word 模式', big: true, viewMode: true, demo: 'markdown', desc: '用 Word 模式編輯這份筆記。', run: () => { void this.plugin.switchToWord(this.view.leaf); }, always: true };

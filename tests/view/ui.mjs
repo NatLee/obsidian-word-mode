@@ -180,6 +180,103 @@ await fresh('一段文字\n');
   flat.destroy();
   delete plugin.settings.ribbonLayout;
   view.toolbar.showTab('home');
+
+  // 工具列的高度記在 --wm-mdbar-height：樣式表用它把其他外掛貼在標題列正下方的東西（Pretty Properties 的按鈕列）往下移，不疊在工具列上
+  const observers = [];
+  globalThis.ResizeObserver = class { constructor(cb) { this.cb = cb; observers.push(this); } observe(target) { this.target = target; } disconnect() { this.off = true; } };
+  const sized = new B.MarkdownBar(plugin, md);
+  const height = () => containerEl.style.getPropertyValue('--wm-mdbar-height');
+  assert(height() === '0px' && observers.length === 1 && observers[0].target === sized.dom, 'Markdown 工具列：建立時記下高度，並跟著工具列的大小更新：' + height());
+  Object.defineProperty(sized.dom, 'offsetHeight', { value: 71, configurable: true });
+  observers[0].cb();
+  assert(height() === '71px', '工具列變高（換分頁、換行）時更新高度：' + height());
+  sized.destroy();
+  assert(height() === '' && observers[0].off, '移除工具列時清掉高度，其他外掛的東西回到原位');
+  delete globalThis.ResizeObserver;
+  const plain = new B.MarkdownBar(plugin, md);
+  assert(height() === '0px' && plain.sizer === null, '沒有 ResizeObserver 的環境：照常建立工具列');
+  plain.destroy();
+}
+
+// ======== 自訂按鈕群組：改名稱、調順序、換分頁；設定頁與兩條功能區一致 ========
+{
+  const S = plugin.settings;
+  const clean = () => { S.hiddenTabs = []; S.hiddenGroups = []; S.groupNames = {}; S.groupTabs = {}; S.groupOrder = []; S.tabLabels = {}; };
+  clean();
+  const of = (list, tab) => list.filter(g => g.tab === tab).map(g => g.id).join();
+  assert(of(B.TB.groupLayout(null), 'home') === 'undo,clipboard,styles,font,paragraph,editing' && B.TB.groupLayout({}).length === B.TB.GROUPS.length, '沒有自訂：預設的分頁與順序');
+  const odd = B.TB.groupLayout({ groupTabs: { font: 'nowhere', nope: 'home' }, groupOrder: ['nope', 'editing', 'editing'], groupNames: { font: '  ', undo: ' 回上一步 ' } });
+  assert(of(odd, 'home') === 'editing,undo,clipboard,styles,font,paragraph' && odd.find(g => g.id === 'font').name === '字型' && odd.find(g => g.id === 'undo').name === '回上一步',
+    '設定檔裡不認得的分頁、群組、空白名稱都忽略；沒列在順序裡的群組排在後面：' + of(odd, 'home'));
+  assert(B.TB.moveGroup(null, 'undo', -1) === null && B.TB.moveGroup(null, 'editing', 1) === null, '已經在分頁的最前或最後：不能再移');
+
+  // 設定頁的清單；changed 像外掛一樣重建兩條功能區
+  const containerEl = document.createElement('div');
+  const contentEl = containerEl.createDiv('view-content');
+  const md = { containerEl, contentEl, leaf: {}, mode: 'source', getMode() { return this.mode; }, editor: { focus() {} }, getState() { return {}; }, async setState(st) { this.mode = st.mode; } };
+  let bar = null; let changes = 0;
+  const changed = () => { changes++; view.buildToolbar(); if (bar) bar.destroy(); bar = new B.MarkdownBar(plugin, md); };
+  const grid = document.body.createDiv();
+  B.fillGroupSettings(grid, S, changed);
+  changed();
+  const row = id => grid.querySelector('.wm-settings-grow[data-group="' + id + '"]');
+  const col = tab => [...grid.querySelectorAll('.wm-settings-groups-col[data-tab="' + tab + '"] .wm-settings-grow')].map(r => r.dataset.group).join();
+  const shown = panel => [...panel.querySelectorAll('.wm-group[class*="wm-group-"]')].map(g => [...g.classList].find(c => c.startsWith('wm-group-')).slice(9)).join();
+  const change = el => el.dispatchEvent(new Event('change', { bubbles: true }));
+  assert(col('home') === 'undo,clipboard,styles,font,paragraph,editing' && col('viewtab') === 'views,show,zoom,help' && grid.querySelector('.wm-settings-greset').disabled, '設定頁：每個分頁一欄，群組照預設順序；沒改過時「還原」停用');
+  assert(row('undo').querySelector('.wm-settings-gup').disabled && !row('undo').querySelector('.wm-settings-gdown').disabled && row('editing').querySelector('.wm-settings-gdown').disabled, '最前面的群組不能上移，最後面的不能下移');
+
+  // 改名稱
+  const name = row('font').querySelector('.wm-settings-gname');
+  assert(name.placeholder === '字型' && name.value === '', '名稱留白時顯示預設名稱');
+  name.value = ' 字體 '; change(name);
+  assert(S.groupNames.font === '字體' && view.toolbar.dom.querySelector('.wm-group-font .wm-group-name').textContent === '字體' && bar.dom.querySelector('.wm-group-font .wm-group-name').textContent === '字體', '改群組名稱：兩條功能區都換成新名稱');
+
+  // 調順序
+  click(row('font').querySelector('.wm-settings-gup'));
+  assert(col('home') === 'undo,clipboard,font,styles,paragraph,editing' && shown(view.toolbar.panels.home) === col('home') && shown(bar.panels.home) === 'undo,font,styles,paragraph,editing',
+    '上移一格：設定頁與兩條功能區的順序一致：' + shown(view.toolbar.panels.home) + '｜' + shown(bar.panels.home));
+  assert(document.activeElement === row('font').querySelector('.wm-settings-gup') && row('font').querySelector('.wm-settings-gname').value === '字體', '重畫後焦點留在同一個群組的箭頭上，名稱還在');
+  click(row('font').querySelector('.wm-settings-gup')); click(row('font').querySelector('.wm-settings-gup'));
+  assert(col('home') === 'font,undo,clipboard,styles,paragraph,editing' && document.activeElement === row('font').querySelector('.wm-settings-gdown'), '移到最前面：上移停用，焦點換到下移');
+
+  // 換分頁
+  const tabSel = row('font').querySelector('.wm-settings-gtab');
+  assert([...tabSel.options].map(o => o.value + ':' + o.textContent).join() === 'home:常用,insert:插入,review:校閱,viewtab:檢視' && tabSel.value === 'home', '分頁選單列出四個分頁');
+  tabSel.value = 'insert'; change(tabSel);
+  assert(S.groupTabs.font === 'insert' && col('insert') === 'tables,illustrations,links,code,text,obsidian,font' && !col('home').includes('font'), '移到別的分頁：排在那個分頁的最後');
+  assert(shown(view.toolbar.panels.insert) === col('insert') && !view.toolbar.panels.home.querySelector('.wm-group-font') && bar.panels.insert.querySelector('.wm-group-font') && !bar.panels.home.querySelector('.wm-group-font'), '兩條功能區的「字型」都在插入分頁');
+  assert(btn('粗體').closest('.wm-panel') === view.toolbar.panels.insert, '按鈕跟著群組走');
+  const back = row('font').querySelector('.wm-settings-gtab');
+  back.value = 'home'; change(back);
+  assert(!('font' in S.groupTabs) && col('home') === 'undo,clipboard,styles,paragraph,editing,font', '移回原本的分頁：設定裡不留紀錄');
+
+  // 群組都移走的分頁
+  for (const id of ['proofing', 'stats', 'comments']) { const s = row(id).querySelector('.wm-settings-gtab'); s.value = 'viewtab'; change(s); }
+  assert(grid.querySelector('.wm-settings-groups-col[data-tab="review"] .wm-settings-gempty') && !view.toolbar.tabBtns.review && !bar.tabBtns.review && col('viewtab') === 'views,show,zoom,help,proofing,stats,comments',
+    '群組都移走的分頁：功能區不顯示這個分頁，設定頁仍列出來（可以再移回來）');
+
+  // 顯示／隱藏
+  const fontCb = row('font').querySelector('input[type="checkbox"]');
+  fontCb.checked = false; change(fontCb);
+  assert(S.hiddenGroups.join() === 'font' && !view.toolbar.dom.querySelector('.wm-group-font') && !bar.dom.querySelector('.wm-group-font'), '取消勾選群組：兩條功能區都不顯示');
+  const homeCb = grid.querySelector('.wm-settings-groups-col[data-tab="home"] .wm-settings-tab input');
+  homeCb.checked = false; change(homeCb);
+  assert(S.hiddenTabs.join() === 'home' && row('undo').querySelector('input[type="checkbox"]').disabled && !view.toolbar.tabBtns.home, '取消勾選分頁：該分頁的群組勾選框停用');
+
+  // 還原
+  const before = changes;
+  assert(!grid.querySelector('.wm-settings-greset').disabled, '改過之後可以還原');
+  click(grid.querySelector('.wm-settings-greset'));
+  assert(changes === before + 1 && !Object.keys(S.groupNames).length && !Object.keys(S.groupTabs).length && !S.groupOrder.length && col('review') === 'proofing,stats,comments' && col('home') === 'undo,clipboard,styles,font,paragraph,editing'
+    && S.hiddenGroups.join() === 'font' && S.hiddenTabs.join() === 'home', '還原預設的群組名稱與排列（顯示／隱藏的勾選不變）');
+
+  clean();
+  changed();
+  assert(shown(view.toolbar.panels.home) === 'undo,clipboard,styles,font,paragraph,editing' && view.toolbar.dom.querySelector('.wm-group-font .wm-group-name').textContent === '字型', '清掉自訂後功能區回到預設');
+  bar.destroy();
+  grid.remove();
+  view.toolbar.showTab('home');
 }
 
 // ======== 方程式編輯器：復原、拆掉結構、打指令 ========

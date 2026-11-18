@@ -648,6 +648,21 @@
 .wm-cell-3, .wm-cell-7, .wm-cell-8, .wm-cell-9, .wm-cell-10, .wm-cell-11 { animation: none; }
 .wm-demo-image { width: 60px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 22px; border-radius: 4px; background: var(--background-modifier-hover); }
 .wm-demo-eq { font-family: 'Times New Roman', serif; font-size: 16px; font-style: italic; }
+/* 依序出現、最後一起消失（wm-step-0 最先）。不用 wm-pop 加延遲：那樣每個元素各自循環，先出現的會先消失，看起來像跑馬燈 */
+@keyframes wm-step-0 { 0%, 4% { opacity: 0; transform: scale(.8); } 12%, 88% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+@keyframes wm-step-1 { 0%, 16% { opacity: 0; transform: scale(.8); } 24%, 88% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+@keyframes wm-step-2 { 0%, 28% { opacity: 0; transform: scale(.8); } 36%, 88% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+@keyframes wm-step-3 { 0%, 40% { opacity: 0; transform: scale(.8); } 48%, 88% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+@keyframes wm-step-4 { 0%, 52% { opacity: 0; transform: scale(.8); } 60%, 88% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+.wm-step-0 { animation: wm-step-0 2.8s infinite; } .wm-step-1 { animation: wm-step-1 2.8s infinite; } .wm-step-2 { animation: wm-step-2 2.8s infinite; }
+.wm-step-3 { animation: wm-step-3 2.8s infinite; } .wm-step-4 { animation: wm-step-4 2.8s infinite; }
+/* 插入圖表：流程圖的方塊與箭頭由左到右依序出現 */
+.wm-demo-flow { display: flex; align-items: center; gap: 5px; font-size: 11px; white-space: nowrap; }
+.wm-demo-node { padding: 2px 8px; border: 1px solid var(--interactive-accent); border-radius: 3px; background: rgba(var(--interactive-accent-rgb, 72, 54, 153), .12); }
+.wm-demo-node.is-round { border-radius: 10px; }
+.wm-demo-arrow { color: var(--text-muted); }
+/* 插入註腳：內文後面的編號先出現，接著是下面的註腳內容 */
+.wm-demo-fnref { display: inline-block; margin-left: 1px; font-size: 10px; vertical-align: super; color: var(--text-accent); font-weight: 600; }
 .wm-demo-sym { display: inline-block; margin-right: 8px; font-size: 16px; animation: wm-pop 2.8s infinite; }
 .wm-sym-1 { animation-delay: .15s; } .wm-sym-2 { animation-delay: .3s; } .wm-sym-3 { animation-delay: .45s; } .wm-sym-4 { animation-delay: .6s; }
 .wm-demo-codeblock { border-radius: 4px; background: var(--code-background); border: 1px solid var(--background-modifier-border); font-family: var(--font-monospace); font-size: 11px; animation: wm-pop 2.8s infinite; }
@@ -702,6 +717,11 @@
 .wm-mdbar .wm-toolbar { border-bottom: none; }
 .is-mobile .wm-mdbar .wm-toolbar { flex-wrap: nowrap; overflow-x: auto; }
 .is-mobile .wm-mdbar button.wm-btn { min-width: 36px; height: 36px; }
+/* 其他外掛用 top: var(--header-height) 把東西貼在標題列正下方時，會疊在這條工具列上：往下移一條工具列的高度
+   （--wm-mdbar-height 由 mdbar.ts 設在 .workspace-leaf-content）。目前已知的是 Pretty Properties 的 BANNER／COVER／ICON 按鈕列；
+   第二條對應它自己「有橫幅時再往下 16px」的規則，選擇器比它多一層，所以不管樣式表載入的先後都會生效 */
+.wm-mdbar ~ .view-content > .pp-image-buttons-row { top: calc(var(--header-height) + var(--wm-mdbar-height, 0px)); }
+.wm-mdbar ~ .view-content.has-banner > .pp-image-buttons-row { top: calc(var(--header-height) + var(--wm-mdbar-height, 0px) + 16px); }
 
 /* 快速鍵表 */
 .wm-shortcuts-modal { width: min(920px, 94vw); max-width: none; }
@@ -729,7 +749,6 @@
 .wm-settings-groups-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px 16px; margin-top: 10px; }
 .wm-settings-groups-col { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border: 1px solid var(--background-modifier-border); border-radius: 6px; }
 .wm-settings-tab { font-weight: 600; display: flex; align-items: center; gap: 6px; }
-.wm-settings-group { display: flex; align-items: center; gap: 6px; padding-left: 18px; font-size: var(--font-ui-small); color: var(--text-muted); }
 
 /* 方程式編輯器 v1.2 */
 .wm-eq-modal { width: min(760px, 94vw); max-width: none; }
@@ -959,6 +978,20 @@ audio.wm-embed-media { width: 100%; }
 .wm-settings-tabnames .wm-settings-groups-grid { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
 .wm-settings-tabname { display: flex; flex-direction: column; gap: 4px; font-size: var(--font-ui-small); color: var(--text-muted); }
 .wm-settings-tabname input { width: 100%; }
+/* 自訂分頁與按鈕群組：自己的外框佔滿整列（新舊兩種設定頁的格線容器欄寬不同），每個分頁一欄，每個群組一列 */
+.wm-settings-glist { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(270px, 100%), 1fr)); gap: 10px 16px; align-items: start; }
+.wm-settings-grow { display: flex; align-items: center; gap: 4px; }
+.wm-settings-grow input[type="checkbox"] { flex: 0 0 auto; }
+.wm-settings-grow input.wm-settings-gname { flex: 1 1 60px; min-width: 0; height: 28px; font-size: var(--font-ui-small); }
+.wm-settings-grow select.wm-settings-gtab { flex: 0 1 auto; min-width: 0; max-width: 96px; height: 28px; font-size: var(--font-ui-small); }
+.wm-settings-grow button.wm-settings-gmove { flex: 0 0 auto; width: 26px; height: 26px; padding: 0; background: transparent; box-shadow: none; border: none; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-muted); }
+.wm-settings-grow button.wm-settings-gmove:hover:not(:disabled) { background: var(--background-modifier-hover); color: var(--text-normal); }
+.wm-settings-grow button.wm-settings-gmove:disabled { opacity: .3; cursor: default; }
+.wm-settings-grow button.wm-settings-gmove svg { width: 14px; height: 14px; }
+.wm-settings-gempty { padding: 4px 0; font-size: var(--font-ui-small); color: var(--text-faint); }
+.wm-settings-greset { grid-column: 1 / -1; justify-self: start; }
+.is-mobile .wm-settings-grow input.wm-settings-gname, .is-mobile .wm-settings-grow select.wm-settings-gtab { height: 34px; }
+.is-mobile .wm-settings-grow button.wm-settings-gmove { width: 34px; height: 34px; }
 
 /* ---------- 功能區的高度固定：切換分頁、切換到 Markdown／閱讀模式時，下面的內容不會上下跳動 ---------- */
 .wm-layout-tabs.wm-btnstyle-auto .wm-toolbar { min-height: 53px; }
