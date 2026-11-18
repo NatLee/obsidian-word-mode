@@ -1043,7 +1043,9 @@ audio.wm-embed-media { width: 100%; }
 .wm-eq-card > .wm-eq-label { margin: 0 0 6px; min-height: 24px; font-weight: 600; letter-spacing: .02em; }
 .wm-eq-palbox { padding-top: 4px; }
 .wm-eq-palbox .wm-eq-cats { margin: 0; gap: 0; }
-.wm-eq-palbox .wm-eq-palette { margin: 8px 0 0; min-height: 84px; max-height: 176px; }
+/* 面板可以捲動，超出它邊界的東西會被裁掉：四邊留 3px 的內距（外距縮回去，按鈕的位置不變），
+   按鈕浮起來時的上緣與鍵盤焦點的外框才不會被吃掉 */
+.wm-eq-palbox .wm-eq-palette { margin: 5px -3px -3px; padding: 3px; min-height: 90px; max-height: 182px; }
 .wm-eq-palbox .wm-eq-items { gap: 5px; }
 .wm-eq button.wm-eq-btn { justify-content: center; min-width: 36px; min-height: 36px; padding: 2px 6px; background: var(--background-primary); box-shadow: none; border: 1px solid var(--background-modifier-border); border-radius: 7px; font-size: 16px; cursor: pointer; transition: border-color .08s, transform .08s; }
 .wm-eq button.wm-eq-btn:hover { border-color: var(--interactive-accent); transform: translateY(-1px); }
