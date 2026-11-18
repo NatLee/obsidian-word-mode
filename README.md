@@ -18,8 +18,9 @@ Your files stay plain Markdown. When you edit a note, only the blocks you change
 
 ![The Insert tab of the ribbon toolbar (illustration)](docs/images/ribbon.en.svg)
 
-- **Ribbon toolbar** with Home, Insert, Review, and View tabs.
-- **Tables** you edit in place: add, remove, and move rows and columns, sort by a column, set alignment, and paste cells from a spreadsheet.
+- **Ribbon toolbar** with Home, Insert, Review, and View tabs. The tab row can show text, icons, or both, collapse into a single menu button, and use your own tab names. The toolbar in Markdown and reading mode has the same layout, so nothing jumps when you switch modes.
+- **Font color and highlight**: a palette of standard colors with tints and shades, your recent custom colors, and a custom color you pick or type as a hex code. Highlights can use any color and opacity.
+- **Tables** you edit in place: add, remove, and move rows and columns, sort by a column, set alignment, and paste cells from a spreadsheet. The right-click menu groups these into short submenus.
 - **Properties** as a form: tags and links appear as chips that you can select to open, nested values appear as a tree, and you can change a property's type or rename it from its icon.
 - **Images**: paste or pick an image, then drag to resize it.
 - **Links** to notes, headings, and web pages, with a small toolbar that appears when the cursor is on a link.
@@ -28,11 +29,11 @@ Your files stay plain Markdown. When you edit a note, only the blocks you change
 - **Formatting marks** such as `¶`, and a cleanup tool for invisible or stray characters.
 - **Formatting as you type**: start a paragraph with `- `, `1. `, `# `, `> `, or `[ ] `, or finish `**bold**`, `*italic*`, or `[[note]]`, and it turns into formatting. Each change is its own undo step, so one undo removes the formatting and keeps what you typed.
 - **Suggestions** for notes and headings when you type `[[`, and for tags when you type `#`.
-- **Diagrams**: Mermaid diagrams are shown as diagrams. A diagram editor lets you edit flowcharts as a list of steps and connections, or any diagram as code, with a live preview. Dataview queries and code blocks from other plugins are shown as their results.
-- **Equations**: a visual editor where fractions, roots, superscripts, and matrices are boxes you type in, or plain LaTeX. You choose the default in the settings.
+- **Diagrams**: Mermaid diagrams are shown as diagrams. A diagram editor lets you edit flowcharts, sequence diagrams, Gantt charts, pie charts, state diagrams, class diagrams, mind maps, timelines, and ER diagrams as a form, with a live preview. Select any text on the preview to change it in place, or add and delete items there. Diagrams that use syntax the form does not cover open as code. Dataview queries and code blocks from other plugins are shown as their results.
+- **Equations**: a visual editor where fractions, roots, superscripts, and matrices are boxes you type in, or plain LaTeX. The visual editor has undo and redo, removes a structure when you press Backspace in an empty box, and turns `\frac`, `\sqrt`, or `\alpha` followed by a space into the structure or symbol. You choose the default in the settings.
 - **Embeds**: embedded notes, headings, audio, video, PDFs, and YouTube links are shown in place.
 - **Footnotes**: insert a footnote, hover over its number to read it, and edit its text without touching the syntax.
-- **Callouts** (including foldable ones), **task lists** with custom statuses such as `[/]` and `[-]`, **tags**, and **code blocks** with syntax highlighting and optional line numbers.
+- **Callouts** (including foldable ones), **task lists** with custom statuses such as `[/]` and `[-]`, **tags**, and **code blocks** with syntax highlighting and optional line numbers. Inside a code block, the buttons that do not apply to plain text are turned off.
 - **Paste Markdown text** and convert it to formatted text in one step.
 - **Sync conflict handling**: if a note changes on disk while you have unsaved edits, you choose which version to keep.
 - Interface in Traditional Chinese, English, Japanese, and Korean.
@@ -121,6 +122,7 @@ Obsidian APIs that aren't public are declared in one place, `src/obsidian-intern
 | `src/editor.ts` | Editor state setup. |
 | `src/commands.ts` | Editing commands. Pure ProseMirror, no Obsidian dependency. |
 | `src/toolbar.ts` | Ribbon toolbar. |
+| `src/colorpicker.ts` | Color panel for font color and highlight. |
 | `src/mdbar.ts` | Toolbar shown in Markdown and reading mode. |
 | `src/bubble.ts` | Floating toolbar for links and images. |
 | `src/nodeviews.ts` | Rendering of links, images, tables, and raw blocks. |
@@ -135,7 +137,7 @@ Obsidian APIs that aren't public are declared in one place, `src/obsidian-intern
 | `src/suggest.ts`, `src/complete.ts` | Suggestions for notes, headings, and tags. |
 | `src/dialogs.ts` | Dialogs: links, equations, shortcuts, cleanup, word count. |
 | `src/mathvisual.ts` | Visual equation editor. |
-| `src/mermaid.ts`, `src/flowchart.ts` | Diagram editor, and the flowchart parser behind its form. |
+| `src/mermaid.ts`, `src/diagrams.ts`, `src/flowchart.ts` | Diagram editor, the description of each diagram kind (parser, generator, and form fields) that drives its form and on-diagram editing, and the flowchart parser. |
 | `src/embeds.ts` | Embedded notes, media, and PDFs. |
 | `src/footnotes.ts` | Footnote commands. |
 | `src/decoutil.ts`, `src/dom.ts`, `src/textstats.ts` | Shared helpers. |
