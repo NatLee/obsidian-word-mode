@@ -581,7 +581,7 @@ export class Toolbar {
     let g = G.illustrations;
     this.button(g, { icon: 'image', title: '插入圖片', text: '圖', label: '圖片', big: true, demo: 'image', desc: '插入保管庫裡的圖片、電腦上的圖片或網路圖片。', onClick: (e, b) => this.d.image(b), ...NO_CODE });
     this.button(g, { icon: 'sigma', title: '插入方程式', text: '∑', label: '方程式', big: true, demo: 'equation', desc: '用方程式編輯器輸入數學式，即時預覽。', onClick: () => this.d.equation(), ...NO_CODE });
-    this.button(g, { icon: 'workflow', title: '插入圖表（Mermaid）', text: '圖表', label: '圖表', big: true, demo: 'mermaid', desc: '插入流程圖、循序圖、甘特圖等圖表。流程圖可以用表單編輯步驟與連線，右邊即時預覽。', onClick: () => this.d.mermaid(), ...NO_CODE });
+    this.button(g, { icon: 'workflow', title: '插入圖表（Mermaid）', text: '圖表', label: '圖表', big: true, demo: 'mermaid', desc: '插入流程圖、循序圖、甘特圖、圓餅圖、心智圖等圖表。用表單編輯內容，或直接點預覽圖上的文字修改。', onClick: () => this.d.mermaid(), ...NO_CODE });
     this.button(g, { icon: 'omega', title: '插入符號', text: 'Ω', label: '符號', big: true, demo: 'symbol', desc: '插入中文標點、箭頭、希臘字母、單位等符號。', onClick: (e, b) => this.openSymbolPopup(b) });
     g = G.links;
     this.button(g, { icon: 'link', title: '超連結', keys: 'Mod+K', text: '連', label: '連結', big: true, demo: 'link', desc: '把文字連到網址或保管庫裡的筆記。', onClick: () => this.d.link(), ...NO_CODE });

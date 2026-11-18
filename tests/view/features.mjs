@@ -216,19 +216,19 @@ await fresh('前面\n\n```mermaid\nflowchart TD\n    A[開始] --> B{判斷}\n  
   assert(qa('.wm-mmd-list')[0].querySelectorAll('.wm-mmd-row').length === 4 && qa('.wm-mmd-edge').length === 3, '「新增下一步」：多一個步驟與一條連線');
   const lastEdge = qa('.wm-mmd-edge')[2].querySelector('input');
   lastEdge.value = '完成'; lastEdge.dispatchEvent(new Event('input'));
-  const shape = qa('.wm-mmd-shape')[3];
+  const shape = qa('.wm-mmd-f-shape')[3];
   shape.value = 'stadium'; shape.dispatchEvent(new Event('change'));
   q('button.mod-cta').click();
   const o = out();
   assert(o.includes('A[起點]') && o.includes('N4([新步驟])') && o.includes('C -->|完成| N4') && o.includes('B -->|是| C'), '表單的修改寫回程式碼：' + JSON.stringify(o));
   assert(o.startsWith('前面\n\n```mermaid\nflowchart TD\n') && o.endsWith('```\n'), '仍是 mermaid 程式碼區塊');
   // 不支援的寫法：只能用程式碼
-  await fresh('```mermaid\nsequenceDiagram\n    A->>B: hi\n```\n');
+  await fresh('```mermaid\nsequenceDiagram\n    loop 每天\n    A->>B: hi\n    end\n```\n');
   view.pm.dom.querySelector('.wm-code-edit').click();
   mm = mock.Modal.last;
-  assert(mm.tab === 'code' && mm.contentEl.querySelector('.wm-mmd-input').value.startsWith('sequenceDiagram'), '不是流程圖：直接用程式碼編輯');
+  assert(mm.tab === 'code' && mm.contentEl.querySelector('.wm-mmd-input').value.startsWith('sequenceDiagram'), '用了表單不支援的寫法（loop）：直接用程式碼編輯');
   mm.setTab('visual');
-  assert(mm.contentEl.querySelector('.wm-mmd-note').textContent.includes('不是流程圖'), '切到表單會說明原因');
+  assert(mm.contentEl.querySelector('.wm-mmd-note').textContent.includes('表單不支援的區塊'), '切到表單會說明原因：' + mm.contentEl.querySelector('.wm-mmd-note').textContent);
   mm.setTab('code');
   const ta = mm.contentEl.querySelector('.wm-mmd-input');
   ta.value = 'sequenceDiagram\n    語法錯誤'; ta.dispatchEvent(new Event('input'));

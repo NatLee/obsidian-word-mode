@@ -831,8 +831,8 @@ function settingSections(settingTab: WordModeSettings): SettingSection[] {
       row(t('方程式編輯器預設的編輯方式'), t('「視覺化」把分數、根號、上下標顯示成一格一格，可以直接點進去輸入；「LaTeX」直接編輯原始碼。在編輯器裡隨時可以切換。'),
         s => s.addDropdown(d => d.addOptions({ visual: t('視覺化'), latex: 'LaTeX' })
           .setValue(S.mathMode === 'latex' ? 'latex' : 'visual').onChange(async v => { S.mathMode = v as EquationEditMode; await save(); }))),
-      row(t('圖表編輯器預設的編輯方式'), t('「表單」用步驟與連線的清單編輯流程圖；其他種類的圖表，或用了表單不支援的寫法時，會自動改用程式碼。'),
-        s => s.addDropdown(d => d.addOptions({ visual: t('表單（流程圖）'), code: t('程式碼') })
+      row(t('圖表編輯器預設的編輯方式'), t('「表單」用清單編輯圖表的內容（流程圖、循序圖、甘特圖、圓餅圖、狀態圖、類別圖、心智圖、時間軸、ER 圖），也可以直接點預覽圖上的文字修改；用了表單不支援的寫法時，會自動改用程式碼。'),
+        s => s.addDropdown(d => d.addOptions({ visual: t('表單'), code: t('程式碼') })
           .setValue(S.mermaidMode === 'code' ? 'code' : 'visual').onChange(async v => { S.mermaidMode = v as MermaidTab; await save(); }))),
       toggleRow(t('新方程式預設為獨立一行'),
         t('關閉時新插入的方程式放在文字中（$…$），開啟時獨立一行置中（$$…$$）。在方程式編輯器裡都可以切換。'), 'mathDisplay'),

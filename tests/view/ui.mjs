@@ -241,5 +241,122 @@ await fresh('公式：\n');
   eq2.close();
 }
 
+// ======== 圖表編輯器：每種圖表都有表單，也可以在圖上編輯 ========
+await fresh('第一段\n');
+{
+  view.openMermaid();
+  const mm = mock.Modal.last;
+  const q = s => mm.contentEl.querySelector(s);
+  const qa = s => [...mm.contentEl.querySelectorAll(s)];
+  const kind = id => qa('.wm-mmd-kind').find(b => b.dataset.kind === id);
+  const lists = () => qa('.wm-mmd-list').map(l => l.querySelectorAll('.wm-mmd-row').length).join();
+  const setInput = (el, v) => { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); };
+  assert(qa('.wm-mmd-kind').length === 9 && kind('flowchart').classList.contains('is-active'), '上方列出九種圖表，標出目前的種類');
+  // 每一種範本都開在表單
+  for (const k of ['sequence', 'gantt', 'pie', 'state', 'class', 'mindmap', 'timeline', 'er', 'flowchart']) {
+    click(kind(k));
+    assert(mm.tab === 'visual' && !q('.wm-mmd-blocked') && qa('.wm-mmd-row').length >= 2 && kind(k).classList.contains('is-active'), '範本可以用表單編輯：' + k + '（' + lists() + '）');
+  }
+  // 循序圖：參與者改名、新增訊息、移動順序
+  click(kind('sequence'));
+  assert(lists() === '2,2', '循序圖：兩個參與者、兩則訊息');
+  setInput(q('.wm-mmd-row .wm-mmd-f-name'), '客戶');
+  assert(mm.src.includes('participant 客戶') && mm.src.includes('客戶->>系統: 送出請求') && mm.src.includes('系統-->>客戶: 回覆結果'), '參與者改名：訊息裡的名稱一起改：' + JSON.stringify(mm.src));
+  assert(q('.wm-mmd-f-from').value === '客戶' && [...q('.wm-mmd-f-from').options].map(o => o.value).join() === '客戶,系統', '下拉選單的選項跟著更新');
+  click(qa('.wm-mmd-add')[1]);
+  assert(lists() === '2,3' && mm.src.endsWith('客戶->>系統: 新訊息'), '新增訊息：' + JSON.stringify(mm.src.split('\n').pop()));
+  const lastRow = qa('.wm-mmd-list')[1].querySelectorAll('.wm-mmd-row')[2];
+  click([...lastRow.querySelectorAll('.wm-mmd-iconbtn')].find(b => b.getAttribute('aria-label') === '上移'));
+  assert(mm.src.split('\n').slice(-2).join('|') === '    客戶->>系統: 新訊息|    系統-->>客戶: 回覆結果', '上移一列：' + JSON.stringify(mm.src.split('\n').slice(-2)));
+  const arrow = qa('.wm-mmd-list')[1].querySelectorAll('.wm-mmd-f-arrow')[1];
+  arrow.value = 'note-right'; arrow.dispatchEvent(new Event('change'));
+  assert(mm.src.includes('Note right of 客戶: 新訊息'), '訊息改成備註：' + JSON.stringify(mm.src));
+  // 內容改過：換種類前先問
+  const before = mm.src;
+  click(kind('pie'));
+  assert(q('.wm-mmd-confirm').style.display !== 'none' && mm.src === before, '內容改過：換範本前先問，不會直接蓋掉');
+  click([...q('.wm-mmd-confirm').querySelectorAll('button')][1]);
+  assert(q('.wm-mmd-confirm').style.display === 'none' && mm.src === before, '取消：內容不變');
+  click(kind('pie'));
+  click(q('.wm-mmd-confirm button.mod-warning'));
+  assert(mm.src.startsWith('pie title 佔比') && lists() === '3' && q('.wm-mmd-head .wm-mmd-f-title').value === '佔比', '取代成圓餅圖的範本');
+  // 圓餅圖：改數值、勾選顯示數值、刪除一列
+  setInput(qa('.wm-mmd-f-value')[0], '60');
+  const show = q('.wm-mmd-check input');
+  show.checked = true; show.dispatchEvent(new Event('change'));
+  assert(mm.src.startsWith('pie showData title 佔比\n    "項目一" : 60'), '圓餅圖：改數值、顯示數值：' + JSON.stringify(mm.src));
+  // ---- 在圖上編輯：點圖上的文字，直接改
+  const NS = 'http://www.w3.org/2000/svg';
+  const draw = (...texts) => {
+    mm.prev.replaceChildren();
+    const svg = document.createElementNS(NS, 'svg');
+    for (const tx of texts) { const el = document.createElementNS(NS, 'text'); el.textContent = tx; svg.appendChild(el); }
+    mm.prev.appendChild(svg);
+    return [...svg.querySelectorAll('text')];
+  };
+  let [legend, pct] = draw('項目二 [30]', '32%');
+  click(pct);
+  assert(!q('.wm-mmd-inline'), '點到不是欄位的文字（百分比）：沒有反應');
+  click(legend);
+  let inline = q('.wm-mmd-inline');
+  assert(inline && inline.querySelector('input').value === '項目二' && qa('.wm-mmd-row.is-current').length === 1, '點圖例：在圖上出現輸入框，表單也標出那一列');
+  inline.querySelector('input').value = '乙';
+  inline.querySelector('input').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+  assert(!q('.wm-mmd-inline') && mm.src.includes('"乙" : 30') && qa('.wm-mmd-f-label')[1].value === '乙', '在圖上改文字：程式碼與表單都更新：' + JSON.stringify(mm.src));
+  // 正在圖上編輯時按 Esc：只關掉輸入框
+  [legend] = draw('乙');
+  click(legend);
+  q('.wm-mmd-inline input').value = '不要';
+  mm.close();
+  assert(!q('.wm-mmd-inline') && document.body.contains(mm.contentEl) && !mm.src.includes('不要'), '圖上編輯時按 Esc：只關掉輸入框，不套用、也不關閉編輯器');
+  // 在圖上刪除一列
+  [legend] = draw('乙');
+  click(legend);
+  click(q('.wm-mmd-inline .is-danger'));
+  assert(lists() === '2' && !mm.src.includes('乙'), '在圖上刪除一列：' + JSON.stringify(mm.src));
+  // 流程圖：點節點的形狀也可以（用節點代號對應）；圖上可以新增下一步
+  click(kind('flowchart'));
+  click(q('.wm-mmd-confirm button.mod-warning'));
+  mm.prev.replaceChildren();
+  const svg = document.createElementNS(NS, 'svg');
+  const g = document.createElementNS(NS, 'g');
+  g.setAttribute('class', 'node'); g.id = 'flowchart-C-3';
+  const rect = document.createElementNS(NS, 'rect');
+  const label = document.createElementNS(NS, 'text'); label.textContent = '處理';
+  g.appendChild(rect); g.appendChild(label); svg.appendChild(g); mm.prev.appendChild(svg);
+  click(rect);
+  inline = q('.wm-mmd-inline');
+  assert(inline && inline.querySelector('input').value === '處理', '流程圖：點節點的方框也能編輯');
+  click(inline.querySelectorAll('.wm-mmd-inline-btn')[1]);
+  assert(lists() === '5,5' && mm.src.includes('C --> N5') && document.activeElement.value === '新步驟', '在圖上新增下一步：多一個步驟與一條連線，游標在新步驟：' + JSON.stringify(mm.src));
+  // 狀態圖：在圖上改名，所有出現的地方一起改
+  click(kind('state'));
+  click(q('.wm-mmd-confirm button.mod-warning'));
+  const [st] = draw('進行中');
+  click(st);
+  q('.wm-mmd-inline input').value = '處理中';
+  q('.wm-mmd-inline input').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+  assert(mm.src.includes('待處理 --> 處理中') && mm.src.includes('處理中 --> 完成') && !mm.src.includes('進行中'), '狀態圖在圖上改名：前後的轉換一起改：' + JSON.stringify(mm.src));
+  // 心智圖：階層
+  click(kind('mindmap'));
+  click(q('.wm-mmd-confirm button.mod-warning'));
+  const rows = () => qa('.wm-mmd-row');
+  assert(rows().length === 4 && rows()[0].querySelectorAll('.wm-mmd-iconbtn').length === 1 && rows()[2].style.getPropertyValue('--wm-mmd-level') === '2', '心智圖：中心主題不能刪除，分支依階層縮排');
+  click(rows()[3].querySelectorAll('.wm-mmd-levelbtn')[1]);
+  assert(mm.src.endsWith('      細項\n      分支二'), '心智圖：往內一層：' + JSON.stringify(mm.src));
+  click(rows()[1].querySelector('.wm-mmd-iconbtn'));
+  assert(rows().length === 5 && mm.src.includes('    分支一\n      新分支\n      細項'), '心智圖：新增子分支：' + JSON.stringify(mm.src));
+  // 套用：寫進筆記
+  click(q('button.mod-cta'));
+  assert(out().startsWith('第一段\n\n```mermaid\nmindmap\n  root((主題))\n    分支一\n      新分支\n      細項\n      分支二\n```\n'), '套用後存成 mermaid 區塊：' + JSON.stringify(out()));
+
+  // 既有的圖表：沒有修改就關閉，原本的程式碼一字不動
+  await fresh('```mermaid\npie title 佔比\n  "甲" : 1\n  "乙" : 2\n```\n');
+  view.pm.dom.querySelector('.wm-code-edit').click();
+  const m2 = mock.Modal.last;
+  assert(m2.tab === 'visual' && m2.contentEl.querySelectorAll('.wm-mmd-row').length === 2, '既有的圓餅圖開在表單');
+  m2.contentEl.querySelector('button.mod-cta').click();
+  assert(out() === '```mermaid\npie title 佔比\n  "甲" : 1\n  "乙" : 2\n```\n', '沒有修改：原本的寫法（含縮排）不變：' + JSON.stringify(out()));
+}
 
 finish();
