@@ -197,6 +197,9 @@ export const GROUPS: readonly GroupEntry[] = [
   ['views', 'viewtab', '檢視模式'], ['show', 'viewtab', '顯示'], ['zoom', 'viewtab', '縮放'], ['help', 'viewtab', '說明'],
 ];
 
+// 游標在程式碼區塊裡時停用的按鈕（程式碼區塊只能放純文字）：停用並在提示裡說明原因
+const NO_CODE: Pick<ButtonSpec, 'enabled' | 'why'> = { enabled: C.notInCode, why: C.codeBlocked };
+
 // 不讓編輯區失去焦點（手機上鍵盤才不會收起來）
 function keepFocus(b: HTMLElement): void {
   b.addEventListener('mousedown', e => e.preventDefault());
@@ -352,8 +355,9 @@ export class Toolbar {
   }
 
   // 分割按鈕：主按鈕執行，旁邊的小箭頭開選單
-  arrow(parent: HTMLElement | null | undefined, title: I18nKey, onClick: ButtonClick): HTMLButtonElement | null {
-    return this.button(parent, { icon: 'chevron-down', title, text: '▾', cls: 'wm-split-arrow', split: true, onClick });
+  // noCode：游標在程式碼區塊裡時停用
+  arrow(parent: HTMLElement | null | undefined, title: I18nKey, onClick: ButtonClick, noCode?: boolean): HTMLButtonElement | null {
+    return this.button(parent, { icon: 'chevron-down', title, text: '▾', cls: 'wm-split-arrow', split: true, onClick, ...(noCode ? NO_CODE : {}) });
   }
 
   panel(tab: TabId): HTMLDivElement | undefined {
@@ -419,14 +423,14 @@ export class Toolbar {
     ]));
     this.button(g, { icon: 'scissors', title: '剪下', keys: 'Mod+X', text: '剪', desc: '剪下選取的內容。', demo: 'cut', onClick: () => this.d.clip('cut') });
     this.button(g, { icon: 'copy', title: '複製', keys: 'Mod+C', text: '複', desc: '複製選取的內容。', demo: 'copy', onClick: () => this.d.clip('copy') });
-    this.painterBtn = this.button(g, { icon: 'paintbrush', title: '複製格式', text: '刷', desc: '先把游標放在有格式的文字，按一下格式刷，再選取要套用的文字。按兩下可以連續刷，按 Esc 結束。', demo: 'painter', onClick: () => this.togglePainter() });
+    this.painterBtn = this.button(g, { icon: 'paintbrush', title: '複製格式', text: '刷', desc: '先把游標放在有格式的文字，按一下格式刷，再選取要套用的文字。按兩下可以連續刷，按 Esc 結束。', demo: 'painter', onClick: () => this.togglePainter(), ...NO_CODE });
     if (this.painterBtn) this.painterBtn.addEventListener('dblclick', e => { e.preventDefault(); this.togglePainter(true); });
 
     g = G.styles;
     this.styleBtn = this.button(g, { title: '段落樣式', text: t('內文'), cls: 'wm-style-btn', desc: '把段落改成標題 1～6、內文或程式碼。', demo: 'style', onClick: (e, b) => this.openStylePopup(b) });
 
     g = G.font;
-    const mk = (icon: string, title: I18nKey, keys: string | null, cmd: Command, type: MarkType, text: string, demo: string, desc: I18nKey) => this.button(g, { icon, title, keys, cmd, text, demo, desc, active: s => C.markActive(s, type) });
+    const mk = (icon: string, title: I18nKey, keys: string | null, cmd: Command, type: MarkType, text: string, demo: string, desc: I18nKey) => this.button(g, { icon, title, keys, cmd, text, demo, desc, active: s => C.markActive(s, type), ...NO_CODE });
     mk('bold', '粗體', 'Mod+B', C.toggleBold, M.strong, 'B', 'bold', '把選取的文字（或游標所在的詞）變粗體。');
     mk('italic', '斜體', 'Mod+I', C.toggleItalic, M.em, 'I', 'italic', '把文字變斜體。');
     mk('underline', '底線', 'Mod+U', C.toggleUnderline, M.underline, 'U', 'underline', '在文字下方加底線。');
@@ -438,24 +442,25 @@ export class Toolbar {
       desc: '像螢光筆一樣標出文字。旁邊的箭頭可以換顏色。',
       cmd: (st, dp) => (this.hlColor === null ? C.toggleHighlight(st, dp) : C.setHighlight(this.hlColor)(st, dp)),
       active: st => { const h = C.currentHighlight(st); return !!h && h !== SHADING; },
+      ...NO_CODE,
     });
-    this.arrow(g, '醒目提示色彩', (e, b) => this.openHighlightPopup(b));
+    this.arrow(g, '醒目提示色彩', (e, b) => this.openHighlightPopup(b), true);
     this.button(g, { icon: 'paint-bucket', title: '字元網底', text: '網', demo: 'shading', desc: '在文字後面加上灰色底色（Word 的「字元網底」）。',
       cmd: (st, dp) => C.setHighlight(C.currentHighlight(st) === SHADING ? 'none' : SHADING)(st, dp),
-      active: st => C.currentHighlight(st) === SHADING });
-    this.button(g, { icon: 'square', title: '字元框線', text: '框', demo: 'border', desc: '在文字外面加一個方框。', cmd: C.toggleBorder, active: s => C.markActive(s, M.border) });
+      active: st => C.currentHighlight(st) === SHADING, ...NO_CODE });
+    this.button(g, { icon: 'square', title: '字元框線', text: '框', demo: 'border', desc: '在文字外面加一個方框。', cmd: C.toggleBorder, active: s => C.markActive(s, M.border), ...NO_CODE });
     this.colorBtn = this.button(g, { icon: 'baseline', title: '字型色彩', text: 'A', cls: 'wm-color-btn', demo: 'color', desc: '把文字改成上次選的顏色。旁邊的箭頭可以選其他顏色。',
-      cmd: (st, dp) => C.setColor(this.fontColor)(st, dp) });
+      cmd: (st, dp) => C.setColor(this.fontColor)(st, dp), ...NO_CODE });
     if (this.colorBtn) this.colorBtn.style.setProperty('--wm-current-color', this.fontColor);
-    this.arrow(g, '其他字型色彩', (e, b) => this.openColorPopup(b));
+    this.arrow(g, '其他字型色彩', (e, b) => this.openColorPopup(b), true);
     this.menuButton(g, { icon: 'case-sensitive', title: '大小寫／全形半形', text: 'Aa', demo: 'case', desc: '把英文字改成大寫、小寫，或把文字轉成全形、半形。' },
       CASE_MENU.map(([k, label]) => ({ title: t(label), run: () => this.run(C.changeCase(k)) })));
     this.button(g, { icon: 'remove-formatting', title: '清除所有格式', text: '清', demo: 'clear', desc: '移除粗體、顏色、醒目提示等所有格式，標題會改回內文。', cmd: C.clearFormatting });
 
     g = G.paragraph;
-    this.button(g, { icon: 'list', title: '項目符號', text: '•', demo: 'bullet', desc: '把段落變成項目符號清單。', cmd: C.toggleList('bullet'), active: s => C.currentList(s) === 'bullet' });
-    this.button(g, { icon: 'list-ordered', title: '編號', text: '1.', demo: 'ordered', desc: '把段落變成 1. 2. 3. 編號清單。', cmd: C.toggleList('ordered'), active: s => C.currentList(s) === 'ordered' });
-    this.button(g, { icon: 'list-checks', title: '核取清單', text: '☐', demo: 'task', desc: '變成可以打勾的待辦清單。', cmd: C.toggleList('task'), active: s => C.currentList(s) === 'task' });
+    this.button(g, { icon: 'list', title: '項目符號', text: '•', demo: 'bullet', desc: '把段落變成項目符號清單。', cmd: C.toggleList('bullet'), active: s => C.currentList(s) === 'bullet', ...NO_CODE });
+    this.button(g, { icon: 'list-ordered', title: '編號', text: '1.', demo: 'ordered', desc: '把段落變成 1. 2. 3. 編號清單。', cmd: C.toggleList('ordered'), active: s => C.currentList(s) === 'ordered', ...NO_CODE });
+    this.button(g, { icon: 'list-checks', title: '核取清單', text: '☐', demo: 'task', desc: '變成可以打勾的待辦清單。', cmd: C.toggleList('task'), active: s => C.currentList(s) === 'task', ...NO_CODE });
     this.button(g, { icon: 'indent-decrease', title: '減少縮排', keys: 'Shift+Tab', text: '←', demo: 'outdent', desc: '整段往左移；清單往上一層。', cmd: C.outdent, enabled: s => C.outdent(s) });
     this.button(g, { icon: 'indent-increase', title: '增加縮排', text: '→', demo: 'indent', desc: '整段往右移；清單變成下一層。', cmd: C.indent, enabled: s => C.indent(s), why: C.blockFormatBlocked });
     const al = (a: Align, icon: string, title: I18nKey, keys: string | null, text: string) => this.button(g, { icon, title, keys, text, demo: a, desc: '設定段落的對齊方式。', cmd: C.setAlign(a), active: st => C.currentAlign(st) === a, enabled: st => C.setAlign(a)(st) || (a === 'left' && C.currentAlign(st) === 'left'), why: C.blockFormatBlocked });
@@ -517,30 +522,30 @@ export class Toolbar {
 
   // ----------------------------------------------------------- 插入
   buildInsert(G: GroupBodies): void {
-    this.tableBtn = this.button(G.tables, { icon: 'table', title: '插入表格', text: '表', label: '表格', big: true, demo: 'table', desc: '拖曳選擇欄數與列數，插入表格。也可以直接貼上 Excel 的範圍。', onClick: (e, b) => this.openTablePopup(b) });
+    this.tableBtn = this.button(G.tables, { icon: 'table', title: '插入表格', text: '表', label: '表格', big: true, demo: 'table', desc: '拖曳選擇欄數與列數，插入表格。也可以直接貼上 Excel 的範圍。', onClick: (e, b) => this.openTablePopup(b), ...NO_CODE });
     let g = G.illustrations;
-    this.button(g, { icon: 'image', title: '插入圖片', text: '圖', label: '圖片', big: true, demo: 'image', desc: '插入保管庫裡的圖片、電腦上的圖片或網路圖片。', onClick: (e, b) => this.d.image(b) });
-    this.button(g, { icon: 'sigma', title: '插入方程式', text: '∑', label: '方程式', big: true, demo: 'equation', desc: '用方程式編輯器輸入數學式，即時預覽。', onClick: () => this.d.equation() });
-    this.button(g, { icon: 'workflow', title: '插入圖表（Mermaid）', text: '圖表', label: '圖表', big: true, demo: 'mermaid', desc: '插入流程圖、循序圖、甘特圖等圖表。流程圖可以用表單編輯步驟與連線，右邊即時預覽。', onClick: () => this.d.mermaid() });
+    this.button(g, { icon: 'image', title: '插入圖片', text: '圖', label: '圖片', big: true, demo: 'image', desc: '插入保管庫裡的圖片、電腦上的圖片或網路圖片。', onClick: (e, b) => this.d.image(b), ...NO_CODE });
+    this.button(g, { icon: 'sigma', title: '插入方程式', text: '∑', label: '方程式', big: true, demo: 'equation', desc: '用方程式編輯器輸入數學式，即時預覽。', onClick: () => this.d.equation(), ...NO_CODE });
+    this.button(g, { icon: 'workflow', title: '插入圖表（Mermaid）', text: '圖表', label: '圖表', big: true, demo: 'mermaid', desc: '插入流程圖、循序圖、甘特圖等圖表。流程圖可以用表單編輯步驟與連線，右邊即時預覽。', onClick: () => this.d.mermaid(), ...NO_CODE });
     this.button(g, { icon: 'omega', title: '插入符號', text: 'Ω', label: '符號', big: true, demo: 'symbol', desc: '插入中文標點、箭頭、希臘字母、單位等符號。', onClick: (e, b) => this.openSymbolPopup(b) });
     g = G.links;
-    this.button(g, { icon: 'link', title: '超連結', keys: 'Mod+K', text: '連', label: '連結', big: true, demo: 'link', desc: '把文字連到網址或保管庫裡的筆記。', onClick: () => this.d.link() });
-    this.button(g, { icon: 'file-symlink', title: '連結到筆記', text: '[[', label: '筆記', big: true, demo: 'notelink', desc: '搜尋並插入另一份筆記的連結。', onClick: () => this.d.noteLink() });
-    this.button(g, { icon: 'asterisk', title: '插入註腳', text: '註', label: '註腳', big: true, demo: 'footnote', desc: '在游標處加上註腳編號，內容放在文件最後。滑鼠移到編號上可以看內容。', onClick: () => this.d.footnote() });
+    this.button(g, { icon: 'link', title: '超連結', keys: 'Mod+K', text: '連', label: '連結', big: true, demo: 'link', desc: '把文字連到網址或保管庫裡的筆記。', onClick: () => this.d.link(), ...NO_CODE });
+    this.button(g, { icon: 'file-symlink', title: '連結到筆記', text: '[[', label: '筆記', big: true, demo: 'notelink', desc: '搜尋並插入另一份筆記的連結。', onClick: () => this.d.noteLink(), ...NO_CODE });
+    this.button(g, { icon: 'asterisk', title: '插入註腳', text: '註', label: '註腳', big: true, demo: 'footnote', desc: '在游標處加上註腳編號，內容放在文件最後。滑鼠移到編號上可以看內容。', onClick: () => this.d.footnote(), ...NO_CODE });
     g = G.code;
-    this.button(g, { icon: 'code', title: '行內程式碼', keys: 'Mod+`', text: '</>', label: '行內', big: true, demo: 'code', desc: '把文字標成程式碼（等寬字型）。', cmd: C.toggleCode, active: s => C.markActive(s, M.code) });
+    this.button(g, { icon: 'code', title: '行內程式碼', keys: 'Mod+`', text: '</>', label: '行內', big: true, demo: 'code', desc: '把文字標成程式碼（等寬字型）。', cmd: C.toggleCode, active: s => C.markActive(s, M.code), ...NO_CODE });
     // 選單的 label 多半是不翻譯的語言名稱；只有 lang 是空字串時才是介面文字「純文字」，型別分不出來所以轉型
     this.menuButton(g, { icon: 'square-code', title: '插入程式碼區塊', text: '{ }', label: '程式碼區塊', big: true, demo: 'codeblock', desc: '插入一段程式碼，可以選語言，會自動上色。' },
       () => C.CODE_LANGUAGES.map(([lang, label]) => ({ title: lang ? label : t(label as I18nKey), run: () => this.run(C.insertCodeBlock(lang)) })));
-    this.button(g, { icon: 'keyboard', title: '鍵盤按鍵', text: '⌨', label: '按鍵', big: true, demo: 'kbd', desc: '把文字標成鍵盤按鍵的樣子，例如 Ctrl。', cmd: C.toggleKbd, active: s => C.markActive(s, M.kbd) });
+    this.button(g, { icon: 'keyboard', title: '鍵盤按鍵', text: '⌨', label: '按鍵', big: true, demo: 'kbd', desc: '把文字標成鍵盤按鍵的樣子，例如 Ctrl。', cmd: C.toggleKbd, active: s => C.markActive(s, M.kbd), ...NO_CODE });
     g = G.text;
-    this.button(g, { icon: 'info', title: '插入提示框', text: '框', label: '提示框', big: true, demo: 'callout', desc: '插入有圖示與標題的提示框（Obsidian callout），例如注意、提示、範例。', onClick: (e, b) => this.d.callout(b) });
-    this.button(g, { icon: 'message-square', title: '插入註解', text: '註', label: '註解', big: true, demo: 'comment', desc: '加一段只有編輯時看得到的註解，閱讀模式不會顯示。', onClick: () => this.d.comment() });
+    this.button(g, { icon: 'info', title: '插入提示框', text: '框', label: '提示框', big: true, demo: 'callout', desc: '插入有圖示與標題的提示框（Obsidian callout），例如注意、提示、範例。', onClick: (e, b) => this.d.callout(b), ...NO_CODE });
+    this.button(g, { icon: 'message-square', title: '插入註解', text: '註', label: '註解', big: true, demo: 'comment', desc: '加一段只有編輯時看得到的註解，閱讀模式不會顯示。', onClick: () => this.d.comment(), ...NO_CODE });
     this.menuButton(g, { icon: 'calendar-clock', title: '插入日期與時間', text: '日', label: '日期', big: true, demo: 'date', desc: '插入今天的日期或現在的時間。' },
       () => DATE_FORMATS.map(f => ({ title: this.ctx.formatDate(f), run: () => this.run(C.insertText(this.ctx.formatDate(f))) })));
-    this.button(g, { icon: 'minus', title: '水平線', text: '—', label: '分隔線', big: true, demo: 'hr', desc: '插入一條橫線分隔內容。', cmd: C.insertHr });
+    this.button(g, { icon: 'minus', title: '水平線', text: '—', label: '分隔線', big: true, demo: 'hr', desc: '插入一條橫線分隔內容。', cmd: C.insertHr, ...NO_CODE });
     g = G.obsidian;
-    if (this.d.template) this.button(g, { icon: 'layout-template', title: '套用範本', text: '範', label: '範本', big: true, demo: 'template', desc: '用 Templater 範本在游標處插入內容。', onClick: () => this.d.template!() });
+    if (this.d.template) this.button(g, { icon: 'layout-template', title: '套用範本', text: '範', label: '範本', big: true, demo: 'template', desc: '用 Templater 範本在游標處插入內容。', onClick: () => this.d.template!(), ...NO_CODE });
     this.button(g, { icon: 'list-plus', title: '文件屬性', text: '屬', label: '屬性', big: true, demo: 'properties', desc: '編輯筆記最上方的屬性（標籤、日期等 metadata）。', onClick: () => this.d.properties() });
   }
 
@@ -552,7 +557,7 @@ export class Toolbar {
     this.button(g, { icon: 'sparkles', title: '清理符號', text: '淨', label: '清理符號', big: true, demo: 'cleanup', desc: '找出看不見的字元、亂碼、殘留的 ** 與落單的引號，勾選後一次清除。', onClick: () => this.d.cleanup() });
     this.button(g, { icon: 'pilcrow', title: '顯示／隱藏編輯標記', text: '¶', label: '編輯標記', big: true, demo: 'marks', desc: '顯示空白、換行與段落結尾，也會標出奇怪的符號。', onClick: () => this.d.toggleMarks(), active: s => marksOn(s) });
     this.button(G.stats, { icon: 'bar-chart-3', title: '字數統計', text: '數', label: '字數', big: true, demo: 'wordcount', desc: '顯示字數、字元數、段落數與預估閱讀時間；有選取時也會算選取範圍。', onClick: () => this.d.wordCount() });
-    this.button(G.comments, { icon: 'message-square-plus', title: '插入註解', text: '註', label: '新增註解', big: true, demo: 'comment', desc: '加一段只有編輯時看得到的註解，閱讀模式不會顯示。', onClick: () => this.d.comment() });
+    this.button(G.comments, { icon: 'message-square-plus', title: '插入註解', text: '註', label: '新增註解', big: true, demo: 'comment', desc: '加一段只有編輯時看得到的註解，閱讀模式不會顯示。', onClick: () => this.d.comment(), ...NO_CODE });
   }
 
   // ----------------------------------------------------------- 檢視

@@ -929,5 +929,6 @@ export default {
  "列上移": "Move row up",
  "列下移": "Move row down",
  "欄左移": "Move column left",
- "欄右移": "Move column right"
+ "欄右移": "Move column right",
+ "程式碼區塊裡只能放純文字，不能使用這個功能。請先把游標移到區塊外面。": "Code blocks hold plain text only, so this is not available here. Move the cursor outside the block first."
 };

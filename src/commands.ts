@@ -366,11 +366,24 @@ export function setAlign(align: Align): Command {
 export function blockFormatBlocked(state: EditorState): I18nKey | null {
   const $f = state.selection.$from;
   if (isInTable(state)) return null;
+  if (inCode(state)) return codeBlocked(state);
   if ($f.parent.type === N.heading) return '標題不能對齊或整段縮排（Markdown 的標題不支援，存成 HTML 會變成不是標題）';
   if ($f.parent.type === N.paragraph && $f.depth === 1 && !htmlSafeBlock($f.parent)) return '這段含有 [[內部連結]]、圖片、數學式或註解，對齊後在 Obsidian 會失效，所以不能對齊；縮排會改用首行縮排';
   if ($f.depth > 1 && !inListItem($f)) return '引文、提示框裡的段落只能用首行縮排（Markdown 不支援對齊）';
   return null;
 }
+
+// 游標或選取範圍是否碰到程式碼區塊（裡面只能放純文字）
+export function inCode(state: EditorState): boolean {
+  const { $from, $to } = state.selection;
+  return !!$from.parent.type.spec.code || !!$to.parent.type.spec.code;
+}
+// 程式碼區塊裡不能用的功能：按鈕停用的原因（顯示在提示裡）
+export function codeBlocked(state: EditorState): I18nKey | null {
+  return inCode(state) ? '程式碼區塊裡只能放純文字，不能使用這個功能。請先把游標移到區塊外面。' : null;
+}
+// 給按鈕的 enabled：不在程式碼區塊裡
+export const notInCode = (state: EditorState): boolean => !inCode(state);
 
 export function currentAlign(state: EditorState): Align | null {
   if (isInTable(state)) {

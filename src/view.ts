@@ -545,7 +545,7 @@ export class WordModeView extends TextFileView {
   }
 
   insertComment(): void {
-    if (!this.pm) return;
+    if (!this.pm || this.blockedInCode()) return;
     const st = this.pm.state;
     const selected = st.selection.empty ? '' : st.doc.textBetween(st.selection.from, st.selection.to, ' ');
     new PromptModal(this.app, t('插入註解'), '', t('註解內容（只在編輯時看得到，閱讀模式不顯示）'), value => {
@@ -557,6 +557,13 @@ export class WordModeView extends TextFileView {
       this.pm!.dispatch(s2.tr.insert(at, node).scrollIntoView());
       this.pm!.focus();
     }).open();
+  }
+
+  // 游標在程式碼區塊裡（只能放純文字）：提示這個功能不能用，回傳 true
+  blockedInCode(): boolean {
+    if (!this.pm || !C.inCode(this.pm.state)) return false;
+    new Notice(t(C.codeBlocked(this.pm.state)!));
+    return true;
   }
 
   openProperties(): void {
@@ -576,7 +583,7 @@ export class WordModeView extends TextFileView {
   }
 
   openEquation(existing?: MathTarget): void {
-    if (!this.pm) return;
+    if (!this.pm || (!existing && this.blockedInCode())) return;
     const render: MathRenderer = (src, el, display) => {
       el.setText(src);
       Promise.resolve(loadMathJax()).then(() => { el.empty(); el.appendChild(renderMath(src, display)); return finishRenderMath(); })
@@ -1047,7 +1054,7 @@ export class WordModeView extends TextFileView {
 
   // Mermaid 圖表編輯器：pos 是既有的 mermaid 程式碼區塊位置；沒有 pos 就是插入新的
   openMermaid(pos?: number | null): void {
-    if (!this.pm) return;
+    if (!this.pm || (pos == null && this.blockedInCode())) return;
     const existing = pos != null ? this.pm.state.doc.nodeAt(pos) : null;
     const isCode = existing && existing.type === schema.nodes.code_block;
     new MermaidModal(this.app, {
@@ -1099,7 +1106,7 @@ export class WordModeView extends TextFileView {
   // ---------------------------------------------------------- 註腳
 
   insertFootnoteDialog(): void {
-    if (!this.pm) return;
+    if (!this.pm || this.blockedInCode()) return;
     if (!insertFootnote('')(this.pm.state)) { new Notice(t('請先把游標放在文字裡')); return; }
     new PromptModal(this.app, t('插入註腳'), '', t('註腳內容（會放在文件最後）'), value => {
       insertFootnote(value)(this.pm!.state, tr => this.pm!.dispatch(tr));
@@ -1252,6 +1259,8 @@ export class WordModeView extends TextFileView {
       cmd(t('刪除表格'), 'trash-2', T.deleteTable, false);
       sep();
     }
+    // 程式碼區塊裡只能放純文字：格式、段落、插入都用不到，不列出來
+    const inCode = C.inCode(st);
     // ---- 剪貼簿
     if (!hidden.has('clipboard')) {
       item(t('剪下'), 'scissors', () => this.clipboardAction('cut'), hasSel);
@@ -1262,7 +1271,7 @@ export class WordModeView extends TextFileView {
       sep();
     }
     // ---- 格式（有選取文字時，像 Word 的迷你工具列）
-    if (!hidden.has('format') && hasSel) {
+    if (!hidden.has('format') && hasSel && !inCode) {
       cmd(t('粗體'), 'bold', C.toggleBold, false);
       cmd(t('斜體'), 'italic', C.toggleItalic, false);
       cmd(t('底線'), 'underline', C.toggleUnderline, false);
@@ -1271,7 +1280,7 @@ export class WordModeView extends TextFileView {
       sep();
     }
     // ---- 段落
-    if (!hidden.has('paragraph')) {
+    if (!hidden.has('paragraph') && !inCode) {
       cmd(t('項目符號'), 'list', C.toggleList('bullet'));
       cmd(t('編號'), 'list-ordered', C.toggleList('ordered'));
       cmd(t('增加縮排'), 'indent-increase', C.indent);
@@ -1279,7 +1288,7 @@ export class WordModeView extends TextFileView {
       sep();
     }
     // ---- 插入
-    if (!hidden.has('insert')) {
+    if (!hidden.has('insert') && !inCode) {
       item(hasSel ? t('把選取文字變成超連結…') : t('插入超連結…'), 'link', () => this.openLinkDialog());
       item(t('連結到筆記…'), 'file-symlink', () => this.openNoteLinkPicker());
       item(hasSel ? t('把選取文字變成方程式…') : t('插入方程式…'), 'sigma', () => this.openEquation());
@@ -1423,7 +1432,7 @@ export class WordModeView extends TextFileView {
   // ---------------------------------------------------------- 提示框
 
   openCalloutMenu(btn?: HTMLElement | null): void {
-    if (!this.pm) return;
+    if (!this.pm || this.blockedInCode()) return;
     const m = new Menu();
     for (const [type, label, icon] of C.CALLOUT_TYPES) {
       m.addItem(i => i.setTitle(t(label) + t('（') + type + t('）')).setIcon(icon).onClick(() => {
@@ -1456,7 +1465,7 @@ export class WordModeView extends TextFileView {
 
   // 依目前位置開啟連結對話框：新增、編輯網址連結、筆記連結（Wiki 或 Markdown）、或把網址文字變成連結
   openLinkDialog(ctx?: LinkContext | null): void {
-    if (!this.pm) return;
+    if (!this.pm || (!ctx && this.blockedInCode())) return;
     const st = this.pm.state;
     const info = ctx || linkContext(st);
     if (info && info.kind === 'image') return;
@@ -1679,7 +1688,7 @@ export class WordModeView extends TextFileView {
   }
 
   openNoteLinkPicker(): void {
-    if (!this.pm) return;
+    if (!this.pm || this.blockedInCode()) return;
     const files = this.app.vault.getFiles().filter(f => f !== this.file && !f.path.startsWith(this.app.vault.configDir + '/'))
       .sort((a, b) => ((b.extension === 'md') as unknown as number) - ((a.extension === 'md') as unknown as number) || a.path.localeCompare(b.path));
     new FilePicker(this.app, files, t('輸入筆記或檔案名稱…'), f => this.insertFileLink(f)).open();
@@ -1722,7 +1731,7 @@ export class WordModeView extends TextFileView {
 
   // 套用 Templater 範本：空白筆記直接寫入；已有內容時切到 Markdown 再插入到游標處
   openTemplatePicker(): void {
-    if (!this.pm) return;
+    if (!this.pm || this.blockedInCode()) return;
     const tp = this.app.plugins && this.app.plugins.plugins && this.app.plugins.plugins['templater-obsidian'];
     if (!tp || !tp.templater) { this.openCoreTemplatePicker(); return; }
     const folder = normalizePath(tp.settings.templates_folder || '');
@@ -1750,7 +1759,7 @@ export class WordModeView extends TextFileView {
   }
 
   openImageMenu(btn: HTMLElement | null | undefined, replacePos?: number | null, evt?: MouseEvent): void {
-    if (!this.pm) return;
+    if (!this.pm || (replacePos == null && this.blockedInCode())) return;
     const m = new Menu();
     const verb = replacePos != null ? t('更換為') : t('插入');
     m.addItem(i => i.setTitle(verb + t('保管庫裡的圖片…')).setIcon('image').onClick(() => {
