@@ -359,4 +359,46 @@ await fresh('第一段\n');
   assert(out() === '```mermaid\npie title 佔比\n  "甲" : 1\n  "乙" : 2\n```\n', '沒有修改：原本的寫法（含縮排）不變：' + JSON.stringify(out()));
 }
 
+// ======== 方程式編輯器：觸控裝置用的按鈕與輸入 ========
+await fresh('公式：\n');
+{
+  const typeIn = (span, text) => { span.focus(); span.textContent = text; mock.Modal.last.field.place(span, text.length); span.dispatchEvent(new Event('input', { bubbles: true })); };
+  view.openEquation();
+  const eq = mock.Modal.last;
+  await sleep(25);
+  const q = s => eq.contentEl.querySelector(s);
+  const qa = s => [...eq.contentEl.querySelectorAll(s)];
+  const tool = name => qa('.wm-eq-tool').find(b => b.getAttribute('aria-label').startsWith(name));
+  assert(qa('.wm-eq-tool').length === 5 && tool('上一格') && tool('下一格') && tool('拿掉游標所在的結構'), '編輯區有上一格、下一格、拿掉結構、復原、取消復原');
+  // 螢幕鍵盤打的 ^、_ 沒有按鍵事件，字直接進到格子裡
+  typeIn(qa('.wm-mv-text')[0], 'x^');
+  assert(q('.wm-mv-sup') && eq.ta.value === 'x^{}' && q('.wm-mv-sup .wm-mv-text').contains(document.getSelection().anchorNode), '打進格子裡的 ^ 變成上標的格子：' + eq.ta.value);
+  typeIn(q('.wm-mv-sup .wm-mv-text'), '2');
+  typeIn(qa('.wm-mv > .wm-mv-row > .wm-mv-text').pop(), '+a_');
+  assert(q('.wm-mv-sub') && eq.ta.value === 'x^{2}+a_{}', '打進格子裡的 _ 變成下標的格子：' + eq.ta.value);
+  typeIn(q('.wm-mv-sub .wm-mv-text'), 'i');
+  // 上一格、下一格
+  click(tool('上一格'));
+  const spans = qa('.wm-mv-text');
+  assert(spans[spans.indexOf(q('.wm-mv-sub .wm-mv-text')) - 1].contains(document.getSelection().anchorNode), '「上一格」把游標移到前一格');
+  click(tool('下一格'));
+  assert(q('.wm-mv-sub .wm-mv-text').contains(document.getSelection().anchorNode), '「下一格」把游標移回來');
+  // 拿掉結構：游標在下標裡，內容留著
+  click(tool('拿掉游標所在的結構'));
+  assert(!q('.wm-mv-sub') && eq.ta.value === 'x^{2}+ai', '「拿掉結構」拿掉游標所在的下標，內容留著：' + eq.ta.value);
+  // 游標在最外層：拿掉前面最近的一個結構
+  click(tool('拿掉游標所在的結構'));
+  assert(!q('.wm-mv-sup') && eq.ta.value === 'x+ai', '游標不在結構裡：拿掉前面最近的結構（上標）：' + eq.ta.value);
+  click(eq.undoBtn);
+  assert(eq.ta.value === 'x^{2}+ai', '按鈕做的事也能復原：' + eq.ta.value);
+  // 常用公式
+  click(qa('.wm-eq-cat').find(b => b.textContent === '常用公式'));
+  const formulas = qa('.wm-eq-btn.is-formula');
+  assert(formulas.length === 6 && formulas[1].querySelector('.wm-eq-btn-label').textContent === '畢氏定理', '常用公式：六條，公式下面有名稱');
+  eq.setEdit('latex'); eq.ta.value = ''; eq.setEdit('visual');
+  click(formulas[1]);
+  assert(eq.ta.value === 'a^{2} + b^{2} = c^{2}' && qa('.wm-mv-sup').length === 3, '插入常用公式：變成可以直接改的格子：' + eq.ta.value);
+  eq.close();
+}
+
 finish();

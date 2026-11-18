@@ -1078,5 +1078,15 @@ export default {
  "關係的說明": "Relationship label",
  "關係的說明，例如：下單": "Relationship label, for example: places",
  "欄位的型別與名稱只能用英文、數字與底線（Mermaid 的規定）；中文的說明寫在後面的引號裡。": "Attribute types and names can only use letters, digits and underscores (a Mermaid rule). Put a description in other languages in quotes after the name.",
- "一行一個欄位：型別 名稱 \"說明\"，例如：\nstring name \"姓名\"\nint age PK": "One attribute per line as: type name \"description\", for example:\nstring name \"Full name\"\nint age PK"
+ "一行一個欄位：型別 名稱 \"說明\"，例如：\nstring name \"姓名\"\nint age PK": "One attribute per line as: type name \"description\", for example:\nstring name \"Full name\"\nint age PK",
+ "常用公式": "Common formulas",
+ "一元二次方程式的解": "Quadratic formula",
+ "畢氏定理": "Pythagorean theorem",
+ "平均數": "Mean",
+ "標準差": "Standard deviation",
+ "年均成長率": "Compound annual growth rate",
+ "歐拉公式": "Euler's identity",
+ "上一格": "Previous box",
+ "下一格": "Next box",
+ "拿掉游標所在的結構（分數、根號…），內容留著": "Remove the structure around the cursor (fraction, root and so on) and keep its content"
 };

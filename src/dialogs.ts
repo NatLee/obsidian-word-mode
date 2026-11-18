@@ -2,6 +2,7 @@
 import { Modal, FuzzySuggestModal, Notice, setIcon } from 'obsidian';
 import { countWeird, cleanWeird, WEIRD_KINDS } from './marks.js';
 import { MathField } from './mathvisual.js';
+import { keepFocus } from './dom.js';
 import { t, key, isMac } from './i18n.js';
 import type { App, TFile } from 'obsidian';
 import type { WeirdKindId } from './marks.js';
@@ -41,7 +42,8 @@ interface ShortcutCardEl { card: HTMLDivElement; list: ShortcutRowEl[]; group: s
 
 // 方程式工具列的一個按鈕：顯示文字、插入的 LaTeX；raw 為 true 表示「最近使用」，原樣插入
 // 一般按鈕的 label 是介面文字（翻譯前）；「最近使用」的 label 是使用者輸入過的公式，不翻譯
-export type MathSnippet = [label: I18nKey, snip: string, raw?: undefined] | [label: string, snip: string, raw: true];
+// named：常用公式，公式下面顯示名稱（label 是翻譯前的名稱）
+export type MathSnippet = [label: I18nKey, snip: string, raw?: undefined, named?: undefined] | [label: string, snip: string, raw: true, named?: boolean];
 export type MathSnippetGroup = [name: I18nKey, items: MathSnippet[]];
 // 方程式對話框的初始值：src LaTeX 原文、display 是否獨立一行、existing 是否在編輯既有的方程式、onDelete 按「刪除方程式」時呼叫
 export interface EquationInit {
@@ -293,6 +295,16 @@ export const MATH_SNIPPETS: readonly MathSnippetGroup[] = [
   ['希臘字母', [['α', '\\alpha'], ['β', '\\beta'], ['γ', '\\gamma'], ['δ', '\\delta'], ['ε', '\\epsilon'], ['η', '\\eta'], ['θ', '\\theta'], ['λ', '\\lambda'], ['μ', '\\mu'], ['ν', '\\nu'], ['π', '\\pi'], ['ρ', '\\rho'], ['σ', '\\sigma'], ['τ', '\\tau'], ['φ', '\\phi'], ['χ', '\\chi'], ['ψ', '\\psi'], ['ω', '\\omega'], ['Γ', '\\Gamma'], ['Δ', '\\Delta'], ['Θ', '\\Theta'], ['Λ', '\\Lambda'], ['Π', '\\Pi'], ['Σ', '\\Sigma'], ['Φ', '\\Phi'], ['Ω', '\\Omega']]],
 ];
 
+// 常用公式：[名稱, LaTeX]。整條插入後再改裡面的內容，在手機上比一格一格組出來快
+export const MATH_FORMULAS: readonly (readonly [name: I18nKey, latex: string])[] = [
+  ['一元二次方程式的解', 'x = \\frac{-b \\pm \\sqrt{b^{2} - 4ac}}{2a}'],
+  ['畢氏定理', 'a^{2} + b^{2} = c^{2}'],
+  ['平均數', '\\bar{x} = \\frac{1}{n} \\sum_{i=1}^{n} x_{i}'],
+  ['標準差', '\\sigma = \\sqrt{\\frac{1}{n} \\sum_{i=1}^{n} (x_{i} - \\mu)^{2}}'],
+  ['年均成長率', 'r = \\left( \\frac{V_{n}}{V_{0}} \\right)^{\\frac{1}{n}} - 1'],
+  ['歐拉公式', 'e^{i\\pi} + 1 = 0'],
+];
+
 // 方程式編輯器：上方分類按鈕、編輯區（視覺化的格子或 LaTeX，可以復原）、即時預覽（含語法錯誤提示）、最近使用
 export class EquationModal extends Modal {
   declare init: EquationInit;
@@ -312,6 +324,8 @@ export class EquationModal extends Modal {
   declare editMode: EquationEditMode;
   declare undoBtn: HTMLButtonElement;
   declare redoBtn: HTMLButtonElement;
+  // 只有視覺化編輯時顯示的按鈕（上一格、下一格、拿掉結構、復原、取消復原）
+  declare visualTools: HTMLButtonElement[];
   // 視覺化的格子目前對應的 LaTeX（LaTeX 那一格跟它不同，表示在 LaTeX 模式改過）；還沒建立格子時是 null
   declare fieldSrc: string | null;
   constructor(app: App, init: EquationInit, render: MathRenderer, onSave: EquationSaveCallback, plugin?: WordModePlugin | null) {
@@ -347,12 +361,13 @@ export class EquationModal extends Modal {
     const recent: string[] = (this.plugin && this.plugin.settings.recentMath) || [];
     const groups = MATH_SNIPPETS.slice();
     if (recent.length) groups.unshift(['最近使用', recent.map(r => [r.length > 18 ? r.slice(0, 17) + '…' : r, r, true])]);
+    groups.push(['常用公式', MATH_FORMULAS.map(([name, latex]) => [name, latex, true, true])]);
     const showGroup = (i: number) => {
       pal.empty();
       [...cats.children].forEach((b, j) => b.toggleClass('is-active', i === j));
       const row = pal.createDiv('wm-eq-items');
-      for (const [label, snip, raw] of groups[i][1]) {
-        const b = row.createEl('button', { cls: 'wm-eq-btn' + (raw ? ' is-recent' : '') });
+      for (const [label, snip, raw, named] of groups[i][1]) {
+        const b = row.createEl('button', { cls: 'wm-eq-btn' + (named ? ' is-formula' : raw ? ' is-recent' : '') });
         // eslint-disable-next-line no-control-regex -- matching control characters is the purpose of this pattern
         if (raw || /^[\u0000-ɏ]+$/.test(label) && label.length <= 3) b.setText(raw ? label : label); else b.setText(t(label));
         // 按鈕上直接顯示公式的樣子
@@ -367,18 +382,21 @@ export class EquationModal extends Modal {
         }
         // 最近使用：直接顯示公式的樣子（比一串 LaTeX 好認）
         if (raw) { b.empty(); this.render(snip, b.createSpan('wm-eq-btn-math'), false); }
+        // 常用公式的名稱是介面文字（翻譯前的原文）
+        if (named) b.createSpan({ cls: 'wm-eq-btn-label', text: t(label as I18nKey) });
         b.setAttribute('aria-label', snip);
-        b.addEventListener('mousedown', e => e.preventDefault());
+        keepFocus(b);
         b.addEventListener('click', () => (raw ? this.insertRaw(snip) : this.insert(snip)));
       }
     };
     groups.forEach(([name], i) => {
       const b = cats.createEl('button', { text: t(name), cls: 'wm-eq-cat' });
-      b.addEventListener('mousedown', e => e.preventDefault());
+      keepFocus(b);
       b.addEventListener('click', () => showGroup(i));
     });
 
-    // ---- 編輯區：標題列右邊是復原／取消復原（視覺化編輯時）
+    // ---- 編輯區：標題列右邊是視覺化編輯用的按鈕。上一格、下一格、拿掉結構是給螢幕鍵盤用的
+    // （沒有方向鍵與 Tab，空格子裡的 Backspace 也常常沒有事件），滑鼠操作時一樣可以按
     const editor = c.createDiv('wm-eq-card wm-eq-editor');
     const head = editor.createDiv('wm-eq-label');
     head.createSpan({ text: t('編輯') });
@@ -387,12 +405,17 @@ export class EquationModal extends Modal {
       const b = tools.createEl('button', { cls: 'clickable-icon wm-eq-tool' });
       b.setAttribute('aria-label', label);
       setIcon(b, icon);
-      b.addEventListener('mousedown', e => e.preventDefault()); // 游標留在格子裡
+      keepFocus(b); // 游標留在格子裡，螢幕鍵盤也不會收起來
       b.addEventListener('click', run);
       return b;
     };
+    const prev = tool('chevron-left', t('上一格') + ' (Shift+Tab)', () => { this.field.move(-1); });
+    const next = tool('chevron-right', t('下一格') + ' (Tab)', () => { this.field.move(1); });
+    const strip = tool('delete', t('拿掉游標所在的結構（分數、根號…），內容留著'), () => { this.field.removeStructure(); });
+    tools.createSpan('wm-eq-tools-sep');
     this.undoBtn = tool('undo-2', t('復原') + ' (' + key('Mod+Z') + ')', () => { this.field.undo(); });
     this.redoBtn = tool('redo-2', t('取消復原') + ' (' + key('Mod+Y') + ')', () => { this.field.redo(); });
+    this.visualTools = [prev, next, strip, this.undoBtn, this.redoBtn];
     this.fieldHost = editor.createDiv('wm-eq-visual');
     this.field = new MathField(this.fieldHost, {
       label: s => t(s),
@@ -448,8 +471,7 @@ export class EquationModal extends Modal {
     this.tabLatex.toggleClass('is-active', mode === 'latex');
     this.fieldHost.toggle(mode === 'visual');
     this.fieldHint.toggle(mode === 'visual');
-    this.undoBtn.toggle(mode === 'visual');
-    this.redoBtn.toggle(mode === 'visual');
+    for (const b of this.visualTools) b.toggle(mode === 'visual');
     this.ta.toggle(mode === 'latex');
     if (mode === 'visual') {
       if (this.fieldSrc !== this.ta.value) { this.field.setLatex(this.ta.value, this.fieldSrc != null); this.fieldSrc = this.ta.value; }

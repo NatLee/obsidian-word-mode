@@ -1122,3 +1122,32 @@ audio.wm-embed-media { width: 100%; }
 .wm-tabstyle-menu.wm-layout-tabs .wm-panel { flex: 1 1 0; flex-wrap: wrap; }
 .wm-tabstyle-menu.wm-layout-tabs .wm-tabs-quick { flex: 0 0 auto; }
 .wm-mobile .wm-tabstyle-menu.wm-layout-tabs .wm-panel, .wm-mobile.wm-tabstyle-menu.wm-layout-tabs .wm-panel { flex: 0 0 auto; flex-wrap: nowrap; }
+
+/* ---------- v1.6：方程式與圖表編輯器的新控制項 ---------- */
+/* 方程式：編輯區的工具（上一格、下一格、拿掉結構｜復原、取消復原）、常用公式 */
+.wm-eq-tools-sep { width: 1px; height: 16px; margin: 0 4px; background: var(--background-modifier-border); }
+.wm-eq button.wm-eq-btn.is-formula { min-height: 58px; padding: 6px 12px 4px; gap: 4px; justify-content: space-between; }
+.wm-eq button.wm-eq-btn.is-formula .wm-eq-btn-math { flex: 1 1 auto; display: flex; align-items: center; font-size: 13px; white-space: nowrap; }
+
+/* ---------- 手機與平板：方程式與圖表編輯器 ---------- */
+/* 輸入框用 16px：iOS 對小於 16px 的輸入框會自動放大整個畫面 */
+.is-mobile .wm-eq .wm-eq-hint, .is-mobile .wm-mmd .wm-eq-hint { display: none; }
+.is-mobile .wm-seg button { height: 34px; padding: 0 14px; }
+.is-mobile .wm-eq-cats, .is-mobile .wm-mmd-kinds { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.is-mobile .wm-eq-cats::-webkit-scrollbar, .is-mobile .wm-mmd-kinds::-webkit-scrollbar { display: none; }
+.is-mobile .wm-eq-cats button.wm-eq-cat { flex: 0 0 auto; height: 36px; padding: 0 12px; }
+.is-mobile .wm-eq-tools button.wm-eq-tool { height: 36px; padding: 6px 9px; }
+.is-mobile .wm-eq-tools button.wm-eq-tool svg { width: 19px; height: 19px; }
+.is-mobile .wm-eq-input { font-size: 16px; }
+.is-mobile .wm-mv-text { min-width: 8px; padding: 2px 3px; }
+.is-mobile .wm-mv-text.is-slot { min-width: 1.2em; min-height: 1.3em; }
+.is-mobile .wm-mv-env-tools { opacity: 1; }
+.is-mobile .wm-mv-env-tools button.wm-mv-env-btn { height: 24px; padding: 0 6px; font-size: 12px; }
+/* 手機：編輯的東西放最上面並固定住，螢幕鍵盤開著、往下捲選按鈕時都還看得到 */
+.is-phone .wm-eq { gap: 8px; }
+.is-phone .wm-eq-top { order: -2; }
+.is-phone .wm-eq-editor { order: -1; position: sticky; top: 0; z-index: 3; box-shadow: 0 6px 10px -8px rgba(0, 0, 0, .35); }
+.is-phone .wm-eq-editor .wm-eq-visual { min-height: 64px; padding: 10px 12px; font-size: 1.25em; }
+.is-phone .wm-eq-editor .wm-eq-visual-hint { display: none; }
+.is-phone .wm-eq-palbox .wm-eq-palette { max-height: none; min-height: 0; }
+.is-phone .wm-eq-card .wm-eq-preview { min-height: 44px; }
