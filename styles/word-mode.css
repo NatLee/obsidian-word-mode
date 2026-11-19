@@ -1398,8 +1398,9 @@ body:not(.is-phone) .modal.wm-eq-modal, body:not(.is-phone) .modal.wm-mmd-modal 
 .wm-mmd-inline { flex-direction: column; flex-wrap: nowrap; align-items: stretch; }
 .wm-mmd-inline-row { display: flex; align-items: center; gap: 2px; }
 .wm-mmd-inline .wm-mmd-swatches { flex: 0 0 auto; flex-wrap: nowrap; }
-/* 手機：短的設定欄位（象限圖的座標軸與象限）兩個排一列，名稱放在輸入框上面 */
-.is-phone .wm-mmd-head .wm-mmd-opt:has(input.is-s) { flex: 1 1 44%; flex-direction: column; align-items: stretch; gap: 2px; }
+/* 手機：短的設定欄位（象限圖的座標軸與象限）兩個排一列，名稱放在輸入框上面。
+   is-short 是 mermaid.ts 加在欄位外框上的，不用 has 選擇器去找裡面的輸入框（Obsidian 的外掛檢查說它會拖慢整頁的樣式計算） */
+.is-phone .wm-mmd-head .wm-mmd-opt.is-short { flex: 1 1 44%; flex-direction: column; align-items: stretch; gap: 2px; }
 
 /* ---------- 圖表編輯器：我的範本 ---------- */
 .wm-mmd-templates { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; padding: 10px 12px; border-radius: 8px; background: var(--background-secondary); border: 1px solid var(--background-modifier-border); }
@@ -1451,8 +1452,9 @@ body:not(.is-phone) .modal.wm-eq-modal, body:not(.is-phone) .modal.wm-mmd-modal 
 .wm-editor .wm-codeblock button.wm-code-more { display: block; width: 100%; height: 28px; background: transparent; box-shadow: none; border: none; border-top: 1px dashed var(--background-modifier-border); border-radius: 0 0 6px 6px; color: var(--text-muted); font-size: var(--font-ui-smaller); cursor: pointer; }
 .wm-editor .wm-codeblock button.wm-code-more:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
 .wm-editor .wm-codeblock button.wm-code-more[hidden] { display: none; }
-/* 圖表編輯器的預覽：圖以原本的大小為準（蓋掉 Mermaid 寫在 SVG 上的 max-width），太寬就用捲的 */
-.wm-mmd-canvas svg.wm-mmd-natural { max-width: none !important; }
+/* 圖表編輯器的預覽：圖以原本的大小為準，太寬就用捲的。
+   Mermaid 寫在 SVG 上的 max-width 由 mermaid.ts 的 sizeCanvas 拿掉，這裡不必用 important 去蓋 */
+.wm-mmd-canvas svg.wm-mmd-natural { max-width: none; }
 
 /* ---------- 檢視模式的示意動畫：Word 模式（Markdown 符號收起來，文字直接變成格式） ---------- */
 @keyframes wm-mdhide { 0%, 25%, 100% { opacity: 1; max-width: 2em; } 40%, 85% { opacity: 0; max-width: 0; } }

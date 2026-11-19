@@ -712,7 +712,9 @@ export class MermaidModal extends Modal {
     const store = row || d.model.opts;
     const label = t(f.label);
     const cls = 'wm-mmd-f-' + f.key + (f.size ? ' is-' + f.size : '');
-    const host = labelled && f.kind !== 'check' ? parent.createEl('label', { cls: 'wm-mmd-opt' }) : parent;
+    // is-short：短的文字欄位，手機上兩個排一列（CSS 用這個類別，不用 :has 去找裡面的輸入框）
+    const short = f.kind === 'text' && f.size === 's';
+    const host = labelled && f.kind !== 'check' ? parent.createEl('label', { cls: 'wm-mmd-opt' + (short ? ' is-short' : '') }) : parent;
     if (host !== parent) host.createSpan({ text: label });
     if (f.kind === 'text') {
       const input = host.createEl('input', { type: 'text', cls: 'wm-mmd-text ' + cls });
@@ -853,7 +855,9 @@ export class MermaidModal extends Modal {
     if (!width) return;
     this.natural = width;
     svg.style.width = width + 'px';
-    // Mermaid 在 SVG 上寫了 max-width，要用 CSS 蓋掉（見 .wm-mmd-natural）
+    // Mermaid 在 SVG 上直接寫了 max-width（比框寬就整張縮小）：拿掉它，交給 CSS 的 .wm-mmd-natural。
+    // 不在 CSS 用 !important 蓋寫在元素上的樣式，Obsidian 的外掛檢查不接受 !important
+    svg.style.removeProperty('max-width');
     svg.classList.add('wm-mmd-natural');
     if (!this.autoZoom) return;
     // 放得下、或只要縮一點（不低於 60%）就縮到剛好；差太多就維持原本的大小，用捲的
