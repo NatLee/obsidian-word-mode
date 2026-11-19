@@ -490,11 +490,8 @@ export default {
  "選擇要套用的範本…": "Chọn mẫu để áp dụng…",
  "已切換到 Markdown 編輯並在游標處插入範本；完成後可按右上角切回 Word 模式。": "Đã chuyển sang chỉnh sửa Markdown và chèn mẫu tại con trỏ; khi xong, hãy dùng nút ở góc trên bên phải để quay về chế độ Word.",
  "套用範本失敗：": "Áp dụng mẫu thất bại: ",
- "更換為": "Thay bằng",
- "保管庫裡的圖片…": " ảnh trong kho…",
  "輸入圖片檔名…": "Nhập tên tệp ảnh…",
  "從電腦上傳圖片…": "Tải ảnh lên từ máy tính…",
- "網路圖片（網址）…": " ảnh trực tuyến (URL)…",
  "圖片網址": "URL của ảnh",
  "https://…/圖片.png": "https://…/anh.png",
  "貼上的圖片": "Ảnh đã dán",
@@ -520,7 +517,7 @@ export default {
  "報表": "báo cáo",
  "的": " và ",
  "與": " và ",
- "把": "Thay",
+ "把": "Thay ",
  "舊字": "cũ",
  "新字": "mới",
  "全部換掉": " khắp nơi",
@@ -1217,5 +1214,10 @@ export default {
  "找不到「{q}」相關的設定。換個說法試試，或從下面的分類找找看。": "Không có cài đặt nào khớp với “{q}”. Hãy thử từ khác, hoặc duyệt các danh mục bên dưới.",
  "包含": "Bao gồm",
  "其他語言": "Ngôn ngữ khác",
- "開啟 Word 模式的設定。在上方的搜尋框打幾個字就能找到想要的設定，也可以打英文。": "Mở cài đặt chế độ Word. Gõ vài chữ vào ô tìm kiếm ở trên cùng để tìm cài đặt; bạn cũng có thể gõ bằng tiếng Anh."
+ "開啟 Word 模式的設定。在上方的搜尋框打幾個字就能找到想要的設定，也可以打英文。": "Mở cài đặt chế độ Word. Gõ vài chữ vào ô tìm kiếm ở trên cùng để tìm cài đặt; bạn cũng có thể gõ bằng tiếng Anh.",
+ "插入保管庫裡的圖片…": "Chèn ảnh trong kho…",
+ "插入網路圖片（網址）…": "Chèn ảnh trực tuyến (URL)…",
+ "更換為保管庫裡的圖片…": "Thay bằng ảnh trong kho…",
+ "更換為網路圖片（網址）…": "Thay bằng ảnh trực tuyến (URL)…",
+ "編輯{name}": "Chỉnh sửa {name}"
 };

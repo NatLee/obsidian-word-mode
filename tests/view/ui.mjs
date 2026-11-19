@@ -1396,4 +1396,49 @@ await fresh('一段文字\n');
     '樣式表有三種外觀與只顯示值的規則');
 }
 
+// ======== 拼接的文字：用空格分詞的語言不能黏在一起 ========
+// 以前英文的圖片選單是「Insertimage from vault…」、原始碼對話框是「EditingHTML」、動畫裡是「Cutthis text」
+await fresh('<div>html</div>\n\n一段\n');
+{
+  B.I18N.setLanguage('en');
+  // 游標放在「一段」（第一個文字區塊；HTML 原始區塊不算）
+  caret(view, 0);
+  view.openImageMenu(null);
+  const insert = mock.Menu.last.items.map(i => i.title);
+  view.openImageMenu(null, 1);
+  const replace = mock.Menu.last.items.map(i => i.title);
+  assert(insert.includes('Insert image from vault…') && insert.includes('Insert online image (URL)…') && replace.includes('Replace with image from vault…') && replace.includes('Replace with online image (URL)…'),
+    '圖片選單：插入、更換都是整句翻譯：' + insert.join(' / ') + ' | ' + replace.join(' / '));
+  view.pm.dom.querySelector('.wm-raw-block[data-kind="html"]').dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }));
+  assert(mock.Modal.last.titleText === 'Edit HTML', '原始碼對話框的標題：' + mock.Modal.last.titleText);
+  mock.Modal.last.contentEl.remove();
+
+  // 示意動畫裡「動詞｜受詞」的交界：兩邊都是字母時中間要有空格。
+  // 只看這些交界（上下標、註腳編號、韓文助詞本來就要黏在一起）；某一邊是空字串的不算（韓文、日文常把動詞放在後面）；
+  // 左邊最後一個詞只有一個字母的也不算：希伯來文的 ל ו、阿拉伯文的 و 是要黏在下一個字上的前綴
+  const letter = /[\p{L}\p{N}]/u;
+  const pieces = name => {
+    const box = document.createElement('div');
+    B.buildDemo(name, box);
+    // 輪流顯示的兩個字（wm-demo-swap）算一段，用第一個
+    return [...box.querySelector('.wm-demo-line').childNodes].map(n => (n.classList && n.classList.contains('wm-demo-swap') ? n.firstChild.textContent : n.textContent));
+  };
+  const glued = [];
+  for (const lang of ['en', 'ko', 'vi', 'fr', 'de', 'es', 'ar', 'he']) {
+    B.I18N.setLanguage(lang);
+    for (const [name, at] of [['notelink', [1]], ['cut', [1]], ['copy', [1]], ['replace', [1, 2]], ['link', [1]], ['bold', [1]]]) {
+      const p = pieces(name);
+      for (const i of at) {
+        const a = p[i - 1], b = p[i];
+        if (!a || !b || [...a.split(/\s+/).pop()].length === 1) continue;
+        // 韓文的助詞（을、에、와…）黏在前面的名詞上
+        if (lang === 'ko' && /^(을|를|이|가|은|는|에|와|과|의|으?로)/.test(b)) continue;
+        if (letter.test(a.slice(-1)) && letter.test(b[0])) glued.push(lang + ' ' + name + '：' + p.join('|'));
+      }
+    }
+  }
+  B.I18N.setLanguage('zh-TW');
+  assert(!glued.length, '示意動畫的「動詞｜受詞」之間有空格：' + (glued.join('；') || '全部正確'));
+}
+
 finish();

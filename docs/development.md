@@ -96,6 +96,8 @@ The ribbon in Word mode (`src/toolbar.ts`) and the one in Markdown and reading m
 
 Interface strings are keyed by their Traditional Chinese text. `I18nKey` is `keyof typeof EN`, so a new string that isn't in `src/i18n-en.ts` fails the type check. Add the same key to the other translation files too: `src/i18n-ja.ts`, `i18n-ko.ts`, `i18n-nan.ts` (Taiwanese, Han characters), `i18n-yue.ts` (Cantonese), `i18n-zh-cn.ts`, `i18n-vi.ts`, `i18n-fr.ts`, `i18n-de.ts`, `i18n-es.ts`, `i18n-ar.ts` and `i18n-he.ts`. A missing key falls back to English (Taiwanese and Cantonese fall back to the Traditional Chinese source). The list of languages, with the name each one shows in the settings, is `LANGUAGE_NAMES` in `src/i18n.ts`.
 
+Don't build a sentence by joining translated pieces (`t('插入') + t('…的圖片')`): word order differs between languages, and English ends up with no space ("Insertimage"). Make the whole sentence one key and put the changing part in a `{name}` variable. When the pieces must stay separate elements, as in the hint animations where one word is animated, languages that separate words with spaces carry the space inside their translation of that piece; `tests/view/ui.mjs` checks those joins for every such language.
+
 ### Styles
 
 All styles are in `styles/word-mode.css`, and every class starts with `wm-`. The file has grown release by release, and later rules override earlier ones, so search the rest of the file before you change an existing component.

@@ -356,8 +356,9 @@ class RawBlockView implements NodeView {
     if (fn && this.ctx.editFootnote) { this.ctx.editFootnote(fn[1]); return; }
     const mm = a.kind === 'math' && /^\s*\$\$([\s\S]*?)\$\$\s*$/.exec(a.src);
     if (mm && this.ctx.editMath) { this.ctx.editMath(this.getPos(), mm[1].trim(), true); return; }
-    // RAW_LABEL 的值是載入時 t() 的結果或 'HTML'，不一定是鍵；再翻一次，找不到時 t() 原樣回傳
-    this.ctx.editSource(t('編輯') + t((RAW_LABEL[a.kind] || RAW_LABEL.raw) as I18nKey), a.src, value => {
+    // RAW_LABEL 的值是載入時 t() 的結果或 'HTML'，不一定是鍵；再翻一次，找不到時 t() 原樣回傳。
+    // 標題用帶變數的整句（「編輯{name}」）：各語言的語序不同，直接拼起來英文還會變成「EditingHTML」
+    this.ctx.editSource(t('編輯{name}', { name: t((RAW_LABEL[a.kind] || RAW_LABEL.raw) as I18nKey) }), a.src, value => {
       const pos = this.getPos();
       if (pos == null) return;
       this.view.dispatch(this.view.state.tr.setNodeMarkup(pos, null, Object.assign({}, this.node.attrs, { src: value.replace(/\s+$/, '') })));
