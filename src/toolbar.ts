@@ -8,6 +8,7 @@ import { marksOn } from './marks.js';
 import { attachHint, hideHint } from './hints.js';
 import type { DemoName } from './hints.js';
 import { el, keepFocus } from './dom.js';
+import { closePropsPeek } from './propview.js';
 import { buildColorPanel, TEXT_COLORS, SHADING } from './colorpicker.js';
 import type { ColorKind } from './colorpicker.js';
 import type { Command, EditorState } from 'prosemirror-state';
@@ -105,6 +106,8 @@ export interface ToolbarContext {
     comment(): void;
     template?(): void;
     properties(): void;
+    // 「查看文件屬性」小視窗，顯示在 btn 旁邊
+    peekProperties(btn: HTMLElement): void;
     cleanup(): void;
     wordCount(): void;
     outline(btn: HTMLElement): void;
@@ -366,6 +369,7 @@ export class Toolbar {
   destroy(): void {
     this.dom.ownerDocument.removeEventListener('pointerdown', this.onDocDown, true);
     this.closePopup();
+    closePropsPeek();
     hideHint();
     this.dom.remove();
   }
@@ -688,6 +692,7 @@ export class Toolbar {
     g = G.show;
     this.button(g, { icon: 'pilcrow', title: '顯示／隱藏編輯標記', text: '¶', label: '編輯標記', big: true, demo: 'marks', desc: '顯示空白、換行與段落結尾，也會標出奇怪的符號。', onClick: () => this.d.toggleMarks(), active: s => marksOn(s) });
     this.button(g, { icon: 'list-tree', title: '大綱', text: '綱', label: '大綱', big: true, demo: 'outline', desc: '在筆記旁另外展開大綱欄，點標題可以跳過去。再按一次關閉。', onClick: (e, b) => this.d.outline(b), active: () => !!(this.ctx.outlineOpen && this.ctx.outlineOpen()) });
+    this.button(g, { icon: 'clipboard-list', title: '查看文件屬性', text: '屬', label: '查看屬性', big: true, demo: 'properties', desc: '不用捲到最上方，直接看這份筆記的屬性（標籤、日期等）。屬性很多時可以篩選。', onClick: (e, b) => this.d.peekProperties(b) });
     this.button(g, { icon: 'chevrons-down-up', title: '摺疊全部標題', text: '收', label: '全部摺疊', big: true, demo: 'fold', desc: '把所有標題下的內容收起來，只看標題。', onClick: () => this.d.foldAll(true) });
     this.button(g, { icon: 'chevrons-up-down', title: '展開全部標題', text: '展', label: '全部展開', big: true, demo: 'unfold', desc: '展開所有收起來的標題。', onClick: () => this.d.foldAll(false) });
     this.fullBtn = this.button(g, { icon: 'move-horizontal', title: '全寬頁面', text: '寬', label: '全寬', big: true, demo: 'fullwidth', desc: '頁面使用整個視窗寬度；關閉時是 A4 紙張寬度。', onClick: () => this.d.toggleFullWidth(), active: () => !!(this.ctx.isFullWidth && this.ctx.isFullWidth()) });

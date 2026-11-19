@@ -5,8 +5,10 @@ import { options as cmdOptions } from './commands.js';
 import { autoformatOptions } from './autoformat.js';
 import { MarkdownConverter } from './markdown.js';
 import { WordModeView, VIEW_TYPE } from './view.js';
+import type { PropsStyle } from './view.js';
 import { OutlineView, OUTLINE_TYPE } from './outline.js';
 import { MarkdownBar, mdToolbarMode, wantsMdBar } from './mdbar.js';
+import { closePropsPeek } from './propview.js';
 import type { MdToolbarMode } from './mdbar.js';
 import { TABS } from './toolbar.js';
 import { fillGroupSettings } from './groupsettings.js';
@@ -67,6 +69,11 @@ export interface Settings {
   zoom: number;
   showMarks: boolean;
   highlightWeird: boolean;
+  // 文件屬性固定在頁面上方（捲動時一直看得到）
+  propsSticky: boolean;
+  // 文件屬性區塊的外觀，以及固定的屬性列要不要顯示屬性名稱
+  propsStyle: PropsStyle;
+  pinLabels: boolean;
   toolbarPosition: ToolbarPosition;
   // ---- 工具列
   ribbonLayout: RibbonLayout;
@@ -176,6 +183,9 @@ const DEFAULTS: Settings = {
   zoom: 100,
   showMarks: false,
   highlightWeird: true,
+  propsSticky: false,
+  propsStyle: 'card',
+  pinLabels: true,
   toolbarPosition: 'auto',
   // 工具列
   ribbonLayout: 'tabs',
@@ -384,6 +394,7 @@ export default class WordModePlugin extends Plugin {
 
   onunload(): void {
     this.unloaded = true;
+    closePropsPeek();
     for (const b of this.mdBars.values()) b.destroy();
     this.mdBars.clear();
     for (const [, btn] of this.mdActions) btn.remove();
@@ -512,6 +523,14 @@ export default class WordModePlugin extends Plugin {
   async setFullWidth(on: boolean): Promise<void> {
     this.settings.fullWidth = !!on;
     for (const v of this.views()) { v.contentEl.toggleClass('wm-full-width', !!on); if (v.pm) v.toolbar.update(v.pm.state); }
+    await this.saveSettings();
+  }
+
+  applyPropsLook(): void { for (const v of this.views()) v.applyPropsLook(); }
+
+  async setPropsSticky(on: boolean): Promise<void> {
+    this.settings.propsSticky = !!on;
+    for (const v of this.views()) v.applyPropsSticky();
     await this.saveSettings();
   }
 
@@ -760,6 +779,12 @@ function settingSections(settingTab: WordModeSettings): SettingSection[] {
       toggleRow(t('全寬頁面'), t('關閉時以 A4 紙張寬度顯示，開啟時使用整個視窗寬度。'), 'fullWidth', v => p.setFullWidth(v)),
       row(t('頁面縮放'), t('也可以用 {k}+滑鼠滾輪，或右下角的縮放列調整。', { k: key('Mod') }),
         s => s.addSlider(sl => sl.setLimits(50, 200, 10).setValue(S.zoom || 100).setDynamicTooltip().onChange(v => p.setZoom(v)))),
+      toggleRow(t('文件屬性固定在頁面上方'),
+        t('往下捲動、文件屬性捲出畫面之後，上方會浮出一條精簡的屬性列（每個屬性的名稱與值排成一行），隨時看得到。點一下展開完整清單；屬性很多時可以篩選，清單在框內捲動。'), 'propsSticky', v => p.setPropsSticky(v)),
+      row(t('文件屬性的外觀'), t('「區塊」有框線與淡底色，一看就知道是屬性；「只有框線」沒有底色；「簡潔」沒有框線，只在下方有一條分隔線。'),
+        s => s.addDropdown(d => d.addOptions({ card: t('區塊（框線加底色）'), outline: t('只有框線'), plain: t('簡潔（沒有框線）') })
+          .setValue(S.propsStyle || 'card').onChange(async v => { S.propsStyle = v as PropsStyle; await save(); p.applyPropsLook(); }))),
+      toggleRow(t('固定的屬性列顯示屬性名稱'), t('關閉後屬性列只顯示值，一行可以放更多屬性。'), 'pinLabels', () => p.applyPropsLook()),
       toggleRow(t('開啟筆記時顯示編輯標記（¶）'),
         t('顯示空白（·）、全形空白（□）、Tab（→）、換行（↵）與段落結尾（¶）。也可以用工具列的 ¶ 按鈕隨時切換。'), 'showMarks'),
       toggleRow(t('顯示圖表與查詢的結果'),

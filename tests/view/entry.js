@@ -16,3 +16,5 @@ export * as TEMPLATES from '../../src/templates.js';
 export * as TB from '../../src/toolbar.js';
 export { fillGroupSettings } from '../../src/groupsettings.js';
 export * as SETNAV from '../../src/settingsnav.js';
+export * as PEEK from '../../src/propview.js';
+export { openMarkdownPeek } from '../../src/mdbar.js';
