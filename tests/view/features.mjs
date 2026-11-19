@@ -405,6 +405,14 @@ await fresh('面積公式：\n');
   typeIn(q('.wm-mv-hbrace.is-under .wm-mv-hb-body .wm-mv-text'), '1+1');
   typeIn(q('.wm-mv-hbrace.is-under .wm-mv-hb-label .wm-mv-text'), 'k');
   assert(eq.ta.value === '\\overbrace{a+b}^{m}+\\underbrace{1+1}_{k}', '下括號：' + eq.ta.value);
+  // 空心字、花體：框線與標記（CSS 依 data-cmd 畫框）；功能區的按鈕顯示範例字，不是一個方框
+  qa('.wm-eq-cat').find(b => b.textContent === '標記').click();
+  snippet('\\mathbb{}').click();
+  const bb = q('.wm-mv-group[data-cmd="mathbb"]');
+  assert(bb && bb.querySelector(':scope > .wm-mv-tag').textContent === 'ℍ' && bb.querySelector('.wm-mv-text.is-slot'), '空心字：有標記與空格子');
+  const demoOf = s => snippet(s).querySelector('.wm-eq-btn-math').textContent;
+  assert(demoOf('\\mathbb{}') === '\\mathbb{ABC}' && demoOf('\\mathcal{}') === '\\mathcal{ABC}' && demoOf('\\mathbf{}') === '\\mathbf{abc}' && demoOf('\\overbrace{}^{}') === '\\overbrace{\\square}^{\\square}',
+    '按鈕的示意圖：字型類放範例字：' + demoOf('\\mathbb{}'));
   eq.close();
 
   // 既有的方程式：沒有在格子裡改東西就不會動到原本的寫法

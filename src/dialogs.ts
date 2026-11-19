@@ -383,8 +383,10 @@ export class EquationModal extends Modal {
           b.empty();
           b.addClass('is-struct');
           const pv = b.createSpan('wm-eq-btn-math');
-          // \tag 在行內的公式裡不會顯示，示意圖改畫成 (1)
-          const demo = /^\\tag/.test(snip) ? '(1)' : (/^[\^_]/.test(snip) ? 'x' : '') + snip.replace(/\\(text|mathrm)\{\}/g, '\\$1{abc}').replace(/\{\}/g, '{\\square}');
+          // \tag 在行內的公式裡不會顯示，示意圖改畫成 (1)。字型類的（粗體、空心字、花體、正體）放範例字，
+          // 放 □ 的話每個按鈕都只是一個方框，看不出差別；空心字、花體只有大寫字母有定義，所以用 ABC
+          const demo = /^\\tag/.test(snip) ? '(1)' : (/^[\^_]/.test(snip) ? 'x' : '') + snip
+            .replace(/\\(text|mathrm|mathbf)\{\}/g, '\\$1{abc}').replace(/\\(mathbb|mathcal)\{\}/g, '\\$1{ABC}').replace(/\{\}/g, '{\\square}');
           this.render(demo, pv, false);
           b.createSpan({ cls: 'wm-eq-btn-label', text: t(label) });
         }

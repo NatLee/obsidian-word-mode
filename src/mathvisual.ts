@@ -256,7 +256,8 @@ const PLAIN_GROUPS = new Set(['\\text', '\\mathrm', '\\mathit']);
 // 外面的分數線、根號才不會壓到它（見 CSS 的 .has-accent）
 const ACCENTS = new Set(['\\vec', '\\overrightarrow', '\\bar', '\\overline', '\\hat', '\\tilde', '\\dot', '\\ddot']);
 const isScript = (it: MathItem | undefined): it is ScriptItem => !!it && (it.t === 'sup' || it.t === 'sub');
-const GROUP_LABEL: Record<string, string> = { '\\text': 'T', '\\mathrm': 'rm', '\\mathit': 'it', '\\mathcal': '𝒞', '\\mathbb': '𝔹', '\\boldsymbol': 'B' };
+// 空心字、花體的標記用基本平面（BMP）的字母符號：以前的 𝔹、𝒞 在補充平面，手機上常常沒有字型，縮小後也認不出來
+const GROUP_LABEL: Record<string, string> = { '\\text': 'T', '\\mathrm': 'rm', '\\mathit': 'it', '\\mathcal': 'ℒ', '\\mathbb': 'ℍ', '\\boldsymbol': 'B' };
 // 在格子裡打「\指令」再按空白，就變成對應的結構（\frac → 分數的兩格、\sqrt → 根號…）
 const TYPED_STRUCTS: Record<string, string> = { '\\sqrt': '\\sqrt{}' };
 for (const c of FRACS) TYPED_STRUCTS[c] = c + '{}{}';

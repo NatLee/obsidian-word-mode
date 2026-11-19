@@ -1011,6 +1011,10 @@ audio.wm-embed-media { width: 100%; }
 .wm-mv-group[data-cmd="mathbf"] .wm-mv-text, .wm-mv-group[data-cmd="boldsymbol"] .wm-mv-text { font-weight: 700; }
 .wm-mv-group[data-cmd="text"] .wm-mv-text, .wm-mv-group[data-cmd="mathrm"] .wm-mv-text { font-family: var(--font-interface); }
 .wm-mv-tag { align-self: flex-start; margin-right: 1px; font-size: .5em; color: var(--text-faint); user-select: none; }
+/* 空心字（\mathbb）、花體（\mathcal）：格子裡的字跟一般的字長得一樣，只能靠標記分辨；以前標記只有半個字大、顏色很淡，
+   空格子時跟粗體的格子看起來一模一樣。改成整個結構有框線與淡淡的底色，左上角的標記放大、用強調色 */
+.wm-mv-group[data-cmd="mathbb"], .wm-mv-group[data-cmd="mathcal"] { padding: 1px 3px 1px 2px; border: 1px solid rgba(var(--interactive-accent-rgb, 120, 82, 238), .45); border-radius: 4px; background: rgba(var(--interactive-accent-rgb, 120, 82, 238), .06); }
+.wm-mv-group[data-cmd="mathbb"] > .wm-mv-tag, .wm-mv-group[data-cmd="mathcal"] > .wm-mv-tag { margin-right: 2px; font-size: .72em; line-height: 1; color: var(--text-accent); }
 /* 上括號、下括號（mathvisual.ts 的 horizontalBrace）：括號跟內容在同一格（括號的寬度才會跟內容一樣），標籤在外面一格。
    四列是 1fr auto auto 1fr：上括號依序是「標籤、內容與括號、跟括號一樣高的空白（::after）、空的」，下括號上下顛倒。
    高度不固定時，兩個 1fr 會一樣高（都等於標籤的高度），所以內容剛好在正中間，跟同一列的其他字對齊 */
@@ -1223,6 +1227,8 @@ body:not(.is-phone) .modal.wm-eq-modal, body:not(.is-phone) .modal.wm-mmd-modal 
 .wm-mv-text.is-slot { min-width: 1em; min-height: 1.15em; border: 1px dashed var(--text-faint); border-radius: 4px; }
 .wm-mv-text.is-slot:focus { border-color: var(--interactive-accent); border-style: solid; }
 .wm-mv-frac:focus-within, .wm-mv-sqrt:focus-within, .wm-mv-paren:focus-within, .wm-mv-group:focus-within, .wm-mv-hbrace:focus-within, .wm-mv-env:focus-within { background: rgba(var(--interactive-accent-rgb, 120, 82, 238), .06); border-radius: 4px; }
+/* 空心字、花體本來就有底色與框線（見前面 .wm-mv-group[data-cmd="mathbb"]）：游標在裡面時框線改成實心的強調色 */
+.wm-mv-group[data-cmd="mathbb"]:focus-within, .wm-mv-group[data-cmd="mathcal"]:focus-within { border-color: var(--interactive-accent); }
 .wm-mv-num, .wm-mv-den { min-width: 1.2em; }
 .is-mobile .wm-eq button.wm-eq-btn { min-width: 42px; min-height: 42px; }
 
