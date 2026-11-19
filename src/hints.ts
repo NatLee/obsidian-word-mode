@@ -19,7 +19,6 @@ export type DemoBuilder = (box: HTMLElement) => void;
 // timer 一開始是 null；clearTimeout(null) 不會出錯，但型別定義只收 number | undefined，所以呼叫處用 !
 let card: HTMLDivElement | null = null;
 let timer: number | null = null;
-let current: HTMLElement | null = null;
 
 // 示意文字：用一小段文字表示「之前 → 之後」
 const SAMPLE = () => t('這是範例文字');
@@ -139,14 +138,13 @@ function ensureCard(): HTMLDivElement {
   if (card && card.isConnected) return card;
   card = el('div', 'wm-hint-card', activeDocument.body);
   card.setAttribute('role', 'tooltip');
-  card.addEventListener('mouseenter', () => window.clearTimeout(timer!));
-  card.addEventListener('mouseleave', hideHint);
+  // 提示卡不接滑鼠（CSS 的 pointer-events: none）：它蓋在下一排按鈕與群組名稱上，
+  // 以前滑鼠碰到它就讓它留著，結果移到群組上提示卡還在、底下的按鈕也點不到
   return card;
 }
 
 export function hideHint(): void {
   window.clearTimeout(timer!);
-  current = null;
   if (card) card.classList.remove('is-shown');
 }
 
@@ -180,11 +178,13 @@ export function attachHint(btn: HTMLElement, info: () => HintInfo): void {
     window.clearTimeout(timer!);
     // 已經有提示卡在顯示：直接換成這個按鈕的（像 Word）；否則等一下再出現
     const wait = card && card.classList.contains('is-shown') ? 80 : 550;
-    timer = window.setTimeout(() => { current = btn; show(btn, info()); }, wait);
+    timer = window.setTimeout(() => show(btn, info()), wait);
   });
+  // 離開就收起；移到下一個按鈕時它的 mouseenter 會取消這個 timer，改成換內容。
+  // 不能只在「顯示的是這個按鈕」時才收：快速滑過的按鈕還沒換上自己的提示，離開它時前一個按鈕的提示會一直留著
   btn.addEventListener('mouseleave', () => {
     window.clearTimeout(timer!);
-    timer = window.setTimeout(() => { if (current === btn) hideHint(); }, 120);
+    timer = window.setTimeout(hideHint, 120);
   });
   btn.addEventListener('mousedown', hideHint);
 }
