@@ -1448,7 +1448,18 @@ body:not(.is-phone) .modal.wm-eq-modal, body:not(.is-phone) .modal.wm-mmd-modal 
 
 /* ---------- 文件裡的圖表與查詢結果：還沒畫時先佔位置、很高時先收合 ---------- */
 .wm-codeblock.has-preview:not(.is-empty) .wm-code-preview:empty { min-height: 96px; }
-.wm-codeblock.is-tall:not(.wm-code-active):not(.show-code) .wm-code-preview { max-height: 460px; overflow: hidden; -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 60px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 60px), transparent); }
+.wm-codeblock.is-tall:not(.wm-code-active):not(.show-code) .wm-code-preview { max-height: 460px; overflow: hidden; }
+/* 收合時下緣 60px 淡出：蓋一層從透明到底色的漸層。不用 mask-image：Obsidian 的外掛掃描以舊版 Chromium 為準，會報「部分支援」。
+   結果沒有底色、融入頁面，所以漸層的底色是頁面的 --background-primary，在提示框裡再疊上提示框的淡色（--wm-fade-tint）。
+   漸層掛在「顯示完整內容」按鈕上、往上蓋住結果最後的 60px（按鈕上緣有 1px 虛線，所以多留 1px）；
+   放在結果裡面的話，結果左右捲動過再收合時，漸層會跟著內容位移 */
+.wm-codeblock.is-tall:not(.wm-code-active):not(.show-code) button.wm-code-more { position: relative; }
+.wm-codeblock.is-tall:not(.wm-code-active):not(.show-code) button.wm-code-more::before { content: ""; position: absolute; left: 0; right: 0; bottom: calc(100% + 1px); height: 60px; background: linear-gradient(to bottom, transparent, var(--wm-fade-tint, transparent)), linear-gradient(to bottom, transparent, var(--background-primary)); pointer-events: none; }
+/* 漸層上層的淡色：預設沒有；提示框裡是提示框的底色。Obsidian 1.5 的 --callout-color 是三個數字（8, 109, 221）、底色是 rgba(…, .1)，
+   新版改成顏色、底色是 color-mix(…)。兩種寫法各放一層：註冊成 <color> 的變數在算不出顏色時沿用上一層的值，所以哪一版都拿得到 */
+@property --wm-fade-tint { syntax: "<color>"; inherits: true; initial-value: transparent; }
+.wm-editor .callout { --wm-fade-tint: rgba(var(--callout-color), .1); }
+.wm-editor .callout > .callout-content { --wm-fade-tint: color-mix(in oklch, var(--callout-color) 10%, transparent); }
 .wm-editor .wm-codeblock button.wm-code-more { display: block; width: 100%; height: 28px; background: transparent; box-shadow: none; border: none; border-top: 1px dashed var(--background-modifier-border); border-radius: 0 0 6px 6px; color: var(--text-muted); font-size: var(--font-ui-smaller); cursor: pointer; }
 .wm-editor .wm-codeblock button.wm-code-more:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
 .wm-editor .wm-codeblock button.wm-code-more[hidden] { display: none; }
@@ -1484,7 +1495,8 @@ body.wm-md-status .status-bar-item.plugin-word-count { display: none; }
 .wm-peek input.wm-peek-filter { width: 100%; height: 30px; border-radius: 8px; }
 .wm-peek-list { display: flex; flex-direction: column; gap: 1px; max-height: min(50vh, 420px); overflow-y: auto; overscroll-behavior: contain; }
 .wm-peek-row { display: flex; align-items: flex-start; gap: 10px; padding: 5px 6px; border-radius: 6px; }
-.wm-peek-row:hover { background: var(--background-modifier-hover); }
+/* 整列變色時，被截掉的值下緣的漸層也疊上同一層顏色（見下面的 .is-clamped.is-more） */
+.wm-peek-row:hover { background: var(--background-modifier-hover); --wm-fade-tint: var(--background-modifier-hover); }
 .wm-peek-key { display: flex; align-items: center; gap: 6px; flex: 0 0 108px; min-width: 0; min-height: 22px; color: var(--metadata-label-text-color, var(--text-muted)); }
 .wm-peek-icon { display: inline-flex; flex: 0 0 auto; color: var(--text-faint); }
 .wm-peek-icon svg { width: 14px; height: 14px; }
@@ -1493,7 +1505,9 @@ body.wm-md-status .status-bar-item.plugin-word-count { display: none; }
 /* 很長的值先顯示三行；真的被截掉時下緣變淡，點一下展開 */
 .wm-peek-value.is-clamped { max-height: 4.5em; overflow: hidden; }
 .wm-peek-value.is-more { cursor: pointer; }
-.wm-peek-value.is-clamped.is-more { -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent); mask-image: linear-gradient(to bottom, #000 55%, transparent); }
+/* 下緣淡出：從 55% 起蓋一層從透明到小視窗底色的漸層（不用 mask-image，理由見收合的圖表） */
+.wm-peek-value.is-clamped.is-more { position: relative; }
+.wm-peek-value.is-clamped.is-more::after { content: ""; position: absolute; left: 0; right: 0; top: 55%; bottom: 0; background: linear-gradient(to bottom, transparent, var(--wm-fade-tint, transparent)), linear-gradient(to bottom, transparent, var(--background-primary)); pointer-events: none; }
 .wm-peek .wm-chip { padding: 0 9px; min-height: 22px; border-radius: var(--pill-radius, 2em); background: var(--pill-background, var(--background-modifier-hover)); border: var(--pill-border-width, 1px) solid var(--pill-border-color, transparent); color: var(--pill-color, var(--text-normal)); }
 .wm-peek .wm-chip-tag { background: var(--tag-background, var(--background-modifier-hover)); border-color: var(--tag-border-color, transparent); color: var(--tag-color, var(--text-accent)); }
 .wm-peek-check { margin: 0; }
@@ -1523,8 +1537,11 @@ body.wm-md-status .status-bar-item.plugin-word-count { display: none; }
 .wm-pin-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 26px; height: 26px; border-radius: 8px; background: rgba(var(--interactive-accent-rgb, 120, 82, 238), .12); color: var(--text-accent); transition: background .15s; }
 .wm-pin-bar:hover .wm-pin-icon { background: rgba(var(--interactive-accent-rgb, 120, 82, 238), .2); }
 .wm-pin-icon svg { width: 15px; height: 15px; }
-/* 屬性之間用很淡的直線分開；一行放不下的往右淡出，完整內容點開屬性列看 */
-.wm-pin-items { display: flex; align-items: center; flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 48px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 48px), transparent); }
+/* 屬性之間用很淡的直線分開；一行放不下的往右淡出，完整內容點開屬性列看。
+   淡出是右端 48px 蓋一層漸層（不用 mask-image，理由見收合的圖表）：屬性列墊在 .wm-pin::before 那條實色的帶子上，
+   看起來就是 --background-primary，所以漸層到同一個顏色 */
+.wm-pin-items { position: relative; display: flex; align-items: center; flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; }
+.wm-pin-items::after { content: ""; position: absolute; top: 0; right: 0; bottom: 0; width: 48px; background: linear-gradient(to right, transparent, var(--background-primary)); pointer-events: none; }
 .wm-pin-item { display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; padding: 0 12px; }
 .wm-pin-item:first-child { padding-left: 2px; }
 .wm-pin-item + .wm-pin-item { border-left: 1px solid var(--background-modifier-border); }
