@@ -1429,6 +1429,15 @@ body:not(.is-phone) .modal.wm-eq-modal, body:not(.is-phone) .modal.wm-mmd-modal 
 .wm-anim-wysiwyg .wm-demo-wbold { animation: wm-bold 2.8s infinite ease-in-out; }
 .wm-anim-wysiwyg .wm-demo-wlink { text-decoration: underline; animation: wm-wlink 2.8s infinite ease-in-out; }
 
+/* ---------- 狀態列：Markdown／閱讀模式也是同樣的內容 ---------- */
+:is(.wm-bottombar, .wm-statusbar) .wm-bb-btn-icon { display: inline-flex; }
+/* 縮放只用在 Word 模式：其他模式仍然顯示（版面不跳動），但停用 */
+.wm-bb-zoom.is-disabled { opacity: .45; }
+:is(.wm-bottombar, .wm-statusbar) .wm-bb-zoom.is-disabled button { cursor: default; }
+:is(.wm-bottombar, .wm-statusbar) .wm-bb-zoom.is-disabled button:hover { background: transparent; color: var(--text-muted); }
+/* Markdown 編輯時 Obsidian 內建的字數跟狀態列的字數重複，藏起來（關掉「保留狀態列」就恢復） */
+body.wm-md-status .status-bar-item.plugin-word-count { display: none; }
+
 /* ---------- 查看文件屬性（小視窗）：名稱與值一列一列排，沒有格線，滑鼠移上去整列淡淡變色（參考 Linear 與 Obsidian 的屬性清單） ---------- */
 .wm-popup.wm-peek { width: 340px; max-width: calc(100vw - 8px); display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 12px; box-shadow: var(--shadow-l, 0 10px 30px rgba(0, 0, 0, .18)); font-size: var(--font-ui-small); }
 .wm-peek [hidden] { display: none !important; }
@@ -1545,7 +1554,7 @@ body:not(.is-phone) .modal.wm-eq-modal, body:not(.is-phone) .modal.wm-mmd-modal 
 .wm-props-style-plain .wm-props .wm-props-body { padding: 0 0 8px; }
 .wm-pin-nolabels .wm-pin-key { display: none; }
 
-/* ---------- 手機：文件屬性 ---------- */
+/* ---------- 手機：文件屬性與下方狀態列 ---------- */
 /* 名稱與值排在同一列（名稱欄窄一點），清單的標籤在值的欄位裡換行，不會一個東西佔一行 */
 .wm-mobile .wm-props .wm-prop { flex-wrap: nowrap; align-items: flex-start; }
 .wm-mobile .wm-props .wm-prop.wm-prop-add { flex-wrap: wrap; align-items: center; }
@@ -1555,3 +1564,9 @@ body:not(.is-phone) .modal.wm-eq-modal, body:not(.is-phone) .modal.wm-mmd-modal 
 /* 輸入框與下拉選單的字要 16px 以上，iOS 點進去時才不會放大畫面 */
 .wm-mobile .wm-props input.wm-prop-input, .wm-mobile .wm-props select.wm-prop-type { font-size: 16px; }
 .wm-mobile .wm-props select.wm-prop-type, .wm-mobile .wm-props button.wm-prop-addbtn { height: 34px; }
+/* 手機的狀態列很窄：字數不換行；存檔狀態只顯示圖示（衝突時仍顯示文字）；縮放只留百分比（點一下回到 100%），放大縮小用功能區 */
+.wm-phone .wm-bottombar .wm-bb-count { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wm-phone .wm-bottombar .wm-bb-status:not(.is-conflict) .wm-bb-status-text { display: none; }
+.wm-phone .wm-bottombar .wm-bb-status { flex: 0 0 auto; white-space: nowrap; }
+.wm-phone .wm-bottombar .wm-bb-zoom button.wm-bb-btn { display: none; }
+.wm-phone .wm-bottombar button.wm-bb-zoomlabel { min-width: 40px; }

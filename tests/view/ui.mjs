@@ -1019,7 +1019,7 @@ const fakeMarkdown = (path, text, mode = 'source') => {
   return md;
 };
 
-// ======== 檢視模式的按鈕：提示卡都有動畫（兩條功能區） ========
+// ======== 檢視模式的按鈕：提示卡都有動畫（兩條功能區與右下角的狀態列） ========
 await fresh('一段文字\n');
 {
   plugin.settings.richHints = true;
@@ -1043,10 +1043,73 @@ await fresh('一段文字\n');
   const mdHints = []; for (const b of viewBtns(bar.dom)) mdHints.push(await hover(b));
   assert(mdHints.length === 3 && mdHints.every(x => !x.endsWith(':-') && x !== 'none') && mdHints[0].includes('wm-anim-wysiwyg') && mdHints[1].startsWith('Markdown 編輯:') && mdHints[1].includes('wm-demo-mono'),
     'Markdown／閱讀模式的功能區：三個按鈕都有動畫，「切換到 Word 模式」不再用 Markdown 的動畫：' + mdHints.join(' / '));
-  viewBtns(bar.dom)[0].dispatchEvent(new MouseEvent('mousedown'));
-  bar.destroy(); md.containerEl.remove();
+  // 右下角狀態列的檢視按鈕也一樣（詳細提示開啟時不用 Obsidian 的一般提示）
+  const sbar = document.body.createDiv('wm-statusbar');
+  view.buildBottomBar(sbar, true);
+  const sbtns = [...sbar.querySelectorAll('.wm-bb-views .wm-bb-btn')];
+  assert(sbtns.length === 4 && sbtns.every(b => !b.hasAttribute('aria-label') && b.querySelector('.wm-sr')) && sbtns[1].querySelector('.wm-sr').textContent === 'Markdown 編輯 (Ctrl+E)',
+    '狀態列的按鈕：詳細提示開啟時名稱放在看不見的文字裡：' + sbtns.map(b => b.querySelector('.wm-sr') && b.querySelector('.wm-sr').textContent).join('、'));
+  const sHints = []; for (const b of sbtns) sHints.push(await hover(b));
+  assert(sHints.every(x => !x.endsWith(':-') && x !== 'none') && sHints.map(x => x.split(':')[0]).join() === 'Word 模式（目前）,Markdown 編輯,閱讀模式,查看文件屬性',
+    '狀態列的檢視按鈕與查看文件屬性：提示卡有動畫：' + sHints.join(' / '));
+  sbtns[0].dispatchEvent(new MouseEvent('mousedown'));
+  bar.destroy(); md.containerEl.remove(); sbar.remove();
   plugin.settings.richHints = false;
   view.buildToolbar();
+  const plain = document.body.createDiv('wm-statusbar');
+  view.buildBottomBar(plain, true);
+  assert([...plain.querySelectorAll('.wm-bb-views .wm-bb-btn')].map(b => b.getAttribute('aria-label')).join() === 'Word 模式（目前）,Markdown 編輯 (Ctrl+E),閱讀模式,查看文件屬性',
+    '詳細提示關閉：狀態列的按鈕用一般提示');
+  plain.remove();
+}
+
+// ======== 狀態列：Markdown／閱讀模式也保留同樣的按鈕 ========
+{
+  const text = '---\ntags: [a]\n---\n# 標題 Title\n\n這是 **粗體** 文字，hello world。\n';
+  await fresh(text);
+  const wordBar = document.body.createDiv('wm-statusbar');
+  view.buildBottomBar(wordBar, true);
+  view.updateCount();
+  const mdEl = document.body.createDiv('wm-statusbar');
+  const md = fakeMarkdown('筆記/測試.md', text);
+  env.files.set('筆記/測試.md', text);
+  plugin.switchToWord = () => { plugin.toWord = (plugin.toWord || 0) + 1; };
+  plugin.setMarkdownMode = async (v, m) => { v.mode = m; plugin.modeSet = m; };
+  const sb = new B.MdStatusBar(plugin, mdEl, md);
+  // 版面：每一區的 class 與裡面的按鈕（目前的模式、停用的狀態不算）
+  const shape = root => [...root.children].map(c => c.className.replace(/ is-[\w-]+/g, '') + '[' + [...c.querySelectorAll('button, input')].map(b => b.tagName + (b.dataset.mode ? ':' + b.dataset.mode : '')).join(' ') + ']').join(' | ');
+  assert(shape(mdEl) === shape(wordBar) && shape(mdEl).includes('wm-bb-zoom') && shape(mdEl).includes('wm-bb-count'), 'Markdown 模式的狀態列跟 Word 模式一樣：字數、存檔狀態、檢視切換、文件屬性、縮放：' + shape(mdEl));
+  assert(mdEl.querySelector('.wm-bb-btn.is-active').dataset.mode === 'source' && wordBar.querySelector('.wm-bb-btn.is-active').dataset.mode === 'word', '目前的模式顯示成按下的樣子');
+  assert(mdEl.querySelector('.wm-bb-zoom').classList.contains('is-disabled') && mdEl.querySelector('.wm-bb-range').disabled && mdEl.querySelector('.wm-bb-zoom button').getAttribute('aria-label').includes('縮放只套用在 Word 模式'),
+    '縮放只用在 Word 模式：Markdown 模式仍然顯示，但停用並說明原因');
+  assert(!wordBar.querySelector('.wm-bb-zoom').classList.contains('is-disabled') && !wordBar.querySelector('.wm-bb-range').disabled, 'Word 模式的縮放可以用');
+  const count = root => root.querySelector('.wm-bb-count').textContent;
+  assert(count(mdEl) === count(wordBar) && /^\d+ 字・\d+ 個字元$/.test(count(mdEl)), '字數跟 Word 模式一樣（Markdown 符號與文件屬性不算）：' + count(mdEl) + ' / ' + count(wordBar));
+  await sleep(0);
+  assert(mdEl.querySelector('.wm-bb-status').textContent === '已儲存', '內容跟檔案一樣：已儲存');
+  md.text = text + '\n多打的字\n';
+  sb.update();
+  await sleep(0);
+  assert(mdEl.querySelector('.wm-bb-status').textContent === '編輯中（自動儲存）' && count(mdEl) !== count(wordBar), '改了還沒存檔：編輯中，字數跟著更新');
+  env.files.set('筆記/測試.md', md.text);
+  sb.update();
+  await sleep(0);
+  assert(mdEl.querySelector('.wm-bb-status').textContent === '已儲存', 'Obsidian 存檔之後：已儲存');
+  md.sel = '這是';
+  sb.update();
+  assert(count(mdEl).startsWith('已選取 2／'), '選取文字時顯示選取的字數：' + count(mdEl));
+  click(mdEl.querySelector('.wm-bb-count'));
+  const rows = mock.Modal.last.rows;
+  assert(rows[0].join() === ',整份文件,選取範圍' && rows[1][0] === '字數' && rows[1][2] === '2', '點字數：字數統計視窗（含選取範圍）：' + JSON.stringify(rows.slice(0, 2)));
+  mock.Modal.last.close();
+  const modeBtn = m => mdEl.querySelector('.wm-bb-btn[data-mode="' + m + '"]');
+  click(modeBtn('preview'));
+  await sleep(0);
+  assert(plugin.modeSet === 'preview', '按「閱讀模式」切到閱讀模式');
+  const before = plugin.toWord || 0;
+  click(modeBtn('word'));
+  assert(plugin.toWord === before + 1, '按「Word 模式」切回 Word 模式');
+  wordBar.remove(); mdEl.remove(); md.containerEl.remove();
 }
 
 // ======== 查看文件屬性：功能區與狀態列的按鈕打開小視窗 ========

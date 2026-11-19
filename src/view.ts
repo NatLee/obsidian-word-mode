@@ -29,8 +29,9 @@ import { renderEmbed, mediaKind } from './embeds.js';
 import { foldKey } from './fold.js';
 import { suggestPlugin } from './suggest.js';
 import { suggestContext } from './complete.js';
-import { SourceModal, PromptModal, LinkDialog, FilePicker, ShortcutModal, EquationModal, CleanupModal, WordCountModal } from './dialogs.js';
-import { countText } from './textstats.js';
+import { SourceModal, PromptModal, LinkDialog, FilePicker, ShortcutModal, EquationModal, CleanupModal, WordCountModal, wordCountRows } from './dialogs.js';
+import { countText, docText, docStats } from './textstats.js';
+import { buildStatusBar, renderSaveStatus, renderCount, showZoom } from './statusbar.js';
 import { openPropsPeek, propertyWidget, fillPropsPeek, fillPinSummary, markOverflow } from './propview.js';
 import { frontmatterBody, peekData } from './props.js';
 import { t, key, withKey } from './i18n.js';
@@ -44,7 +45,8 @@ import type { NodeViewContext, NodeViewMenuItem, FrontmatterDom } from './nodevi
 import type { BubbleContext, LinkDescription } from './bubble.js';
 import type { FoldState } from './fold.js';
 import type { LinkContext } from './links.js';
-import type { LinkDialogInit, LinkDialogResult, MathRenderer, EquationInit, WordCountRow } from './dialogs.js';
+import type { LinkDialogInit, LinkDialogResult, MathRenderer, EquationInit } from './dialogs.js';
+import type { SaveStatus } from './statusbar.js';
 import type { PropsPeekData } from './props.js';
 import type { FrontmatterAttrs } from './schema.js';
 import type { SuggestTrigger } from './suggest.js';
@@ -54,13 +56,12 @@ import type { PrismLike } from './codehl.js';
 import type { MarksState, WeirdKindId } from './marks.js';
 import type { TextRange } from './commands.js';
 import type { TemplatesInstance } from './obsidian-internal.js';
-import type { I18nKey } from './i18n.js';
 
 export const VIEW_TYPE = 'natlee-word-mode';
 const IMAGE_EXT = /^(png|jpe?g|gif|bmp|svg|webp|avif)$/i;
 
 // 存檔狀態（下方狀態列顯示）：saved 已儲存、dirty 編輯中、saving 儲存中、conflict 同步衝突
-export type SaveStatus = 'saved' | 'dirty' | 'saving' | 'conflict';
+export type { SaveStatus } from './statusbar.js';
 
 // 文件屬性區塊的外觀（設定）：區塊＝框線加底色、只有框線、簡潔＝沒有框線
 export type PropsStyle = 'card' | 'outline' | 'plain';
@@ -89,13 +90,6 @@ export interface EphemeralState {
   line?: unknown;
   match?: { matches?: [from: number, to: number][] } | null;
   subpath?: string;
-}
-
-// 字數統計的各項數字（openWordCount 用）
-interface WordStats {
-  words: number; chars: number; charsSp: number;
-  paras: number; heads: number; tables: number; images: number; links: number;
-  minutes: number;
 }
 
 // 滑鼠事件的 target 一定是元素（不會是文字節點），宣告成 Element 才能直接呼叫 closest()
@@ -399,35 +393,18 @@ export class WordModeView extends TextFileView {
   buildBottomBar(bar: HTMLElement, inStatusBar: boolean): void {
     this.bottomBar = bar;
     // 字數：手機在筆記下方的列，桌機在 Obsidian 的狀態列（Obsidian 內建的字數只算 Markdown 編輯器）
-    this.countEl = bar.createDiv('wm-bb-count');
-    this.countEl.addEventListener('click', () => this.openWordCount());
-    if (!inStatusBar) bar.createDiv('wm-bb-spacer');
-    this.statusBox = bar.createDiv('wm-bb-status');
-    const views = bar.createDiv('wm-bb-views');
-    const vbtn = (icon: string, title: string, run: () => void, active?: boolean) => {
-      const b = views.createEl('button', { cls: 'wm-bb-btn' + (active ? ' is-active' : '') });
-      b.setAttribute('aria-label', title);
-      setIcon(b, icon);
-      b.addEventListener('click', run);
-      return b;
-    };
-    vbtn('file-text', t('Word 模式（目前）'), () => {}, true);
-    vbtn('code-2', withKey('Markdown 編輯', 'Mod+E'), () => { void this.plugin.switchToMarkdown(this.leaf); });
-    vbtn('book-open', t('閱讀模式'), () => { void this.plugin.switchToMarkdown(this.leaf, 'preview'); });
-    vbtn('list-plus', t('文件屬性（metadata）'), () => this.openProperties());
-    const zoom = bar.createDiv('wm-bb-zoom');
-    const minus = zoom.createEl('button', { cls: 'wm-bb-btn', text: t('－') });
-    minus.setAttribute('aria-label', t('縮小'));
-    this.zoomRange = zoom.createEl('input', { type: 'range', cls: 'wm-bb-range' });
-    this.zoomRange.min = '50'; this.zoomRange.max = '200'; this.zoomRange.step = '10';
-    const plus = zoom.createEl('button', { cls: 'wm-bb-btn', text: t('＋') });
-    plus.setAttribute('aria-label', t('放大'));
-    this.zoomLabel = zoom.createEl('button', { cls: 'wm-bb-zoomlabel' });
-    this.zoomLabel.setAttribute('aria-label', t('恢復 100%'));
-    minus.addEventListener('click', () => { void this.plugin.setZoom(this.plugin.settings.zoom - 10); });
-    plus.addEventListener('click', () => { void this.plugin.setZoom(this.plugin.settings.zoom + 10); });
-    this.zoomRange.addEventListener('input', () => { void this.plugin.setZoom(+this.zoomRange!.value); });
-    this.zoomLabel.addEventListener('click', () => { void this.plugin.setZoom(100); });
+    const parts = buildStatusBar(bar, {
+      mode: 'word', inStatusBar, richHints: !!this.plugin.settings.richHints && !Platform.isMobile, modE: 'source', zoomable: true,
+      zoom: () => this.plugin.settings.zoom || 100,
+      setZoom: z => { void this.plugin.setZoom(z); },
+      onCount: () => this.openWordCount(),
+      onMode: m => { void this.plugin.switchToMarkdown(this.leaf, m === 'preview' ? 'preview' : undefined); },
+      onProps: b => this.peekProperties(b),
+    });
+    this.countEl = parts.count;
+    this.statusBox = parts.status;
+    this.zoomRange = parts.range;
+    this.zoomLabel = parts.zoomLabel;
     this.renderStatus();
     this.applyZoom();
     this.updateCount();
@@ -556,34 +533,18 @@ export class WordModeView extends TextFileView {
   applyZoom(): void {
     const z = this.plugin.settings.zoom || 100;
     if (this.page) this.page.style.zoom = String(z / 100);
-    if (this.zoomRange) this.zoomRange.value = String(z);
-    if (this.zoomLabel) this.zoomLabel.setText(z + '%');
+    if (this.zoomRange && this.zoomLabel) showZoom({ range: this.zoomRange, zoomLabel: this.zoomLabel }, z);
   }
 
   renderStatus(): void {
-    if (!this.statusBox) return;
-    const st = this.status;
-    const time = this.savedAt && window.moment ? window.moment(this.savedAt).format('HH:mm') : '';
-    const text = st === 'dirty' ? t('編輯中（自動儲存）') : st === 'saving' ? t('儲存中…') : st === 'conflict' ? t('同步衝突') : t('已儲存') + (time ? ' ' + time : '');
-    this.statusBox.empty();
-    setIcon(this.statusBox.createSpan('wm-bb-icon'), st === 'conflict' ? 'alert-triangle' : st === 'saved' ? 'check' : 'loader');
-    this.statusBox.createSpan({ text });
-    this.statusBox.toggleClass('is-conflict', st === 'conflict');
+    if (this.statusBox) renderSaveStatus(this.statusBox, this.status, this.savedAt);
   }
 
   updateCount(): void {
     if (!this.pm || !this.countEl) return;
     const st = this.pm.state;
-    const count = countText;
-    const all = count(st.doc.textBetween(0, st.doc.content.size, '\n', ' '));
-    const fmt = (n: number) => n.toLocaleString();
-    if (!st.selection.empty) {
-      const sel = count(st.doc.textBetween(st.selection.from, st.selection.to, '\n', ' '));
-      this.countEl.setText(t('已選取 {a}／{b} 字', { a: fmt(sel.words), b: fmt(all.words) }));
-    } else this.countEl.setText(t('{a} 字・{b} 個字元', { a: fmt(all.words), b: fmt(all.chars) }));
-    // 閱讀時間：中文每分鐘 400 字、英文每分鐘 200 個單字（與「字數統計」視窗相同）
-    const minutes = Math.max(1, Math.round(all.cjk / 400 + all.latin / 200));
-    this.countEl.setAttribute('aria-label', t('預估閱讀時間') + t('：') + t('{n} 分鐘', { n: minutes }) + ' · ' + t('中文字以字計、英文以單字計（點一下看詳細統計）'));
+    const all = countText(docText(st.doc));
+    renderCount(this.countEl, all, st.selection.empty ? null : countText(docText(st.doc, st.selection.from, st.selection.to)));
   }
 
   // ---------------------------------------------------------- 編輯器外掛
@@ -688,33 +649,7 @@ export class WordModeView extends TextFileView {
   openWordCount(): void {
     if (!this.pm) return;
     const st = this.pm.state;
-    const stats = (from: number, to: number): WordStats => {
-      const text = st.doc.textBetween(from, to, '\n', ' ');
-      const { cjk, latin } = countText(text);
-      let paras = 0; let heads = 0; let tables = 0; let images = 0; let links = 0;
-      st.doc.nodesBetween(from, to, n => {
-        if (n.isTextblock && n.textContent.trim()) { paras++; if (n.type.name === 'heading') heads++; }
-        if (n.type.name === 'table') tables++;
-        if (n.type.name === 'image') images++;
-        if (n.type.name === 'wikilink' || n.marks.some(m => m.type.name === 'link')) links++;
-        return true;
-      });
-      return {
-        words: cjk + latin, chars: text.replace(/\s/g, '').length, charsSp: text.replace(/\n/g, '').length,
-        paras, heads, tables, images, links, minutes: Math.max(1, Math.round(cjk / 400 + latin / 200)),
-      };
-    };
-    const all = stats(0, st.doc.content.size);
-    const sel = st.selection.empty ? null : stats(st.selection.from, st.selection.to);
-    const f = (n: number) => n.toLocaleString();
-    // 呼叫端傳進來的 label 已經用 t() 翻譯過，不一定是鍵；再翻一次，找不到時 t() 原樣回傳
-    const row = (label: string, k: keyof WordStats): WordCountRow => [t(label as I18nKey), f(all[k]), sel ? f(sel[k]) : null];
-    const rows: WordCountRow[] = [];
-    if (sel) rows.push(['', t('整份文件'), t('選取範圍')]);
-    rows.push(row(t('字數'), 'words'), row(t('字元數（不含空白）'), 'chars'), row(t('字元數（含空白）'), 'charsSp'),
-      row(t('段落數'), 'paras'), row(t('標題數'), 'heads'), row(t('表格'), 'tables'), row(t('圖片'), 'images'), row(t('連結'), 'links'));
-    rows.push([t('預估閱讀時間'), t('{n} 分鐘', { n: all.minutes }), sel ? t('{n} 分鐘', { n: sel.minutes }) : null]);
-    new WordCountModal(this.app, rows).open();
+    new WordCountModal(this.app, wordCountRows(docStats(st.doc), st.selection.empty ? null : docStats(st.doc, st.selection.from, st.selection.to))).open();
   }
 
   insertComment(): void {

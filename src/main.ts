@@ -1,5 +1,5 @@
 // Word 模式：把 Obsidian 筆記變成像 Office Word 一樣編輯
-import { Plugin, PluginSettingTab, Setting, WorkspaceLeaf, MarkdownView, TFile, Notice, setIcon, Platform, loadMathJax, renderMath, finishRenderMath } from 'obsidian';
+import { Plugin, PluginSettingTab, Setting, WorkspaceLeaf, MarkdownView, TFile, Notice, Platform, loadMathJax, renderMath, finishRenderMath } from 'obsidian';
 import { t, withKey, key, setLanguage, getLanguage } from './i18n.js';
 import { options as cmdOptions } from './commands.js';
 import { autoformatOptions } from './autoformat.js';
@@ -8,6 +8,7 @@ import { WordModeView, VIEW_TYPE } from './view.js';
 import type { PropsStyle } from './view.js';
 import { OutlineView, OUTLINE_TYPE } from './outline.js';
 import { MarkdownBar, mdToolbarMode, wantsMdBar } from './mdbar.js';
+import { MdStatusBar } from './statusbar.js';
 import { closePropsPeek } from './propview.js';
 import type { MdToolbarMode } from './mdbar.js';
 import { TABS } from './toolbar.js';
@@ -234,6 +235,8 @@ export default class WordModePlugin extends Plugin {
   declare statusEl: HTMLElement;
   declare barView?: WordModeView | MarkdownView | null;
   declare mdStatusKey?: string | null;
+  // Markdown／閱讀模式時狀態列的內容（barView 是 Markdown 檢視時才有）
+  declare mdStatus?: MdStatusBar | null;
   declare outlineTimer?: number;
   declare outlineDirty?: boolean;
   declare unloaded?: boolean;
@@ -395,6 +398,7 @@ export default class WordModePlugin extends Plugin {
   onunload(): void {
     this.unloaded = true;
     closePropsPeek();
+    if (this.statusEl) this.statusEl.ownerDocument.body.classList.remove('wm-md-status');
     for (const b of this.mdBars.values()) b.destroy();
     this.mdBars.clear();
     for (const [, btn] of this.mdActions) btn.remove();
@@ -575,7 +579,7 @@ export default class WordModePlugin extends Plugin {
     if (!el) return;
     const active = this.app.workspace.getActiveViewOfType(WordModeView);
     if (view && view !== active) return;
-    if (Platform.isMobile) { el.hide(); this.barView = null; return; }
+    if (Platform.isMobile) { el.hide(); this.hideMdStatus(); return; }
     if (active && active.pm) {
       el.show();
       if (this.barView !== active || !el.childElementCount) {
@@ -583,29 +587,28 @@ export default class WordModePlugin extends Plugin {
         active.buildBottomBar(el, true);
         this.barView = active;
       } else active.renderStatus();
-      this.mdStatusKey = null;
+      el.ownerDocument.body.classList.remove('wm-md-status');
+      this.mdStatusKey = null; this.mdStatus = null;
       return;
     }
-    // Markdown 編輯與閱讀模式：狀態列一樣放檢視切換按鈕（只有圖示），位置與 Word 模式相同
+    // Markdown 編輯與閱讀模式：狀態列放跟 Word 模式一樣的內容（字數、存檔狀態、檢視切換、文件屬性、縮放）
     const md = this.settings.mdStatusBar !== false ? this.app.workspace.getActiveViewOfType(MarkdownView) : null;
-    if (!md || !md.file || !/\.md$/i.test(md.file.path)) { el.hide(); this.barView = null; this.mdStatusKey = null; return; }
+    if (!md || !md.file || !/\.md$/i.test(md.file.path)) { this.hideMdStatus(); el.hide(); return; }
     const mode = md.getMode && md.getMode() === 'preview' ? 'preview' : 'source';
     const stamp = md.file.path + '|' + mode;
     el.show();
-    if (this.barView === md && this.mdStatusKey === stamp && el.childElementCount) return;
-    el.empty();
+    // Obsidian 內建的字數（只在 Markdown 編輯器有）跟這裡的字數重複，先藏起來
+    el.ownerDocument.body.classList.add('wm-md-status');
+    if (this.barView === md && this.mdStatusKey === stamp && this.mdStatus && el.childElementCount) { this.mdStatus.update(); return; }
     this.barView = md;
     this.mdStatusKey = stamp;
-    const views = el.createDiv('wm-bb-views');
-    const btn = (icon: string, title: string, on: boolean, run: () => void) => {
-      const b = views.createEl('button', { cls: 'wm-bb-btn' + (on ? ' is-active' : '') });
-      b.setAttribute('aria-label', title);
-      setIcon(b, icon);
-      b.addEventListener('click', run);
-    };
-    btn('file-text', this.settings.ctrlE !== false ? withKey('Word 模式', 'Mod+E') : t('Word 模式'), false, () => { void this.switchToWord(md.leaf); });
-    btn('code-2', t('Markdown 編輯') + (mode === 'source' ? t('（目前）') : ''), mode === 'source', () => { void this.setMarkdownMode(md, 'source'); });
-    btn('book-open', t('閱讀模式') + (mode === 'preview' ? t('（目前）') : ''), mode === 'preview', () => { void this.setMarkdownMode(md, 'preview'); });
+    this.mdStatus = new MdStatusBar(this, el, md);
+  }
+
+  // 狀態列不再顯示 Markdown 檢視的內容（換到 Word 模式、其他檢視，或關掉設定）
+  hideMdStatus(): void {
+    if (this.statusEl) this.statusEl.ownerDocument.body.classList.remove('wm-md-status');
+    this.barView = null; this.mdStatusKey = null; this.mdStatus = null;
   }
 
   // 切換 Obsidian 的 Markdown 編輯／閱讀模式
@@ -833,8 +836,8 @@ function settingSections(settingTab: WordModeSettings): SettingSection[] {
         t('切換到 Obsidian 的 Markdown 編輯或閱讀模式時，要不要在畫面上方顯示工具列（粗體、標題、清單、連結、尋找、大綱等）。可以只在其中一種模式顯示；閱讀模式只能檢視，編輯按鈕會停用。隱藏時可以用狀態列的按鈕（下一項設定）切回 Word 模式。'),
         s => s.addDropdown(d => d.addOptions({ both: t('兩種模式都顯示'), source: t('只在 Markdown 編輯顯示'), preview: t('只在閱讀模式顯示'), none: t('都隱藏') })
           .setValue(mdToolbarMode(S.mdToolbar)).onChange(async v => { S.mdToolbar = mdToolbarMode(v); await rebuild(); }))),
-      toggleRow(t('切換到 Markdown／閱讀模式時，狀態列保留檢視切換按鈕'),
-        t('在 Obsidian 右下角的狀態列顯示 Word 模式、Markdown、閱讀三個按鈕（只有圖示），位置與 Word 模式時相同，方便切換回來。'), 'mdStatusBar', () => p.updateStatus(null)),
+      toggleRow(t('切換到 Markdown／閱讀模式時保留狀態列'),
+        t('Obsidian 右下角的狀態列維持跟 Word 模式一樣：字數、存檔狀態、Word 模式／Markdown／閱讀的切換按鈕、查看文件屬性與縮放（縮放只用在 Word 模式，這時會停用），切換模式時按鈕不會突然不見。字數用 Word 模式的算法，所以會取代 Obsidian 內建的字數。'), 'mdStatusBar', () => p.updateStatus(null)),
       row(t('大綱的位置'), t('「另開一欄」在筆記左邊再展開一個大綱欄（像第二個側邊欄，不會蓋掉檔案總管）；也可以放進 Obsidian 的左或右側邊欄，或用小型下拉選單。'),
         s => s.addDropdown(d => d.addOptions({ split: t('在筆記旁另開一欄（建議）'), left: t('左側邊欄（與檔案總管同一區）'), right: t('右側邊欄'), popup: t('下拉選單') })
           .setValue(S.outlinePlace || 'split').onChange(async v => {

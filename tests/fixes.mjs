@@ -3,6 +3,7 @@ import { MarkdownConverter } from '../src/markdown.js';
 import { schema } from '../src/schema.js';
 import { normalizeCellAlign } from '../src/schema.js';
 import { propType, summarize, propLink, convertProp, renameProp, propsSummary, frontmatterOf, frontmatterBody, peekData } from '../src/props.js';
+import { countText, docText, docStats } from '../src/textstats.js';
 
 const c = new MarkdownConverter();
 const N = schema.nodes;
@@ -87,6 +88,17 @@ check('align: 空字串 → 預設', normalizeCellAlign('') === null && normaliz
   check('peekData：空的文件屬性是沒有值的屬性', JSON.stringify(peekData('  ', yaml)) === '{"kind":"props","values":{}}');
   check('peekData：屬性的值', JSON.stringify(peekData('a: 1\nb: 2', yaml)) === '{"kind":"props","values":{"a":"1","b":"2"}}');
   check('peekData：看不懂的 YAML 顯示原文', JSON.stringify(peekData('a: !!x', yaml)) === '{"kind":"raw","text":"a: !!x"}' && peekData('[1]', yaml).kind === 'raw');
+}
+
+// ---- 字數：Markdown／閱讀模式先把原文轉成文件再算，跟 Word 模式的數字一樣
+{
+  const md = '---\ntags: [a]\n---\n# 標題 Title\n\n這是 **粗體** 與 [連結](https://example.com)，hello world。\n\n| 甲 | 乙 |\n| --- | --- |\n| a1 | b1 |\n';
+  const doc = c.parse(md).doc;
+  const all = countText(docText(doc));
+  check('字數：Markdown 符號與文件屬性不算字', all.cjk === countText('標題這是粗體與連結甲乙').cjk && all.latin === 5, JSON.stringify(all));
+  const st = docStats(doc);
+  check('字數統計：段落、標題、表格、連結', st.heads === 1 && st.tables === 1 && st.links === 1 && st.words === all.words && st.minutes === 1, JSON.stringify(st));
+  check('字數統計：選取一段', docStats(doc, 0, doc.child(0).nodeSize + doc.child(1).nodeSize).heads === 1 && docStats(doc, 0, doc.child(0).nodeSize).words === 0);
 }
 
 if (failed) { console.log(`\n${failed} 項失敗`); process.exit(1); }
