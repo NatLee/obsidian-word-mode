@@ -965,8 +965,10 @@ audio.wm-embed-media { width: 100%; }
 .wm-mv-frac { display: inline-flex; flex-direction: column; align-items: center; margin: 0 3px; }
 .wm-mv-num { display: flex; justify-content: center; align-self: stretch; padding: 0 4px 1px; border-bottom: 1px solid currentColor; }
 .wm-mv-den { display: flex; justify-content: center; padding: 1px 4px 0; }
-.wm-mv-frac.is-binom { border-left: 1px solid currentColor; border-right: 1px solid currentColor; border-radius: 8px; padding: 0 2px; }
-.wm-mv-frac.is-binom .wm-mv-num { border-bottom: none; }
+/* \binom：圓括號由 .wm-mv-binom 兩側畫出來的括號負責（見 mathvisual.ts 的 drawDelim），這裡只拿掉分數線 */
+.wm-mv-frac.is-binom { margin: 0 1px; }
+/* 只拿掉這一層的分數線（用 >）：裡面再放的分數（\binom{n}{\frac{k}{2}}）要留著自己的線 */
+.wm-mv-frac.is-binom > .wm-mv-num { border-bottom: none; }
 .wm-mv-sqrt { display: inline-flex; align-items: stretch; margin: 0 2px; }
 /* 次方根的 n：在根號左側、小勾的上方。上下兩段空白用 flex-grow 2:3 分配，根號變高時 n 跟著升到約六成高的位置（TeX 的放法）；
    下方空白至少留到小勾的頂端，矮的根號也不會壓到勾 */
@@ -995,12 +997,26 @@ audio.wm-embed-media { width: 100%; }
 .wm-mv-group[data-cmd="mathbf"] .wm-mv-text, .wm-mv-group[data-cmd="boldsymbol"] .wm-mv-text { font-weight: 700; }
 .wm-mv-group[data-cmd="text"] .wm-mv-text, .wm-mv-group[data-cmd="mathrm"] .wm-mv-text { font-family: var(--font-interface); }
 .wm-mv-tag { align-self: flex-start; margin-right: 1px; font-size: .5em; color: var(--text-faint); user-select: none; }
-.wm-mv-paren { display: inline-flex; align-items: stretch; }
+/* 括號跟裡面的內容一樣高：\left…\right、\binom、矩陣類環境的表格都用同一種外框 */
+.wm-mv-paren, .wm-mv-binom, .wm-mv-env-body { display: inline-flex; align-items: stretch; }
 .wm-mv-delim { display: inline-flex; align-items: center; font-size: 1.3em; color: var(--text-muted); user-select: none; }
+/* 畫出來的括號（見 mathvisual.ts 的 drawDelim）：上下端固定大小，中間的直線（.wm-mv-dext）跟著內容伸長。
+   寬 .42em ＝ 10 個 SVG 單位，所以 1 單位是 .042em：上下端 14 單位＝.588em、大括號的上下端 9＝.378em、中段 11＝.462em */
+.wm-mv-delim.is-drawn { flex: none; flex-direction: column; align-items: stretch; width: .42em; padding: .08em 0; font-size: inherit; }
+.wm-mv-delim.is-mirror { transform: scaleX(-1); }
+.wm-mv-delim.is-drawn > svg { display: block; flex: none; width: 100%; overflow: visible; fill: none; stroke: currentColor; stroke-width: 1.7px; stroke-linecap: round; stroke-linejoin: round; }
+.wm-mv-delim.is-drawn > .wm-mv-dcap { height: .588em; }
+.wm-mv-delim.is-drawn > .wm-mv-dcap.is-short { height: .378em; }
+.wm-mv-delim.is-drawn > .wm-mv-dmid { height: .462em; }
+.wm-mv-delim.is-drawn > .wm-mv-dext { flex: 1 1 0; height: auto; min-height: 0; stroke-linecap: butt; }
+.wm-mv-delim[data-delim="["] > svg, .wm-mv-delim[data-delim="⌊"] > svg, .wm-mv-delim[data-delim="⌈"] > svg { stroke-linejoin: miter; }
+/* 角括號是一個沒有 viewBox 的 SVG（沒有自己的高度，只設 top／bottom 會是預設的 150px），絕對定位、明確給高度填滿外框；
+   線寬直接用 em（跟其他括號的 1.7 單位一樣粗） */
+.wm-mv-delim[data-delim="⟨"] { position: relative; min-height: 1.2em; }
+.wm-mv-delim[data-delim="⟨"] > svg { position: absolute; top: .08em; left: 0; height: calc(100% - .16em); stroke-width: .071em; }
 .wm-mv-env { display: inline-flex; align-items: center; gap: 4px; margin: 0 3px; }
-.wm-mv-grid { display: inline-flex; flex-direction: column; gap: 2px; padding: 2px 6px; border-right: 2px solid var(--text-muted); border-left: 2px solid var(--text-muted); border-radius: 4px; }
-.wm-mv-env[data-env="cases"] .wm-mv-grid { border-right: none; border-radius: 8px 0 0 8px; }
-.wm-mv-env[data-env="aligned"] .wm-mv-grid, .wm-mv-env[data-env="align"] .wm-mv-grid, .wm-mv-env[data-env="gathered"] .wm-mv-grid, .wm-mv-env[data-env="array"] .wm-mv-grid, .wm-mv-env[data-env="matrix"] .wm-mv-grid { border: none; }
+/* 表格兩側的括號是 .wm-mv-env-body 裡畫出來的（依環境：pmatrix 圓括號、vmatrix 直線、cases 左大括號…），表格本身沒有框線 */
+.wm-mv-grid { display: inline-flex; flex-direction: column; justify-content: center; gap: 2px; padding: 2px 4px; }
 .wm-mv-grid-row { display: flex; gap: 10px; justify-content: center; }
 .wm-mv-cell { display: inline-flex; min-width: 1em; justify-content: center; }
 .wm-mv-env-tools { display: inline-flex; flex-direction: column; gap: 1px; opacity: 0; transition: opacity .1s; }

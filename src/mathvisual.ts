@@ -220,7 +220,6 @@ export function normalize(row: MathRow): MathRow {
 const MARK = '\u0001'; // 插入後游標要停的位置（暫時的記號）
 // \text{…} 等裡面是一般文字：不把 sin 變成 \sin、不把 α 變成 \alpha
 const PLAIN_GROUPS = new Set(['\\text', '\\mathrm', '\\mathit']);
-const DELIM_CHAR: Record<string, string> = { '\\{': '{', '\\}': '}', '\\|': '‖', '\\langle': '⟨', '\\rangle': '⟩', '\\lfloor': '⌊', '\\rfloor': '⌋', '\\lceil': '⌈', '\\rceil': '⌉', '.': '' };
 const GROUP_LABEL: Record<string, string> = { '\\text': 'T', '\\mathrm': 'rm', '\\mathit': 'it', '\\mathcal': '𝒞', '\\mathbb': '𝔹', '\\boldsymbol': 'B' };
 // 在格子裡打「\指令」再按空白，就變成對應的結構（\frac → 分數的兩格、\sqrt → 根號…）
 const TYPED_STRUCTS: Record<string, string> = { '\\sqrt': '\\sqrt{}' };
@@ -280,6 +279,65 @@ function radicalSign(doc: Document, parent: HTMLElement): void {
   svgEl(doc, 'polyline', { points: '0.4,7.6 2.3,6.5 5,12' }, hook);
   // 外層沒有 viewBox，單位是 CSS 像素：終點放在 1px 上框線的正中間
   svgEl(doc, 'line', { x1: '50%', y1: '100%', x2: '100%', y2: '0.5' }, outer);
+}
+
+// \left…\right 的括號，跟根號同樣的問題：字元大小固定，包住分數、矩陣時不會跟著變高。
+// 改畫成上下疊起來的幾段 SVG：上端、下端（大括號還有中間的尖角）大小固定，
+// 中間的直線（ext）跟著內容伸長。曲線不能整條拉長，拉長會變成細長的弧；TeX 的大括號也是這樣組成的。
+// 每段寬 10 單位：上下端高 14（大括號的上下端 9、中段 11），x 是直線的位置。CSS 的高度要跟這些比例一致
+interface DelimShape { top: string; bottom: string; x: number[]; mid?: string; }
+const DELIM_SHAPES: Record<string, DelimShape> = {
+  '(': { top: 'M8.5,.8C4.8,3.2 3,7.5 3,14', bottom: 'M3,0C3,6.5 4.8,10.8 8.5,13.2', x: [3] },
+  '[': { top: 'M8,.8H3V14', bottom: 'M3,0V13.2H8', x: [3] },
+  '{': { top: 'M8.8,.8C6,.8 5,2 5,4.5V9', mid: 'M5,0C5,3.6 4,5.1 1.2,5.5C4,5.9 5,7.4 5,11', bottom: 'M5,0V4.5C5,7 6,8.2 8.8,8.2', x: [5] },
+  '|': { top: 'M5,.8V14', bottom: 'M5,0V13.2', x: [5] },
+  '‖': { top: 'M3.5,.8V14M6.5,.8V14', bottom: 'M3.5,0V13.2M6.5,0V13.2', x: [3.5, 6.5] },
+  '⌊': { top: 'M3,.8V14', bottom: 'M3,0V13.2H8', x: [3] },
+  '⌈': { top: 'M8,.8H3V14', bottom: 'M3,0V13.2', x: [3] },
+};
+// 認得的括號：[形狀, 是否左右翻轉（右側的括號畫成左側的鏡像）, 螢幕閱讀器念的字]
+const DELIMS: Record<string, [string, boolean, string]> = {
+  '(': ['(', false, '('], ')': ['(', true, ')'],
+  '[': ['[', false, '['], ']': ['[', true, ']'], '\\lbrack': ['[', false, '['], '\\rbrack': ['[', true, ']'],
+  '\\{': ['{', false, '{'], '\\}': ['{', true, '}'], '\\lbrace': ['{', false, '{'], '\\rbrace': ['{', true, '}'],
+  '|': ['|', false, '|'], '\\vert': ['|', false, '|'], '\\lvert': ['|', false, '|'], '\\rvert': ['|', false, '|'],
+  '\\|': ['‖', false, '‖'], '\\Vert': ['‖', false, '‖'], '\\lVert': ['‖', false, '‖'], '\\rVert': ['‖', false, '‖'],
+  '\\langle': ['⟨', false, '⟨'], '\\rangle': ['⟨', true, '⟩'],
+  '\\lfloor': ['⌊', false, '⌊'], '\\rfloor': ['⌊', true, '⌋'],
+  '\\lceil': ['⌈', false, '⌈'], '\\rceil': ['⌈', true, '⌉'],
+};
+// 矩陣類環境兩側的括號（LaTeX 的分隔符號寫法，交給 drawDelim）；沒列出的環境（matrix、aligned、array…）兩側沒有括號
+const ENV_DELIMS: Record<string, [string, string]> = {
+  pmatrix: ['(', ')'], bmatrix: ['[', ']'], Bmatrix: ['\\{', '\\}'], vmatrix: ['|', '|'], Vmatrix: ['\\|', '\\|'], cases: ['\\{', '.'],
+};
+function drawDelim(doc: Document, parent: HTMLElement, d: string): void {
+  const known = DELIMS[d];
+  // 「.」是不顯示的括號；其他不認得的（\uparrow、/…）照原文顯示
+  if (!known) { el('span', 'wm-mv-delim', parent, d === '.' ? '' : d); return; }
+  const [kind, mirror, label] = known;
+  const box = drawnBox('wm-mv-delim is-drawn' + (mirror ? ' is-mirror' : ''), label, parent);
+  box.dataset.delim = kind;
+  if (kind === '⟨') {
+    // 角括號只有兩條斜線：外層不設 viewBox，用百分比直接畫到上下兩端，拉多高都不變形
+    const s = svgEl(doc, 'svg', { 'aria-hidden': 'true', focusable: 'false' }, box);
+    svgEl(doc, 'line', { x1: '85%', y1: '0', x2: '15%', y2: '50%' }, s);
+    svgEl(doc, 'line', { x1: '15%', y1: '50%', x2: '85%', y2: '100%' }, s);
+    return;
+  }
+  const shape = DELIM_SHAPES[kind];
+  const piece = (cls: string, h: number, path: string, stretch?: boolean): void => {
+    const attrs: Record<string, string> = { class: cls, viewBox: '0 0 10 ' + h, 'aria-hidden': 'true', focusable: 'false' };
+    // 伸長的直線段：只有高度跟著拉，寬度的比例跟上下端相同，所以線一樣粗
+    if (stretch) attrs.preserveAspectRatio = 'none';
+    svgEl(doc, 'path', { d: path }, svgEl(doc, 'svg', attrs, box));
+  };
+  const ext = () => piece('wm-mv-dext', 10, shape.x.map(x => `M${x},0V10`).join(''), true);
+  const capCls = shape.mid ? 'wm-mv-dcap is-short' : 'wm-mv-dcap';
+  const capH = shape.mid ? 9 : 14;
+  piece(capCls, capH, shape.top);
+  ext();
+  if (shape.mid) { piece('wm-mv-dmid', 11, shape.mid); ext(); }
+  piece(capCls, capH, shape.bottom);
 }
 
 export class MathField {
@@ -492,9 +550,16 @@ export class MathField {
       return s;
     };
     if (it.t === 'frac') {
-      const f = el('span', 'wm-mv-frac' + (it.cmd === '\\binom' ? ' is-binom' : ''));
+      const binom = it.cmd === '\\binom';
+      const f = el('span', 'wm-mv-frac' + (binom ? ' is-binom' : ''));
       slot('wm-mv-num', it.a, f); slot('wm-mv-den', it.b, f);
-      return f;
+      if (!binom) return f;
+      // \binom：沒有分數線的上下兩格，外面是跟 \left( \right) 同一套、會伸長的圓括號
+      const p = el('span', 'wm-mv-binom');
+      drawDelim(this.host.ownerDocument, p, '(');
+      p.appendChild(f);
+      drawDelim(this.host.ownerDocument, p, ')');
+      return p;
     }
     if (it.t === 'sqrt') {
       const f = el('span', 'wm-mv-sqrt');
@@ -513,20 +578,25 @@ export class MathField {
     }
     if (it.t === 'paren') {
       const f = el('span', 'wm-mv-paren');
-      el('span', 'wm-mv-delim', f, it.l in DELIM_CHAR ? DELIM_CHAR[it.l] : it.l);
+      drawDelim(this.host.ownerDocument, f, it.l);
       slot('wm-mv-inner', it.a, f);
-      el('span', 'wm-mv-delim', f, it.r in DELIM_CHAR ? DELIM_CHAR[it.r] : it.r);
+      drawDelim(this.host.ownerDocument, f, it.r);
       return f;
     }
     if (it.t === 'braces') return slot('wm-mv-braces', it.a, null);
     if (it.t === 'env') {
       const f = el('span', 'wm-mv-env');
       f.dataset.env = it.name;
-      const grid = el('span', 'wm-mv-grid', f);
+      // 表格兩側的括號依環境而定（pmatrix 圓括號、vmatrix 直線…），跟 \left…\right 同一套畫法，跟著列數伸長
+      const body = el('span', 'wm-mv-env-body', f);
+      const delims = ENV_DELIMS[it.name];
+      if (delims) drawDelim(this.host.ownerDocument, body, delims[0]);
+      const grid = el('span', 'wm-mv-grid', body);
       for (const r of it.rows) {
         const tr = el('span', 'wm-mv-grid-row', grid);
         for (const cell of r) slot('wm-mv-cell', cell, tr);
       }
+      if (delims) drawDelim(this.host.ownerDocument, body, delims[1]);
       const tools = el('span', 'wm-mv-env-tools', f);
       const L = this.opts.label || (x => x);
       const tool = (text: I18nKey, label: I18nKey, run: () => void) => {
