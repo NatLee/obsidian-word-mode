@@ -1,6 +1,6 @@
 // Word 模式：把 Obsidian 筆記變成像 Office Word 一樣編輯
 import { Plugin, PluginSettingTab, Setting, WorkspaceLeaf, MarkdownView, TFile, Notice, Platform, loadMathJax, renderMath, finishRenderMath } from 'obsidian';
-import { t, withKey, key, setLanguage, getLanguage } from './i18n.js';
+import { t, withKey, key, setLanguage, getLanguage, LANGUAGE_NAMES } from './i18n.js';
 import { options as cmdOptions } from './commands.js';
 import { autoformatOptions } from './autoformat.js';
 import { MarkdownConverter } from './markdown.js';
@@ -754,7 +754,7 @@ function settingSections(settingTab: WordModeSettings): SettingSection[] {
     // ------------------------------------------------ 一般
     { id: 'general', heading: '一般', icon: 'settings', rows: [
       row(t('介面語言'), t('Word 模式的按鈕、選單與提示文字使用的語言。「自動」會跟著 Obsidian 的語言。'),
-        s => s.addDropdown(d => d.addOptions({ auto: t('自動（跟隨 Obsidian）'), 'zh-TW': '繁體中文', en: 'English', ja: '日本語', ko: '한국어' })
+        s => s.addDropdown(d => d.addOptions(Object.assign({ auto: t('自動（跟隨 Obsidian）') }, LANGUAGE_NAMES))
           .setValue(S.language || 'auto').onChange(v => p.changeLanguage(v as LanguageSetting)))),
       toggleRow(t('預設用 Word 模式開啟筆記'), t('開啟 .md 筆記時自動使用 Word 模式。可隨時用右上角按鈕切回 Markdown。'), 'openByDefault'),
       row(t('不使用 Word 模式的資料夾'), t('每行一個資料夾（例如模板資料夾），裡面的筆記一律用 Markdown 開啟。'),
