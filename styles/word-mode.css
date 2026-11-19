@@ -1542,6 +1542,9 @@ body.wm-md-status .status-bar-item.plugin-word-count { display: none; }
 /* 支援的環境用半透明加模糊（不支援 color-mix 時這一行無效，維持上面的實色） */
 .wm-pin { background: color-mix(in srgb, var(--background-primary) 86%, transparent); -webkit-backdrop-filter: blur(12px) saturate(1.4); backdrop-filter: blur(12px) saturate(1.4); }
 .wm-pin.is-shown { opacity: 1; transform: none; pointer-events: auto; }
+/* 展開成完整清單時用實色：一長串屬性疊在文件上，後面透出來的圖片或彩色內容會干擾閱讀；
+   被截掉的值下緣的漸層（.wm-peek-value.is-more）也要跟底色一致，看起來才是淡出而不是一條白帶 */
+.wm-pin.is-open { background: var(--background-primary); }
 /* 屬性列後面墊一條頁面底色、往下淡出的帶子：捲過去的文字在屬性列上下不會亂成一團 */
 .wm-pin::before { content: ""; position: absolute; z-index: -1; left: -24px; right: -24px; top: -9px; height: 60px; background: linear-gradient(to bottom, var(--background-primary) 70%, transparent); pointer-events: none; }
 .wm-pin-bar { display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 6px 0 7px; border-radius: 13px; cursor: pointer; user-select: none; }
