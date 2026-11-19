@@ -347,7 +347,7 @@ export default {
  "無色彩（移除醒目提示）": "No color (remove highlight)",
  "字元框線（開／關）": "Character border (on/off)",
  "字元網底＝灰色醒目提示。有顏色的醒目提示存成 HTML，Obsidian 閱讀畫面也看得到。": "Character shading = gray highlight. Colored highlights are saved as HTML and also show in Obsidian's reading view.",
- "{c} 欄 × {r} 列（第一列為標題列）": "{c} columns × {r} rows (first row is the header)",
+ "{c} 欄 × {r} 列（第一列為標題列）": "{c} × {r} table (first row is the header)",
  "— 再點一下插入": "— tap again to insert",
  "取消": "Cancel",
  "套用": "Apply",
