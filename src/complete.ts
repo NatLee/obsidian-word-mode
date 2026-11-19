@@ -49,9 +49,9 @@ export function searchTags(view: WordModeView, query: string): string[] {
   }
   const q = query.toLowerCase();
   const typed = '#' + q;
-  // 布林值相減（true 當 1、false 當 0）：以 typed 開頭的排前面；型別上要先轉成 number
+  // 以 typed 開頭的排前面（Number 把 true／false 變成 1／0 再相減），其餘照字母
   return [...all].filter(tag => tag.toLowerCase().includes(q) && tag.toLowerCase() !== typed)
-    .sort((a, b) => ((b.toLowerCase().startsWith(typed) as unknown as number) - (a.toLowerCase().startsWith(typed) as unknown as number)) || a.localeCompare(b));
+    .sort((a, b) => (Number(b.toLowerCase().startsWith(typed)) - Number(a.toLowerCase().startsWith(typed))) || a.localeCompare(b));
 }
 
 // 筆記裡的標題；file 為 null 表示目前這份筆記
