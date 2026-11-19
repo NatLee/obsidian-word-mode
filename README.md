@@ -1,6 +1,6 @@
 # Word Mode
 
-**English** | [繁體中文](README.zh-TW.md) | [台文](README.nan-TW.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Español](README.es.md) | [العربية](README.ar.md) | [עברית](README.he.md)
+**English** | [繁體中文](README.zh-TW.md) | [台文](README.nan-TW.md) | [粵語](README.yue-HK.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Tiếng Việt](README.vi.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [العربية](README.ar.md) | [עברית](README.he.md)
 
 Edit your [Obsidian](https://obsidian.md) notes the way you would in Word: a ribbon toolbar, tables, equations, and diagrams, with no Markdown syntax to remember. Every note is still saved as a plain Markdown file.
 
@@ -99,7 +99,7 @@ Shown in the animation at the top. Start a paragraph with `# `, `- `, `1. `, `> 
 - **Paste Markdown text** and convert it to formatted text in one step.
 - **Sync conflict handling**: if a note changes on disk while you have unsaved edits, you choose which version to keep.
 - **Shortcut list**: search it or pick a category, and select a shortcut to watch a short animation of what it does.
-- Interface in Traditional Chinese, Taiwanese (Han characters), Simplified Chinese, English, Japanese, Korean, Spanish, Arabic, and Hebrew.
+- Interface in Traditional Chinese, Taiwanese (Han characters), Cantonese, Simplified Chinese, English, Japanese, Korean, Vietnamese, French, German, Spanish, Arabic, and Hebrew.
 
 Anything Word Mode can't edit visually, such as an HTML block, is shown as a raw block and saved unchanged.
 

@@ -1216,5 +1216,6 @@ export default {
  "還有 {n} 項，多打幾個字可以縮小範圍": "{n} more. Keep typing to narrow it down.",
  "找不到「{q}」相關的設定。換個說法試試，或從下面的分類找找看。": "No settings match “{q}”. Try other words, or browse the categories below.",
  "包含": "Includes",
- "其他語言": "Other language"
+ "其他語言": "Other language",
+ "開啟 Word 模式的設定。在上方的搜尋框打幾個字就能找到想要的設定，也可以打英文。": "Open the Word mode settings. Type a few letters in the search box at the top to find a setting."
 };

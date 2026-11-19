@@ -204,8 +204,8 @@ export class MarkdownBar {
 
     // ---- 常用
     let g = G.undo;
-    this.button(g, { icon: 'undo-2', title: '復原', keys: 'Mod+Z', run: E(ed => ed.undo()) });
-    this.button(g, { icon: 'redo-2', title: '取消復原', keys: 'Mod+Y', run: E(ed => ed.redo()) });
+    this.button(g, { icon: 'undo-2', title: '復原', keys: 'Mod+Z', demo: 'undo', run: E(ed => ed.undo()) });
+    this.button(g, { icon: 'redo-2', title: '取消復原', keys: 'Mod+Y', demo: 'redo', run: E(ed => ed.redo()) });
 
     g = G.styles;
     this.button(g, { icon: 'heading', title: '段落樣式', demo: 'style', desc: '把這一行改成標題 1～6 或內文。', run: (e, b) => this.headingMenu(b) });
@@ -260,7 +260,7 @@ export class MarkdownBar {
     this.button(g, { icon: 'clipboard-list', title: '查看文件屬性', label: '屬性', big: true, demo: 'properties', desc: '不用捲到最上方，直接看這份筆記的屬性（標籤、日期等）。屬性很多時可以篩選。', run: (e, b) => openMarkdownPeek(this.plugin, this.view, b), always: true });
     this.button(g, { icon: 'chevrons-down-up', title: '摺疊全部標題', label: '全部摺疊', big: true, demo: 'fold', run: this.cmd('editor:fold-all') });
     this.button(g, { icon: 'chevrons-up-down', title: '展開全部標題', label: '全部展開', big: true, demo: 'unfold', run: this.cmd('editor:unfold-all') });
-    this.button(G.help, { icon: 'settings', title: 'Word 模式設定', label: '設定', big: true, run: () => this.plugin.openSettings(), always: true });
+    this.button(G.help, { icon: 'settings', title: 'Word 模式設定', label: '設定', big: true, demo: 'settings', desc: '開啟 Word 模式的設定。在上方的搜尋框打幾個字就能找到想要的設定，也可以打英文。', run: () => this.plugin.openSettings(), always: true });
 
     for (const x of bar.querySelectorAll('.wm-group')) if (!x.querySelector('.wm-btn')) x.remove();
     for (const [id] of TABS) {

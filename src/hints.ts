@@ -1,5 +1,6 @@
 // 詳細提示：滑鼠停在按鈕上時，顯示功能名稱、快速鍵、說明，以及會動的示意圖
 // 只有一張提示卡（新的會取代舊的），所以提示不會互相蓋住
+import { setIcon } from 'obsidian';
 import { t } from './i18n.js';
 import { el } from './dom.js';
 import type { I18nKey } from './i18n.js';
@@ -125,6 +126,19 @@ const DEMOS = {
   cut: b => { const l = el('div', 'wm-demo-line', b); el('span', null, l, t('剪下')); el('span', 'wm-demo-target wm-anim-undo', l, t('這段文字')); },
   copy: b => { const l = el('div', 'wm-demo-line', b); el('span', null, l, t('複製')); el('span', 'wm-demo-target wm-anim-copy', l, t('這段文字')); },
   wordcount: b => el('div', 'wm-demo-count wm-anim-pop', b, t('1,234 字・5 分鐘')),
+  // 設定：在搜尋框打字 → 跳出符合的設定 → 選了之後那一列閃一下（設定頁的搜尋框，見 settingsnav.ts）
+  settings: b => {
+    const w = el('div', 'wm-demo-setfind', b);
+    const q = el('div', 'wm-demo-setq', w);
+    setIcon(el('span', 'wm-demo-setq-icon', q), 'search');
+    el('span', 'wm-demo-setq-text', q, t('縮放'));
+    const hit = el('div', 'wm-demo-sethit', w);
+    el('span', 'wm-demo-sethit-name', hit, t('頁面縮放'));
+    el('span', 'wm-demo-sethit-sec', hit, t('顯示'));
+    const row = el('div', 'wm-demo-setrow', w);
+    el('span', null, row, t('頁面縮放'));
+    el('span', 'wm-demo-slider', row);
+  },
 } satisfies Record<string, DemoBuilder>;
 
 // 示意動畫的名稱。按鈕的 demo 用這個型別，指定了不存在的動畫時型別檢查會失敗

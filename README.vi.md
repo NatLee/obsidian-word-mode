@@ -1,0 +1,177 @@
+# Word Mode
+
+[English](README.md) | [繁體中文](README.zh-TW.md) | [台文](README.nan-TW.md) | [粵語](README.yue-HK.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | **Tiếng Việt** | [Français](README.fr.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [العربية](README.ar.md) | [עברית](README.he.md)
+
+Chỉnh sửa ghi chú [Obsidian](https://obsidian.md) giống như trong Word: có thanh công cụ dạng dải băng, bảng, phương trình và sơ đồ, không cần nhớ cú pháp Markdown. Mọi ghi chú vẫn được lưu dưới dạng tệp Markdown thuần.
+
+> Bản tiếng Việt này chưa được người bản ngữ hiệu đính. Nếu bạn thấy chỗ nào diễn đạt chưa tự nhiên, hãy cho chúng tôi biết qua Issue.
+
+![Khi gõ ở chế độ Word, các cách viết tắt của Markdown lập tức trở thành định dạng: một tiêu đề, chữ in đậm, một danh sách việc cần làm và một liên kết đến ghi chú khác. Sau đó, nút ở phần đầu ghi chú cho thấy ghi chú dưới dạng tệp Markdown thực sự được lưu.](docs/images/typing.en.webp)
+
+## Vì sao dùng Word Mode
+
+- **Không cần ghi nhớ.** Định dạng bằng các nút trên thanh công cụ và những phím tắt quen thuộc từ trình soạn thảo văn bản, như `Ctrl+B` để in đậm và `Ctrl+K` để chèn liên kết.
+- **Tệp vẫn là Markdown.** Khi bạn sửa một ghi chú, chỉ những khối bạn đã thay đổi mới được ghi lại. Mọi phần khác được giữ nguyên đúng từng ký tự, nên công cụ đồng bộ và lịch sử phiên bản chỉ thấy những gì bạn đã sửa.
+- **Chuyển đổi bất cứ lúc nào.** Nhấn `Ctrl+E` (`Cmd+E` trên macOS), hoặc chọn nút ở phần đầu ghi chú, để chuyển qua lại giữa chế độ Word và trình soạn thảo có sẵn của Obsidian.
+- **Làm riêng cho Obsidian.** Liên kết, thẻ, thuộc tính, callout, nội dung nhúng, chú thích cuối trang, công thức toán, sơ đồ Mermaid và truy vấn Dataview đều hoạt động trong chế độ Word.
+
+![Khi bạn thay đổi một đoạn văn, chỉ khối đó được ghi lại trong tệp đã lưu (hình minh họa)](docs/images/saving.vi.svg)
+
+## Tính năng
+
+### Định dạng ngay khi gõ
+
+Đây là tính năng trong hoạt ảnh ở đầu trang. Bắt đầu đoạn văn bằng `# `, `- `, `1. `, `> ` hoặc `[ ] `, hoặc gõ xong `**in đậm**`, `*in nghiêng*` hay `[[ghi chú]]`, và nội dung sẽ chuyển thành định dạng. Một lần hoàn tác sẽ bỏ định dạng và giữ lại chữ bạn đã gõ. Gõ `[[` để chọn ghi chú hoặc tiêu đề, hoặc `#` để chọn thẻ.
+
+### Thanh công cụ dải băng
+
+![Chọn văn bản, in đậm, chọn màu chữ và màu tô sáng, rồi xem qua các tab Chèn, Xem lại và Xem](docs/images/ribbon.en.webp)
+
+- **Các tab Trang đầu, Chèn, Xem lại và Xem**, sắp xếp giống trình soạn thảo văn bản.
+- **Màu chữ và tô sáng**: các màu chuẩn cùng sắc độ đậm nhạt, các màu bạn dùng gần đây, hoặc bất kỳ màu nào bạn chọn hay nhập bằng mã hex. Tô sáng có thể dùng bất kỳ màu và độ đục nào.
+- **Tùy chỉnh theo ý bạn**: hiện các tab dưới dạng chữ, biểu tượng hoặc cả hai, gộp chúng vào một nút menu, và đổi tên chúng. Đổi tên, sắp xếp lại, ẩn hoặc chuyển các nhóm nút sang tab khác.
+- **Cùng một thanh công cụ trong chế độ Markdown và chế độ đọc**, với cùng bố cục, nên không có gì bị nhảy khi bạn chuyển chế độ. Bạn có thể hiện nó ở cả hai, ở một trong hai, hoặc không hiện ở đâu cả.
+- **Gợi ý chi tiết**: khi bật, di chuột lên một nút sẽ thấy lời giải thích kèm một hoạt ảnh ngắn, kể cả các nút chế độ xem và các nút trên thanh trạng thái.
+- **Thanh trạng thái** với số từ, trạng thái lưu, các nút chuyển giữa chế độ Word, Markdown và chế độ đọc, xem thuộc tính và thu phóng. Chế độ Markdown và chế độ đọc giữ nguyên các nút này và đếm từ theo cùng một cách. Bạn có thể tắt tính năng này trong cài đặt.
+
+### Bảng
+
+![Chọn kích thước bảng từ lưới, gõ và dùng Tab để di chuyển, rồi sắp xếp theo một cột từ menu chuột phải](docs/images/table.en.webp)
+
+- Chọn kích thước từ lưới, rồi gõ và nhấn Tab để chuyển sang ô tiếp theo. Nhấn Tab ở ô cuối cùng sẽ thêm một hàng.
+- Nhấp chuột phải vào một ô để thêm, xóa hoặc di chuyển hàng và cột, sắp xếp theo một cột, hoặc đặt căn chỉnh cho một cột.
+- Dán các ô từ bảng tính, chúng sẽ trở thành bảng.
+
+### Phương trình
+
+![Dựng công thức nghiệm phương trình bậc hai chỉ bằng bàn phím: \frac, \pm và \sqrt theo sau là dấu cách sẽ thành phân số, dấu cộng trừ và căn](docs/images/equation.en.webp)
+
+- Phân số, căn, chỉ số trên, dấu ngoặc và ma trận là các ô để bạn gõ vào. Chọn một cấu trúc từ bảng ký hiệu, hoặc gõ `\frac`, `\sqrt` hay `\alpha` rồi nhấn dấu cách.
+- Tab, Enter và phím mũi tên di chuyển giữa các ô. Backspace trong ô trống sẽ bỏ cấu trúc bao quanh nó.
+- Chuyển sang LaTeX thuần bất cứ lúc nào. Phương trình được lưu dưới dạng `$…$` hoặc `$$…$$` thông thường, nên hiển thị được ở mọi nơi Obsidian hiển thị công thức toán.
+
+<details>
+<summary>Thêm về trình soạn phương trình</summary>
+
+- Mở bằng **Chèn → Phương trình**, bằng cách nhấp đúp vào một phương trình, hoặc nhấn Enter khi đang chọn một phương trình.
+- `^` và `_` mở chỉ số trên hoặc chỉ số dưới. Phím mũi tên lên và xuống di chuyển giữa tử số và mẫu số.
+- Hoàn tác và làm lại bằng các nút, hoặc bằng `Ctrl+Z` và `Ctrl+Y`.
+- **Công thức thường dùng và phương trình gần đây**: chèn cả một công thức, như công thức nghiệm phương trình bậc hai hay độ lệch chuẩn, rồi sửa những phần bạn cần.
+- **Công thức của riêng bạn**: chọn nút dấu trang bên cạnh bản xem trước để lưu phương trình hiện tại với một cái tên. Các công thức đã lưu xuất hiện trong mục **Công thức của tôi** trên bảng ký hiệu, và chỉ cần nhấp một lần là chèn.
+- Phương trình bạn không thay đổi sẽ được ghi lại đúng như cũ.
+- **Trên điện thoại và máy tính bảng**: các nút phía trên vùng soạn thảo giúp chuyển sang ô trước hoặc ô sau và bỏ cấu trúc tại con trỏ, vì bàn phím ảo không có phím mũi tên. Trên điện thoại, vùng soạn thảo luôn nằm ở trên cùng khi bạn cuộn bảng ký hiệu.
+
+</details>
+
+### Sơ đồ
+
+![Đổi tên một bước ngay trên sơ đồ, thêm bước tiếp theo, chọn màu nền cho nó, rồi chèn lưu đồ vào ghi chú](docs/images/diagram.en.webp)
+
+- **Mười một loại sơ đồ Mermaid có biểu mẫu**: lưu đồ, sơ đồ tuần tự, biểu đồ Gantt, biểu đồ tròn, sơ đồ trạng thái, sơ đồ lớp, sơ đồ tư duy, dòng thời gian, sơ đồ ER, hành trình người dùng và biểu đồ góc phần tư.
+- **Sửa ngay trên sơ đồ**: chọn một nhãn trên bản xem trước để sửa tại chỗ, thêm bước tiếp theo, hoặc chọn màu nền.
+- **Tự do**: viết bất kỳ mã Mermaid nào với bản xem trước trực tiếp, kể cả các loại chưa có biểu mẫu, như Git graph và biểu đồ XY.
+- Sơ đồ được lưu dưới dạng khối mã Mermaid thông thường. Sơ đồ dùng cú pháp mà biểu mẫu không hỗ trợ sẽ mở dạng mã, kèm theo lý do, nên không mất gì cả.
+
+<details>
+<summary>Thêm về trình soạn sơ đồ</summary>
+
+- Mở bằng **Chèn → Sơ đồ**, hoặc bằng nút sửa trên một khối Mermaid.
+- Trên sơ đồ, nhấn Enter để áp dụng thay đổi, hoặc Tab để áp dụng và chuyển sang nhãn tiếp theo. Đổi tên một bên tham gia, trạng thái, lớp hoặc thực thể sẽ đổi tên ở mọi chỗ tham chiếu đến nó.
+- **Hình thức**: chọn theme Mermaid cho riêng một sơ đồ, và màu nền cho từng bước của lưu đồ.
+- **Xem trước**: thu phóng bằng các nút, hoặc bằng `Ctrl` và con lăn chuột. Sơ đồ được hiển thị đúng kích thước thật thay vì bị thu nhỏ đến mức không đọc được chữ, và một nút giúp thu cả sơ đồ cho vừa chiều rộng bản xem trước.
+- **Dễ định vị**: đặt con trỏ vào một hàng của biểu mẫu thì bản xem trước sẽ viền mục đó. Chọn một mục trên bản xem trước thì biểu mẫu sẽ nhảy đến hàng của mục đó.
+- **Mẫu của riêng bạn**: lưu sơ đồ hiện tại với một cái tên trong **Mẫu của tôi**, và bắt đầu từ nó vào lần sau. Trong cài đặt, bạn chọn sơ đồ mới sẽ bắt đầu bằng gì và những loại có sẵn nào được liệt kê.
+- **Sơ đồ dài**: danh sách trong biểu mẫu hiện bốn mươi hàng mỗi lần và có thể lọc bằng cách gõ, nên lưu đồ có hàng trăm bước vẫn sửa nhanh. Trong ghi chú, sơ đồ quá cao được thu gọn về một chiều cao cố định với nút để hiện toàn bộ, và sơ đồ chỉ được vẽ khi bạn cuộn đến.
+- Các loại sơ đồ mới hơn chỉ được vẽ nếu phiên bản Mermaid tích hợp trong Obsidian hỗ trợ.
+- **Trên điện thoại**: bản xem trước nằm ở trên cùng với biểu mẫu bên dưới, và các trường cùng các nút có kích thước phù hợp để chạm.
+
+</details>
+
+### Và còn nữa
+
+- **Thuộc tính** dưới dạng biểu mẫu: thẻ và liên kết hiện thành các chip bạn có thể chọn để mở, giá trị lồng nhau hiện dạng cây, và bạn có thể đổi loại hoặc đổi tên thuộc tính từ biểu tượng của nó. Nút Xem thuộc tính, trong tab Xem và trên thanh trạng thái, hiện các thuộc tính mà không cần cuộn lên đầu và cho phép lọc danh sách dài. Một cài đặt cũng có thể ghim một thanh thuộc tính mảnh ở trên cùng khi bạn cuộn; nhấp vào thanh để xem danh sách đầy đủ. Bạn có thể hiện thuộc tính dạng hộp có viền và nền, chỉ có viền, hoặc kiểu tối giản không viền.
+- **Ảnh**: dán hoặc chọn một ảnh, rồi kéo để đổi kích thước.
+- **Liên kết** đến ghi chú, tiêu đề và trang web, với một thanh công cụ nhỏ xuất hiện khi con trỏ nằm trên liên kết.
+- **Tìm và thay thế**, với tùy chọn khớp nguyên từ và biểu thức chính quy.
+- **Thanh bên dàn ý** và thu gọn tiêu đề.
+- **Nhúng**: ghi chú, tiêu đề, âm thanh, video, PDF và liên kết YouTube được nhúng sẽ hiển thị ngay tại chỗ. Truy vấn Dataview và khối mã của các plugin khác được hiển thị thành kết quả.
+- **Chú thích cuối trang**: chèn chú thích cuối trang, di chuột lên số của nó để đọc, và sửa nội dung mà không cần đụng đến cú pháp.
+- **Callout** (kể cả loại thu gọn được), **danh sách việc cần làm** với trạng thái tùy chỉnh như `[/]` và `[-]`, **thẻ**, và **khối mã** có tô màu cú pháp và tùy chọn hiện số dòng.
+- **Dấu định dạng** như `¶`, cùng công cụ dọn các ký tự vô hình hoặc ký tự lạc chỗ.
+- **Dán văn bản Markdown** và chuyển nó thành văn bản có định dạng chỉ trong một bước.
+- **Xử lý xung đột đồng bộ**: nếu ghi chú thay đổi trên ổ đĩa trong khi bạn có chỉnh sửa chưa lưu, bạn sẽ chọn giữ phiên bản nào.
+- **Phím tắt**: tìm kiếm hoặc chọn một danh mục, rồi chọn một phím tắt để xem hoạt ảnh ngắn về tác dụng của nó.
+- Giao diện bằng tiếng Trung phồn thể, tiếng Đài Loan (chữ Hán), tiếng Quảng Đông, tiếng Trung giản thể, tiếng Anh, tiếng Nhật, tiếng Hàn, tiếng Việt, tiếng Pháp, tiếng Đức, tiếng Tây Ban Nha, tiếng Ả Rập và tiếng Do Thái.
+
+Những nội dung Word Mode không sửa trực quan được, như khối HTML, sẽ được hiển thị dưới dạng khối thô và được lưu nguyên vẹn.
+
+## Bắt đầu
+
+### Cài đặt
+
+Cần Obsidian 1.5.7 trở lên.
+
+1. Tải `main.js`, `manifest.json` và `styles.css` từ [bản phát hành mới nhất](https://github.com/NatLee/obsidian-word-mode/releases/latest).
+2. Sao chép ba tệp vào `<kho của bạn>/.obsidian/plugins/natlee-word-mode/`.
+3. Trong Obsidian, mở **Cài đặt → Plugin cộng đồng** và bật **Word Mode**.
+
+### Cách dùng
+
+Sau khi bật plugin, ghi chú Markdown sẽ mở ở chế độ Word.
+
+- Để chuyển giữa chế độ Word và Markdown, chọn nút ở góc trên bên phải ghi chú, hoặc nhấn `Ctrl+E` (`Cmd+E` trên macOS).
+- Để mở ghi chú ở một chế độ cụ thể, nhấp chuột phải vào ghi chú và chọn **Mở ở chế độ Word** hoặc **Mở dạng Markdown**.
+- Để một ghi chú không dùng chế độ Word, thêm `word-mode: false` vào thuộc tính của ghi chú đó.
+- Để cả thư mục không dùng chế độ Word, liệt kê các thư mục đó trong **Cài đặt → Word Mode → Thư mục không dùng chế độ Word**.
+
+Các cài đặt được chia thành các danh mục, với một hàng tab ở trên cùng hiển thị từng danh mục một. Để tìm một cài đặt khi không biết nó thuộc danh mục nào, hãy gõ vào ô tìm kiếm phía trên các tab. Ô này gợi ý các cài đặt phù hợp ngay khi bạn gõ, cũng khớp với các tùy chọn trong menu thả xuống và tên cài đặt bằng các ngôn ngữ khác (bạn có thể gõ tiếng Anh khi giao diện đang là tiếng Việt), và đưa bạn đến cài đặt bạn chọn.
+
+### Lệnh
+
+| Lệnh | Mô tả |
+| --- | --- |
+| Sửa ghi chú hiện tại ở chế độ Word | Chuyển ghi chú hiện tại sang chế độ Word. |
+| Sửa ghi chú hiện tại dạng Markdown | Đưa ghi chú hiện tại về trình soạn thảo Markdown. |
+| Chuyển đổi chế độ Word / Markdown | Chuyển qua lại giữa hai chế độ. |
+| Bật/tắt thanh bên dàn ý | Hiện hoặc ẩn dàn ý. |
+| Tìm | Tìm trong ghi chú hiện tại. |
+| Tìm và thay thế | Tìm và thay thế trong ghi chú hiện tại. |
+| Dàn ý: nhảy đến tiêu đề | Nhảy đến một tiêu đề trong ghi chú hiện tại. |
+| Hiện phím tắt | Liệt kê mọi phím tắt của chế độ Word. |
+
+Không lệnh nào có phím tắt mặc định. Bạn có thể tự gán trong **Cài đặt → Phím tắt**.
+
+## Quyền riêng tư và công bố thông tin
+
+- **Sử dụng mạng**: chỉ để hiển thị nội dung web mà ghi chú của bạn đã trỏ đến. Nếu ghi chú chứa ảnh, âm thanh hoặc video từ một địa chỉ web, chế độ Word sẽ tải nội dung đó từ địa chỉ ấy. Nếu ghi chú nhúng một liên kết YouTube, chế độ Word sẽ hiện trình phát YouTube, và trình phát này kết nối đến `youtube.com`. Đây cũng chính là nội dung mà trình soạn thảo có sẵn của Obsidian tải cho ghi chú đó. Plugin không gửi ghi chú hay dữ liệu nào của bạn đi đâu cả.
+- **Thu thập dữ liệu sử dụng (telemetry)**: không có.
+- **Tài khoản và thanh toán**: không cần.
+- **Tệp bên ngoài kho**: không bao giờ đọc hay ghi.
+- **Tên tệp trong kho**: plugin liệt kê các tệp trong kho để đề xuất chúng trong các hộp chọn liên kết, ảnh và mẫu, và trong gợi ý sau `[[`. Danh sách này chỉ nằm trên thiết bị của bạn.
+- **Bảng tạm**: chỉ đọc khi bạn chọn **Dán** trên thanh công cụ hoặc trong menu chuột phải, và chỉ ghi khi bạn chọn **Cắt**, **Sao chép** hoặc một nút sao chép.
+- **Tệp do plugin tạo ra**: ảnh bạn dán được lưu vào thư mục tệp đính kèm. Nếu bạn chọn giữ cả hai phiên bản khi xung đột đồng bộ, phiên bản của bạn được lưu thành bản sao bên cạnh ghi chú.
+
+## Hạn chế đã biết
+
+- Chưa thử nghiệm trên thiết bị di động thật.
+- Một số nút trên thanh công cụ ở chế độ Markdown và chế độ đọc gọi các lệnh có sẵn của Obsidian và chưa được kiểm tra riêng từng nút.
+- Các bản dịch ngoài tiếng Trung phồn thể và tiếng Anh chưa được người bản ngữ hiệu đính.
+- Với tiếng Ả Rập và tiếng Do Thái, văn bản đã được dịch nhưng thanh công cụ và hộp thoại vẫn giữ bố cục từ trái sang phải.
+- Kết quả sơ đồ và truy vấn, nội dung nhúng và bản xem trước trang do Obsidian vẽ. Chúng được kiểm tra bằng các bài kiểm thử tự động mô phỏng Obsidian, nhưng chưa được thử với mọi plugin và theme.
+- Hình thức của sơ đồ (theme Mermaid) và màu nền của lưu đồ do Mermaid bên trong Obsidian vẽ. Chúng đã được đối chiếu với chính Mermaid, chứ chưa được thử với mọi theme của Obsidian.
+
+## Đóng góp
+
+Báo lỗi và ý tưởng xin gửi tại [Issues](https://github.com/NatLee/obsidian-word-mode/issues). Để build plugin, chạy kiểm thử, tìm hiểu cách hoạt động bên trong, hoặc phát hành phiên bản mới, hãy đọc [hướng dẫn dành cho nhà phát triển (tiếng Anh)](docs/development.md).
+
+## Ghi công
+
+Word Mode đóng gói kèm các thư viện mã nguồn mở sau:
+
+- [ProseMirror](https://prosemirror.net) của Marijn Haverbeke và những người đóng góp, giấy phép MIT.
+- [markdown-it](https://github.com/markdown-it/markdown-it) và [markdown-it-mark](https://github.com/markdown-it/markdown-it-mark), giấy phép MIT.
+- [entities](https://github.com/fb55/entities), giấy phép BSD 2-Clause.
+
+## Giấy phép
+
+[Giấy phép MIT](LICENSE).
