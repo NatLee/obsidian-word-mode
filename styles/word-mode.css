@@ -514,8 +514,10 @@
 .wm-pill-icon { display: inline-flex; }
 .wm-pill-icon svg { width: 15px; height: 15px; }
 /* 手機：排成一行左右滑，不要換成好幾行佔掉畫面。
-   （上面的 flex: 0 0 auto 是為了這裡：可以捲動的元素放在直排的 flex 容器裡會被壓到幾乎沒有高度，手機的對話框內容就是直排的） */
-.is-mobile .wm-pills { flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
+   （上面的 flex: 0 0 auto 是為了這裡：可以捲動的元素放在直排的 flex 容器裡會被壓到幾乎沒有高度，手機的對話框內容就是直排的）
+   捲軸用 Obsidian 自己的做法藏起來：新版 Obsidian 的捲軸寬度跟著 --scrollbar-native-width 變數走，舊版靠 ::-webkit-scrollbar；
+   不直接設定捲軸寬度的屬性，Obsidian 的外掛檢查會說舊版不支援 */
+.is-mobile .wm-pills { flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; --scrollbar-native-width: none; }
 .is-mobile .wm-pills::-webkit-scrollbar { display: none; }
 .is-mobile .wm-pills button.wm-pill { flex: 0 0 auto; height: 36px; }
 
@@ -796,8 +798,8 @@ body:not(.is-mobile) .wm-shortcuts-modal { align-self: flex-start; margin-top: 6
 .wm-sc-col + .wm-sc-col > .wm-sc-card:nth-child(n+4) { animation-delay: .18s; }
 @keyframes wm-sc-in { from { opacity: 0; transform: translateY(10px) scale(.985); } }
 .wm-sc-card-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px 6px; font-weight: 600; }
-/* 沒有 color-mix 的舊瀏覽器（iOS 16.1 以前）用前一行的底色 */
-.wm-sc-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 26px; height: 26px; border-radius: 8px; color: var(--text-accent); background: var(--background-modifier-hover); background: color-mix(in srgb, var(--interactive-accent) 14%, transparent); }
+/* 底色：沒有 color-mix 的舊瀏覽器（iOS 16.1 以前）用這裡的灰底，支援的換成淡淡的主題色（見下面的 @supports） */
+.wm-sc-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 26px; height: 26px; border-radius: 8px; color: var(--text-accent); background: var(--background-modifier-hover); }
 .wm-sc-icon svg { width: 15px; height: 15px; }
 .wm-sc-card-title { flex: 1 1 auto; min-width: 0; }
 .wm-sc-card-count { flex: 0 0 auto; min-width: 20px; padding: 1px 7px; border-radius: 10px; background: var(--background-modifier-hover); color: var(--text-muted); font-size: var(--font-ui-smaller); font-weight: 500; text-align: center; }
@@ -809,8 +811,12 @@ body:not(.is-mobile) .wm-shortcuts-modal { align-self: flex-start; margin-top: 6
 .wm-sc-desc { display: flex; align-items: center; gap: 7px; min-width: 0; color: var(--text-normal); line-height: 1.35; }
 .wm-sc-mark { padding: 0 1px; border-radius: 3px; background: var(--text-highlight-bg, rgba(255, 208, 0, .4)); color: inherit; }
 /* 有示意動畫的記號：展開時轉成朝下 */
-.wm-sc-play { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 16px; height: 16px; border-radius: 50%; color: var(--text-accent); background: var(--background-modifier-hover); background: color-mix(in srgb, var(--interactive-accent) 14%, transparent); transition: transform .2s ease, background-color .15s ease, color .15s ease; }
+.wm-sc-play { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 16px; height: 16px; border-radius: 50%; color: var(--text-accent); background: var(--background-modifier-hover); transition: transform .2s ease, background-color .15s ease, color .15s ease; }
 .wm-sc-play svg { width: 8px; height: 8px; margin-left: 1px; fill: currentColor; }
+/* 寫成 @supports 而不是同一條規則寫兩次 background：Obsidian 的外掛檢查會對重複的屬性發出警告 */
+@supports (background: color-mix(in srgb, red 14%, transparent)) {
+  .wm-sc-icon, .wm-sc-play { background: color-mix(in srgb, var(--interactive-accent) 14%, transparent); }
+}
 .wm-sc-row.has-demo:hover .wm-sc-play, .wm-sc-row.is-open .wm-sc-play { background: var(--interactive-accent); color: var(--text-on-accent); }
 .wm-sc-row.is-open .wm-sc-play { transform: rotate(90deg); }
 /* 按鍵：畫成有厚度的鍵帽，滑鼠停在那一列時由左到右依序按下去 */
@@ -1341,7 +1347,8 @@ body:not(.is-phone) .modal.wm-eq-modal, body:not(.is-phone) .modal.wm-mmd-modal 
 /* 輸入框用 16px：iOS 對小於 16px 的輸入框會自動放大整個畫面 */
 .is-mobile .wm-eq .wm-eq-hint, .is-mobile .wm-mmd .wm-eq-hint { display: none; }
 .is-mobile .wm-seg button { height: 34px; padding: 0 14px; }
-.is-mobile .wm-eq-cats, .is-mobile .wm-mmd-kinds { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+/* 捲軸的藏法同 .wm-pills（用 Obsidian 的 --scrollbar-native-width） */
+.is-mobile .wm-eq-cats, .is-mobile .wm-mmd-kinds { flex-wrap: nowrap; overflow-x: auto; --scrollbar-native-width: none; -webkit-overflow-scrolling: touch; }
 .is-mobile .wm-eq-cats::-webkit-scrollbar, .is-mobile .wm-mmd-kinds::-webkit-scrollbar { display: none; }
 .is-mobile .wm-eq-cats button.wm-eq-cat { flex: 0 0 auto; height: 36px; padding: 0 12px; }
 .is-mobile .wm-eq-tools button.wm-eq-tool { height: 36px; padding: 6px 9px; }
@@ -1465,7 +1472,8 @@ body.wm-md-status .status-bar-item.plugin-word-count { display: none; }
 
 /* ---------- 查看文件屬性（小視窗）：名稱與值一列一列排，沒有格線，滑鼠移上去整列淡淡變色（參考 Linear 與 Obsidian 的屬性清單） ---------- */
 .wm-popup.wm-peek { width: 340px; max-width: calc(100vw - 8px); display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 12px; box-shadow: var(--shadow-l, 0 10px 30px rgba(0, 0, 0, .18)); font-size: var(--font-ui-small); }
-.wm-peek [hidden] { display: none !important; }
+/* 篩選時藏起來的列：.wm-peek [hidden] 比 .wm-peek-row 的 display: flex 具體，不需要 important */
+.wm-peek [hidden] { display: none; }
 .wm-peek-head { display: flex; align-items: center; gap: 8px; padding: 0 2px; }
 .wm-peek-badge { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 24px; height: 24px; border-radius: 7px; background: rgba(var(--interactive-accent-rgb, 120, 82, 238), .12); color: var(--text-accent); }
 .wm-peek-badge svg { width: 14px; height: 14px; }
