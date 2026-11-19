@@ -1,6 +1,6 @@
 // Word 模式：把 Obsidian 筆記變成像 Office Word 一樣編輯
 import { Plugin, PluginSettingTab, Setting, WorkspaceLeaf, MarkdownView, TFile, Notice, Platform, loadMathJax, renderMath, finishRenderMath } from 'obsidian';
-import { t, withKey, key, setLanguage, getLanguage } from './i18n.js';
+import { t, withKey, key, setLanguage, getLanguage, LANGUAGES, LANGUAGE_NAMES } from './i18n.js';
 import { options as cmdOptions } from './commands.js';
 import { autoformatOptions } from './autoformat.js';
 import { MarkdownConverter } from './markdown.js';
@@ -13,7 +13,7 @@ import { closePropsPeek } from './propview.js';
 import type { MdToolbarMode } from './mdbar.js';
 import { TABS } from './toolbar.js';
 import { fillGroupSettings } from './groupsettings.js';
-import { buildSettingNav, showSettingSection, trackSettingPadding } from './settingsnav.js';
+import { buildSettingNav, buildSettingSearch, revealSetting, settingTerms, showSettingSection, trackSettingPadding } from './settingsnav.js';
 import { ShortcutModal } from './dialogs.js';
 import { DIAGRAM_KINDS, detectKind } from './diagrams.js';
 import { cleanTemplates } from './templates.js';
@@ -26,7 +26,7 @@ import type { DocMeta } from './markdown.js';
 import type { OutlineSource } from './outline.js';
 import type { RibbonLayout, ButtonStyle, TabId, GroupId, TabStyle } from './toolbar.js';
 import type { EquationEditMode } from './dialogs.js';
-import type { SettingNav } from './settingsnav.js';
+import type { SettingNav, SettingSearchItem } from './settingsnav.js';
 import type { MermaidTab } from './mermaid.js';
 import type { SavedTemplate } from './templates.js';
 import type { CommandManager } from './obsidian-internal.js';
@@ -702,11 +702,12 @@ export default class WordModePlugin extends Plugin {
 //            名稱與說明由畫設定頁的一方設定，build 不再設定。build 的回傳值不使用
 //   grid：自訂的勾選區塊（顯示的分頁與按鈕群組、右鍵選單要顯示的項目）。fill 在格線容器裡放勾選框；
 //         cls 是 display() 畫的區塊外框的 CSS class
-//   note：一段說明文字，不是設定；cls 是 display() 畫的段落另外加的 CSS class
-type SettingRow =
+//   note：一段說明文字，不是設定；cls 是 display() 畫的段落另外加的 CSS class；nosearch 為 true 時設定頁的搜尋找不到它
+// common 為 true 的列，在設定頁的搜尋框還沒打字時列在「常用的設定」
+type SettingRow = { common?: boolean } & (
   | { kind: 'setting'; name: string; desc: string; build: (setting: Setting) => unknown }
   | { kind: 'grid'; name: string; desc?: string; cls: string; fill: (grid: HTMLElement) => void }
-  | { kind: 'note'; desc: string; cls?: string };
+  | { kind: 'note'; desc: string; cls?: string; nosearch?: boolean });
 
 // 設定頁的分類。設定頁上方有一條分類列，一次只顯示一類（見 settingsnav.ts）。
 // 加一類時，styles/word-mode.css 的「設定頁：分類列」也要加一條對應的隱藏規則
@@ -749,14 +750,16 @@ function settingSections(settingTab: WordModeSettings): SettingSection[] {
   const rebuild = async () => { await save(); p.refreshToolbars(); };
   const row = (name: string, desc: string, build: (setting: Setting) => unknown): SettingRow => ({ kind: 'setting', name, desc, build });
   const toggleRow = (name: string, desc: string, k: ToggleKey, after?: (v: boolean) => unknown): SettingRow => row(name, desc, s => toggle(s, k, after));
+  // 常用的設定：設定頁的搜尋框還沒打字時先列出來
+  const common = (r: SettingRow): SettingRow => Object.assign(r, { common: true });
 
   return [
     // ------------------------------------------------ 一般
     { id: 'general', heading: '一般', icon: 'settings', rows: [
-      row(t('介面語言'), t('Word 模式的按鈕、選單與提示文字使用的語言。「自動」會跟著 Obsidian 的語言。'),
-        s => s.addDropdown(d => d.addOptions({ auto: t('自動（跟隨 Obsidian）'), 'zh-TW': '繁體中文', en: 'English', ja: '日本語', ko: '한국어' })
-          .setValue(S.language || 'auto').onChange(v => p.changeLanguage(v as LanguageSetting)))),
-      toggleRow(t('預設用 Word 模式開啟筆記'), t('開啟 .md 筆記時自動使用 Word 模式。可隨時用右上角按鈕切回 Markdown。'), 'openByDefault'),
+      common(row(t('介面語言'), t('Word 模式的按鈕、選單與提示文字使用的語言。「自動」會跟著 Obsidian 的語言。'),
+        s => s.addDropdown(d => d.addOptions(Object.assign({ auto: t('自動（跟隨 Obsidian）') }, LANGUAGE_NAMES))
+          .setValue(S.language || 'auto').onChange(v => p.changeLanguage(v as LanguageSetting))))),
+      common(toggleRow(t('預設用 Word 模式開啟筆記'), t('開啟 .md 筆記時自動使用 Word 模式。可隨時用右上角按鈕切回 Markdown。'), 'openByDefault')),
       row(t('不使用 Word 模式的資料夾'), t('每行一個資料夾（例如模板資料夾），裡面的筆記一律用 Markdown 開啟。'),
         s => s.addTextArea(ta => ta.setValue(S.excludeFolders).onChange(async v => { S.excludeFolders = v; await save(); }))),
     ] },
@@ -779,9 +782,9 @@ function settingSections(settingTab: WordModeSettings): SettingSection[] {
 
     // ------------------------------------------------ 顯示
     { id: 'display', heading: '顯示', icon: 'monitor', rows: [
-      toggleRow(t('全寬頁面'), t('關閉時以 A4 紙張寬度顯示，開啟時使用整個視窗寬度。'), 'fullWidth', v => p.setFullWidth(v)),
-      row(t('頁面縮放'), t('也可以用 {k}+滑鼠滾輪，或右下角的縮放列調整。', { k: key('Mod') }),
-        s => s.addSlider(sl => sl.setLimits(50, 200, 10).setValue(S.zoom || 100).setDynamicTooltip().onChange(v => p.setZoom(v)))),
+      common(toggleRow(t('全寬頁面'), t('關閉時以 A4 紙張寬度顯示，開啟時使用整個視窗寬度。'), 'fullWidth', v => p.setFullWidth(v))),
+      common(row(t('頁面縮放'), t('也可以用 {k}+滑鼠滾輪，或右下角的縮放列調整。', { k: key('Mod') }),
+        s => s.addSlider(sl => sl.setLimits(50, 200, 10).setValue(S.zoom || 100).setDynamicTooltip().onChange(v => p.setZoom(v))))),
       toggleRow(t('文件屬性固定在頁面上方'),
         t('往下捲動、文件屬性捲出畫面之後，上方會浮出一條精簡的屬性列（每個屬性的名稱與值排成一行），隨時看得到。點一下展開完整清單；屬性很多時可以篩選，清單在框內捲動。'), 'propsSticky', v => p.setPropsSticky(v)),
       row(t('文件屬性的外觀'), t('「區塊」有框線與淡底色，一看就知道是屬性；「只有框線」沒有底色；「簡潔」沒有框線，只在下方有一條分隔線。'),
@@ -829,9 +832,9 @@ function settingSections(settingTab: WordModeSettings): SettingSection[] {
       } },
       toggleRow(t('顯示群組名稱'), t('在每組按鈕下方顯示「剪貼簿」「字型」「段落」等名稱（像 Word）。'), 'groupLabels', () => p.refreshToolbars()),
       toggleRow(t('檢視模式的按鈕顯示文字'), t('功能區「檢視」分頁的 Word 模式、Markdown、閱讀三個按鈕下方顯示名稱。關閉後這三個按鈕只顯示圖示（名稱仍在提示裡），Word 模式與 Markdown／閱讀模式的工具列都一樣。'), 'viewButtonLabels', () => p.refreshToolbars()),
-      row(t('工具列位置'), t('「自動」在手機上放在畫面下方（靠近鍵盤，單手好按），平板與電腦放在上方。'),
+      common(row(t('工具列位置'), t('「自動」在手機上放在畫面下方（靠近鍵盤，單手好按），平板與電腦放在上方。'),
         s => s.addDropdown(d => d.addOptions({ auto: t('自動'), top: t('上方'), bottom: t('下方') })
-          .setValue(S.toolbarPosition || 'auto').onChange(async v => { S.toolbarPosition = v as ToolbarPosition; await rebuild(); }))),
+          .setValue(S.toolbarPosition || 'auto').onChange(async v => { S.toolbarPosition = v as ToolbarPosition; await rebuild(); })))),
       row(t('Markdown／閱讀模式的工具列'),
         t('切換到 Obsidian 的 Markdown 編輯或閱讀模式時，要不要在畫面上方顯示工具列（粗體、標題、清單、連結、尋找、大綱等）。可以只在其中一種模式顯示；閱讀模式只能檢視，編輯按鈕會停用。隱藏時可以用狀態列的按鈕（下一項設定）切回 Word 模式。'),
         s => s.addDropdown(d => d.addOptions({ both: t('兩種模式都顯示'), source: t('只在 Markdown 編輯顯示'), preview: t('只在閱讀模式顯示'), none: t('都隱藏') })
@@ -847,7 +850,7 @@ function settingSections(settingTab: WordModeSettings): SettingSection[] {
       toggleRow(t('詳細提示（含動畫示意）'),
         t('滑鼠停在按鈕上時，顯示功能說明、快速鍵，以及一段動畫示範這個按鈕會做什麼。適合剛開始使用的人。'), 'richHints', () => p.refreshToolbars()),
       // 分頁與群組：顯示／隱藏，以及每個群組的名稱、順序、所在分頁
-      { kind: 'grid', name: t('自訂分頁與按鈕群組'), desc: t('取消勾選可以隱藏不常用的分頁或群組。每個群組可以改名稱（留白就用預設名稱）、用箭頭調整順序，或移到別的分頁。Word 模式與 Markdown／閱讀模式的工具列都會套用。'), cls: 'wm-settings-groups', fill: grid => fillGroupSettings(grid, S, () => { void rebuild(); }) },
+      { kind: 'grid', common: true, name: t('自訂分頁與按鈕群組'), desc: t('取消勾選可以隱藏不常用的分頁或群組。每個群組可以改名稱（留白就用預設名稱）、用箭頭調整順序，或移到別的分頁。Word 模式與 Markdown／閱讀模式的工具列都會套用。'), cls: 'wm-settings-groups', fill: grid => fillGroupSettings(grid, S, () => { void rebuild(); }) },
     ] },
 
     // ------------------------------------------------ 右鍵選單
@@ -953,8 +956,8 @@ function settingSections(settingTab: WordModeSettings): SettingSection[] {
 
     // ------------------------------------------------ 進階
     { id: 'advanced', heading: '進階', icon: 'wrench', rows: [
-      row(t('快速鍵說明'), t('查看 Word 模式所有的快速鍵。'),
-        s => s.addButton(b => b.setButtonText(t('開啟')).onClick(() => { new ShortcutModal(p.app).open(); }))),
+      common(row(t('快速鍵說明'), t('查看 Word 模式所有的快速鍵。'),
+        s => s.addButton(b => b.setButtonText(t('開啟')).onClick(() => { new ShortcutModal(p.app).open(); })))),
       row(t('還原預設設定'), t('把以上所有設定改回預設值（不會修改任何筆記）。'),
         s => s.addButton(b => b.setButtonText(t('還原')).setWarning().onClick(async () => {
           const lang = S.language;
@@ -964,22 +967,24 @@ function settingSections(settingTab: WordModeSettings): SettingSection[] {
           await p.refreshViews();
           refreshSettingTab(settingTab);
         }))),
-      { kind: 'note', desc: 'Word 模式 v' + p.manifest.version + ' · ' + getLanguage(), cls: 'wm-settings-version' },
+      { kind: 'note', desc: 'Word 模式 v' + p.manifest.version + ' · ' + getLanguage(), cls: 'wm-settings-version', nosearch: true },
     ] },
   ];
 }
 
-// 把設定頁的一列換成 Obsidian 1.13 的設定定義。Obsidian 會先建立這一列的 Setting、設好名稱與說明，再呼叫 render
-function settingDefinition(row: SettingRow): SettingDefinitionRender {
+// 把設定頁的一列換成 Obsidian 1.13 的設定定義。Obsidian 會先建立這一列的 Setting、設好名稱與說明，再呼叫 render。
+// placed 在畫好時收到這一列的元素（設定頁的搜尋框要捲到那裡）
+function settingDefinition(row: SettingRow, placed: (el: HTMLElement) => void): SettingDefinitionRender {
   switch (row.kind) {
     case 'setting':
       // 大括號不能省：build 可能回傳 Setting，而 render 的回傳值會被當成清除用的函式
-      return { name: row.name, desc: row.desc, render: setting => { row.build(setting); } };
+      return { name: row.name, desc: row.desc, render: setting => { placed(setting.settingEl); row.build(setting); } };
     case 'grid':
       // 勾選框放在名稱與說明下方；這一列重畫或設定頁關閉前，先拿掉這次放的勾選框，重畫時才不會多出一份
       return {
         name: row.name, desc: row.desc,
         render: setting => {
+          placed(setting.settingEl);
           const grid = setting.infoEl.createDiv('wm-settings-groups-grid');
           row.fill(grid);
           return () => grid.remove();
@@ -987,8 +992,28 @@ function settingDefinition(row: SettingRow): SettingDefinitionRender {
       };
     case 'note':
       // 只是說明文字：沒有名稱與控制項，也不列入設定搜尋（搜尋結果以名稱當標題，空白的標題沒有意義）
-      return { name: '', desc: row.desc, searchable: false, render: () => { /* 沒有控制項 */ } };
+      return { name: '', desc: row.desc, searchable: false, render: setting => { placed(setting.settingEl); } };
   }
+}
+
+// 設定頁的搜尋框裡的一筆：row 是它在設定頁上的那一列，section 是所屬的分類
+interface SearchItem extends SettingSearchItem { row: SettingRow; sectionId: SectionId; }
+
+// 每一列在每種介面語言的名稱與說明，依 settingSections() 的順序：texts[語言][分類][列]。
+// 設定頁的內容在每種語言都一樣，只是文字不同，所以暫時切換語言、各取一次（同步執行，畫面不會變），最後一定切回原本的語言
+function settingTextsByLanguage(settingTab: WordModeSettings): Map<string, { name: string; desc: string }[][]> {
+  const out = new Map<string, { name: string; desc: string }[][]>();
+  const cur = getLanguage();
+  try {
+    // 英文排第一：幾種語言同樣符合時，搜尋結果顯示英文（打英文找設定的人最多）
+    for (const lang of ['en', ...LANGUAGES.filter(l => l !== 'en')]) {
+      setLanguage(lang);
+      out.set(lang, settingSections(settingTab).map(sec => sec.rows.map(r => r.kind === 'note' ? { name: r.desc, desc: '' } : { name: r.name, desc: r.desc || '' })));
+    }
+  } finally {
+    setLanguage(cur);
+  }
+  return out;
 }
 
 // 設定改變後重畫整個設定頁。Obsidian 1.13 起 settingItems（getSettingDefinitions() 的結果）有內容時，
@@ -1012,6 +1037,11 @@ class WordModeSettings extends PluginSettingTab {
   sectionOf = new WeakMap<object, SectionId>();
   // 重畫設定頁之後呼叫：下次捲動時重新量外框的上內距（見 trackSettingPadding）
   remeasure: () => void;
+  // 最近一次畫設定頁（或取得定義）用的內容，以及每一列畫在哪個元素：設定頁的搜尋框用
+  sections: SettingSection[] = [];
+  rowEls = new Map<SettingRow, HTMLElement>();
+  // 每一列在每種語言的文字（見 settingTextsByLanguage）。介面文字不會在執行時改變，第一次搜尋時算一次就好
+  texts: Map<string, { name: string; desc: string }[][]> | null = null;
 
   constructor(app: App, plugin: WordModePlugin) {
     super(app, plugin);
@@ -1036,8 +1066,9 @@ class WordModeSettings extends PluginSettingTab {
     if (this.nav) this.nav.select(id);
   }
 
-  // 在 host 裡畫分類列
-  buildNav(host: HTMLElement, sections: SettingSection[]): SettingNav<SectionId> {
+  // 在 host 裡畫搜尋框與分類列；回傳畫出來的元素（重畫前要拿掉）
+  buildNav(host: HTMLElement, sections: SettingSection[]): HTMLElement[] {
+    const search = buildSettingSearch(host, () => this.searchItems(), (item, byKeyboard) => this.reveal(item, byKeyboard), { keymap: this.app.keymap, scope: this.app.scope });
     const nav = buildSettingNav(host, sections.map(x => ({ id: x.id, label: t(x.heading), icon: x.icon })), this.section, id => {
       this.showSection(id);
       // 每一類的長度不同，換過去之後從頭看起
@@ -1045,13 +1076,50 @@ class WordModeSettings extends PluginSettingTab {
     });
     this.nav = nav;
     this.remeasure();
-    return nav;
+    return [search.el, nav.el];
+  }
+
+  // 設定頁的搜尋框要找的設定：目前畫在設定頁上的每一列（說明文字也算，例如 frontmatter 的用法），
+  // 加上這一列的選項文字，以及其他語言的名稱與說明（介面是中文、打英文也找得到）
+  searchItems(): SearchItem[] {
+    if (!this.texts) this.texts = settingTextsByLanguage(this);
+    const texts = this.texts;
+    const cur = getLanguage();
+    const out: SearchItem[] = [];
+    this.sections.forEach((section, si) => section.rows.forEach((row, ri) => {
+      if (row.kind === 'note' && row.nosearch) return;
+      const el = this.rowEls.get(row);
+      const alt: { name: string; desc: string }[] = [];
+      for (const [lang, secs] of texts) {
+        const x = lang === cur ? null : secs[si] && secs[si][ri];
+        if (x) alt.push(x);
+      }
+      out.push({
+        row, sectionId: section.id, section: t(section.heading), icon: section.icon, common: row.common,
+        name: row.kind === 'note' ? row.desc : row.name,
+        desc: row.kind === 'note' ? '' : row.desc || '',
+        terms: el ? settingTerms(el) : [],
+        alt,
+      });
+    }));
+    return out;
+  }
+
+  // 搜尋框選了一筆：換到那一類、捲到那一列並閃一下。
+  // 用鍵盤選的把焦點移到那一列的控制項；手機上不移（會跳出螢幕鍵盤蓋住畫面）
+  reveal(item: SearchItem, byKeyboard: boolean): void {
+    const el = this.rowEls.get(item.row);
+    if (!el || !el.isConnected) return;
+    this.showSection(item.sectionId);
+    revealSetting(el, byKeyboard && !Platform.isMobile);
   }
 
   // Obsidian 1.13 以前畫設定頁的方式（1.13 起 getSettingDefinitions() 有內容時，Obsidian 不呼叫這裡）
   display(): void {
     const c = this.containerEl;
     const sections = settingSections(this);
+    this.sections = sections;
+    this.rowEls.clear();
     c.empty();
     c.addClass('wm-settings');
     showSettingSection(c, this.section);
@@ -1059,13 +1127,17 @@ class WordModeSettings extends PluginSettingTab {
     for (const section of sections) {
       const box = c.createDiv('wm-set-sec wm-set-' + section.id);
       for (const row of section.rows) {
-        if (row.kind === 'setting') row.build(new Setting(box).setName(row.name).setDesc(row.desc));
-        else if (row.kind === 'grid') {
+        if (row.kind === 'setting') {
+          const setting = new Setting(box).setName(row.name).setDesc(row.desc);
+          this.rowEls.set(row, setting.settingEl);
+          row.build(setting);
+        } else if (row.kind === 'grid') {
           const g = box.createDiv(row.cls);
+          this.rowEls.set(row, g);
           g.createDiv({ cls: 'setting-item-name', text: row.name });
           if (row.desc) g.createDiv({ cls: 'setting-item-description', text: row.desc });
           row.fill(g.createDiv('wm-settings-groups-grid'));
-        } else box.createEl('p', { cls: 'setting-item-description' + (row.cls ? ' ' + row.cls : ''), text: row.desc });
+        } else this.rowEls.set(row, box.createEl('p', { cls: 'setting-item-description' + (row.cls ? ' ' + row.cls : ''), text: row.desc }));
       }
     }
   }
@@ -1074,23 +1146,25 @@ class WordModeSettings extends PluginSettingTab {
   // Obsidian 在加入設定頁時與每次 update() 時呼叫；舊版 Obsidian 不會呼叫
   getSettingDefinitions(): SettingDefinitionGroup[] {
     const sections = settingSections(this);
+    this.sections = sections;
+    this.rowEls.clear();
     this.containerEl.addClass('wm-settings');
     showSettingSection(this.containerEl, this.section);
-    // 分類列自己是一個群組（群組是設定頁外框的直接子元素，才能固定在捲動範圍的上緣），裡面只有一列，不列入設定搜尋
+    // 搜尋框與分類列自己是一個群組（群組是設定頁外框的直接子元素，才能固定在捲動範圍的上緣），裡面只有一列，不列入設定搜尋
     const nav: SettingDefinitionGroup = {
       type: 'group', cls: 'wm-set-nav',
       items: [{
         name: '', searchable: false,
         render: setting => {
           setting.settingEl.addClass('wm-set-navrow');
-          const bar = this.buildNav(setting.settingEl, sections).el;
-          // 這一列重畫前先拿掉舊的分類列，才不會多出一條
-          return () => bar.remove();
+          const els = this.buildNav(setting.settingEl, sections);
+          // 這一列重畫前先拿掉舊的搜尋框與分類列，才不會多出一份
+          return () => { for (const el of els) el.remove(); };
         },
       }],
     };
     return [nav, ...sections.map((section): SettingDefinitionGroup => {
-      const items = section.rows.map(settingDefinition);
+      const items = section.rows.map(row => settingDefinition(row, el => this.rowEls.set(row, el)));
       for (const item of items) this.sectionOf.set(item, section.id);
       // 分類的名稱已經在分類列上，群組不再加標題
       return { type: 'group', cls: 'wm-set-sec wm-set-' + section.id, items };

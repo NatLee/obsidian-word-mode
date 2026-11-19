@@ -1595,3 +1595,54 @@ body.wm-md-status .status-bar-item.plugin-word-count { display: none; }
 .wm-phone .wm-bottombar .wm-bb-status { flex: 0 0 auto; white-space: nowrap; }
 .wm-phone .wm-bottombar .wm-bb-zoom button.wm-bb-btn { display: none; }
 .wm-phone .wm-bottombar button.wm-bb-zoomlabel { min-width: 40px; }
+
+/* 設定頁：搜尋框（在分類列上方，跟著分類列固定在上緣）。打字時下面浮出符合的設定，選一個就切到那一類、捲過去並閃一下（settingsnav.ts 的 buildSettingSearch） */
+.wm-set-find { position: relative; margin-bottom: 8px; }
+.wm-set-find-box { display: flex; align-items: center; gap: 6px; padding: 0 4px 0 10px; border: 1px solid var(--background-modifier-border); border-radius: 10px; background: var(--background-primary); transition: border-color .15s ease, box-shadow .15s ease; }
+.wm-set-find-box:focus-within { border-color: var(--interactive-accent); box-shadow: 0 0 0 2px hsla(var(--interactive-accent-hsl), .2); }
+.wm-set-find-icon { display: inline-flex; flex: 0 0 auto; color: var(--text-faint); }
+.wm-set-find-icon svg { width: 16px; height: 16px; }
+/* 外框已經有框線與焦點效果，輸入框本身不要再有 */
+.wm-set-find input.wm-set-find-input { flex: 1 1 auto; min-width: 0; height: 36px; padding: 0; border: none; border-radius: 0; background: transparent; box-shadow: none; font-size: var(--font-ui-medium); -webkit-appearance: none; appearance: none; }
+.wm-set-find input.wm-set-find-input:focus, .wm-set-find input.wm-set-find-input:focus-visible { border: none; box-shadow: none; outline: none; }
+/* 有自己的清除按鈕，不要瀏覽器內建的那個 */
+.wm-set-find-input::-webkit-search-cancel-button { display: none; -webkit-appearance: none; }
+.wm-set-find-clear { flex: 0 0 auto; width: 28px; height: 28px; padding: 4px; }
+.wm-set-find-clear[hidden] { display: none; }
+/* 手機上輸入框的字要 16px 以上，iOS 取得焦點時才不會放大畫面 */
+.is-phone .wm-set-find input.wm-set-find-input { height: 40px; font-size: 16px; }
+
+.wm-set-find-pop { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 20; display: flex; flex-direction: column; max-height: min(60vh, 480px); border: 1px solid var(--background-modifier-border); border-radius: 10px; background: var(--background-primary); box-shadow: var(--shadow-l); overflow: hidden; animation: wm-set-find-in .12s ease-out; }
+.wm-set-find-pop[hidden] { display: none; }
+@keyframes wm-set-find-in { from { opacity: 0; transform: translateY(-4px); } }
+.wm-set-find-head { flex: 0 0 auto; padding: 8px 12px 4px; color: var(--text-muted); font-size: var(--font-ui-smaller); }
+.wm-set-find-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 2px 4px 4px; }
+.wm-set-find-item { padding: 7px 8px; border-radius: 6px; cursor: pointer; }
+.wm-set-find-item[aria-selected="true"] { background: var(--background-modifier-hover); }
+.wm-set-find-top { display: flex; align-items: baseline; gap: 8px; }
+.wm-set-find-name { flex: 1 1 auto; min-width: 0; color: var(--text-normal); font-size: var(--font-ui-small); font-weight: 500; }
+.wm-set-find-sec { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 4px; padding: 1px 6px; border-radius: 6px; background: var(--background-secondary); color: var(--text-muted); font-size: var(--font-ui-smaller); white-space: nowrap; }
+.wm-set-find-sec-icon { display: inline-flex; }
+.wm-set-find-sec-icon svg { width: 12px; height: 12px; }
+/* 說明只顯示兩行；符合的地方已經截到片段的前面 */
+.wm-set-find-snip { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; margin-top: 2px; color: var(--text-muted); font-size: var(--font-ui-smaller); line-height: 1.4; }
+.wm-set-find-via { color: var(--text-faint); }
+.wm-set-find-lang { display: inline-flex; vertical-align: -2px; margin-inline-end: 4px; }
+.wm-set-find-lang svg { width: 12px; height: 12px; }
+mark.wm-set-find-hl { padding: 0 1px; border-radius: 3px; background: hsla(var(--interactive-accent-hsl), .2); color: inherit; font-weight: 600; }
+.wm-set-find-more { flex: 0 0 auto; padding: 2px 12px 6px; color: var(--text-faint); font-size: var(--font-ui-smaller); }
+.wm-set-find-more[hidden] { display: none; }
+.wm-set-find-foot { flex: 0 0 auto; display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 6px 12px; border-top: 1px solid var(--background-modifier-border); color: var(--text-faint); font-size: var(--font-ui-smaller); }
+.wm-set-find-foot kbd { padding: 0 5px; border: 1px solid var(--background-modifier-border); border-bottom-width: 2px; border-radius: 4px; background: var(--background-secondary); color: var(--text-muted); font-family: var(--font-interface); font-size: 11px; }
+/* 手機沒有方向鍵與 Esc：不顯示按鍵說明，每一筆加高一點比較好點 */
+.is-mobile .wm-set-find-foot { display: none; }
+.is-mobile .wm-set-find-item { padding: 10px 8px; }
+/* Obsidian 1.13 的設定群組可能裁掉超出範圍的內容，浮出的清單會被切掉 */
+.setting-group.wm-set-nav > .setting-items, .setting-group.wm-set-nav .setting-item.wm-set-navrow { overflow: visible; }
+/* 選了搜尋結果之後，那一列閃一下 */
+.wm-set-flash { border-radius: 8px; animation: wm-set-flash 2s ease-out; }
+@keyframes wm-set-flash {
+  0%, 35% { background-color: hsla(var(--interactive-accent-hsl), .16); box-shadow: 0 0 0 2px hsla(var(--interactive-accent-hsl), .6); }
+  100% { background-color: transparent; box-shadow: 0 0 0 2px transparent; }
+}
+@media (prefers-reduced-motion: reduce) { .wm-set-find-pop { animation: none; } }

@@ -20,6 +20,7 @@
 | 圖表編輯器 | `mermaid.ts`（對話框、表單、圖上編輯）、`diagrams.ts`（十一種圖表的描述、圖表外觀、欄位種類）、`flowchart.ts`（流程圖的解析與範本 `MERMAID_TEMPLATES`） |
 | 自己存的公式與圖表範本 | `templates.ts`（資料操作，純函式）、`templateui.ts`（設定頁的管理清單）；存在設定的 `mathTemplates`、`diagramTemplates`。方程式編輯器的「我的公式」在 `dialogs.ts`，圖表編輯器的「我的範本」在 `mermaid.ts` |
 | 設定 | `main.ts`：`Settings` 介面、`DEFAULTS`、`settingSections()`。設定分成幾類（`SectionId`），設定頁上方的分類列在 `settingsnav.ts`，一次只顯示一類；其他分類用 CSS 隱藏（`.wm-settings[data-wm-tab]`），不用設定定義的 `visible`（會讓那些設定搜尋不到） |
+| 設定頁的搜尋框 | 畫面與鍵盤操作在 `settingsnav.ts` 的 `buildSettingSearch`，比對與排序在 `settingsearch.ts`（純函式，同義詞在 `SYNONYMS`）。`main.ts` 的 `WordModeSettings` 記下每一列畫在哪裡（`rowEls`），`searchItems()` 用 `settingTextsByLanguage()` 暫時切換語言取得每一列在各語言的文字，所以介面是中文也能打英文找到。列加上 `common: true` 會在還沒打字時列在「常用的設定」 |
 | 尋找取代、摺疊、大綱、編輯標記、自動格式、`[[`／`#` 選單 | `find.ts`、`fold.ts`、`outline.ts`、`marks.ts`、`autoformat.ts`、`suggest.ts` + `complete.ts` |
 | 按鈕的詳細提示與示意動畫 | `hints.ts` 的 `DEMOS`（按鈕的 `demo` 屬性是它的鍵，型別是 `DemoName`，寫了不存在的名稱型別檢查會失敗），動畫在 CSS 的 `wm-anim-*`、`wm-step-*`。快速鍵說明（`dialogs.ts` 的 `SHORTCUTS`）每一列的第三個欄位也是 `DemoName`，按那一列會展開同一段動畫 |
 
@@ -29,7 +30,7 @@
 
 **加一個設定**：`main.ts` 三處：`Settings` 介面、`DEFAULTS`、`settingSections()` 裡的一列（`toggleRow`、`row`，或 `kind: 'grid'` 放自訂內容），放進合適的分類。要加新的分類時：`SectionId` 加一個 id、`settingSections()` 加一段，`styles/word-mode.css`「設定頁：分類列」的隱藏規則也要加一個選擇器（`tests/view/ui.mjs` 會檢查）。會影響功能區的設定，`onChange` 要呼叫 `refreshToolbars()`，並把欄位加進 `ToolbarContext.settings`。
 
-**加介面文字**：直接在程式裡寫中文原文（`t('…')` 或標成 `I18nKey` 的欄位），再把鍵加進 `i18n-en.ts`、`i18n-ja.ts`、`i18n-ko.ts` 的結尾。三個檔案每筆一行，格式是 `JSON.stringify` 的結果。帶變數的寫 `{name}`。
+**加介面文字**：直接在程式裡寫中文原文（`t('…')` 或標成 `I18nKey` 的欄位），再把鍵加進 `i18n-en.ts`，以及 `i18n-ja.ts`、`i18n-ko.ts`、`i18n-nan.ts`（台文，漢字）、`i18n-zh-cn.ts`、`i18n-es.ts`、`i18n-ar.ts`、`i18n-he.ts` 的結尾。每個檔案每筆一行，格式是 `JSON.stringify` 的結果。帶變數的寫 `{name}`。阿拉伯文與希伯來文裡寫進 Mermaid 程式碼的範例與識別名稱（例如 `NewState`）保留英文，由右往左的文字會打亂程式碼那一行的顯示。
 
 **加一種圖表或一個表單欄位**：只改 `diagrams.ts`（新的欄位種類才要動 `mermaid.ts` 的 `field()`；現有的種類是 text、lines、select、check、level、color）。新增一個 `DiagramKind`（`head`、`parse`、`generate`、`opts`、`lists`），加進 `DIAGRAM_KINDS`，並在 `flowchart.ts` 的 `MERMAID_TEMPLATES` 加範本。`parse` 遇到看不懂的寫法要回傳原因（`'blocks'`、`'syntax'`），不要硬猜。欄位的 `group` 讓同一類名稱在圖上改名時一起改，`def` 讓表單裡改名也連動。
 
@@ -64,7 +65,7 @@
 
 ## README 與文件
 
-- README 給 Obsidian 使用者看：介紹、功能、操作動畫、安裝、隱私揭露。開發、架構、測試、發佈流程寫在 `docs/development.md` 與 `docs/development.zh-TW.md`（日文、韓文 README 連到英文版）。
+- README 給 Obsidian 使用者看：介紹、功能、操作動畫、安裝、隱私揭露。開發、架構、測試、發佈流程寫在 `docs/development.md` 與 `docs/development.zh-TW.md`（繁體中文、台文 README 連到中文版，其他語言連到英文版）。阿拉伯文、希伯來文 README 整份包在 `<div dir="rtl">` 裡。操作動畫只錄了 en、zh-TW、ja、ko 四種：台文、簡體中文的 README 用 zh-TW 的動畫，西班牙文、阿拉伯文、希伯來文用 en 的。存檔示意圖（`docs/images/generate.mjs`）九種語言都有，阿拉伯文與希伯來文整張左右鏡像。
 - 操作動畫（`docs/images/<場景>.<語言>.webp`，WebP 動畫、品質 75）由 `node docs/record/record.mjs <場景> [--lang en]` 錄製：真的外掛程式碼在無頭 Chrome 裡跑，Obsidian 換成 `docs/record/mock.js`；每個場景的操作在 `docs/record/scenes.mjs`。功能區、對話框的版面或文字有變，只重錄受影響的場景（每次重錄都會永久留在 git 歷史；全部重錄要加 `--all`）。需要 Chrome、ffmpeg 與網路。
 - 存檔示意圖（`saving.*.svg`）由 `node docs/images/generate.mjs` 產生。
 

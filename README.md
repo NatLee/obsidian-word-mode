@@ -1,6 +1,6 @@
 # Word Mode
 
-**English** | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md) | [한국어](README.ko.md)
+**English** | [繁體中文](README.zh-TW.md) | [台文](README.nan-TW.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Español](README.es.md) | [العربية](README.ar.md) | [עברית](README.he.md)
 
 Edit your [Obsidian](https://obsidian.md) notes the way you would in Word: a ribbon toolbar, tables, equations, and diagrams, with no Markdown syntax to remember. Every note is still saved as a plain Markdown file.
 
@@ -99,7 +99,7 @@ Shown in the animation at the top. Start a paragraph with `# `, `- `, `1. `, `> 
 - **Paste Markdown text** and convert it to formatted text in one step.
 - **Sync conflict handling**: if a note changes on disk while you have unsaved edits, you choose which version to keep.
 - **Shortcut list**: search it or pick a category, and select a shortcut to watch a short animation of what it does.
-- Interface in Traditional Chinese, English, Japanese, and Korean.
+- Interface in Traditional Chinese, Taiwanese (Han characters), Simplified Chinese, English, Japanese, Korean, Spanish, Arabic, and Hebrew.
 
 Anything Word Mode can't edit visually, such as an HTML block, is shown as a raw block and saved unchanged.
 
@@ -122,7 +122,7 @@ After you enable the plugin, Markdown notes open in Word mode.
 - To keep a single note out of Word mode, add `word-mode: false` to its properties.
 - To keep whole folders out of Word mode, list them under **Settings → Word Mode → Folders excluded from Word mode**.
 
-The settings are grouped into categories, with a row of tabs at the top that shows one category at a time.
+The settings are grouped into categories, with a row of tabs at the top that shows one category at a time. To find a setting without knowing its category, type in the search box above the tabs. It suggests matching settings as you type, also matches dropdown options and the setting names in other languages (you can type English while the interface is in Chinese), and takes you to the one you pick.
 
 ### Commands
 
@@ -153,7 +153,8 @@ No command has a default hotkey. You can assign your own under **Settings → Ho
 
 - Mobile use hasn't been tested on real devices.
 - Some buttons on the toolbar shown in Markdown and reading mode call built-in Obsidian commands and haven't all been tested individually.
-- The Japanese and Korean translations haven't been reviewed by native speakers.
+- The translations other than Traditional Chinese and English haven't been reviewed by native speakers.
+- In Arabic and Hebrew, the text is translated but the toolbar and dialogs keep their left-to-right layout.
 - Diagram and query results, embeds, and page previews are drawn by Obsidian. They are covered by automated tests that simulate Obsidian, and haven't been checked with every plugin and theme.
 - A diagram's appearance (Mermaid theme) and flowchart fill colors are drawn by Mermaid inside Obsidian. They were checked against Mermaid itself, not against every Obsidian theme.
 

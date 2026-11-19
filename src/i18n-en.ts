@@ -1204,5 +1204,17 @@ export default {
  "只有框線": "Border only",
  "簡潔（沒有框線）": "Minimal (no border)",
  "固定的屬性列顯示屬性名稱": "Show property names in the pinned bar",
- "關閉後屬性列只顯示值，一行可以放更多屬性。": "When off, the pinned bar shows only the values, so more properties fit on one line."
+ "關閉後屬性列只顯示值，一行可以放更多屬性。": "When off, the pinned bar shows only the values, so more properties fit on one line.",
+ "搜尋設定，例如：縮放、工具列、快速鍵": "Search settings, e.g. zoom, toolbar, shortcuts",
+ "搜尋設定": "Search settings",
+ "清除搜尋": "Clear search",
+ "選擇": "Select",
+ "前往": "Go to",
+ "關閉": "Close",
+ "常用的設定": "Common settings",
+ "{n} 項符合": "Matches: {n}",
+ "還有 {n} 項，多打幾個字可以縮小範圍": "{n} more. Keep typing to narrow it down.",
+ "找不到「{q}」相關的設定。換個說法試試，或從下面的分類找找看。": "No settings match “{q}”. Try other words, or browse the categories below.",
+ "包含": "Includes",
+ "其他語言": "Other language"
 };

@@ -954,6 +954,25 @@ B.I18N.setLanguage('ja');
 assert(B.I18N.t('粗體') === '太字' && B.I18N.t('刪列') === 'DelR', '日文介面（沒翻到的退回英文）');
 B.I18N.setLanguage('ko');
 assert(B.I18N.t('粗體') === '굵게', '韓文介面');
+B.I18N.setLanguage('nan-TW');
+assert(B.I18N.t('找不到圖片') === '揣無圖片', '台文介面');
+B.I18N.setLanguage('zh-CN');
+assert(B.I18N.t('粗體') === '粗体' && B.I18N.t('找不到圖片') === '找不到图片', '簡體中文介面');
+B.I18N.setLanguage('es');
+assert(B.I18N.t('粗體') === 'Negrita', '西班牙文介面');
+B.I18N.setLanguage('ar');
+assert(B.I18N.t('粗體') === 'غامق' && B.I18N.t('上') === '', '阿拉伯文介面（「上」跟英文一樣是空字串）');
+B.I18N.setLanguage('he');
+assert(B.I18N.t('粗體') === 'מודגש', '希伯來文介面');
+assert(B.I18N.LANGUAGES.length === 9 && B.I18N.LANGUAGES.every(l => B.I18N.LANGUAGE_NAMES[l]), '設定頁列出九種語言，每種用自己的寫法顯示');
+// 「自動」：依 Obsidian 的語言（這裡用 moment 的語系代替）選介面語言
+{
+  const had = window.moment;
+  const detect = code => { window.moment = { locale: () => code }; return B.I18N.detectLanguage(); };
+  const got = ['zh-tw', 'zh-hk', 'zh', 'zh-cn', 'nan-tw', 'ja', 'ko', 'es-mx', 'ar-sa', 'he', 'iw', 'fr'].map(detect).join();
+  assert(got === 'zh-TW,zh-TW,zh-CN,zh-CN,nan-TW,ja,ko,es,ar,he,he,en', '自動偵測語言：Obsidian 的「zh」是簡體中文，其他沒有的語言用英文：' + got);
+  window.moment = had;
+}
 B.I18N.setLanguage('zh-TW');
 assert(B.I18N.t('粗體') === '粗體', '中文介面');
 

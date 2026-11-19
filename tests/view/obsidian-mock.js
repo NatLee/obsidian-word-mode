@@ -5,6 +5,7 @@ P.removeClass = function (...c) { this.classList.remove(...c); };
 P.toggleClass = function (c, v) { this.classList.toggle(c, v); };
 P.setText = function (t) { this.textContent = t; };
 P.empty = function () { this.replaceChildren(); };
+P.appendText = function (t) { this.appendChild(document.createTextNode(t)); };
 P.createEl = function (tag, o = {}) {
   const e = document.createElement(tag);
   if (o.cls) e.className = o.cls;

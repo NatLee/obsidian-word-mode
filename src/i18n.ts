@@ -4,11 +4,24 @@ import * as obsidian from 'obsidian';
 import EN from './i18n-en.js';
 import JA from './i18n-ja.js';
 import KO from './i18n-ko.js';
+import NAN from './i18n-nan.js';
+import ZH_CN from './i18n-zh-cn.js';
+import ES from './i18n-es.js';
+import AR from './i18n-ar.js';
+import HE from './i18n-he.js';
 
-export type Language = 'zh-TW' | 'en' | 'ja' | 'ko';
+// nan-TW 是台文（台語漢字）
+export type Language = 'zh-TW' | 'en' | 'ja' | 'ko' | 'nan-TW' | 'zh-CN' | 'es' | 'ar' | 'he';
 export type TranslationVars = Record<string, string | number>;
 
-const DICTS: Record<string, Record<string, string>> = { en: EN, ja: JA, ko: KO };
+// 設定頁「介面語言」的選項：每種語言用它自己的寫法顯示，看不懂目前介面的人也找得到自己的語言
+export const LANGUAGE_NAMES: Readonly<Record<Language, string>> = {
+  'zh-TW': '繁體中文', 'nan-TW': '台文', 'zh-CN': '简体中文', en: 'English', ja: '日本語', ko: '한국어',
+  es: 'Español', ar: 'العربية', he: 'עברית',
+};
+export const LANGUAGES = Object.keys(LANGUAGE_NAMES) as Language[];
+
+const DICTS: Record<string, Record<string, string>> = { en: EN, ja: JA, ko: KO, 'nan-TW': NAN, 'zh-CN': ZH_CN, es: ES, ar: AR, he: HE };
 
 let lang: string = 'zh-TW';
 // 快速鍵要顯示 Cmd／Option 的平台：macOS、iPhone、iPad
@@ -22,9 +35,16 @@ export function detectLanguage(): Language {
   try { l = getAppLanguage ? getAppLanguage() : null; } catch { /* 預設 */ }
   if (!l) { try { l = window.moment && window.moment.locale(); } catch { /* 預設 */ } }
   if (!l) l = (typeof navigator !== 'undefined' && navigator.language) || 'en';
-  if (/^zh/i.test(l)) return 'zh-TW';
+  // Obsidian 的簡體中文是「zh」、繁體中文是「zh-TW」；系統語言可能寫成 zh-Hant、zh-HK
+  if (/^zh[-_](tw|hk|mo|hant)/i.test(l)) return 'zh-TW';
+  if (/^zh/i.test(l)) return 'zh-CN';
+  if (/^nan/i.test(l)) return 'nan-TW';
   if (/^ja/i.test(l)) return 'ja';
   if (/^ko/i.test(l)) return 'ko';
+  if (/^es/i.test(l)) return 'es';
+  if (/^ar/i.test(l)) return 'ar';
+  // 希伯來文的舊代碼是 iw
+  if (/^(he|iw)/i.test(l)) return 'he';
   return 'en';
 }
 
@@ -38,8 +58,8 @@ export function getLanguage(): string { return lang; }
 export type I18nKey = keyof typeof EN;
 export function t(s: I18nKey, vars?: TranslationVars | null): string {
   const d = DICTS[lang];
-  // 日文、韓文沒有翻到的字串用英文
-  let out = d && d[s] != null ? d[s] : (lang !== 'zh-TW' && (EN as Record<string, string>)[s] != null ? (EN as Record<string, string>)[s] : s);
+  // 沒有翻到的字串用英文；台文退回繁體中文原文（讀台文的人都看得懂）
+  let out = d && d[s] != null ? d[s] : (lang !== 'zh-TW' && lang !== 'nan-TW' && (EN as Record<string, string>)[s] != null ? (EN as Record<string, string>)[s] : s);
   if (vars) for (const k of Object.keys(vars)) out = out.split('{' + k + '}').join(vars[k] as string);
   return out;
 }
