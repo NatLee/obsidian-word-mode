@@ -85,7 +85,7 @@ const FRACS = ['\\frac', '\\dfrac', '\\tfrac', '\\binom'];
 // 上括號、下括號：標籤寫成接在後面的 ^{…}（上括號）或 _{…}（下括號），TeX 會把它放在括號的正上方／正下方。
 // 以前不認得這兩個指令，格子裡照原文顯示「\overbrace」，標籤還被當成右上角的上標
 const H_BRACES: Record<string, '^' | '_'> = { '\\overbrace': '^', '\\underbrace': '_' };
-export const GROUP_CMDS = ['\\vec', '\\bar', '\\hat', '\\tilde', '\\dot', '\\ddot', '\\overline', '\\underline', '\\mathbf', '\\mathbb', '\\mathrm', '\\mathcal', '\\mathit', '\\text', '\\boldsymbol', '\\overrightarrow'];
+export const GROUP_CMDS = ['\\vec', '\\bar', '\\hat', '\\tilde', '\\dot', '\\ddot', '\\overline', '\\underline', '\\mathbf', '\\mathbb', '\\mathrm', '\\mathcal', '\\mathit', '\\text', '\\boldsymbol', '\\overrightarrow', '\\tag'];
 const ENVS = ['matrix', 'bmatrix', 'pmatrix', 'vmatrix', 'Bmatrix', 'Vmatrix', 'cases', 'aligned', 'align', 'array', 'gathered'];
 
 class ParseError extends Error {}
@@ -142,9 +142,11 @@ function parseRow(s: string, pos: number, stops: string[]): RowResult {
         continue;
       }
       if (GROUP_CMDS.includes(c)) {
+        // \tag*{…}（編號不加括號）：指令名稱只抓到 \tag，星號要一起算進去
+        const cmd = c === '\\tag' && s[pos + c.length] === '*' ? '\\tag*' : c;
         const save = pos;
-        pos += c.length; skipSpace();
-        if (s[pos] === '{') { flush(); row.push({ t: 'group', cmd: c, a: group() }); continue; }
+        pos += cmd.length; skipSpace();
+        if (s[pos] === '{') { flush(); row.push({ t: 'group', cmd, a: group() }); continue; }
         pos = save;
       }
       if (H_BRACES[c]) {
@@ -251,7 +253,8 @@ export function normalize(row: MathRow): MathRow {
 // ---------------------------------------------------------------- 編輯元件
 const MARK = '\u0001'; // 插入後游標要停的位置（暫時的記號）
 // \text{…} 等裡面是一般文字：不把 sin 變成 \sin、不把 α 變成 \alpha
-const PLAIN_GROUPS = new Set(['\\text', '\\mathrm', '\\mathit']);
+// 編號（\tag）裡面也是一般文字（MathJax 照文字排），一樣不轉換
+const PLAIN_GROUPS = new Set(['\\text', '\\mathrm', '\\mathit', '\\tag', '\\tag*']);
 // 字上面另外畫一個符號的結構（向量箭頭、上橫線、^、~、點，畫法見 accentMark）：符號要佔高度，
 // 外面的分數線、根號才不會壓到它（見 CSS 的 .has-accent）
 const ACCENTS = new Set(['\\vec', '\\overrightarrow', '\\bar', '\\overline', '\\hat', '\\tilde', '\\dot', '\\ddot']);

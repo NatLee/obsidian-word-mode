@@ -1060,6 +1060,11 @@ audio.wm-embed-media { width: 100%; }
 .is-stack > .wm-mv-hbmark { grid-column: 2 / 5; justify-self: stretch; }
 .is-stack > .wm-mv-hbmark.is-over { grid-row: 2; }
 .is-stack > .wm-mv-hbmark.is-under { grid-row: 4; transform: scaleY(-1); }
+/* 編號（\tag{…}）：括號由 CSS 加上（\tag*{…} 不加括號）。在最外層時跟輸出一樣靠右，所以最外層的一列要撐滿整個編輯區 */
+.wm-mv > .wm-mv-row { flex: 1 1 auto; }
+.wm-mv-group[data-cmd="tag"]::before { content: '('; color: var(--text-muted); }
+.wm-mv-group[data-cmd="tag"]::after { content: ')'; color: var(--text-muted); }
+.wm-mv > .wm-mv-row > .wm-mv-group[data-cmd="tag"], .wm-mv > .wm-mv-row > .wm-mv-group[data-cmd="tag*"] { margin-left: auto; padding-left: 1em; }
 /* 括號跟裡面的內容一樣高：\left…\right、\binom、矩陣類環境的表格都用同一種外框 */
 .wm-mv-paren, .wm-mv-binom, .wm-mv-env-body { display: inline-flex; align-items: stretch; }
 .wm-mv-delim { display: inline-flex; align-items: center; font-size: 1.3em; color: var(--text-muted); user-select: none; }

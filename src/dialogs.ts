@@ -574,6 +574,8 @@ export class EquationModal extends Modal {
     let depth = 0;
     for (const ch of v.replace(/\\[{}]/g, '')) { if (ch === '{') depth++; else if (ch === '}') depth--; if (depth < 0) break; }
     if (depth !== 0) this.err.setText(t('大括號 { } 沒有成對'));
+    // 行內的方程式（$…$）不顯示編號：MathJax 直接略過 \tag，預覽與筆記裡都看不到，所以提醒要改成獨立一行
+    else if (!this.display && /\\tag\b/.test(v)) this.err.setText(t('編號只會顯示在獨立一行的方程式'));
     this.render(v, this.prev, this.display);
     window.setTimeout(() => { if (this.prev && this.prev.querySelector('mjx-merror, .merror, [data-mjx-error]')) this.err.setText(t('語法錯誤，請檢查 LaTeX')); }, 120);
   }

@@ -709,6 +709,7 @@ export default {
  "複製 LaTeX": "LaTeX kopieren",
  "刪除方程式": "Formel löschen",
  "大括號 { } 沒有成對": "Geschweifte Klammern { } nicht paarig",
+ "編號只會顯示在獨立一行的方程式": "Nummern werden nur bei Gleichungen in eigener Zeile angezeigt",
  "語法錯誤，請檢查 LaTeX": "Syntaxfehler – LaTeX prüfen",
  "編輯方程式…": "Formel bearbeiten…",
  "改成文字中（行內）": "In den Text setzen",

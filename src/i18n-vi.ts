@@ -709,6 +709,7 @@ export default {
  "複製 LaTeX": "Sao chép LaTeX",
  "刪除方程式": "Xóa phương trình",
  "大括號 { } 沒有成對": "Dấu ngoặc nhọn { } không cân bằng",
+ "編號只會顯示在獨立一行的方程式": "Số thứ tự chỉ hiện ở phương trình trên dòng riêng",
  "語法錯誤，請檢查 LaTeX": "Lỗi cú pháp — hãy kiểm tra LaTeX",
  "編輯方程式…": "Sửa phương trình…",
  "改成文字中（行內）": "Chuyển thành cùng dòng",

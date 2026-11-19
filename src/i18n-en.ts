@@ -709,6 +709,7 @@ export default {
  "複製 LaTeX": "Copy LaTeX",
  "刪除方程式": "Delete equation",
  "大括號 { } 沒有成對": "Unbalanced braces { }",
+ "編號只會顯示在獨立一行的方程式": "Equation numbers only show on equations on their own line",
  "語法錯誤，請檢查 LaTeX": "Syntax error — check the LaTeX",
  "編輯方程式…": "Edit equation…",
  "改成文字中（行內）": "Make inline",

@@ -446,6 +446,26 @@ await fresh('面積公式：\n');
   assert(stacks.length === 1 && stacks[0].querySelector(':scope > .wm-mv-hb-edge.is-lead .wm-mv-frac') && qa('.wm-mv-hbrace:not(.is-stack)').length === 3, '前面有分數：疊在一起排；兩個下括號：一般的排法');
   eq.close();
 
+  // 編號：顯示成「(1)」的一格（括號由 CSS 加上），不是「\tag」；行內的方程式不會顯示編號，預覽上方提醒
+  await fresh('質能：\n');
+  view.openEquation();
+  eq = mock.Modal.last;
+  await sleep(25);
+  const placeBtns = qa('.wm-eq-top .wm-seg:not(.wm-eq-modes) button');
+  placeBtns[0].click(); // 文字中（行內）
+  const eqText = qa('.wm-mv-text').pop();
+  typeIn(eqText, 'E=mc');
+  eq.field.place(eqText, 4); // 游標在打的字後面（jsdom 換掉文字後游標會留在開頭）
+  qa('.wm-eq-cat').find(b => b.textContent === '結構').click();
+  snippet('\\tag{1}').click();
+  const tagEl = q('.wm-mv-group[data-cmd="tag"]');
+  assert(tagEl && tagEl.textContent === '1' && !q('.wm-mv').textContent.includes('\\tag') && eq.ta.value === 'E=mc\\tag{1}', '編號：一格，不顯示指令原文：' + eq.ta.value);
+  await sleep(200);
+  assert(eq.err.textContent === '編號只會顯示在獨立一行的方程式', '行內的方程式有編號：提醒只有獨立一行才顯示：' + eq.err.textContent);
+  placeBtns[1].click(); // 獨立一行
+  assert(!eq.err.textContent, '改成獨立一行：提醒消失');
+  eq.close();
+
   // 既有的方程式：沒有在格子裡改東西就不會動到原本的寫法
   await fresh('公式 $x^2 + \\sqrt{y}$ 結束\n');
   const math = view.pm.dom.querySelector('.wm-raw-inline.is-math');
