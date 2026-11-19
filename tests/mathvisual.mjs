@@ -48,7 +48,12 @@ ok('輸入：αx → \\alpha x（補空白）', fromDisplay('αx') === '\\alpha 
 ok('輸入：sin x → \\sin x', fromDisplay('sin x') === '\\sin x' && fromDisplay('2sin(x)') === '2\\sin(x)', fromDisplay('2sin(x)'));
 ok('輸入：sinx、cosine 不轉換', fromDisplay('sinx') === 'sinx' && fromDisplay('cosine') === 'cosine');
 ok('輸入：已經有反斜線的不重複', fromDisplay('\\sin x') === '\\sin x');
-for (const s of ['\\alpha x', '\\sin x', 'a \\le b', '\\sum', '\\infty', 'x \\to 0', '\\foo x']) {
+// 間距指令：以前照原文顯示「\,」
+ok('顯示：\\, 變成細空白，不是「\\,」', toDisplay('f(x)\\,dx') === 'f(x)\u2009dx', JSON.stringify(toDisplay('f(x)\\,dx')));
+ok('顯示：\\: \\; \\quad \\qquad 變成空白', toDisplay('a\\:b\\;c\\quad d\\qquad e') === 'a\u205Fb\u2004c\u2003d\u2003\u2003e', JSON.stringify(toDisplay('a\\:b\\;c\\quad d\\qquad e')));
+ok('輸入：細空白轉回 \\,，後面不多補空白', fromDisplay('f(x)\u2009dx') === 'f(x)\\,dx', fromDisplay('f(x)\u2009dx'));
+ok('輸入：\\quad 後面接字母要補空白', fromDisplay('a\u2003b') === 'a\\quad b', fromDisplay('a\u2003b'));
+for (const s of ['\\alpha x', '\\sin x', 'a \\le b', '\\sum', '\\infty', 'x \\to 0', '\\foo x', '\\int f(x)\\,dx', 'a\\quad b', 'x\\;y']) {
   const back = fromDisplay(toDisplay(s));
   ok('顯示再轉回 LaTeX 意思相同：' + s, back.replace(/ /g, '') === s.replace(/ /g, ''), back);
 }
