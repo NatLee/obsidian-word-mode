@@ -15,3 +15,6 @@ Thumbs.db
 
 # 測試打包的暫存檔
 tests/.build/
+
+# README 動畫錄製工具的暫存（打包結果、截圖、Chrome 設定檔）
+docs/record/.cache/

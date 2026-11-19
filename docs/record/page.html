@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Word Mode recording</title>
+<!-- 錄製 README 動畫用的頁面：Obsidian 的外框、外掛的樣式，以及外掛在 Obsidian 裡會用到的函式庫 -->
+<link rel="stylesheet" href="obsidian.css">
+<link rel="stylesheet" href=".cache/plugin.css">
+<script>
+  // 不輸出給螢幕閱讀器的 MathML 副本（少了 MathJax 的整頁樣式時會直接顯示出來）
+  window.MathJax = { startup: { typeset: false }, svg: { fontCache: 'local' }, options: { enableAssistiveMml: false } };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js" async></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js" data-manual></script>
+<script src=".cache/bundle.js"></script>
+<script src="stage.js"></script>
+</head>
+<body>
+<div class="app">
+  <div class="side-ribbon" id="side-ribbon"></div>
+  <div class="main">
+    <div class="tab-bar"><div class="tab is-active" id="tab"></div></div>
+    <div class="leaf" id="leaf"></div>
+  </div>
+</div>
+<svg id="cursor" class="hidden" viewBox="0 0 24 24"><path d="M5 2.5 L5 19.5 L9.3 15.4 L12.2 21.8 L15 20.6 L12.2 14.3 L18.2 14.3 Z" fill="#111" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>
+<div id="keys" class="hidden"></div>
+</body>
+</html>
