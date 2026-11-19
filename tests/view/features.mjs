@@ -361,6 +361,9 @@ await fresh('面積公式：\n');
   eq = mock.Modal.last;
   await sleep(25);
   assert(eq.contentEl.querySelector('.wm-mv-sup') && eq.contentEl.querySelector('.wm-mv-sqrt'), '既有的方程式拆成上標與根號的格子');
+  // 根號畫成 SVG（跟著內容伸長），不是固定大小的「√」字元；開頭不會多出文字
+  const radical = eq.contentEl.querySelector('.wm-mv-sqrt > .wm-mv-radical');
+  assert(radical && radical.querySelector('svg line') && radical.querySelector('svg svg polyline') && radical.textContent === '', '根號是會伸長的 SVG');
   eq.contentEl.querySelector('button.mod-cta').click();
   assert(out() === '公式 $x^2 + \\sqrt{y}$ 結束\n', '沒有修改：原本的 LaTeX 一字不動：' + JSON.stringify(out()));
   math.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }));
@@ -379,6 +382,17 @@ await fresh('面積公式：\n');
   assert(eq.contentEl.querySelectorAll('.wm-mv-cell').length === 4, '切回視覺化：矩陣顯示成 2×2 的格子');
   eq.contentEl.querySelector('.wm-mv-env-btn').click();
   assert(eq.contentEl.querySelectorAll('.wm-mv-cell').length === 6 && eq.ta.value.includes('3 & 4 \\\\  & '), '矩陣可以加一列：' + eq.ta.value);
+  // 括號一律用同一套會伸長的畫法：矩陣類環境依種類畫括號（matrix 沒有、cases 只有左邊），\binom、\left…\right 也一樣；
+  // 右側的括號是左側的鏡像；不認得的分隔符號照原文顯示，「.」不顯示
+  eq.setEdit('latex');
+  eq.ta.value = '\\begin{pmatrix} a \\end{pmatrix} \\begin{vmatrix} a \\end{vmatrix} \\begin{matrix} a \\end{matrix} \\begin{cases} a \\end{cases} \\binom{n}{k} \\left\\langle x \\right\\rangle \\left/ x \\right.';
+  eq.setEdit('visual');
+  const drawn = [...eq.contentEl.querySelectorAll('.wm-mv-delim.is-drawn')].map(d => d.dataset.delim + (d.classList.contains('is-mirror') ? 'R' : '')).join(' ');
+  assert(drawn === '( (R | | { ( (R ⟨ ⟨R', '各種括號畫成會伸長的 SVG：' + drawn);
+  const plainDelims = [...eq.contentEl.querySelectorAll('.wm-mv-delim:not(.is-drawn)')].map(d => d.textContent);
+  // cases 的右邊、\right. 都是「.」：空的元素
+  assert(plainDelims.join(',') === ',/,', '不認得的分隔符號照原文、\\right. 不顯示：' + JSON.stringify(plainDelims));
+  assert(!eq.contentEl.querySelector('.wm-mv-env[data-env="matrix"] .wm-mv-delim'), 'matrix 兩側沒有括號');
   eq.close();
   plugin.settings.mathMode = 'latex';
   view.openEquation();
