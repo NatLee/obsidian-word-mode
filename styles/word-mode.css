@@ -1031,7 +1031,40 @@ audio.wm-embed-media { width: 100%; }
 .wm-mv-hbmark > svg { display: block; flex: none; height: 100%; overflow: visible; fill: none; stroke: currentColor; stroke-width: 1.5px; stroke-linecap: round; stroke-linejoin: round; }
 .wm-mv-hbmark > .wm-mv-hbcap { width: calc(var(--hb-h) * .9); }
 .wm-mv-hbmark > .wm-mv-hbmid { width: calc(var(--hb-h) * 1.1); }
-.wm-mv-hbmark > .wm-mv-hbext { flex: 1 1 0; width: auto; min-width: 0; stroke-linecap: butt; }
+/* 直線段的寬度是 0、只靠 flex 伸長：寬度 auto 時 SVG 會用 viewBox 的比例算出一個括號高的寬度，
+   兩段加起來讓括號至少有兩個字寬，蓋在單一個字母上面比 MathJax 畫的寬很多 */
+.wm-mv-hbmark > .wm-mv-hbext { flex: 1 1 0; width: 0; min-width: 0; stroke-linecap: butt; }
+/* 上下括號疊在一起（\overbrace{a+\underbrace{x}_{k}}^{n}，見 mathvisual.ts 的 stackedBrace）：兩個括號、兩個標籤、內容都在同一個格線裡。
+   五列 1fr auto auto auto 1fr：上面的標籤、上面的括號、內容那一行、下面的括號、下面的標籤；兩個 1fr 一樣高，內容在正中間，兩個括號都貼著內容
+   （以前裡面的括號在另一邊留的空白會把外面的括號推開）。
+   五欄 1fr auto auto auto 1fr：中間三欄是裡面那個括號前面的內容、它的內容、後面的內容。裡面的括號只跟它的內容一樣寬，外面的括號包住三欄；
+   裡面的標籤在中間那一欄，比內容寬時外面的括號跟著變寬（MathJax 也是）；外面的標籤跨過全部五欄，
+   比內容寬時多出來的寬度只分給兩邊的 1fr，外面的括號不會被它撐寬（MathJax 的括號也只跟內容一樣寬）。
+   裡面的括號畫在 .wm-mv-hb-body 裡，用負的外距不算進內容的高度，內容才會跟前後的內容對齊；它佔的高度由 ::after 在旁邊那一列留出來 */
+.wm-mv-hbrace.is-stack { grid-template-columns: 1fr auto auto auto 1fr; grid-template-rows: 1fr auto auto auto 1fr; }
+.wm-mv-hbrace.is-stack::after { grid-area: 4 / 3; }
+.wm-mv-hbrace.is-stack.is-inner-over::after { grid-row: 2; }
+.is-stack > .wm-mv-hb-body { grid-area: 3 / 3; align-self: center; }
+.is-stack > .wm-mv-hb-body > .wm-mv-hbmark.is-under { margin-bottom: calc(-1 * var(--hb-h)); transform: scaleY(-1); }
+.is-stack > .wm-mv-hb-body > .wm-mv-hbmark.is-over { order: -1; margin-top: calc(-1 * var(--hb-h)); }
+.is-stack > .wm-mv-hb-edge { grid-row: 3; align-self: center; position: relative; }
+.is-stack > .wm-mv-hb-edge.is-lead { grid-column: 2; }
+.is-stack > .wm-mv-hb-edge.is-trail { grid-column: 4; }
+/* 前後只有一個空的文字格（給游標用）時不佔寬度，外面的括號才會跟裡面的一樣寬；格子疊在內容的左右兩側，一樣點得到 */
+.is-stack > .wm-mv-hb-edge > .wm-mv-text:only-child:empty { position: absolute; top: 50%; transform: translateY(-50%); }
+.is-stack > .wm-mv-hb-edge.is-lead > .wm-mv-text:only-child:empty { right: 0; }
+.is-stack > .wm-mv-hb-edge.is-trail > .wm-mv-text:only-child:empty { left: 0; }
+.is-stack > .wm-mv-hb-label { grid-column: 3; }
+.is-stack > .wm-mv-hb-label.is-outer { grid-column: 1 / 6; }
+.is-stack > .wm-mv-hb-label.is-under { grid-row: 5; align-self: start; }
+.is-stack > .wm-mv-hbmark { grid-column: 2 / 5; justify-self: stretch; }
+.is-stack > .wm-mv-hbmark.is-over { grid-row: 2; }
+.is-stack > .wm-mv-hbmark.is-under { grid-row: 4; transform: scaleY(-1); }
+/* 編號（\tag{…}）：括號由 CSS 加上（\tag*{…} 不加括號）。在最外層時跟輸出一樣靠右，所以最外層的一列要撐滿整個編輯區 */
+.wm-mv > .wm-mv-row { flex: 1 1 auto; }
+.wm-mv-group[data-cmd="tag"]::before { content: '('; color: var(--text-muted); }
+.wm-mv-group[data-cmd="tag"]::after { content: ')'; color: var(--text-muted); }
+.wm-mv > .wm-mv-row > .wm-mv-group[data-cmd="tag"], .wm-mv > .wm-mv-row > .wm-mv-group[data-cmd="tag*"] { margin-left: auto; padding-left: 1em; }
 /* 括號跟裡面的內容一樣高：\left…\right、\binom、矩陣類環境的表格都用同一種外框 */
 .wm-mv-paren, .wm-mv-binom, .wm-mv-env-body { display: inline-flex; align-items: stretch; }
 .wm-mv-delim { display: inline-flex; align-items: center; font-size: 1.3em; color: var(--text-muted); user-select: none; }

@@ -415,6 +415,57 @@ await fresh('面積公式：\n');
     '按鈕的示意圖：字型類放範例字：' + demoOf('\\mathbb{}'));
   eq.close();
 
+  // 連按「上括號」「下括號」：第二個插在第一個的內容格裡。兩個括號排在同一個格線裡（is-stack），都貼著內容；
+  // 以前外面的括號被裡面那個留的空白推開，離內容很遠，還多包住前後的空格子，看起來比裡面的寬
+  await fresh('疊在一起：\n');
+  view.openEquation();
+  eq = mock.Modal.last;
+  await sleep(25);
+  qa('.wm-eq-cat').find(b => b.textContent === '標記').click();
+  snippet('\\overbrace{}^{}').click();
+  snippet('\\underbrace{}_{}').click();
+  const stack = q('.wm-mv-hbrace.is-stack.is-inner-under');
+  assert(stack && stack.querySelector(':scope > .wm-mv-hbmark.is-outer.is-over') && stack.querySelector(':scope > .wm-mv-hb-body > .wm-mv-hbmark.is-under')
+    && stack.querySelector(':scope > .wm-mv-hb-label.is-outer.is-over') && stack.querySelector(':scope > .wm-mv-hb-label.is-under:not(.is-outer)')
+    && !q('.wm-mv-hbrace:not(.is-stack)'), '上括號裡是下括號：疊在一起排，裡面的括號畫在它的內容旁邊');
+  typeIn(stack.querySelector('.wm-mv-hb-body .wm-mv-text'), 'x');
+  typeIn(stack.querySelector('.wm-mv-hb-label.is-under .wm-mv-text'), 'k');
+  typeIn(stack.querySelector('.wm-mv-hb-label.is-over .wm-mv-text'), 'n');
+  assert(eq.ta.value === '\\overbrace{\\underbrace{x}_{k}}^{n}', '疊在一起的括號：LaTeX 照巢狀寫：' + eq.ta.value);
+  // 格子的順序（Tab）跟模型一樣：前面的內容、裡面的括號的內容與標籤、後面的內容、外面的標籤
+  const stackCells = qa('.wm-mv-hbrace.is-stack .wm-mv-text').map(s => s.closest('.wm-mv-hb-edge, .wm-mv-hb-body, .wm-mv-hb-label').className.replace('wm-mv-', '')).join(',');
+  assert(stackCells === 'row wm-mv-hb-edge is-lead,hb-body,hb-label is-under,row wm-mv-hb-edge is-trail,hb-label is-outer is-over', '格子的順序：' + stackCells);
+  // 在內容前面打字：還是疊在一起排（外面的括號連這些字一起包住，由 CSS 排）
+  typeIn(stack.querySelector('.wm-mv-hb-edge.is-lead .wm-mv-text'), 'a+');
+  assert(q('.wm-mv-hbrace.is-stack') === stack && eq.ta.value === '\\overbrace{a+\\underbrace{x}_{k}}^{n}', '內容前面有字：' + eq.ta.value);
+  // 前後有分數這類結構也一樣疊在一起排；有兩個相反方向的括號時用一般的排法
+  eq.setEdit('latex');
+  eq.ta.value = '\\overbrace{\\frac{1}{2}+\\underbrace{x}_{k}+c}^{n} + \\overbrace{\\underbrace{a}_{1}+\\underbrace{b}_{2}}^{m}';
+  eq.setEdit('visual');
+  const stacks = qa('.wm-mv-hbrace.is-stack');
+  assert(stacks.length === 1 && stacks[0].querySelector(':scope > .wm-mv-hb-edge.is-lead .wm-mv-frac') && qa('.wm-mv-hbrace:not(.is-stack)').length === 3, '前面有分數：疊在一起排；兩個下括號：一般的排法');
+  eq.close();
+
+  // 編號：顯示成「(1)」的一格（括號由 CSS 加上），不是「\tag」；行內的方程式不會顯示編號，預覽上方提醒
+  await fresh('質能：\n');
+  view.openEquation();
+  eq = mock.Modal.last;
+  await sleep(25);
+  const placeBtns = qa('.wm-eq-top .wm-seg:not(.wm-eq-modes) button');
+  placeBtns[0].click(); // 文字中（行內）
+  const eqText = qa('.wm-mv-text').pop();
+  typeIn(eqText, 'E=mc');
+  eq.field.place(eqText, 4); // 游標在打的字後面（jsdom 換掉文字後游標會留在開頭）
+  qa('.wm-eq-cat').find(b => b.textContent === '結構').click();
+  snippet('\\tag{1}').click();
+  const tagEl = q('.wm-mv-group[data-cmd="tag"]');
+  assert(tagEl && tagEl.textContent === '1' && !q('.wm-mv').textContent.includes('\\tag') && eq.ta.value === 'E=mc\\tag{1}', '編號：一格，不顯示指令原文：' + eq.ta.value);
+  await sleep(200);
+  assert(eq.err.textContent === '編號只會顯示在獨立一行的方程式', '行內的方程式有編號：提醒只有獨立一行才顯示：' + eq.err.textContent);
+  placeBtns[1].click(); // 獨立一行
+  assert(!eq.err.textContent, '改成獨立一行：提醒消失');
+  eq.close();
+
   // 既有的方程式：沒有在格子裡改東西就不會動到原本的寫法
   await fresh('公式 $x^2 + \\sqrt{y}$ 結束\n');
   const math = view.pm.dom.querySelector('.wm-raw-inline.is-math');

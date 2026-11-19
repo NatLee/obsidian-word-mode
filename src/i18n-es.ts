@@ -709,6 +709,7 @@ export default {
  "複製 LaTeX": "Copiar LaTeX",
  "刪除方程式": "Eliminar ecuación",
  "大括號 { } 沒有成對": "Llaves { } sin pareja",
+ "編號只會顯示在獨立一行的方程式": "Los números solo se muestran en ecuaciones en su propia línea",
  "語法錯誤，請檢查 LaTeX": "Error de sintaxis: revisa el LaTeX",
  "編輯方程式…": "Editar ecuación…",
  "改成文字中（行內）": "Poner en línea",

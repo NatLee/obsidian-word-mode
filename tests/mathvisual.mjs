@@ -47,6 +47,11 @@ ok('上括號後面的 _ 不是標籤，是一般的下標', kinds('\\overbrace{
 ok('沒有標籤：標籤格是空的，輸出時不加 ^{}', toLatex(parseLatex('\\overbrace{a}^{}')) === '\\overbrace{a}' && parseLatex('\\overbrace{a}')[1].b.length === 1);
 ok('沒有 { } 的寫法看不懂，照原文', kinds('\\overbrace x') === 'text' && rt('\\overbrace x') === '\\overbrace x');
 
+// 編號：\tag{…} 與不加括號的 \tag*{…} 是一格（以前格子裡照原文顯示「\tag」）
+for (const s of ['E = mc^{2} \\tag{1}', 'a \\tag*{A.1}', '\\tag{1.2}']) ok('往返：' + s, rt(s) === s, rt(s));
+const tag = parseLatex('E \\tag{1}')[1], tagStar = parseLatex('\\tag*{x}')[1];
+ok('編號的結構', tag.t === 'group' && tag.cmd === '\\tag' && toLatex(tag.a) === '1' && tagStar.t === 'group' && tagStar.cmd === '\\tag*', JSON.stringify([tag.cmd, tagStar.cmd]));
+
 // 符號顯示
 ok('顯示：\\alpha + \\beta → α+ β', toDisplay('\\alpha + \\beta') === 'α+ β', toDisplay('\\alpha + \\beta'));
 ok('顯示：\\sin x → sin x', toDisplay('\\sin x') === 'sin x', toDisplay('\\sin x'));

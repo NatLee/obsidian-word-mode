@@ -85,7 +85,7 @@ const FRACS = ['\\frac', '\\dfrac', '\\tfrac', '\\binom'];
 // 上括號、下括號：標籤寫成接在後面的 ^{…}（上括號）或 _{…}（下括號），TeX 會把它放在括號的正上方／正下方。
 // 以前不認得這兩個指令，格子裡照原文顯示「\overbrace」，標籤還被當成右上角的上標
 const H_BRACES: Record<string, '^' | '_'> = { '\\overbrace': '^', '\\underbrace': '_' };
-export const GROUP_CMDS = ['\\vec', '\\bar', '\\hat', '\\tilde', '\\dot', '\\ddot', '\\overline', '\\underline', '\\mathbf', '\\mathbb', '\\mathrm', '\\mathcal', '\\mathit', '\\text', '\\boldsymbol', '\\overrightarrow'];
+export const GROUP_CMDS = ['\\vec', '\\bar', '\\hat', '\\tilde', '\\dot', '\\ddot', '\\overline', '\\underline', '\\mathbf', '\\mathbb', '\\mathrm', '\\mathcal', '\\mathit', '\\text', '\\boldsymbol', '\\overrightarrow', '\\tag'];
 const ENVS = ['matrix', 'bmatrix', 'pmatrix', 'vmatrix', 'Bmatrix', 'Vmatrix', 'cases', 'aligned', 'align', 'array', 'gathered'];
 
 class ParseError extends Error {}
@@ -142,9 +142,11 @@ function parseRow(s: string, pos: number, stops: string[]): RowResult {
         continue;
       }
       if (GROUP_CMDS.includes(c)) {
+        // \tag*{…}（編號不加括號）：指令名稱只抓到 \tag，星號要一起算進去
+        const cmd = c === '\\tag' && s[pos + c.length] === '*' ? '\\tag*' : c;
         const save = pos;
-        pos += c.length; skipSpace();
-        if (s[pos] === '{') { flush(); row.push({ t: 'group', cmd: c, a: group() }); continue; }
+        pos += cmd.length; skipSpace();
+        if (s[pos] === '{') { flush(); row.push({ t: 'group', cmd, a: group() }); continue; }
         pos = save;
       }
       if (H_BRACES[c]) {
@@ -251,7 +253,8 @@ export function normalize(row: MathRow): MathRow {
 // ---------------------------------------------------------------- 編輯元件
 const MARK = '\u0001'; // 插入後游標要停的位置（暫時的記號）
 // \text{…} 等裡面是一般文字：不把 sin 變成 \sin、不把 α 變成 \alpha
-const PLAIN_GROUPS = new Set(['\\text', '\\mathrm', '\\mathit']);
+// 編號（\tag）裡面也是一般文字（MathJax 照文字排），一樣不轉換
+const PLAIN_GROUPS = new Set(['\\text', '\\mathrm', '\\mathit', '\\tag', '\\tag*']);
 // 字上面另外畫一個符號的結構（向量箭頭、上橫線、^、~、點，畫法見 accentMark）：符號要佔高度，
 // 外面的分數線、根號才不會壓到它（見 CSS 的 .has-accent）
 const ACCENTS = new Set(['\\vec', '\\overrightarrow', '\\bar', '\\overline', '\\hat', '\\tilde', '\\dot', '\\ddot']);
@@ -407,7 +410,7 @@ function drawDelim(doc: Document, parent: HTMLElement, d: string): void {
 // 中間的直線（.wm-mv-hbext）跟著內容的寬度伸長。形狀是 DELIM_SHAPES 的「{」轉成橫的（x、y 對調）：
 // 每段高 10 單位、線在 y = 5，兩端寬 9、尖角寬 11（CSS 的寬度要跟這些比例一致）。
 // 畫的是上括號（尖角朝上、兩端往下彎），下括號由 CSS 上下翻轉
-function horizontalBrace(doc: Document, parent: HTMLElement, over: boolean): void {
+function horizontalBrace(doc: Document, parent: HTMLElement, over: boolean): HTMLSpanElement {
   const box = drawnBox('wm-mv-hbmark', over ? '⏞' : '⏟', parent);
   const piece = (cls: string, w: number, path: string, stretch?: boolean): void => {
     const attrs: Record<string, string> = { class: cls, viewBox: `0 0 ${w} 10`, 'aria-hidden': 'true', focusable: 'false' };
@@ -421,6 +424,13 @@ function horizontalBrace(doc: Document, parent: HTMLElement, over: boolean): voi
   piece('wm-mv-hbmid', 11, 'M0,5C3.6,5 5.1,4 5.5,1.2C5.9,4 7.4,5 11,5');
   ext();
   piece('wm-mv-hbcap', 9, 'M0,5H4.5C7,5 8.2,6 8.2,8.8');
+  return box;
+}
+// 上括號的內容裡（最外層）剛好有一個下括號（或相反）時，裡面那個括號：\overbrace{\underbrace{x}_{k}}^{n}、
+// \overbrace{a+\underbrace{x}_{k}+\frac{1}{2}}^{n} 這種寫法。前後的其他內容照樣排在同一列
+function stackedBrace(it: BraceItem): BraceItem | null {
+  const inner = it.a.filter((x): x is BraceItem => x.t === 'brace' && x.cmd !== it.cmd);
+  return inner.length === 1 ? inner[0] : null;
 }
 
 export class MathField {
@@ -584,11 +594,12 @@ export class MathField {
     if (focusItem && this.byItem.get(focusItem)) this.place(this.byItem.get(focusItem)!, 0);
   }
 
-  // 一列的畫面。上下標另外排：只改畫面的結構，模型與 DOM 裡格子的順序（游標移動的順序）都不變
-  renderRow(row: MathRow, plain?: boolean): HTMLSpanElement {
+  // 一列的畫面。上下標另外排：只改畫面的結構，模型與 DOM 裡格子的順序（游標移動的順序）都不變。
+  // from、to：只畫這一列的一段（疊在一起的上下括號，裡面那個括號前後的內容分開排，見 renderItem）
+  renderRow(row: MathRow, plain?: boolean, from = 0, to = row.length): HTMLSpanElement {
     const box = el('span', 'wm-mv-row');
-    let i = 0;
-    while (i < row.length) {
+    let i = from;
+    while (i < to) {
       const it = row[i];
       if (!isScript(it)) {
         box.appendChild(it.t === 'text' ? this.renderText(row, i, plain) : this.renderItem(it, row));
@@ -601,7 +612,7 @@ export class MathField {
       scripts.appendChild(this.renderItem(it, row));
       const mid = row[i + 1], other = row[i + 2];
       let used = 1;
-      if (mid && mid.t === 'text' && !mid.v && isScript(other) && other.t !== it.t) {
+      if (i + 2 < to && mid && mid.t === 'text' && !mid.v && isScript(other) && other.t !== it.t) {
         scripts.classList.add('is-pair');
         scripts.appendChild(this.renderText(row, i + 1, plain));
         scripts.appendChild(this.renderItem(other, row));
@@ -659,9 +670,10 @@ export class MathField {
 
   // row：這個項目所在的列（記下每個格子屬於哪個項目，Backspace 往外刪的時候用）
   renderItem(it: MathItem, row: MathRow): HTMLSpanElement {
-    const slot = (cls: string, inner: MathRow, parent: HTMLElement | null, plain?: boolean): HTMLSpanElement => {
+    // own：這一格屬於哪個結構（預設是 it；疊在一起的上下括號，裡面那個括號的格子屬於裡面的括號）
+    const slot = (cls: string, inner: MathRow, parent: HTMLElement | null, plain?: boolean, own: Owner = { item: it, row }): HTMLSpanElement => {
       const s = el('span', cls, parent);
-      this.owner.set(inner, { item: it, row });
+      this.owner.set(inner, own);
       s.appendChild(this.renderRow(inner, plain));
       return s;
     };
@@ -695,6 +707,30 @@ export class MathField {
         accentMark(this.host.ownerDocument, f, it.cmd);
         f.classList.toggle('is-low', LOW_TEXT.test(inner.textContent || ''));
       }
+      return f;
+    }
+    if (it.t === 'brace' && stackedBrace(it)) {
+      // 上下括號疊在一起：兩個括號、兩個標籤、內容都排在同一個格線裡（CSS 的 .wm-mv-hbrace.is-stack），
+      // 兩個括號都貼著內容，跟 MathJax 畫出來的一樣。照一般的排法，裡面的括號為了讓內容置中，
+      // 在另一邊留了跟標籤加括號一樣高的空白，外面的括號會被這段空白推開，離內容很遠。
+      // 裡面那個括號前後的內容（lead、trail）各自排成一段，放在內容的左右兩邊，外面的括號連它們一起包住。
+      // 只改畫面：格子的順序跟模型一樣（前面的內容、裡面的括號的內容與標籤、後面的內容、外面的標籤）
+      const inner = stackedBrace(it)!;
+      const at = it.a.indexOf(inner);
+      const over = it.cmd === '\\overbrace';
+      const doc = this.host.ownerDocument;
+      const f = el('span', 'wm-mv-hbrace is-stack ' + (over ? 'is-inner-under' : 'is-inner-over'));
+      const innerOwn: Owner = { item: inner, row: it.a };
+      this.owner.set(it.a, { item: it, row });
+      // normalize 之後結構前後一定有文字格，所以兩段都至少有一格
+      f.appendChild(this.renderRow(it.a, false, 0, at)).classList.add('wm-mv-hb-edge', 'is-lead');
+      // 裡面的括號畫在它的內容旁邊（前後有比較高的內容時，括號一樣貼著自己的內容）
+      const body = slot('wm-mv-hb-body', inner.a, f, false, innerOwn);
+      horizontalBrace(doc, body, !over).classList.add(over ? 'is-under' : 'is-over');
+      slot('wm-mv-hb-label ' + (over ? 'is-under' : 'is-over'), inner.b, f, false, innerOwn);
+      f.appendChild(this.renderRow(it.a, false, at + 1)).classList.add('wm-mv-hb-edge', 'is-trail');
+      slot('wm-mv-hb-label is-outer ' + (over ? 'is-over' : 'is-under'), it.b, f);
+      horizontalBrace(doc, f, over).classList.add('is-outer', over ? 'is-over' : 'is-under');
       return f;
     }
     if (it.t === 'brace') {
