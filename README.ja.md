@@ -1,6 +1,6 @@
 # Word Mode
 
-[English](README.md) | [繁體中文](README.zh-TW.md) | [台文](README.nan-TW.md) | [简体中文](README.zh-CN.md) | **日本語** | [한국어](README.ko.md) | [Español](README.es.md) | [العربية](README.ar.md) | [עברית](README.he.md)
+[English](README.md) | [繁體中文](README.zh-TW.md) | [台文](README.nan-TW.md) | [粵語](README.yue-HK.md) | [简体中文](README.zh-CN.md) | **日本語** | [한국어](README.ko.md) | [Tiếng Việt](README.vi.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [العربية](README.ar.md) | [עברית](README.he.md)
 
 [Obsidian](https://obsidian.md) のノートを Word のように編集できます。リボンツールバー、表、数式、図に対応し、Markdown の記法を覚える必要はありません。ノートはすべてプレーンな Markdown ファイルのまま保存されます。
 
@@ -101,7 +101,7 @@
 - **Markdown テキストの貼り付け**：ワンクリックで書式に変換できます。
 - **同期の競合への対応**：未保存の変更があるノートがディスク上で変更された場合、どちらを残すか選べます。
 - **ショートカット一覧**：検索やカテゴリでの絞り込みができ、項目を選ぶとそのショートカットの動きを短いアニメーションで確認できます。
-- インターフェース言語：繁体字中国語、台湾語（漢字）、簡体字中国語、英語、日本語、韓国語、スペイン語、アラビア語、ヘブライ語。
+- インターフェース言語：繁体字中国語、台湾語（漢字）、広東語、簡体字中国語、英語、日本語、韓国語、ベトナム語、フランス語、ドイツ語、スペイン語、アラビア語、ヘブライ語。
 
 HTML ブロックなど、Word Mode で視覚的に編集できない内容は、原文ブロックとして表示され、そのまま保存されます。
 

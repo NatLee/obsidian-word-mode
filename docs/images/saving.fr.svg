@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 430" width="1200" height="430" role="img" aria-label="Seul le bloc modifié est réécrit. Tout le reste est conservé caractère pour caractère.">
+<title>Seul le bloc modifié est réécrit. Tout le reste est conservé caractère pour caractère.</title>
+<rect x="0.5" y="0.5" width="1199" height="429" rx="10" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1"/>
+<text x="30" y="44" font-family="'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="15" fill="#1f2328" font-weight="600">Fichier Markdown</text>
+<text x="435" y="44" font-family="'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="15" fill="#1f2328" font-weight="600">Vous modifiez un paragraphe</text>
+<text x="840" y="44" font-family="'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="15" fill="#1f2328" font-weight="600">Fichier enregistré</text>
+<rect x="30" y="66" width="330" height="56" rx="7" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+<text x="46" y="100" font-family="ui-monospace, 'Cascadia Mono', Consolas, monospace" font-size="13" fill="#1f2328"># Réunion hebdomadaire</text>
+<rect x="30" y="134" width="330" height="56" rx="7" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+<text x="46" y="168" font-family="ui-monospace, 'Cascadia Mono', Consolas, monospace" font-size="13" fill="#1f2328">Cette semaine : **finir** la v1.</text>
+<rect x="30" y="202" width="330" height="56" rx="7" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+<text x="46" y="236" font-family="ui-monospace, 'Cascadia Mono', Consolas, monospace" font-size="13" fill="#1f2328">- [x] Mettre à jour la doc  …</text>
+<rect x="30" y="270" width="330" height="56" rx="7" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+<text x="46" y="304" font-family="ui-monospace, 'Cascadia Mono', Consolas, monospace" font-size="13" fill="#1f2328">| Tâche | Responsable |  …</text>
+<rect x="435" y="66" width="330" height="260" rx="7" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+<text x="457" y="108" font-family="'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="21" fill="#1f2328" font-weight="700">Réunion hebdomadaire</text>
+<rect x="447" y="136" width="306" height="52" rx="6" fill="#fff1e0" stroke="#f0a54a" stroke-width="1"/>
+<text x="457" y="169" font-family="'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="14" fill="#1f2328" xml:space="preserve" textLength="286" lengthAdjust="spacingAndGlyphs"><tspan>Cette semaine : </tspan><tspan font-weight="700">finir</tspan><tspan> la v1</tspan><tspan fill="#b35900" font-weight="600"> avant vendredi</tspan><tspan>.</tspan></text>
+<rect x="458" y="223" width="14" height="14" rx="3" fill="#6f52d9"/>
+<path d="M461 230.5l3 3 5-6" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="481" y="236" font-family="'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="14" fill="#656d76" text-decoration="line-through">Mettre à jour la doc</text>
+<rect x="457" y="278" width="200" height="20" rx="0" fill="#f3f4f6"/>
+<text x="465" y="292.5" font-family="'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="12" fill="#1f2328" font-weight="600">Tâche</text>
+<text x="565" y="292.5" font-family="'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="12" fill="#1f2328" font-weight="600">Responsable</text>
+<text x="465" y="312.5" font-family="'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="12" fill="#1f2328">Tests</text>
+<text x="565" y="312.5" font-family="'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="12" fill="#1f2328">Léa</text>
+<line x1="457" y1="278" x2="657" y2="278" stroke="#c9d1d9" stroke-width="1"/>
+<line x1="457" y1="298" x2="657" y2="298" stroke="#c9d1d9" stroke-width="1"/>
+<line x1="457" y1="318" x2="657" y2="318" stroke="#c9d1d9" stroke-width="1"/>
+<line x1="457" y1="278" x2="457" y2="318" stroke="#c9d1d9" stroke-width="1"/>
+<line x1="557" y1="278" x2="557" y2="318" stroke="#c9d1d9" stroke-width="1"/>
+<line x1="657" y1="278" x2="657" y2="318" stroke="#c9d1d9" stroke-width="1"/>
+<rect x="840" y="66" width="330" height="56" rx="7" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+<text x="856" y="90" font-family="ui-monospace, 'Cascadia Mono', Consolas, monospace" font-size="13" fill="#1f2328"># Réunion hebdomadaire</text>
+<path d="M857 107l3 3 5.5-6.5" fill="none" stroke="#1a7f37" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="872" y="112" font-family="'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="11.5" fill="#1a7f37" font-weight="600">inchangé</text>
+<rect x="840" y="134" width="330" height="56" rx="7" fill="#fff1e0" stroke="#f0a54a" stroke-width="1"/>
+<text x="856" y="158" font-family="ui-monospace, 'Cascadia Mono', Consolas, monospace" font-size="13" fill="#1f2328" textLength="298" lengthAdjust="spacingAndGlyphs">Cette semaine : **finir** la v1 avant vendredi.</text>
+<path d="M857 179l8-8M862 171h3v3" fill="none" stroke="#b35900" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="872" y="180" font-family="'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="11.5" fill="#b35900" font-weight="600">réécrit</text>
+<rect x="840" y="202" width="330" height="56" rx="7" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+<text x="856" y="226" font-family="ui-monospace, 'Cascadia Mono', Consolas, monospace" font-size="13" fill="#1f2328">- [x] Mettre à jour la doc  …</text>
+<path d="M857 243l3 3 5.5-6.5" fill="none" stroke="#1a7f37" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="872" y="248" font-family="'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="11.5" fill="#1a7f37" font-weight="600">inchangé</text>
+<rect x="840" y="270" width="330" height="56" rx="7" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+<text x="856" y="294" font-family="ui-monospace, 'Cascadia Mono', Consolas, monospace" font-size="13" fill="#1f2328">| Tâche | Responsable |  …</text>
+<path d="M857 311l3 3 5.5-6.5" fill="none" stroke="#1a7f37" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="872" y="316" font-family="'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="11.5" fill="#1a7f37" font-weight="600">inchangé</text>
+<line x1="376" y1="196" x2="412" y2="196" stroke="#8c959f" stroke-width="2" stroke-linecap="round"/><path d="M410 190 L419 196 L410 202" fill="none" stroke="#8c959f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="781" y1="196" x2="817" y2="196" stroke="#8c959f" stroke-width="2" stroke-linecap="round"/><path d="M815 190 L824 196 L815 202" fill="none" stroke="#8c959f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="600" y="384" font-family="'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="14" fill="#1f2328" text-anchor="middle">Seul le bloc modifié est réécrit. Tout le reste est conservé caractère pour caractère.</text>
+<text x="1172" y="414" font-family="'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="11.5" fill="#8c959f" text-anchor="end">Illustration</text>
+</svg>

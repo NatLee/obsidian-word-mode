@@ -1,6 +1,6 @@
 # Word Mode
 
-[English](README.md) | [繁體中文](README.zh-TW.md) | [台文](README.nan-TW.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | **한국어** | [Español](README.es.md) | [العربية](README.ar.md) | [עברית](README.he.md)
+[English](README.md) | [繁體中文](README.zh-TW.md) | [台文](README.nan-TW.md) | [粵語](README.yue-HK.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | **한국어** | [Tiếng Việt](README.vi.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [العربية](README.ar.md) | [עברית](README.he.md)
 
 [Obsidian](https://obsidian.md) 노트를 Word처럼 편집하세요. 리본 도구 모음, 표, 수식, 다이어그램을 지원하며, Markdown 문법을 외울 필요가 없습니다. 모든 노트는 일반 Markdown 파일 그대로 저장됩니다.
 
@@ -101,7 +101,7 @@
 - **Markdown 텍스트 붙여넣기**: 한 번에 서식으로 변환할 수 있습니다.
 - **동기화 충돌 처리**: 저장하지 않은 수정이 있는 노트가 디스크에서 변경되면 어느 쪽을 유지할지 선택할 수 있습니다.
 - **단축키 목록**: 검색하거나 분류별로 볼 수 있고, 항목을 누르면 그 단축키의 동작을 짧은 애니메이션으로 확인할 수 있습니다.
-- 인터페이스 언어: 중국어 번체, 대만어(한자), 중국어 간체, 영어, 일본어, 한국어, 스페인어, 아랍어, 히브리어.
+- 인터페이스 언어: 중국어 번체, 대만어(한자), 광둥어, 중국어 간체, 영어, 일본어, 한국어, 베트남어, 프랑스어, 독일어, 스페인어, 아랍어, 히브리어.
 
 HTML 블록처럼 Word Mode에서 시각적으로 편집할 수 없는 내용은 원문 블록으로 표시되며 그대로 저장됩니다.
 

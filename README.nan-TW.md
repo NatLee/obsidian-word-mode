@@ -1,6 +1,6 @@
 # Word Mode
 
-[English](README.md) | [繁體中文](README.zh-TW.md) | **台文** | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Español](README.es.md) | [العربية](README.ar.md) | [עברית](README.he.md)
+[English](README.md) | [繁體中文](README.zh-TW.md) | **台文** | [粵語](README.yue-HK.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Tiếng Việt](README.vi.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [العربية](README.ar.md) | [עברית](README.he.md)
 
 親像用 Word 仝款來編輯 [Obsidian](https://obsidian.md) 的筆記：有功能區工具列、表格、方程式、圖表，毋免記 Markdown 語法。逐篇筆記存檔了後，猶原是純 Markdown 檔案。
 
@@ -101,7 +101,7 @@
 - **貼 Markdown 文字**的時陣，會當揤一下就轉做格式。
 - **同步衝突處理**：筆記有猶未存檔的修改，煞閣佇磁碟頂懸予人改過，會當揀欲保留佗一份。
 - **快速鍵說明**：會當揣，抑是干焦看某一類，揤一下快速鍵閣會當看伊效果的動畫示範。
-- 介面語言：繁體中文、台文（漢字）、簡體中文、英文、日文、韓文、西班牙文、阿拉伯文、希伯來文。
+- 介面語言：繁體中文、台文（漢字）、粵語、簡體中文、英文、日文、韓文、越南文、法文、德文、西班牙文、阿拉伯文、希伯來文。
 
 無法度用 Word 方式編輯的內容（像 HTML 區塊）會顯示做原文區塊，存檔的時陣照原樣保留。
 

@@ -94,7 +94,7 @@ The ribbon in Word mode (`src/toolbar.ts`) and the one in Markdown and reading m
 
 ### Interface text
 
-Interface strings are keyed by their Traditional Chinese text. `I18nKey` is `keyof typeof EN`, so a new string that isn't in `src/i18n-en.ts` fails the type check. Add the same key to the other translation files too: `src/i18n-ja.ts`, `i18n-ko.ts`, `i18n-nan.ts` (Taiwanese, Han characters), `i18n-zh-cn.ts`, `i18n-es.ts`, `i18n-ar.ts` and `i18n-he.ts`. A missing key falls back to English (Taiwanese falls back to the Traditional Chinese source). The list of languages, with the name each one shows in the settings, is `LANGUAGE_NAMES` in `src/i18n.ts`.
+Interface strings are keyed by their Traditional Chinese text. `I18nKey` is `keyof typeof EN`, so a new string that isn't in `src/i18n-en.ts` fails the type check. Add the same key to the other translation files too: `src/i18n-ja.ts`, `i18n-ko.ts`, `i18n-nan.ts` (Taiwanese, Han characters), `i18n-yue.ts` (Cantonese), `i18n-zh-cn.ts`, `i18n-vi.ts`, `i18n-fr.ts`, `i18n-de.ts`, `i18n-es.ts`, `i18n-ar.ts` and `i18n-he.ts`. A missing key falls back to English (Taiwanese and Cantonese fall back to the Traditional Chinese source). The list of languages, with the name each one shows in the settings, is `LANGUAGE_NAMES` in `src/i18n.ts`.
 
 ### Styles
 
@@ -155,7 +155,7 @@ All styles are in `styles/word-mode.css`, and every class starts with `wm-`. The
 - **Obsidian API version**: the `obsidian` typings are pinned to the version in `minAppVersion` (1.5.7), so using a newer API fails the type check. To raise the minimum version, update `minAppVersion` in `manifest.json` and install the matching `obsidian` package.
 - **APIs that aren't public** are declared in one place, `src/obsidian-internal.d.ts`, each as optional. Check that a member exists before you call it, so that only one feature is lost if Obsidian changes it.
 - **Write new logic in the pure modules** (`commands.ts`, `markdown.ts`, `diagrams.ts`, and so on) when you can. They can be tested without Obsidian.
-- **Keep the nine READMEs in step** (`README.md` and `README.<lang>.md` for `zh-TW`, `nan-TW` (Taiwanese), `zh-CN`, `ja`, `ko`, `es`, `ar`, `he`) when a feature changes. The Arabic and Hebrew READMEs are wrapped in `<div dir="rtl">`. The animations are recorded in English, Traditional Chinese, Japanese and Korean only: the Taiwanese and Simplified Chinese READMEs use the Traditional Chinese ones, and the Spanish, Arabic and Hebrew READMEs use the English ones. The saving illustration (`docs/images/generate.mjs`) exists in all nine languages; for Arabic and Hebrew it is mirrored.
+- **Keep the thirteen READMEs in step** (`README.md` and `README.<lang>.md` for `zh-TW`, `nan-TW` (Taiwanese), `yue-HK` (Cantonese), `zh-CN`, `ja`, `ko`, `vi`, `fr`, `de`, `es`, `ar`, `he`) when a feature changes. The Arabic and Hebrew READMEs are wrapped in `<div dir="rtl">`. The animations are recorded in English, Traditional Chinese, Japanese and Korean only: the Taiwanese, Cantonese and Simplified Chinese READMEs use the Traditional Chinese ones, and the other READMEs use the English ones. The saving illustration (`docs/images/generate.mjs`) exists in every language; for Arabic and Hebrew it is mirrored.
 
 Before you open a pull request, run `npm test`, `npm run lint`, and `npm run build`, and search `src/` for `(?<=` and `(?<!`.
 

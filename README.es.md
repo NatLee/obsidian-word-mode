@@ -1,6 +1,6 @@
 # Word Mode
 
-[English](README.md) | [繁體中文](README.zh-TW.md) | [台文](README.nan-TW.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | **Español** | [العربية](README.ar.md) | [עברית](README.he.md)
+[English](README.md) | [繁體中文](README.zh-TW.md) | [台文](README.nan-TW.md) | [粵語](README.yue-HK.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Tiếng Việt](README.vi.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | **Español** | [العربية](README.ar.md) | [עברית](README.he.md)
 
 Edita tus notas de [Obsidian](https://obsidian.md) como lo harías en Word: con una cinta de opciones, tablas, ecuaciones y diagramas, y sin tener que recordar la sintaxis de Markdown. Cada nota se sigue guardando como un archivo Markdown normal.
 
@@ -101,7 +101,7 @@ Es lo que se ve en la animación del principio. Empieza un párrafo con `# `, `-
 - **Pega texto Markdown** y conviértelo en texto con formato en un solo paso.
 - **Gestión de conflictos de sincronización**: si una nota cambia en el disco mientras tienes cambios sin guardar, eliges qué versión conservar.
 - **Lista de atajos**: busca en ella o elige una categoría, y selecciona un atajo para ver una breve animación de lo que hace.
-- Interfaz en chino tradicional, taiwanés (caracteres han), chino simplificado, inglés, japonés, coreano, español, árabe y hebreo.
+- Interfaz en chino tradicional, taiwanés (caracteres han), cantonés, chino simplificado, inglés, japonés, coreano, vietnamita, francés, alemán, español, árabe y hebreo.
 
 Todo lo que Word Mode no puede editar visualmente, como un bloque HTML, se muestra como un bloque sin procesar y se guarda sin cambios.
 

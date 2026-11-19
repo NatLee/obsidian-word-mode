@@ -1,6 +1,6 @@
 # Word Mode
 
-[English](README.md) | [繁體中文](README.zh-TW.md) | [台文](README.nan-TW.md) | **简体中文** | [日本語](README.ja.md) | [한국어](README.ko.md) | [Español](README.es.md) | [العربية](README.ar.md) | [עברית](README.he.md)
+[English](README.md) | [繁體中文](README.zh-TW.md) | [台文](README.nan-TW.md) | [粵語](README.yue-HK.md) | **简体中文** | [日本語](README.ja.md) | [한국어](README.ko.md) | [Tiếng Việt](README.vi.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [العربية](README.ar.md) | [עברית](README.he.md)
 
 像用 Word 一样编辑 [Obsidian](https://obsidian.md) 笔记：有功能区工具栏、表格、公式、图表，无需记忆 Markdown 语法。每篇笔记保存后仍然是纯 Markdown 文件。
 
@@ -101,7 +101,7 @@
 - **粘贴 Markdown 文本**时可以一键转换格式。
 - **同步冲突处理**：笔记有未保存的修改时又在磁盘上被修改，可以选择要保留哪一份。
 - **快捷键说明**：可以搜索或只看某一类，点击快捷键还能看到其效果的动画演示。
-- 界面语言：繁体中文、台语（汉字）、简体中文、英语、日语、韩语、西班牙语、阿拉伯语、希伯来语。
+- 界面语言：繁体中文、台语（汉字）、粤语、简体中文、英语、日语、韩语、越南语、法语、德语、西班牙语、阿拉伯语、希伯来语。
 
 无法以 Word 方式编辑的内容（例如 HTML 区块）会显示为源码区块，保存时原样保留。
 

@@ -25,7 +25,7 @@ Word Mode 是 Obsidian 外掛：用 ProseMirror 把 Markdown 筆記變成像 Wor
 - **`src/main.ts`**：外掛進入點、`Settings` 與 `DEFAULTS`、Word ⇄ Markdown 切換（包了 `WorkspaceLeaf.setViewState`）。設定頁的內容只在 `settingSections()` 描述一次，舊版的 `display()` 與 Obsidian 1.13 的 `getSettingDefinitions()` 都用它。
 - **兩條功能區要長得一樣**：`toolbar.ts`（Word 模式）與 `mdbar.ts`（Markdown／閱讀模式）共用 `TABS`、`GROUPS`、同樣的 DOM 結構與 CSS 類別。改其中一邊的版面，另一邊要跟著改。
 - **圖表編輯器是資料驅動的**：`src/diagrams.ts` 每種圖表一份 `DiagramKind`（怎麼讀、怎麼寫回、表單欄位）；`src/mermaid.ts` 依這份描述畫表單與「在圖上編輯」。只有「讀進來再寫出去內容不變」的圖才開表單，否則開程式碼並說明原因。
-- **介面文字以繁體中文原文為鍵**。`I18nKey = keyof typeof EN`，新字串沒加進 `src/i18n-en.ts` 型別檢查就會失敗；其他七份翻譯（`ja`、`ko`、`nan` 台文、`zh-cn`、`es`、`ar`、`he`）沒有的鍵會退回英文（台文退回中文原文），但要一併補上。
+- **介面文字以繁體中文原文為鍵**。`I18nKey = keyof typeof EN`，新字串沒加進 `src/i18n-en.ts` 型別檢查就會失敗；其他十一份翻譯（`ja`、`ko`、`nan` 台文、`yue` 粵語、`zh-cn`、`vi`、`fr`、`de`、`es`、`ar`、`he`）沒有的鍵會退回英文（台文、粵語退回中文原文），但要一併補上。
 - **樣式全部在 `styles/word-mode.css`**，類別前綴 `wm-`。檔案是隨版本往後加的，後面的規則會蓋掉前面的；改既有元件前先搜尋它在檔案後段有沒有覆蓋。
 
 各模組的細節與常見修改的做法在 `.claude/context/modules.md`，需要時再讀。
@@ -35,7 +35,7 @@ Word Mode 是 Obsidian 外掛：用 ProseMirror 把 Markdown 筆記變成像 Wor
 - 不用 regex lookbehind（`(?<=…)`、`(?<!…)`）：iOS 16.4 以前會讓整個外掛載入失敗。lookahead 可以。
 - 遵守 Obsidian 外掛規範：不用 `innerHTML`、不用全域的 `app`、靜態樣式寫在 CSS 不寫在 JS、指令不設預設快速鍵、英文介面文字用 sentence case。
 - 新用到的 Obsidian API 要在 1.5.7 存在。非公開的 API 一律宣告在 `src/obsidian-internal.d.ts` 並標成可能不存在，呼叫前先檢查，壞掉時只少一項功能。
-- 功能有變動時，九份 README（`README.md`、`.zh-TW`、`.nan-TW`（台文）、`.zh-CN`、`.ja`、`.ko`、`.es`、`.ar`、`.he`）都要更新。README 只寫給使用者看的介紹與功能；開發、架構、發佈寫在 `docs/development.md`（與 `.zh-TW`）。動畫裡的介面變了就用 `node docs/record/record.mjs <場景>` 重錄，只錄受影響的場景（每次重錄都會永久留在 git 歷史）。
+- 功能有變動時，十三份 README（`README.md`、`.zh-TW`、`.nan-TW`（台文）、`.yue-HK`（粵語）、`.zh-CN`、`.ja`、`.ko`、`.vi`、`.fr`、`.de`、`.es`、`.ar`、`.he`）都要更新。README 只寫給使用者看的介紹與功能；開發、架構、發佈寫在 `docs/development.md`（與 `.zh-TW`）。動畫裡的介面變了就用 `node docs/record/record.mjs <場景>` 重錄，只錄受影響的場景（每次重錄都會永久留在 git 歷史）。
 - GitHub Actions：`ci.yml` 只能手動觸發，維持這樣，平常的驗證都在本機做。`release.yml` 會在推版本 tag 時自動執行（測試、建置、來源證明、建立 GitHub Release）。
 - 程式碼註解用繁體中文，說明「為什麼」。
 - Commit 與 PR：英文，標題 `type(scope): what`；作者只用 git config 的 NatLee，不加任何 Claude／AI 的署名或字樣。交付流程用 `ship` skill（拆成主題 commit、開 PR、merge commit、刪分支）。
