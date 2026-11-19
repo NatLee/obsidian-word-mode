@@ -1539,8 +1539,12 @@ body.wm-md-status .status-bar-item.plugin-word-count { display: none; }
 /* 參考 Notion 的「釘選屬性」：重要的屬性橫排成一行、名稱小而淡；其餘點開再看。屬性列浮在文件上，不佔版面、文件不會跳動 */
 .wm-pin-host { position: relative; flex: 0 0 auto; height: 0; z-index: 6; }
 .wm-pin { position: absolute; top: 8px; left: 16px; width: calc(100% - 32px); box-sizing: border-box; border: 1px solid var(--background-modifier-border); border-radius: 14px; background: var(--background-primary); box-shadow: 0 6px 20px rgba(0, 0, 0, .08), 0 1px 3px rgba(0, 0, 0, .06); font-size: var(--font-ui-small); opacity: 0; transform: translateY(-6px); pointer-events: none; transition: opacity .18s ease, transform .18s ease; }
-/* 支援的環境用半透明加模糊（不支援 color-mix 時這一行無效，維持上面的實色） */
-.wm-pin { background: color-mix(in srgb, var(--background-primary) 86%, transparent); -webkit-backdrop-filter: blur(12px) saturate(1.4); backdrop-filter: blur(12px) saturate(1.4); }
+/* 支援 color-mix 的環境用半透明加模糊，不支援時維持上面的實色。半透明的值裡有 var()，瀏覽器解析時一律接受、
+   算不出來時變成透明而不是退回上面那一個，所以後援要用 @supports 分開寫 */
+.wm-pin { -webkit-backdrop-filter: blur(12px) saturate(1.4); backdrop-filter: blur(12px) saturate(1.4); }
+@supports (background: color-mix(in srgb, red 50%, transparent)) {
+  .wm-pin { background: color-mix(in srgb, var(--background-primary) 86%, transparent); }
+}
 .wm-pin.is-shown { opacity: 1; transform: none; pointer-events: auto; }
 /* 展開成完整清單時用實色：一長串屬性疊在文件上，後面透出來的圖片或彩色內容會干擾閱讀；
    被截掉的值下緣的漸層（.wm-peek-value.is-more）也要跟底色一致，看起來才是淡出而不是一條白帶 */
