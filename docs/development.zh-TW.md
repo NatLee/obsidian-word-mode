@@ -94,7 +94,7 @@ Word 模式的功能區（`src/toolbar.ts`）與 Markdown、閱讀模式的功�
 
 ### 介面文字
 
-介面文字以繁體中文原文為鍵。`I18nKey` 是 `keyof typeof EN`，新字串沒加進 `src/i18n-en.ts` 型別檢查就會失敗。`src/i18n-ja.ts`、`src/i18n-ko.ts` 沒有的鍵會退回英文，但也要一併補上。
+介面文字以繁體中文原文為鍵。`I18nKey` 是 `keyof typeof EN`，新字串沒加進 `src/i18n-en.ts` 型別檢查就會失敗。其他翻譯檔也要一併補上：`src/i18n-ja.ts`、`i18n-ko.ts`、`i18n-nan.ts`（台文，漢字）、`i18n-zh-cn.ts`、`i18n-es.ts`、`i18n-ar.ts`、`i18n-he.ts`。沒有的鍵會退回英文（台文退回繁體中文原文）。有哪些語言、設定頁上顯示的名稱，在 `src/i18n.ts` 的 `LANGUAGE_NAMES`。
 
 ### 樣式
 
@@ -112,7 +112,8 @@ Word 模式的功能區（`src/toolbar.ts`）與 Markdown、閱讀模式的功�
 | `src/commands.ts` | 編輯指令。純 ProseMirror，不依賴 Obsidian。 |
 | `src/toolbar.ts` | 功能區工具列，以及每個按鈕群組的順序、分頁與名稱。 |
 | `src/groupsettings.ts` | 設定頁裡自訂分頁與按鈕群組的清單。 |
-| `src/settingsnav.ts` | 設定頁上方的分類頁籤。 |
+| `src/settingsnav.ts` | 設定頁上方的分類頁籤，以及上面的搜尋框（邊打邊列出符合的設定，選了就跳過去）。 |
+| `src/settingsearch.ts` | 設定搜尋的比對與排序：設定名稱、說明、下拉選單的選項、其他語言的名稱與同義詞。純函式。 |
 | `src/colorpicker.ts` | 字型色彩與醒目提示的色彩面板。 |
 | `src/mdbar.ts` | Markdown 與閱讀模式的工具列。 |
 | `src/statusbar.ts` | 狀態列的內容（字數、存檔狀態、檢視切換、文件屬性、縮放），Word 模式與 Markdown、閱讀模式共用。 |

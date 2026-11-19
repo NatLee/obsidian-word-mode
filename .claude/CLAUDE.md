@@ -25,7 +25,7 @@ Word Mode 是 Obsidian 外掛：用 ProseMirror 把 Markdown 筆記變成像 Wor
 - **`src/main.ts`**：外掛進入點、`Settings` 與 `DEFAULTS`、Word ⇄ Markdown 切換（包了 `WorkspaceLeaf.setViewState`）。設定頁的內容只在 `settingSections()` 描述一次，舊版的 `display()` 與 Obsidian 1.13 的 `getSettingDefinitions()` 都用它。
 - **兩條功能區要長得一樣**：`toolbar.ts`（Word 模式）與 `mdbar.ts`（Markdown／閱讀模式）共用 `TABS`、`GROUPS`、同樣的 DOM 結構與 CSS 類別。改其中一邊的版面，另一邊要跟著改。
 - **圖表編輯器是資料驅動的**：`src/diagrams.ts` 每種圖表一份 `DiagramKind`（怎麼讀、怎麼寫回、表單欄位）；`src/mermaid.ts` 依這份描述畫表單與「在圖上編輯」。只有「讀進來再寫出去內容不變」的圖才開表單，否則開程式碼並說明原因。
-- **介面文字以繁體中文原文為鍵**。`I18nKey = keyof typeof EN`，新字串沒加進 `src/i18n-en.ts` 型別檢查就會失敗；`i18n-ja.ts`、`i18n-ko.ts` 沒有的鍵會退回英文，但要一併補上。
+- **介面文字以繁體中文原文為鍵**。`I18nKey = keyof typeof EN`，新字串沒加進 `src/i18n-en.ts` 型別檢查就會失敗；其他七份翻譯（`ja`、`ko`、`nan` 台文、`zh-cn`、`es`、`ar`、`he`）沒有的鍵會退回英文（台文退回中文原文），但要一併補上。
 - **樣式全部在 `styles/word-mode.css`**，類別前綴 `wm-`。檔案是隨版本往後加的，後面的規則會蓋掉前面的；改既有元件前先搜尋它在檔案後段有沒有覆蓋。
 
 各模組的細節與常見修改的做法在 `.claude/context/modules.md`，需要時再讀。

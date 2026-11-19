@@ -94,7 +94,7 @@ The ribbon in Word mode (`src/toolbar.ts`) and the one in Markdown and reading m
 
 ### Interface text
 
-Interface strings are keyed by their Traditional Chinese text. `I18nKey` is `keyof typeof EN`, so a new string that isn't in `src/i18n-en.ts` fails the type check. Keys missing from `src/i18n-ja.ts` and `src/i18n-ko.ts` fall back to English, but add them too.
+Interface strings are keyed by their Traditional Chinese text. `I18nKey` is `keyof typeof EN`, so a new string that isn't in `src/i18n-en.ts` fails the type check. Add the same key to the other translation files too: `src/i18n-ja.ts`, `i18n-ko.ts`, `i18n-nan.ts` (Taiwanese, Han characters), `i18n-zh-cn.ts`, `i18n-es.ts`, `i18n-ar.ts` and `i18n-he.ts`. A missing key falls back to English (Taiwanese falls back to the Traditional Chinese source). The list of languages, with the name each one shows in the settings, is `LANGUAGE_NAMES` in `src/i18n.ts`.
 
 ### Styles
 
@@ -112,7 +112,8 @@ All styles are in `styles/word-mode.css`, and every class starts with `wm-`. The
 | `src/commands.ts` | Editing commands. Pure ProseMirror, no Obsidian dependency. |
 | `src/toolbar.ts` | Ribbon toolbar, and the order, tab, and name of each button group. |
 | `src/groupsettings.ts` | Settings list for customizing tabs and button groups. |
-| `src/settingsnav.ts` | Category tabs at the top of the settings. |
+| `src/settingsnav.ts` | Category tabs at the top of the settings, and the search box above them (suggestions as you type, jumping to the chosen setting). |
+| `src/settingsearch.ts` | Matching and ranking for the settings search: setting names, descriptions, dropdown options, the names in other languages, and synonyms. Pure functions. |
 | `src/colorpicker.ts` | Color panel for font color and highlight. |
 | `src/mdbar.ts` | Toolbar shown in Markdown and reading mode. |
 | `src/statusbar.ts` | Status bar contents (word count, save status, view switch, properties, zoom), shared by Word mode and Markdown and reading mode. |
