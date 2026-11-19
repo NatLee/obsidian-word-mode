@@ -29,6 +29,8 @@ Shown in the animation at the top. Start a paragraph with `# `, `- `, `1. `, `> 
 - **Font color and highlight**: standard colors with tints and shades, your recent colors, or any color you pick or type as a hex code. Highlights can use any color and opacity.
 - **Make it yours**: show the tabs as text, icons, or both, collapse them into one menu button, and rename them. Rename, reorder, hide, or move button groups to another tab.
 - **The same toolbar in Markdown and reading mode**, with the same layout, so nothing jumps when you switch. You can show it in both, in one of them, or in neither.
+- **Detailed tooltips**: turn them on and hovering a button explains it with a short animation, including the view mode buttons and the status bar buttons.
+- **Status bar** with the word count, save status, buttons to switch between Word mode, Markdown and reading view, view properties, and zoom. Markdown and reading view keep the same buttons and count words the same way. You can turn this off in settings.
 
 ### Tables
 
@@ -85,7 +87,7 @@ Shown in the animation at the top. Start a paragraph with `# `, `- `, `1. `, `> 
 
 ### And more
 
-- **Properties** as a form: tags and links appear as chips that you can select to open, nested values appear as a tree, and you can change a property's type or rename it from its icon.
+- **Properties** as a form: tags and links appear as chips that you can select to open, nested values appear as a tree, and you can change a property's type or rename it from its icon. View properties, in the View tab and the status bar, shows them without scrolling to the top and lets you filter a long list. A setting can also pin a slim properties bar to the top while you scroll; click it to see the full list. You can show properties as a box with a border and background, with a border only, or in a minimal style without a border.
 - **Images**: paste or pick an image, then drag to resize it.
 - **Links** to notes, headings, and web pages, with a small toolbar that appears when the cursor is on a link.
 - **Find and replace**, with whole-word and regular-expression options.

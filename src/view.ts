@@ -29,8 +29,11 @@ import { renderEmbed, mediaKind } from './embeds.js';
 import { foldKey } from './fold.js';
 import { suggestPlugin } from './suggest.js';
 import { suggestContext } from './complete.js';
-import { SourceModal, PromptModal, LinkDialog, FilePicker, ShortcutModal, EquationModal, CleanupModal, WordCountModal } from './dialogs.js';
-import { countText } from './textstats.js';
+import { SourceModal, PromptModal, LinkDialog, FilePicker, ShortcutModal, EquationModal, CleanupModal, WordCountModal, wordCountRows } from './dialogs.js';
+import { countText, docText, docStats } from './textstats.js';
+import { buildStatusBar, renderSaveStatus, renderCount, showZoom } from './statusbar.js';
+import { openPropsPeek, propertyWidget, fillPropsPeek, fillPinSummary, markOverflow } from './propview.js';
+import { frontmatterBody, peekData } from './props.js';
 import { t, key, withKey } from './i18n.js';
 import type { Modifier, TAbstractFile, WorkspaceLeaf } from 'obsidian';
 import type { Command, EditorState, Plugin, Transaction } from 'prosemirror-state';
@@ -42,7 +45,10 @@ import type { NodeViewContext, NodeViewMenuItem, FrontmatterDom } from './nodevi
 import type { BubbleContext, LinkDescription } from './bubble.js';
 import type { FoldState } from './fold.js';
 import type { LinkContext } from './links.js';
-import type { LinkDialogInit, LinkDialogResult, MathRenderer, EquationInit, WordCountRow } from './dialogs.js';
+import type { LinkDialogInit, LinkDialogResult, MathRenderer, EquationInit } from './dialogs.js';
+import type { SaveStatus } from './statusbar.js';
+import type { PropsPeekData } from './props.js';
+import type { FrontmatterAttrs } from './schema.js';
 import type { SuggestTrigger } from './suggest.js';
 import type { EmbedHandle } from './embeds.js';
 import type { DocMeta, ParseResult } from './markdown.js';
@@ -50,13 +56,15 @@ import type { PrismLike } from './codehl.js';
 import type { MarksState, WeirdKindId } from './marks.js';
 import type { TextRange } from './commands.js';
 import type { TemplatesInstance } from './obsidian-internal.js';
-import type { I18nKey } from './i18n.js';
 
 export const VIEW_TYPE = 'natlee-word-mode';
 const IMAGE_EXT = /^(png|jpe?g|gif|bmp|svg|webp|avif)$/i;
 
 // 存檔狀態（下方狀態列顯示）：saved 已儲存、dirty 編輯中、saving 儲存中、conflict 同步衝突
-export type SaveStatus = 'saved' | 'dirty' | 'saving' | 'conflict';
+export type { SaveStatus } from './statusbar.js';
+
+// 文件屬性區塊的外觀（設定）：區塊＝框線加底色、只有框線、簡潔＝沒有框線
+export type PropsStyle = 'card' | 'outline' | 'plain';
 
 // 方程式節點的位置與內容（display 為 true 表示獨立一行 $$…$$）
 export interface MathTarget { pos: number; src: string; display: boolean; }
@@ -82,13 +90,6 @@ export interface EphemeralState {
   line?: unknown;
   match?: { matches?: [from: number, to: number][] } | null;
   subpath?: string;
-}
-
-// 字數統計的各項數字（openWordCount 用）
-interface WordStats {
-  words: number; chars: number; charsSp: number;
-  paras: number; heads: number; tables: number; images: number; links: number;
-  minutes: number;
 }
 
 // 滑鼠事件的 target 一定是元素（不會是文字節點），宣告成 Element 才能直接呼叫 closest()
@@ -161,6 +162,11 @@ export class WordModeView extends TextFileView {
   declare toolbarHost: HTMLDivElement;
   declare findHost: HTMLDivElement;
   declare bannerHost: HTMLDivElement;
+  // 文件屬性固定在上方（設定）：捲動區上方的屬性列。pinHost 在 onOpen 建立；pin 第一次需要時才建立；
+  // pinNode 是屬性列目前顯示的文件屬性節點（節點沒變就不重畫）
+  declare pinHost: HTMLDivElement;
+  declare pin: HTMLDivElement | null;
+  declare pinNode: PMNode | null;
   declare scroller: HTMLDivElement;
   declare page: HTMLDivElement;
   declare toolbar: Toolbar;
@@ -205,6 +211,8 @@ export class WordModeView extends TextFileView {
     this.toolbarHost = this.contentEl.createDiv('wm-toolbar-host');
     this.findHost = this.contentEl.createDiv('wm-findbar-host');
     this.bannerHost = this.contentEl.createDiv('wm-banner-host');
+    this.pinHost = this.contentEl.createDiv('wm-pin-host');
+    this.pin = null; this.pinNode = null;
     this.scroller = this.contentEl.createDiv('wm-scroller');
     this.page = this.scroller.createDiv('wm-page');
     this.buildToolbar();
@@ -220,6 +228,17 @@ export class WordModeView extends TextFileView {
     // 手機沒有 Obsidian 狀態列：在畫面下方放自己的狀態列；桌機則整合進 Obsidian 右下角的狀態列
     if (Platform.isMobile) this.buildBottomBar(this.contentEl.createDiv('wm-bottombar'), false);
     this.applyZoom();
+    this.applyPropsLook();
+    this.applyPropsSticky();
+    this.registerDomEvent(this.scroller, 'scroll', () => this.updatePin(), { passive: true });
+    // 屬性列展開時，點屬性列以外的地方就收起來
+    this.registerDomEvent(this.contentEl.ownerDocument, 'pointerdown', e => { if (this.pin && this.pin.classList.contains('is-open') && !this.pin.contains(e.target as Node | null)) this.closePin(); }, true);
+    // 側邊欄開關、視窗改變大小時，屬性列跟著頁面的寬度
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(() => { if (this.pin && this.pin.classList.contains('is-shown')) this.updatePin(); });
+      ro.observe(this.scroller);
+      this.register(() => ro.disconnect());
+    }
     this.registerDomEvent(this.scroller, 'wheel', e => {
       if (!(e.ctrlKey || e.metaKey)) return;
       e.preventDefault();
@@ -312,6 +331,7 @@ export class WordModeView extends TextFileView {
         zoom: d => { void this.plugin.setZoom(d === 0 ? 100 : (this.plugin.settings.zoom || 100) + d); },
         settings: () => this.plugin.openSettings(),
         properties: () => this.openProperties(),
+        peekProperties: b => this.peekProperties(b),
         notice: msg => new Notice(msg),
       },
     });
@@ -373,71 +393,158 @@ export class WordModeView extends TextFileView {
   buildBottomBar(bar: HTMLElement, inStatusBar: boolean): void {
     this.bottomBar = bar;
     // 字數：手機在筆記下方的列，桌機在 Obsidian 的狀態列（Obsidian 內建的字數只算 Markdown 編輯器）
-    this.countEl = bar.createDiv('wm-bb-count');
-    this.countEl.addEventListener('click', () => this.openWordCount());
-    if (!inStatusBar) bar.createDiv('wm-bb-spacer');
-    this.statusBox = bar.createDiv('wm-bb-status');
-    const views = bar.createDiv('wm-bb-views');
-    const vbtn = (icon: string, title: string, run: () => void, active?: boolean) => {
-      const b = views.createEl('button', { cls: 'wm-bb-btn' + (active ? ' is-active' : '') });
-      b.setAttribute('aria-label', title);
-      setIcon(b, icon);
-      b.addEventListener('click', run);
-      return b;
-    };
-    vbtn('file-text', t('Word 模式（目前）'), () => {}, true);
-    vbtn('code-2', withKey('Markdown 編輯', 'Mod+E'), () => { void this.plugin.switchToMarkdown(this.leaf); });
-    vbtn('book-open', t('閱讀模式'), () => { void this.plugin.switchToMarkdown(this.leaf, 'preview'); });
-    vbtn('list-plus', t('文件屬性（metadata）'), () => this.openProperties());
-    const zoom = bar.createDiv('wm-bb-zoom');
-    const minus = zoom.createEl('button', { cls: 'wm-bb-btn', text: t('－') });
-    minus.setAttribute('aria-label', t('縮小'));
-    this.zoomRange = zoom.createEl('input', { type: 'range', cls: 'wm-bb-range' });
-    this.zoomRange.min = '50'; this.zoomRange.max = '200'; this.zoomRange.step = '10';
-    const plus = zoom.createEl('button', { cls: 'wm-bb-btn', text: t('＋') });
-    plus.setAttribute('aria-label', t('放大'));
-    this.zoomLabel = zoom.createEl('button', { cls: 'wm-bb-zoomlabel' });
-    this.zoomLabel.setAttribute('aria-label', t('恢復 100%'));
-    minus.addEventListener('click', () => { void this.plugin.setZoom(this.plugin.settings.zoom - 10); });
-    plus.addEventListener('click', () => { void this.plugin.setZoom(this.plugin.settings.zoom + 10); });
-    this.zoomRange.addEventListener('input', () => { void this.plugin.setZoom(+this.zoomRange!.value); });
-    this.zoomLabel.addEventListener('click', () => { void this.plugin.setZoom(100); });
+    const parts = buildStatusBar(bar, {
+      mode: 'word', inStatusBar, richHints: !!this.plugin.settings.richHints && !Platform.isMobile, modE: 'source', zoomable: true,
+      zoom: () => this.plugin.settings.zoom || 100,
+      setZoom: z => { void this.plugin.setZoom(z); },
+      onCount: () => this.openWordCount(),
+      onMode: m => { void this.plugin.switchToMarkdown(this.leaf, m === 'preview' ? 'preview' : undefined); },
+      onProps: b => this.peekProperties(b),
+    });
+    this.countEl = parts.count;
+    this.statusBox = parts.status;
+    this.zoomRange = parts.range;
+    this.zoomLabel = parts.zoomLabel;
     this.renderStatus();
     this.applyZoom();
     this.updateCount();
   }
 
+  // ---------------------------------------------------------- 文件屬性固定在上方（設定）
+  // 文件屬性本身照常跟著文件捲動（版面不會變）；捲出畫面之後，捲動區上方浮出一條精簡的屬性列，
+  // 一行列出每個屬性，點一下展開完整清單（屬性很多時可以篩選、在框內捲動）
+
+  // 文件屬性的外觀（設定）：用 class 切換，樣式都在 CSS；不認得的值當成預設的「區塊」
+  applyPropsLook(): void {
+    const S = this.plugin.settings;
+    this.contentEl.toggleClass('wm-props-style-outline', S.propsStyle === 'outline');
+    this.contentEl.toggleClass('wm-props-style-plain', S.propsStyle === 'plain');
+    this.contentEl.toggleClass('wm-pin-nolabels', S.pinLabels === false);
+  }
+
+  applyPropsSticky(): void {
+    if (!this.plugin.settings.propsSticky) this.hidePin();
+    this.updatePin();
+  }
+
+  // 文件最前面的文件屬性節點與它的畫面；沒有時是 null
+  propsNode(): { node: PMNode; dom: HTMLElement } | null {
+    const first = this.pm && this.pm.state.doc.firstChild;
+    if (!first || first.type !== schema.nodes.frontmatter) return null;
+    const dom = this.pm!.nodeDOM(0) as HTMLElement | null;
+    return dom ? { node: first, dom } : null;
+  }
+
+  // 捲動、文件改變時呼叫：文件屬性捲出畫面就顯示屬性列，屬性有變才重畫
+  updatePin(): void {
+    const fm = this.plugin.settings.propsSticky ? this.propsNode() : null;
+    const box = this.scroller.getBoundingClientRect();
+    // 文件屬性的下緣捲到屬性列的位置（上緣往下 40px）才出現，兩者不會疊在一起
+    if (!fm || this.scroller.scrollTop <= 0 || fm.dom.getBoundingClientRect().bottom >= box.top + 40) { this.hidePin(); return; }
+    const pin = this.ensurePin();
+    if (fm.node !== this.pinNode) { this.pinNode = fm.node; this.renderPin(); }
+    // 跟頁面的文字同寬（頁面縮放、全寬、捲軸都算進去）
+    const r = this.pm!.dom.getBoundingClientRect();
+    const host = this.pinHost.getBoundingClientRect();
+    if (r.width) { pin.style.left = (r.left - host.left) + 'px'; pin.style.width = r.width + 'px'; }
+    pin.classList.add('is-shown');
+  }
+
+  ensurePin(): HTMLDivElement {
+    if (this.pin) return this.pin;
+    const pin = this.pin = this.pinHost.createDiv('wm-pin');
+    const bar = pin.createDiv('wm-pin-bar');
+    bar.setAttribute('role', 'button');
+    bar.tabIndex = 0;
+    bar.setAttribute('aria-expanded', 'false');
+    setIcon(bar.createSpan('wm-pin-icon'), 'clipboard-list');
+    bar.createDiv('wm-pin-items');
+    bar.createSpan('wm-pin-count');
+    setIcon(bar.createSpan('wm-pin-chev'), 'chevron-down');
+    pin.createDiv('wm-pin-card wm-peek');
+    // 點屬性列不搶走編輯區的游標
+    bar.addEventListener('mousedown', e => e.preventDefault());
+    bar.addEventListener('click', () => this.togglePin());
+    bar.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.togglePin(); } });
+    pin.addEventListener('keydown', e => { if (e.key === 'Escape' && pin.classList.contains('is-open')) { e.preventDefault(); this.closePin(); if (this.pm) this.pm.focus(); } });
+    return pin;
+  }
+
+  pinOptions(): { icon: (el: HTMLElement, name: string, fallback: string) => void; typeHint: (k: string) => string | null } {
+    return {
+      icon: (el, name, fallback) => { setIcon(el, name); if (!el.querySelector('svg') && fallback) el.setText(fallback); },
+      typeHint: k => propertyWidget(this.app, k),
+    };
+  }
+
+  renderPin(): void {
+    const pin = this.pin;
+    if (!pin) return;
+    const data = this.propsPeekData();
+    fillPinSummary(pin.querySelector<HTMLElement>('.wm-pin-items')!, data, this.pinOptions());
+    const n = data.kind === 'props' ? Object.keys(data.values).length : 0;
+    pin.querySelector<HTMLElement>('.wm-pin-count')!.setText(n ? t('{n} 個屬性', { n }) : '');
+    pin.querySelector('.wm-pin-bar')!.setAttribute('aria-label', t('文件屬性') + (n ? t('：') + t('{n} 個屬性', { n }) : ''));
+    if (pin.classList.contains('is-open')) this.fillPinCard();
+  }
+
+  fillPinCard(): void {
+    const card = this.pin!.querySelector<HTMLElement>('.wm-pin-card')!;
+    fillPropsPeek(card, this.propsPeekData(), Object.assign(this.pinOptions(), {
+      bare: true, isMobile: !!Platform.isMobile, go: () => { this.closePin(); this.openProperties(); },
+    }));
+    markOverflow(card);
+  }
+
+  togglePin(): void {
+    const pin = this.pin;
+    if (!pin) return;
+    const open = !pin.classList.contains('is-open');
+    pin.classList.toggle('is-open', open);
+    pin.querySelector('.wm-pin-bar')!.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) this.fillPinCard(); else pin.querySelector<HTMLElement>('.wm-pin-card')!.empty();
+  }
+
+  closePin(): void { if (this.pin && this.pin.classList.contains('is-open')) this.togglePin(); }
+
+  hidePin(): void {
+    if (!this.pin) return;
+    this.closePin();
+    this.pin.classList.remove('is-shown');
+  }
+
+  // 編輯器要把游標捲進畫面時：游標被上方的屬性列蓋住，就多往上捲一點讓它露出來。
+  // ProseMirror 只知道捲動區的上緣，不知道上面有東西蓋著；回傳 false 交給 ProseMirror 原本的捲動
+  scrollPastProps(v: EditorView): boolean {
+    const pin = this.pin && this.pin.classList.contains('is-shown') ? this.pin : null;
+    if (!pin) return false;
+    let caret: { top: number; bottom: number };
+    try { caret = v.coordsAtPos(v.state.selection.head); } catch { return false; }
+    const box = this.scroller.getBoundingClientRect();
+    // 檢視沒有顯示出來（量不到大小），或游標在畫面下方以外：照原本的方式捲
+    if (!box.height || caret.bottom > box.bottom) return false;
+    // 游標在畫面上方以外時，ProseMirror 會把它捲到最上緣（剛好被蓋住），所以一起處理
+    const cover = Math.max(box.top, pin.getBoundingClientRect().bottom);
+    if (caret.top >= cover + 4) return false;
+    this.scroller.scrollTop -= cover + 8 - caret.top;
+    return true;
+  }
+
   applyZoom(): void {
     const z = this.plugin.settings.zoom || 100;
     if (this.page) this.page.style.zoom = String(z / 100);
-    if (this.zoomRange) this.zoomRange.value = String(z);
-    if (this.zoomLabel) this.zoomLabel.setText(z + '%');
+    if (this.zoomRange && this.zoomLabel) showZoom({ range: this.zoomRange, zoomLabel: this.zoomLabel }, z);
   }
 
   renderStatus(): void {
-    if (!this.statusBox) return;
-    const st = this.status;
-    const time = this.savedAt && window.moment ? window.moment(this.savedAt).format('HH:mm') : '';
-    const text = st === 'dirty' ? t('編輯中（自動儲存）') : st === 'saving' ? t('儲存中…') : st === 'conflict' ? t('同步衝突') : t('已儲存') + (time ? ' ' + time : '');
-    this.statusBox.empty();
-    setIcon(this.statusBox.createSpan('wm-bb-icon'), st === 'conflict' ? 'alert-triangle' : st === 'saved' ? 'check' : 'loader');
-    this.statusBox.createSpan({ text });
-    this.statusBox.toggleClass('is-conflict', st === 'conflict');
+    if (this.statusBox) renderSaveStatus(this.statusBox, this.status, this.savedAt);
   }
 
   updateCount(): void {
     if (!this.pm || !this.countEl) return;
     const st = this.pm.state;
-    const count = countText;
-    const all = count(st.doc.textBetween(0, st.doc.content.size, '\n', ' '));
-    const fmt = (n: number) => n.toLocaleString();
-    if (!st.selection.empty) {
-      const sel = count(st.doc.textBetween(st.selection.from, st.selection.to, '\n', ' '));
-      this.countEl.setText(t('已選取 {a}／{b} 字', { a: fmt(sel.words), b: fmt(all.words) }));
-    } else this.countEl.setText(t('{a} 字・{b} 個字元', { a: fmt(all.words), b: fmt(all.chars) }));
-    // 閱讀時間：中文每分鐘 400 字、英文每分鐘 200 個單字（與「字數統計」視窗相同）
-    const minutes = Math.max(1, Math.round(all.cjk / 400 + all.latin / 200));
-    this.countEl.setAttribute('aria-label', t('預估閱讀時間') + t('：') + t('{n} 分鐘', { n: minutes }) + ' · ' + t('中文字以字計、英文以單字計（點一下看詳細統計）'));
+    const all = countText(docText(st.doc));
+    renderCount(this.countEl, all, st.selection.empty ? null : countText(docText(st.doc, st.selection.from, st.selection.to)));
   }
 
   // ---------------------------------------------------------- 編輯器外掛
@@ -542,33 +649,7 @@ export class WordModeView extends TextFileView {
   openWordCount(): void {
     if (!this.pm) return;
     const st = this.pm.state;
-    const stats = (from: number, to: number): WordStats => {
-      const text = st.doc.textBetween(from, to, '\n', ' ');
-      const { cjk, latin } = countText(text);
-      let paras = 0; let heads = 0; let tables = 0; let images = 0; let links = 0;
-      st.doc.nodesBetween(from, to, n => {
-        if (n.isTextblock && n.textContent.trim()) { paras++; if (n.type.name === 'heading') heads++; }
-        if (n.type.name === 'table') tables++;
-        if (n.type.name === 'image') images++;
-        if (n.type.name === 'wikilink' || n.marks.some(m => m.type.name === 'link')) links++;
-        return true;
-      });
-      return {
-        words: cjk + latin, chars: text.replace(/\s/g, '').length, charsSp: text.replace(/\n/g, '').length,
-        paras, heads, tables, images, links, minutes: Math.max(1, Math.round(cjk / 400 + latin / 200)),
-      };
-    };
-    const all = stats(0, st.doc.content.size);
-    const sel = st.selection.empty ? null : stats(st.selection.from, st.selection.to);
-    const f = (n: number) => n.toLocaleString();
-    // 呼叫端傳進來的 label 已經用 t() 翻譯過，不一定是鍵；再翻一次，找不到時 t() 原樣回傳
-    const row = (label: string, k: keyof WordStats): WordCountRow => [t(label as I18nKey), f(all[k]), sel ? f(sel[k]) : null];
-    const rows: WordCountRow[] = [];
-    if (sel) rows.push(['', t('整份文件'), t('選取範圍')]);
-    rows.push(row(t('字數'), 'words'), row(t('字元數（不含空白）'), 'chars'), row(t('字元數（含空白）'), 'charsSp'),
-      row(t('段落數'), 'paras'), row(t('標題數'), 'heads'), row(t('表格'), 'tables'), row(t('圖片'), 'images'), row(t('連結'), 'links'));
-    rows.push([t('預估閱讀時間'), t('{n} 分鐘', { n: all.minutes }), sel ? t('{n} 分鐘', { n: sel.minutes }) : null]);
-    new WordCountModal(this.app, rows).open();
+    new WordCountModal(this.app, wordCountRows(docStats(st.doc), st.selection.empty ? null : docStats(st.doc, st.selection.from, st.selection.to))).open();
   }
 
   insertComment(): void {
@@ -607,6 +688,23 @@ export class WordModeView extends TextFileView {
     const tr = st.tr.insert(0, schema.nodes.frontmatter.create({ src: '---\n---' }));
     this.pm.dispatch(tr);
     this.scroller.scrollTop = 0;
+  }
+
+  // 「查看文件屬性」小視窗的內容：編輯中的文件最前面的文件屬性（還沒存檔的修改也看得到）
+  propsPeekData(): PropsPeekData {
+    const first = this.pm && this.pm.state.doc.firstChild;
+    if (!first || first.type !== schema.nodes.frontmatter) return { kind: 'none' };
+    return peekData(frontmatterBody((first.attrs as FrontmatterAttrs).src), yaml => parseYaml(yaml) as unknown);
+  }
+
+  peekProperties(btn: HTMLElement): void {
+    if (!this.pm) return;
+    openPropsPeek(btn, this.propsPeekData(), {
+      icon: (el, name, fallback) => { setIcon(el, name); if (!el.querySelector('svg') && fallback) el.setText(fallback); },
+      typeHint: k => propertyWidget(this.app, k),
+      go: () => this.openProperties(),
+      isMobile: !!Platform.isMobile,
+    });
   }
 
   openEquation(existing?: MathTarget): void {
@@ -873,6 +971,7 @@ export class WordModeView extends TextFileView {
           contextmenu: (v, e) => this.onContextMenu(e as ElementEvent<typeof e>),
         },
         handleKeyDown: (v, e) => this.onKeyDown(e),
+        handleScrollToSelection: v => this.scrollPastProps(v),
         handlePaste: (v, e) => this.onPaste(e),
         handleDrop: (v, e) => this.onDrop(e),
         transformPasted: slice => stripSliceBids(slice),
@@ -888,6 +987,7 @@ export class WordModeView extends TextFileView {
     else this.scroller.scrollTop = scrollTop;
     this.setStatus('saved');
     this.updateCount();
+    this.updatePin();
     if (this.pendingEState) { const st = this.pendingEState; this.pendingEState = null; window.setTimeout(() => this.setEphemeralState(st), 0); }
     this.plugin.outlineChanged(this, true);
   }
@@ -902,6 +1002,7 @@ export class WordModeView extends TextFileView {
       if (this.status !== 'conflict') this.setStatus('dirty');
       this.requestSave();
       if (this.pasteChip && !tr.getMeta('wmPasteChip')) this.hidePasteChip();
+      if (this.pin) this.updatePin();
     }
     this.toolbar.update(state);
     if (tr.docChanged || tr.selectionSet) this.plugin.outlineChanged(this, tr.docChanged);
@@ -999,13 +1100,7 @@ export class WordModeView extends TextFileView {
       stringifyYaml: o => stringifyYaml(o),
       propsOpen: () => this.propsOpen !== false,
       setPropsOpen: v => { this.propsOpen = v; },
-      propertyType: key => {
-        try {
-          const m = this.app.metadataTypeManager;
-          const info = m && (m.getPropertyInfo ? m.getPropertyInfo(key) : m.properties && m.properties[key.toLowerCase()]);
-          return info ? (info.widget || info.type) : null;
-        } catch { return null; }
-      },
+      propertyType: key => propertyWidget(this.app, key),
       unwrapCallout: pos => this.unwrapCallout(pos),
       imageMenu: (evt, pos) => this.imageMenu(evt, pos),
       setImageWidth: (pos, w) => this.setImageWidth(pos, w),

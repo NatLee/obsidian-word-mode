@@ -1003,4 +1003,273 @@ await fresh('第一段\n');
   assert(ids.length >= 8 && ids.join() === used.join() && !missing.length, '設定的每一類都有隱藏其他分類的樣式規則：' + (missing.join() || ids.join()));
 }
 
+// 假的 Markdown 檢視（Markdown 工具列、狀態列、查看文件屬性用）：text 是編輯中的原文，sel 是選取的文字
+const fakeMarkdown = (path, text, mode = 'source') => {
+  const containerEl = document.createElement('div');
+  const contentEl = containerEl.createDiv('view-content');
+  document.body.appendChild(containerEl);
+  const md = {
+    containerEl, contentEl, leaf: {}, mode, text, sel: '', scrolled: null, inserted: [],
+    file: Object.assign(new mock.TFile(path), { stat: { size: 10, mtime: 0 } }),
+    getMode() { return this.mode; }, getViewData() { return this.text; },
+    getState() { return {}; }, async setState(st) { this.mode = st.mode; },
+    currentMode: { applyScroll(n) { md.scrolled = n; } },
+  };
+  md.editor = { focus() {}, getSelection: () => md.sel, replaceRange: (s, at) => md.inserted.push([s, at]), setCursor() {} };
+  return md;
+};
+
+// ======== 檢視模式的按鈕：提示卡都有動畫（兩條功能區與右下角的狀態列） ========
+await fresh('一段文字\n');
+{
+  plugin.settings.richHints = true;
+  view.buildToolbar();
+  let wait = 650;
+  // 滑鼠移到按鈕上：回傳提示卡的「標題:第一段動畫的 class」
+  const hover = async b => {
+    b.dispatchEvent(new MouseEvent('mouseenter'));
+    await sleep(wait); wait = 150;
+    const c = document.querySelector('.wm-hint-card.is-shown');
+    if (!c) return 'none';
+    const demo = c.querySelector('.wm-hint-demo');
+    return c.querySelector('.wm-hint-title').textContent + ':' + (demo && demo.firstElementChild ? demo.firstElementChild.className : '-');
+  };
+  const viewBtns = root => [...root.querySelectorAll('.wm-group-views .wm-btn')];
+  const word = []; for (const b of viewBtns(view.toolbar.dom)) word.push(await hover(b));
+  assert(word.length === 3 && word.every(x => !x.endsWith(':-') && x !== 'none') && word[0].startsWith('Word 模式（目前）:') && word[0].includes('wm-anim-wysiwyg'),
+    'Word 模式的功能區：檢視模式三個按鈕都有動畫，Word 模式是「符號收起來、直接看到格式」：' + word.join(' / '));
+  const md = fakeMarkdown('筆記/測試.md', '一段文字\n');
+  const bar = new B.MarkdownBar(plugin, md);
+  const mdHints = []; for (const b of viewBtns(bar.dom)) mdHints.push(await hover(b));
+  assert(mdHints.length === 3 && mdHints.every(x => !x.endsWith(':-') && x !== 'none') && mdHints[0].includes('wm-anim-wysiwyg') && mdHints[1].startsWith('Markdown 編輯:') && mdHints[1].includes('wm-demo-mono'),
+    'Markdown／閱讀模式的功能區：三個按鈕都有動畫，「切換到 Word 模式」不再用 Markdown 的動畫：' + mdHints.join(' / '));
+  // 右下角狀態列的檢視按鈕也一樣（詳細提示開啟時不用 Obsidian 的一般提示）
+  const sbar = document.body.createDiv('wm-statusbar');
+  view.buildBottomBar(sbar, true);
+  const sbtns = [...sbar.querySelectorAll('.wm-bb-views .wm-bb-btn')];
+  assert(sbtns.length === 4 && sbtns.every(b => !b.hasAttribute('aria-label') && b.querySelector('.wm-sr')) && sbtns[1].querySelector('.wm-sr').textContent === 'Markdown 編輯 (Ctrl+E)',
+    '狀態列的按鈕：詳細提示開啟時名稱放在看不見的文字裡：' + sbtns.map(b => b.querySelector('.wm-sr') && b.querySelector('.wm-sr').textContent).join('、'));
+  const sHints = []; for (const b of sbtns) sHints.push(await hover(b));
+  assert(sHints.every(x => !x.endsWith(':-') && x !== 'none') && sHints.map(x => x.split(':')[0]).join() === 'Word 模式（目前）,Markdown 編輯,閱讀模式,查看文件屬性',
+    '狀態列的檢視按鈕與查看文件屬性：提示卡有動畫：' + sHints.join(' / '));
+  sbtns[0].dispatchEvent(new MouseEvent('mousedown'));
+  bar.destroy(); md.containerEl.remove(); sbar.remove();
+  plugin.settings.richHints = false;
+  view.buildToolbar();
+  const plain = document.body.createDiv('wm-statusbar');
+  view.buildBottomBar(plain, true);
+  assert([...plain.querySelectorAll('.wm-bb-views .wm-bb-btn')].map(b => b.getAttribute('aria-label')).join() === 'Word 模式（目前）,Markdown 編輯 (Ctrl+E),閱讀模式,查看文件屬性',
+    '詳細提示關閉：狀態列的按鈕用一般提示');
+  plain.remove();
+}
+
+// ======== 狀態列：Markdown／閱讀模式也保留同樣的按鈕 ========
+{
+  const text = '---\ntags: [a]\n---\n# 標題 Title\n\n這是 **粗體** 文字，hello world。\n';
+  await fresh(text);
+  const wordBar = document.body.createDiv('wm-statusbar');
+  view.buildBottomBar(wordBar, true);
+  view.updateCount();
+  const mdEl = document.body.createDiv('wm-statusbar');
+  const md = fakeMarkdown('筆記/測試.md', text);
+  env.files.set('筆記/測試.md', text);
+  plugin.switchToWord = () => { plugin.toWord = (plugin.toWord || 0) + 1; };
+  plugin.setMarkdownMode = async (v, m) => { v.mode = m; plugin.modeSet = m; };
+  const sb = new B.MdStatusBar(plugin, mdEl, md);
+  // 版面：每一區的 class 與裡面的按鈕（目前的模式、停用的狀態不算）
+  const shape = root => [...root.children].map(c => c.className.replace(/ is-[\w-]+/g, '') + '[' + [...c.querySelectorAll('button, input')].map(b => b.tagName + (b.dataset.mode ? ':' + b.dataset.mode : '')).join(' ') + ']').join(' | ');
+  assert(shape(mdEl) === shape(wordBar) && shape(mdEl).includes('wm-bb-zoom') && shape(mdEl).includes('wm-bb-count'), 'Markdown 模式的狀態列跟 Word 模式一樣：字數、存檔狀態、檢視切換、文件屬性、縮放：' + shape(mdEl));
+  assert(mdEl.querySelector('.wm-bb-btn.is-active').dataset.mode === 'source' && wordBar.querySelector('.wm-bb-btn.is-active').dataset.mode === 'word', '目前的模式顯示成按下的樣子');
+  assert(mdEl.querySelector('.wm-bb-zoom').classList.contains('is-disabled') && mdEl.querySelector('.wm-bb-range').disabled && mdEl.querySelector('.wm-bb-zoom button').getAttribute('aria-label').includes('縮放只套用在 Word 模式'),
+    '縮放只用在 Word 模式：Markdown 模式仍然顯示，但停用並說明原因');
+  assert(!wordBar.querySelector('.wm-bb-zoom').classList.contains('is-disabled') && !wordBar.querySelector('.wm-bb-range').disabled, 'Word 模式的縮放可以用');
+  const count = root => root.querySelector('.wm-bb-count').textContent;
+  assert(count(mdEl) === count(wordBar) && /^\d+ 字・\d+ 個字元$/.test(count(mdEl)), '字數跟 Word 模式一樣（Markdown 符號與文件屬性不算）：' + count(mdEl) + ' / ' + count(wordBar));
+  await sleep(0);
+  assert(mdEl.querySelector('.wm-bb-status').textContent === '已儲存', '內容跟檔案一樣：已儲存');
+  md.text = text + '\n多打的字\n';
+  sb.update();
+  await sleep(0);
+  assert(mdEl.querySelector('.wm-bb-status').textContent === '編輯中（自動儲存）' && count(mdEl) !== count(wordBar), '改了還沒存檔：編輯中，字數跟著更新');
+  env.files.set('筆記/測試.md', md.text);
+  sb.update();
+  await sleep(0);
+  assert(mdEl.querySelector('.wm-bb-status').textContent === '已儲存', 'Obsidian 存檔之後：已儲存');
+  md.sel = '這是';
+  sb.update();
+  assert(count(mdEl).startsWith('已選取 2／'), '選取文字時顯示選取的字數：' + count(mdEl));
+  click(mdEl.querySelector('.wm-bb-count'));
+  const rows = mock.Modal.last.rows;
+  assert(rows[0].join() === ',整份文件,選取範圍' && rows[1][0] === '字數' && rows[1][2] === '2', '點字數：字數統計視窗（含選取範圍）：' + JSON.stringify(rows.slice(0, 2)));
+  mock.Modal.last.close();
+  const modeBtn = m => mdEl.querySelector('.wm-bb-btn[data-mode="' + m + '"]');
+  click(modeBtn('preview'));
+  await sleep(0);
+  assert(plugin.modeSet === 'preview', '按「閱讀模式」切到閱讀模式');
+  const before = plugin.toWord || 0;
+  click(modeBtn('word'));
+  assert(plugin.toWord === before + 1, '按「Word 模式」切回 Word 模式');
+  wordBar.remove(); mdEl.remove(); md.containerEl.remove();
+}
+
+// ======== 查看文件屬性：功能區與狀態列的按鈕打開小視窗 ========
+{
+  await fresh('---\ntags: [會議, 專案]\ndate: 2026-11-19\ndone: true\nnote: ' + '很長的說明 '.repeat(60).trim() + '\n---\n內文\n');
+  const peekBtn = view.toolbar.items.find(i => i.title.startsWith('查看文件屬性')).dom;
+  const showOrder = [...view.toolbar.dom.querySelectorAll('.wm-group-show .wm-btn')].map(b => b.getAttribute('aria-label'));
+  assert(peekBtn.closest('.wm-group-show') && showOrder.indexOf('查看文件屬性') === showOrder.indexOf('大綱') + 1, '功能區「檢視 → 顯示」有查看文件屬性（在大綱後面）：' + showOrder.join('、'));
+  const peek = () => document.querySelector('.wm-peek');
+  click(peekBtn);
+  let p = peek();
+  assert(p && p.querySelectorAll('.wm-peek-row').length === 4 && p.querySelector('.wm-peek-count').textContent === '4 個屬性', '打開小視窗：列出所有屬性');
+  assert([...p.querySelectorAll('.wm-chip-tag')].map(c => c.textContent).join() === '#會議,#專案' && p.querySelector('.wm-peek-check').checked && p.querySelector('.wm-peek-check').disabled,
+    '標籤顯示成 #標籤、核取方塊顯示勾選狀態（不能改）');
+  assert(!p.querySelector('.wm-peek-filter') && p.querySelectorAll('.wm-peek-value.is-clamped').length === 3, '屬性不多時沒有篩選框；文字與清單的值可以收成三行');
+  click(peekBtn);
+  assert(!peek(), '再按一次同一個按鈕：關閉');
+  click(peekBtn);
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+  assert(!peek(), '按 Esc 關閉');
+  click(peekBtn);
+  document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+  assert(!peek(), '點小視窗以外的地方關閉');
+  click(peekBtn);
+  view.propsOpen = false;
+  assert(peek().querySelector('.wm-peek-go').textContent === '前往文件屬性', '有屬性時：前往文件屬性');
+  click(peek().querySelector('.wm-peek-go'));
+  assert(!peek() && view.propsOpen === true, '按「前往文件屬性」：關閉小視窗，展開文件裡的文件屬性');
+
+  // 屬性很多：篩選框
+  await fresh('---\n' + Array.from({ length: B.PEEK.PEEK_FILTER_MIN + 3 }, (_, i) => 'k' + i + ': v' + i).join('\n') + '\n---\n內文\n');
+  click(peekBtn);
+  p = peek();
+  const f = p.querySelector('.wm-peek-filter');
+  const shown = () => [...p.querySelectorAll('.wm-peek-row')].filter(r => !r.hidden).map(r => r.querySelector('.wm-peek-name').textContent);
+  assert(f && shown().length === B.PEEK.PEEK_FILTER_MIN + 3, '屬性超過 ' + B.PEEK.PEEK_FILTER_MIN + ' 個：上方有篩選框');
+  f.value = 'V3'; f.dispatchEvent(new Event('input'));
+  assert(shown().join() === 'k3' && p.querySelector('.wm-peek-list ~ .wm-peek-empty').hidden, '篩選：名稱或值包含輸入的文字（不分大小寫）：' + shown().join());
+  f.value = '找不到'; f.dispatchEvent(new Event('input'));
+  assert(!shown().length && !p.querySelector('.wm-peek-list ~ .wm-peek-empty').hidden, '沒有符合的屬性：顯示說明');
+  click(peekBtn);
+
+  // 沒有文件屬性：可以新增
+  await fresh('內文\n');
+  click(peekBtn);
+  p = peek();
+  assert(p.textContent.includes('這份筆記沒有文件屬性') && p.querySelector('.wm-peek-go').textContent === '新增文件屬性', '沒有文件屬性：說明，按鈕是「新增文件屬性」');
+  click(p.querySelector('.wm-peek-go'));
+  assert(!peek() && view.pm.state.doc.firstChild.type.name === 'frontmatter', '按「新增文件屬性」：在文件最前面加上文件屬性');
+
+  // 看不懂的 YAML：顯示原文
+  await fresh('---\n這一行不是 YAML\n---\n內文\n');
+  click(peekBtn);
+  assert(peek().querySelector('.wm-peek-raw').textContent === '這一行不是 YAML' && !peek().querySelector('.wm-peek-row'), '看不懂的 YAML：顯示原文');
+  click(peekBtn);
+
+  // Markdown／閱讀模式：讀原文（還沒存檔的修改也看得到）
+  const md = fakeMarkdown('筆記/屬性.md', '---\ntags: [a]\n---\n內文\n');
+  const bar = new B.MarkdownBar(plugin, md);
+  const mdPeek = bar.items.find(i => i.title.startsWith('查看文件屬性'));
+  assert(mdPeek && mdPeek.dom.closest('.wm-group-show') && mdPeek.spec.always, 'Markdown 工具列也有查看文件屬性，閱讀模式也能用');
+  click(mdPeek.dom);
+  assert(peek() && peek().querySelectorAll('.wm-peek-row').length === 1 && peek().querySelector('.wm-chip-tag').textContent === '#a', 'Markdown 模式：讀原文的文件屬性');
+  click(peek().querySelector('.wm-peek-go'));
+  assert(!peek() && md.scrolled === 0, '前往文件屬性：捲到最上方（Obsidian 把屬性顯示在那裡）');
+  md.text = '內文\n'; md.mode = 'preview';
+  click(mdPeek.dom);
+  assert(peek().textContent.includes('這份筆記沒有文件屬性') && !peek().querySelector('.wm-peek-go'), '閱讀模式沒有屬性：不能新增，沒有按鈕');
+  bar.destroy();
+  assert(!peek(), '工具列關閉時小視窗也關閉');
+  md.mode = 'source';
+  const statusBtn = document.body.createEl('button');
+  B.openMarkdownPeek(plugin, md, statusBtn);
+  click(peek().querySelector('.wm-peek-go'));
+  assert(md.inserted.length === 1 && md.inserted[0][0] === '---\n\n---\n', 'Markdown 編輯模式新增文件屬性：沒有 Obsidian 的指令時直接在最前面加上 ---');
+  statusBtn.remove(); md.containerEl.remove();
+}
+
+// ======== 文件屬性固定在上方（設定）：捲過文件屬性之後，上方浮出精簡的屬性列 ========
+{
+  await fresh('---\ntags: [會議, 專案, 週報, 月報, 年報]\ndate: 2026-11-19\ndone: true\nempty:\n---\n' + Array.from({ length: 12 }, (_, i) => '段落 ' + i).join('\n\n') + '\n');
+  const fmDom = view.pm.nodeDOM(0);
+  // 捲動區在畫面的 100～600；文件屬性已經捲到上面（下緣 50）
+  view.scroller.getBoundingClientRect = () => ({ top: 100, bottom: 600, height: 500, left: 0, right: 800, width: 800 });
+  fmDom.getBoundingClientRect = () => ({ top: -100, bottom: 50, height: 150, left: 0, right: 800, width: 800 });
+  Object.defineProperty(view.scroller, 'scrollTop', { value: 500, writable: true, configurable: true });
+  view.updatePin();
+  assert(!view.pin || !view.pin.classList.contains('is-shown'), '預設不顯示屬性列');
+  plugin.settings.propsSticky = true;
+  view.applyPropsSticky();
+  const pin = view.pin;
+  assert(pin && pin.classList.contains('is-shown') && pin.parentElement === view.pinHost && view.pinHost.nextElementSibling === view.scroller, '開啟設定、文件屬性捲出畫面：捲動區上方浮出屬性列（不在文件裡，文件不會跳動）');
+  const items = [...pin.querySelectorAll('.wm-pin-item')].map(x => x.textContent);
+  assert(items.join(' | ') === 'tags#會議#專案#週報+2 | date2026-11-19 | done☑ | empty—' && pin.querySelector('.wm-pin-check.is-on') && pin.querySelector('.wm-pin-count').textContent === '4 個屬性',
+    '屬性列：一行列出名稱與值，清單最多 3 個標籤（其餘 +N），核取方塊用圖示，空的值是 —：' + items.join(' | '));
+  assert(pin.querySelector('.wm-pin-bar').getAttribute('aria-expanded') === 'false' && !pin.querySelector('.wm-pin-card').childElementCount, '一開始收起來');
+  click(pin.querySelector('.wm-pin-bar'));
+  const card = pin.querySelector('.wm-pin-card');
+  assert(pin.classList.contains('is-open') && card.querySelectorAll('.wm-peek-row').length === 4 && !card.querySelector('.wm-peek-head') && card.querySelector('.wm-peek-go'),
+    '點屬性列：展開完整清單（跟查看文件屬性一樣，不重複標題）');
+  document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+  assert(!pin.classList.contains('is-open') && !card.childElementCount, '點屬性列以外的地方：收起來');
+  click(pin.querySelector('.wm-pin-bar'));
+  pin.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+  assert(!pin.classList.contains('is-open'), '按 Esc 收起來');
+  // 改了文件屬性：屬性列跟著更新
+  const src = view.pm.state.doc.firstChild.attrs.src.replace('date: 2026-11-19', 'date: 2026-12-01');
+  view.pm.dispatch(view.pm.state.tr.setNodeMarkup(0, null, Object.assign({}, view.pm.state.doc.firstChild.attrs, { src })));
+  assert(pin.textContent.includes('2026-12-01'), '改了文件屬性：屬性列跟著更新');
+  // 游標被屬性列蓋住：往上捲到露出來
+  pin.getBoundingClientRect = () => ({ top: 108, bottom: 144, height: 36, left: 0, right: 800, width: 800 });
+  caret(view, 5);
+  view.pm.coordsAtPos = () => ({ top: 120, bottom: 140, left: 0, right: 0 });
+  assert(view.scrollPastProps(view.pm) === true && view.scroller.scrollTop === 468, '游標被屬性列蓋住：往上捲到露出來：' + view.scroller.scrollTop);
+  view.pm.coordsAtPos = () => ({ top: 300, bottom: 320, left: 0, right: 0 });
+  assert(view.scrollPastProps(view.pm) === false && view.scroller.scrollTop === 468, '游標沒有被蓋住：交給編輯器原本的捲動');
+  // 按「前往文件屬性」：收起來，捲回文件屬性
+  click(pin.querySelector('.wm-pin-bar'));
+  view.propsOpen = false;
+  click(pin.querySelector('.wm-peek-go'));
+  assert(!pin.classList.contains('is-open') && view.propsOpen === true, '展開後按「前往文件屬性」：收起來，展開文件裡的文件屬性');
+  // 文件屬性回到畫面裡：屬性列消失
+  fmDom.getBoundingClientRect = () => ({ top: 150, bottom: 300, height: 150, left: 0, right: 800, width: 800 });
+  view.updatePin();
+  assert(!pin.classList.contains('is-shown'), '文件屬性回到畫面裡：屬性列消失');
+  fmDom.getBoundingClientRect = () => ({ top: -100, bottom: 50, height: 150, left: 0, right: 800, width: 800 });
+  view.scroller.scrollTop = 500;
+  view.updatePin();
+  assert(pin.classList.contains('is-shown'), '再捲下去又出現');
+  plugin.settings.propsSticky = false;
+  view.applyPropsSticky();
+  assert(!pin.classList.contains('is-shown') && view.scrollPastProps(view.pm) === false, '關閉設定：屬性列消失');
+  plugin.settings.propsSticky = true;
+  await fresh('沒有文件屬性\n\n' + Array.from({ length: 12 }, (_, i) => '段落 ' + i).join('\n\n') + '\n');
+  view.updatePin();
+  assert(!pin.classList.contains('is-shown'), '筆記沒有文件屬性：不顯示屬性列');
+  plugin.settings.propsSticky = false;
+  delete view.pm.coordsAtPos; delete view.scroller.getBoundingClientRect; delete view.scroller.scrollTop; delete pin.getBoundingClientRect;
+}
+
+// ======== 文件屬性的外觀（設定）：區塊、只有框線、簡潔；屬性列只顯示值 ========
+{
+  const has = c => view.contentEl.classList.contains(c);
+  const look = () => ['wm-props-style-outline', 'wm-props-style-plain', 'wm-pin-nolabels'].filter(has).join() || '（預設）';
+  view.applyPropsLook();
+  assert(look() === '（預設）', '預設：區塊（框線加底色），屬性列顯示名稱：' + look());
+  plugin.settings.propsStyle = 'plain'; plugin.settings.pinLabels = false;
+  view.applyPropsLook();
+  assert(look() === 'wm-props-style-plain,wm-pin-nolabels', '簡潔、屬性列只顯示值：' + look());
+  plugin.settings.propsStyle = 'outline';
+  view.applyPropsLook();
+  assert(look() === 'wm-props-style-outline,wm-pin-nolabels', '只有框線：' + look());
+  plugin.settings.propsStyle = '不認得的值'; plugin.settings.pinLabels = true;
+  view.applyPropsLook();
+  assert(look() === '（預設）', '不認得的值當成預設的區塊：' + look());
+  delete plugin.settings.propsStyle; delete plugin.settings.pinLabels;
+  const { readFileSync } = await import('node:fs');
+  const css = readFileSync(new URL('../../styles/word-mode.css', import.meta.url), 'utf8');
+  assert(css.includes('.wm-props-style-outline .wm-editor .wm-props { background: transparent; }') && css.includes('.wm-props-style-plain .wm-editor .wm-props { background: transparent; border: none;') && css.includes('.wm-pin-nolabels .wm-pin-key { display: none; }'),
+    '樣式表有三種外觀與只顯示值的規則');
+}
+
 finish();

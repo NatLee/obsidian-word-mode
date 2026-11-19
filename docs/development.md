@@ -115,6 +115,8 @@ All styles are in `styles/word-mode.css`, and every class starts with `wm-`. The
 | `src/settingsnav.ts` | Category tabs at the top of the settings. |
 | `src/colorpicker.ts` | Color panel for font color and highlight. |
 | `src/mdbar.ts` | Toolbar shown in Markdown and reading mode. |
+| `src/statusbar.ts` | Status bar contents (word count, save status, view switch, properties, zoom), shared by Word mode and Markdown and reading mode. |
+| `src/props.ts`, `src/propview.ts` | Property values (types, conversion, reading the frontmatter), and the properties popover and the pinned properties bar. |
 | `src/bubble.ts` | Floating toolbar for links and images. |
 | `src/nodeviews.ts` | Rendering of links, images, tables, and raw blocks. |
 | `src/links.ts` | Link and image detection. |

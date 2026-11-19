@@ -2,7 +2,8 @@
 import { MarkdownConverter } from '../src/markdown.js';
 import { schema } from '../src/schema.js';
 import { normalizeCellAlign } from '../src/schema.js';
-import { propType, summarize, propLink, convertProp, renameProp, propsSummary } from '../src/props.js';
+import { propType, summarize, propLink, convertProp, renameProp, propsSummary, frontmatterOf, frontmatterBody, peekData } from '../src/props.js';
+import { countText, docText, docStats } from '../src/textstats.js';
 
 const c = new MarkdownConverter();
 const N = schema.nodes;
@@ -69,6 +70,35 @@ check('align: 空字串 → 預設', normalizeCellAlign('') === null && normaliz
   check('rename：位置不變', JSON.stringify(renamed) === '{"a":1,"新":2,"c":3}', JSON.stringify(renamed));
   check('rename：名稱重複或空白時不改', renameProp({ a: 1, b: 2 }, 'a', 'b') === null && renameProp({ a: 1 }, 'a', '  ') === null);
   check('propsSummary：略過沒有值的屬性', propsSummary({ tags: ['a', 'b'], empty: null, date: '2026-11-17' }) === 'tags: a, b  ·  date: 2026-11-17', propsSummary({ tags: ['a', 'b'], empty: null, date: '2026-11-17' }));
+}
+
+// ---- 查看文件屬性：從原文或文件屬性節點取出 YAML（跟 markdown.ts 切文件屬性的規則一樣）
+{
+  check('frontmatterOf：開頭的 --- 到下一個 ---', frontmatterOf('---\ntags: [a]\ndate: 2026-11-19\n---\n內文') === 'tags: [a]\ndate: 2026-11-19');
+  check('frontmatterOf：Windows 換行、用 ... 結尾', frontmatterOf('---\r\na: 1\r\n...\r\n內文') === 'a: 1');
+  check('frontmatterOf：空的文件屬性', frontmatterOf('---\n---\n內文') === '');
+  check('frontmatterOf：沒有文件屬性', frontmatterOf('# 標題\n---\n') === null && frontmatterOf('---\n沒有結尾') === null && frontmatterOf(' ---\na: 1\n---') === null);
+  check('frontmatterOf：跟 Word 模式轉換時切出的文件屬性一樣', (() => {
+    const md = '---\na: 1\nb: [x, y]\n---\n\n一段\n';
+    const first = c.parse(md).doc.firstChild;
+    return first.type === N.frontmatter && frontmatterBody(first.attrs.src) === frontmatterOf(md);
+  })());
+  const yaml = s => { if (s.includes('!!')) throw new Error('bad'); return s === '[1]' ? [1] : Object.fromEntries(s.split('\n').map(l => l.split(': '))); };
+  check('peekData：沒有文件屬性', peekData(null, yaml).kind === 'none');
+  check('peekData：空的文件屬性是沒有值的屬性', JSON.stringify(peekData('  ', yaml)) === '{"kind":"props","values":{}}');
+  check('peekData：屬性的值', JSON.stringify(peekData('a: 1\nb: 2', yaml)) === '{"kind":"props","values":{"a":"1","b":"2"}}');
+  check('peekData：看不懂的 YAML 顯示原文', JSON.stringify(peekData('a: !!x', yaml)) === '{"kind":"raw","text":"a: !!x"}' && peekData('[1]', yaml).kind === 'raw');
+}
+
+// ---- 字數：Markdown／閱讀模式先把原文轉成文件再算，跟 Word 模式的數字一樣
+{
+  const md = '---\ntags: [a]\n---\n# 標題 Title\n\n這是 **粗體** 與 [連結](https://example.com)，hello world。\n\n| 甲 | 乙 |\n| --- | --- |\n| a1 | b1 |\n';
+  const doc = c.parse(md).doc;
+  const all = countText(docText(doc));
+  check('字數：Markdown 符號與文件屬性不算字', all.cjk === countText('標題這是粗體與連結甲乙').cjk && all.latin === 5, JSON.stringify(all));
+  const st = docStats(doc);
+  check('字數統計：段落、標題、表格、連結', st.heads === 1 && st.tables === 1 && st.links === 1 && st.words === all.words && st.minutes === 1, JSON.stringify(st));
+  check('字數統計：選取一段', docStats(doc, 0, doc.child(0).nodeSize + doc.child(1).nodeSize).heads === 1 && docStats(doc, 0, doc.child(0).nodeSize).words === 0);
 }
 
 if (failed) { console.log(`\n${failed} 項失敗`); process.exit(1); }

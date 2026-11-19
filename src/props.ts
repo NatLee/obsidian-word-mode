@@ -20,6 +20,37 @@ export function propType(key: string, value: unknown, hint?: string | null): Pro
 
 export function isTagKey(key: string): boolean { return TAG_KEYS.test(key); }
 
+// 每種類型的圖示（Lucide 名稱）：文件屬性區塊與「查看文件屬性」小視窗共用
+export const PROP_ICONS: Record<PropType, string> = { text: 'text', list: 'list', number: 'binary', checkbox: 'check-square', date: 'calendar', datetime: 'clock', object: 'braces' };
+
+// 文件屬性節點的 src（含前後的 ---）→ 中間的 YAML
+export function frontmatterBody(src: string): string {
+  return src.replace(/^---[^\n]*\r?\n/, '').replace(/\r?\n?(---|\.\.\.)\s*$/, '');
+}
+
+// Markdown 原文開頭的文件屬性（YAML）；沒有時是 null。
+// 判斷方式跟 markdown.ts 切出文件屬性的規則一樣：第一行是 ---，到下一個 --- 或 ... 為止
+export function frontmatterOf(text: string): string | null {
+  const lines = text.split(/\r\n|\n|\r/);
+  if (lines[0] !== '---') return null;
+  for (let i = 1; i < lines.length; i++) if (lines[i] === '---' || lines[i] === '...') return lines.slice(1, i).join('\n');
+  return null;
+}
+
+// 「查看文件屬性」小視窗要顯示的內容：沒有文件屬性、看不懂的 YAML（顯示原文），或屬性的值
+export type PropsPeekData = { kind: 'none' } | { kind: 'raw'; text: string } | { kind: 'props'; values: Record<string, unknown> };
+
+// body 是 frontmatterBody／frontmatterOf 的結果；parse 是 Obsidian 的 parseYaml（測試時換成替身）
+export function peekData(body: string | null, parse: (yaml: string) => unknown): PropsPeekData {
+  if (body == null) return { kind: 'none' };
+  if (!body.trim()) return { kind: 'props', values: {} };
+  try {
+    const o = parse(body);
+    if (o && typeof o === 'object' && !Array.isArray(o)) return { kind: 'props', values: o as Record<string, unknown> };
+  } catch { /* 看不懂的 YAML：顯示原文 */ }
+  return { kind: 'raw', text: body };
+}
+
 // 純量（文字、數字、布林）轉成文字；其餘回傳 null
 function scalarText(value: unknown): string | null {
   if (typeof value === 'string') return value;

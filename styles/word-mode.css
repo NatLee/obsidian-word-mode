@@ -1421,3 +1421,152 @@ body:not(.is-phone) .modal.wm-eq-modal, body:not(.is-phone) .modal.wm-mmd-modal 
 .wm-editor .wm-codeblock button.wm-code-more[hidden] { display: none; }
 /* 圖表編輯器的預覽：圖以原本的大小為準（蓋掉 Mermaid 寫在 SVG 上的 max-width），太寬就用捲的 */
 .wm-mmd-canvas svg.wm-mmd-natural { max-width: none !important; }
+
+/* ---------- 檢視模式的示意動畫：Word 模式（Markdown 符號收起來，文字直接變成格式） ---------- */
+@keyframes wm-mdhide { 0%, 25%, 100% { opacity: 1; max-width: 2em; } 40%, 85% { opacity: 0; max-width: 0; } }
+@keyframes wm-wlink { 0%, 25%, 100% { color: var(--text-normal); } 40%, 85% { color: var(--link-color, var(--text-accent)); } }
+.wm-anim-wysiwyg .wm-demo-mdmark { display: inline-block; overflow: hidden; vertical-align: bottom; color: var(--text-faint); font-family: var(--font-monospace); animation: wm-mdhide 2.8s infinite ease-in-out; }
+.wm-anim-wysiwyg .wm-demo-wbold { animation: wm-bold 2.8s infinite ease-in-out; }
+.wm-anim-wysiwyg .wm-demo-wlink { text-decoration: underline; animation: wm-wlink 2.8s infinite ease-in-out; }
+
+/* ---------- 狀態列：Markdown／閱讀模式也是同樣的內容 ---------- */
+:is(.wm-bottombar, .wm-statusbar) .wm-bb-btn-icon { display: inline-flex; }
+/* 縮放只用在 Word 模式：其他模式仍然顯示（版面不跳動），但停用 */
+.wm-bb-zoom.is-disabled { opacity: .45; }
+:is(.wm-bottombar, .wm-statusbar) .wm-bb-zoom.is-disabled button { cursor: default; }
+:is(.wm-bottombar, .wm-statusbar) .wm-bb-zoom.is-disabled button:hover { background: transparent; color: var(--text-muted); }
+/* Markdown 編輯時 Obsidian 內建的字數跟狀態列的字數重複，藏起來（關掉「保留狀態列」就恢復） */
+body.wm-md-status .status-bar-item.plugin-word-count { display: none; }
+
+/* ---------- 查看文件屬性（小視窗）：名稱與值一列一列排，沒有格線，滑鼠移上去整列淡淡變色（參考 Linear 與 Obsidian 的屬性清單） ---------- */
+.wm-popup.wm-peek { width: 340px; max-width: calc(100vw - 8px); display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 12px; box-shadow: var(--shadow-l, 0 10px 30px rgba(0, 0, 0, .18)); font-size: var(--font-ui-small); }
+.wm-peek [hidden] { display: none !important; }
+.wm-peek-head { display: flex; align-items: center; gap: 8px; padding: 0 2px; }
+.wm-peek-badge { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 24px; height: 24px; border-radius: 7px; background: rgba(var(--interactive-accent-rgb, 120, 82, 238), .12); color: var(--text-accent); }
+.wm-peek-badge svg { width: 14px; height: 14px; }
+.wm-peek-title { font-weight: 600; color: var(--text-normal); }
+.wm-peek-count { margin-left: auto; padding: 1px 8px; border-radius: 10px; background: var(--background-secondary); color: var(--text-muted); font-size: var(--font-ui-smaller); }
+.wm-peek input.wm-peek-filter { width: 100%; height: 30px; border-radius: 8px; }
+.wm-peek-list { display: flex; flex-direction: column; gap: 1px; max-height: min(50vh, 420px); overflow-y: auto; overscroll-behavior: contain; }
+.wm-peek-row { display: flex; align-items: flex-start; gap: 10px; padding: 5px 6px; border-radius: 6px; }
+.wm-peek-row:hover { background: var(--background-modifier-hover); }
+.wm-peek-key { display: flex; align-items: center; gap: 6px; flex: 0 0 108px; min-width: 0; min-height: 22px; color: var(--metadata-label-text-color, var(--text-muted)); }
+.wm-peek-icon { display: inline-flex; flex: 0 0 auto; color: var(--text-faint); }
+.wm-peek-icon svg { width: 14px; height: 14px; }
+.wm-peek-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wm-peek-value { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; flex: 1 1 auto; min-width: 0; min-height: 22px; line-height: 1.5; color: var(--text-normal); overflow-wrap: anywhere; }
+/* 很長的值先顯示三行；真的被截掉時下緣變淡，點一下展開 */
+.wm-peek-value.is-clamped { max-height: 4.5em; overflow: hidden; }
+.wm-peek-value.is-more { cursor: pointer; }
+.wm-peek-value.is-clamped.is-more { -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent); mask-image: linear-gradient(to bottom, #000 55%, transparent); }
+.wm-peek .wm-chip { padding: 0 9px; min-height: 22px; border-radius: var(--pill-radius, 2em); background: var(--pill-background, var(--background-modifier-hover)); border: var(--pill-border-width, 1px) solid var(--pill-border-color, transparent); color: var(--pill-color, var(--text-normal)); }
+.wm-peek .wm-chip-tag { background: var(--tag-background, var(--background-modifier-hover)); border-color: var(--tag-border-color, transparent); color: var(--tag-color, var(--text-accent)); }
+.wm-peek-check { margin: 0; }
+.wm-peek-blank { color: var(--text-faint); }
+.wm-peek-empty { padding: 10px 4px; color: var(--text-muted); text-align: center; }
+.wm-peek-raw { max-height: 40vh; overflow: auto; margin: 0; padding: 8px 10px; border-radius: 8px; background: var(--background-secondary); font-size: var(--font-ui-smaller); white-space: pre-wrap; }
+.wm-peek-foot { display: flex; justify-content: flex-end; padding-top: 8px; border-top: 1px solid var(--background-modifier-border); }
+.wm-popup button.wm-peek-go, .wm-pin button.wm-peek-go { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 8px; font-size: var(--font-ui-small); }
+.wm-peek-go-icon { display: inline-flex; }
+.wm-peek-go-icon svg { width: 14px; height: 14px; }
+/* 手機：輸入框的字要 16px 以上，iOS 才不會放大畫面 */
+.wm-popup.wm-peek.is-mobile input.wm-peek-filter { height: 36px; font-size: 16px; }
+.wm-popup.wm-peek.is-mobile .wm-peek-key { flex-basis: 96px; }
+
+/* ---------- 文件屬性固定在上方（設定）：捲過文件屬性之後，捲動區上方浮出一條膠囊形的屬性列 ---------- */
+/* 參考 Notion 的「釘選屬性」：重要的屬性橫排成一行、名稱小而淡；其餘點開再看。屬性列浮在文件上，不佔版面、文件不會跳動 */
+.wm-pin-host { position: relative; flex: 0 0 auto; height: 0; z-index: 6; }
+.wm-pin { position: absolute; top: 8px; left: 16px; width: calc(100% - 32px); box-sizing: border-box; border: 1px solid var(--background-modifier-border); border-radius: 14px; background: var(--background-primary); box-shadow: 0 6px 20px rgba(0, 0, 0, .08), 0 1px 3px rgba(0, 0, 0, .06); font-size: var(--font-ui-small); opacity: 0; transform: translateY(-6px); pointer-events: none; transition: opacity .18s ease, transform .18s ease; }
+/* 支援的環境用半透明加模糊（不支援 color-mix 時這一行無效，維持上面的實色） */
+.wm-pin { background: color-mix(in srgb, var(--background-primary) 86%, transparent); -webkit-backdrop-filter: blur(12px) saturate(1.4); backdrop-filter: blur(12px) saturate(1.4); }
+.wm-pin.is-shown { opacity: 1; transform: none; pointer-events: auto; }
+/* 屬性列後面墊一條頁面底色、往下淡出的帶子：捲過去的文字在屬性列上下不會亂成一團 */
+.wm-pin::before { content: ""; position: absolute; z-index: -1; left: -24px; right: -24px; top: -9px; height: 60px; background: linear-gradient(to bottom, var(--background-primary) 70%, transparent); pointer-events: none; }
+.wm-pin-bar { display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 6px 0 7px; border-radius: 13px; cursor: pointer; user-select: none; }
+.wm-pin-bar:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: -2px; }
+.wm-pin.is-open .wm-pin-bar { border-radius: 13px 13px 0 0; }
+.wm-pin-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 26px; height: 26px; border-radius: 8px; background: rgba(var(--interactive-accent-rgb, 120, 82, 238), .12); color: var(--text-accent); transition: background .15s; }
+.wm-pin-bar:hover .wm-pin-icon { background: rgba(var(--interactive-accent-rgb, 120, 82, 238), .2); }
+.wm-pin-icon svg { width: 15px; height: 15px; }
+/* 屬性之間用很淡的直線分開；一行放不下的往右淡出，完整內容點開屬性列看 */
+.wm-pin-items { display: flex; align-items: center; flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 48px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 48px), transparent); }
+.wm-pin-item { display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; padding: 0 12px; }
+.wm-pin-item:first-child { padding-left: 2px; }
+.wm-pin-item + .wm-pin-item { border-left: 1px solid var(--background-modifier-border); }
+.wm-pin-key { color: var(--text-faint); font-size: var(--font-ui-smaller); }
+.wm-pin-val { max-width: 240px; overflow: hidden; text-overflow: ellipsis; color: var(--text-normal); }
+.wm-pin-chip { padding: 0 8px; border-radius: var(--pill-radius, 2em); line-height: 20px; background: var(--pill-background, var(--background-modifier-hover)); border: var(--pill-border-width, 1px) solid var(--pill-border-color, transparent); color: var(--pill-color, var(--text-normal)); }
+.wm-pin-chip.is-tag { background: var(--tag-background, var(--background-modifier-hover)); border-color: var(--tag-border-color, transparent); color: var(--tag-color, var(--text-accent)); }
+.wm-pin-more, .wm-pin-blank, .wm-pin-empty { color: var(--text-faint); }
+.wm-pin-check { display: inline-flex; color: var(--text-faint); }
+.wm-pin-check.is-on { color: var(--interactive-accent); }
+.wm-pin-check svg { width: 14px; height: 14px; }
+.wm-pin-count { flex: 0 0 auto; padding: 1px 8px; border-radius: 10px; background: var(--background-secondary); color: var(--text-muted); font-size: var(--font-ui-smaller); }
+.wm-pin-chev { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 26px; height: 26px; border-radius: 8px; color: var(--text-faint); transition: transform .18s ease, background .15s; }
+.wm-pin-bar:hover .wm-pin-chev { background: var(--background-modifier-hover); color: var(--text-muted); }
+.wm-pin-chev svg { width: 15px; height: 15px; }
+.wm-pin.is-open .wm-pin-chev { transform: rotate(180deg); }
+/* 展開的完整清單：跟「查看文件屬性」小視窗一樣（篩選、長的值收成三行、清單在框內捲動） */
+.wm-pin-card { display: none; flex-direction: column; gap: 8px; padding: 8px 10px 10px; border-top: 1px solid var(--background-modifier-border); }
+.wm-pin.is-open .wm-pin-card { display: flex; }
+.wm-pin-card .wm-peek-list { max-height: min(45vh, 360px); }
+.wm-pin-card .wm-peek-key { flex-basis: 140px; }
+.wm-mobile .wm-pin-card input.wm-peek-filter { height: 36px; font-size: 16px; }
+.wm-mobile .wm-pin-count { display: none; }
+
+/* ---------- 文件裡的文件屬性區塊：有框線、淡底色的一個區塊，看得出是屬性而不是內文；
+   用 Obsidian 內建屬性區的 --metadata-* 變數，佈景主題調過的外觀也會套用 ---------- */
+/* 輸入框平常沒有框線、跟文字一樣（Obsidian 的 input[type=text] 會加框線，所以選擇器要比它具體） */
+.wm-editor .wm-props { margin: 0 0 1.6em; padding: 0; background: var(--metadata-background, var(--background-primary-alt)); border: var(--metadata-border-width, 1px) solid var(--metadata-border-color, var(--background-modifier-border)); border-radius: var(--metadata-border-radius, 10px); }
+.wm-editor .wm-props.is-collapsed { padding: 0; }
+.wm-props .wm-props-head { gap: 8px; min-height: 38px; padding: 4px 8px 4px 6px; border-radius: calc(var(--metadata-border-radius, 10px) - 1px); }
+.wm-props:not(.is-collapsed) .wm-props-head { border-bottom: 1px solid var(--background-modifier-border); border-radius: calc(var(--metadata-border-radius, 10px) - 1px) calc(var(--metadata-border-radius, 10px) - 1px) 0 0; }
+.wm-props .wm-props-chev { color: var(--text-faint); }
+.wm-props-badge { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 24px; height: 24px; border-radius: 7px; background: rgba(var(--interactive-accent-rgb, 120, 82, 238), .12); color: var(--text-accent); }
+.wm-props-badge svg { width: 14px; height: 14px; }
+.wm-props .wm-props-title { font-size: var(--font-ui-small); font-weight: 600; color: var(--text-normal); }
+.wm-props .wm-props-count { font-size: var(--font-ui-smaller); }
+.wm-props .wm-props-body { display: flex; flex-direction: column; gap: var(--metadata-gap, 2px); padding: 6px 6px 8px; }
+.wm-props .wm-prop { gap: 8px; min-height: var(--metadata-input-height, 30px); padding: var(--metadata-property-padding, 0 6px); border-radius: var(--metadata-property-radius, 6px); background: var(--metadata-property-background, transparent); }
+.wm-props .wm-prop:hover { background: var(--metadata-property-background-hover, var(--background-modifier-hover)); border-radius: var(--metadata-property-radius-hover, 6px); }
+.wm-props .wm-prop:focus-within { background: var(--metadata-property-background-active, var(--background-modifier-hover)); border-radius: var(--metadata-property-radius-focus, 6px); }
+.wm-props .wm-prop-key { flex: 0 0 var(--metadata-label-width, 9.5em); font-size: var(--metadata-label-font-size, var(--font-ui-small)); font-weight: var(--metadata-label-font-weight, 400); color: var(--metadata-label-text-color, var(--text-muted)); }
+.wm-props .wm-prop:hover .wm-prop-key { color: var(--metadata-label-text-color-hover, var(--text-normal)); }
+.wm-props input.wm-prop-input { height: var(--metadata-input-height, 28px); padding: 0 6px; border: none; border-radius: 6px; box-shadow: none; background: var(--metadata-input-background, transparent); color: var(--metadata-input-text-color, var(--text-normal)); font-size: var(--metadata-input-font-size, var(--font-ui-small)); }
+.wm-props input.wm-prop-input:hover { background: var(--metadata-input-background-hover, transparent); }
+.wm-props input.wm-prop-input:focus { background: var(--metadata-input-background-active, var(--background-primary)); box-shadow: 0 0 0 1px var(--background-modifier-border-focus); }
+.wm-props input.wm-prop-input::placeholder { color: var(--text-faint); }
+.wm-props .wm-chip { padding: 0 3px 0 9px; min-height: 22px; border-radius: var(--pill-radius, 2em); background: var(--pill-background, var(--background-modifier-hover)); border: var(--pill-border-width, 1px) solid var(--pill-border-color, transparent); color: var(--pill-color, var(--text-normal)); }
+.wm-props .wm-chip-tag { background: var(--tag-background, var(--background-modifier-hover)); border-color: var(--tag-border-color, transparent); color: var(--tag-color, var(--text-accent)); }
+.wm-props .wm-chip-x { opacity: 0; transition: opacity .12s; }
+.wm-props .wm-chip:hover .wm-chip-x, .wm-mobile .wm-props .wm-chip-x { opacity: 1; }
+/* 新增屬性：平常只有一行淡淡的「＋ 新增屬性名稱」，滑鼠移上去或正在輸入時才出現類型與按鈕 */
+.wm-props .wm-prop-add { opacity: .7; }
+.wm-props .wm-prop-add .wm-prop-type, .wm-props .wm-prop-add .wm-prop-addbtn { opacity: 0; transition: opacity .12s; }
+.wm-props .wm-prop-add:hover .wm-prop-type, .wm-props .wm-prop-add:hover .wm-prop-addbtn, .wm-props .wm-prop-add:focus-within .wm-prop-type, .wm-props .wm-prop-add:focus-within .wm-prop-addbtn, .wm-mobile .wm-props .wm-prop-add .wm-prop-type, .wm-mobile .wm-props .wm-prop-add .wm-prop-addbtn { opacity: 1; }
+.wm-props select.wm-prop-type { height: 26px; font-size: var(--font-ui-smaller); }
+.wm-props button.wm-prop-addbtn { height: 26px; padding: 0 10px; border-radius: 6px; font-size: var(--font-ui-smaller); }
+
+/* ---------- 文件屬性的外觀（設定）：只有框線、簡潔（沒有框線，下方一條分隔線）；屬性列只顯示值 ---------- */
+.wm-props-style-outline .wm-editor .wm-props { background: transparent; }
+.wm-props-style-plain .wm-editor .wm-props { background: transparent; border: none; border-bottom: 1px solid var(--background-modifier-border); border-radius: 0; }
+.wm-props-style-plain .wm-props:not(.is-collapsed) .wm-props-head { border-bottom: none; }
+.wm-props-style-plain .wm-props .wm-props-body { padding: 0 0 8px; }
+.wm-pin-nolabels .wm-pin-key { display: none; }
+
+/* ---------- 手機：文件屬性與下方狀態列 ---------- */
+/* 名稱與值排在同一列（名稱欄窄一點），清單的標籤在值的欄位裡換行，不會一個東西佔一行 */
+.wm-mobile .wm-props .wm-prop { flex-wrap: nowrap; align-items: flex-start; }
+.wm-mobile .wm-props .wm-prop.wm-prop-add { flex-wrap: wrap; align-items: center; }
+.wm-mobile .wm-props .wm-prop-key { flex: 0 0 6.5em; min-height: var(--metadata-input-height, 32px); }
+.wm-mobile .wm-props .wm-prop-value { min-height: var(--metadata-input-height, 32px); }
+.wm-mobile .wm-props button.wm-prop-del { margin-top: 4px; }
+/* 輸入框與下拉選單的字要 16px 以上，iOS 點進去時才不會放大畫面 */
+.wm-mobile .wm-props input.wm-prop-input, .wm-mobile .wm-props select.wm-prop-type { font-size: 16px; }
+.wm-mobile .wm-props select.wm-prop-type, .wm-mobile .wm-props button.wm-prop-addbtn { height: 34px; }
+/* 手機的狀態列很窄：字數不換行；存檔狀態只顯示圖示（衝突時仍顯示文字）；縮放只留百分比（點一下回到 100%），放大縮小用功能區 */
+.wm-phone .wm-bottombar .wm-bb-count { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wm-phone .wm-bottombar .wm-bb-status:not(.is-conflict) .wm-bb-status-text { display: none; }
+.wm-phone .wm-bottombar .wm-bb-status { flex: 0 0 auto; white-space: nowrap; }
+.wm-phone .wm-bottombar .wm-bb-zoom button.wm-bb-btn { display: none; }
+.wm-phone .wm-bottombar button.wm-bb-zoomlabel { min-width: 40px; }

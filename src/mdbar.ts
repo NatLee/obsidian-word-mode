@@ -1,12 +1,14 @@
 // Markdown 編輯與閱讀模式上方的工具列（設定「切換到 Markdown／閱讀模式時保留工具列」）
 // 編輯模式用 Obsidian 編輯器的指令；閱讀模式只能檢視，編輯按鈕會停用並說明原因。
 // 版面跟 Word 模式的功能區一樣（同樣的分頁、群組、按鈕大小與位置），切換模式時畫面不會跳動
-import { MarkdownView, setIcon, Menu, Platform } from 'obsidian';
+import { MarkdownView, setIcon, Menu, Platform, parseYaml } from 'obsidian';
 import { t, key } from './i18n.js';
 import { attachHint, hideHint } from './hints.js';
 import type { DemoName } from './hints.js';
 import { CODE_LANGUAGES } from './commands.js';
 import { el } from './dom.js';
+import { frontmatterOf, peekData } from './props.js';
+import { openPropsPeek, closePropsPeek, propertyWidget } from './propview.js';
 import { TABS, TAB_ICONS, tabName, fillTab, groupLayout } from './toolbar.js';
 import type { TabId, GroupId, TabStyle, RibbonLayout, ButtonStyle } from './toolbar.js';
 import type { App, Editor, MarkdownViewModeType } from 'obsidian';
@@ -138,6 +140,7 @@ export class MarkdownBar {
 
   destroy(): void {
     hideHint();
+    closePropsPeek();
     if (this.sizer) this.sizer.disconnect();
     this.view.containerEl.style.removeProperty('--wm-mdbar-height');
     this.dom.remove();
@@ -197,7 +200,7 @@ export class MarkdownBar {
       el('div', 'wm-group-name', g, name);
     }
     const E = (fn: (ed: Editor) => void) => () => { const ed = this.editor; if (ed) { fn(ed); ed.focus(); } };
-    const toWord: MdButtonSpec = { icon: 'file-text', title: '切換到 Word 模式', keys: S.ctrlE !== false ? 'Mod+E' : null, label: 'Word 模式', big: true, viewMode: true, demo: 'markdown', desc: '用 Word 模式編輯這份筆記。', run: () => { void this.plugin.switchToWord(this.view.leaf); }, always: true };
+    const toWord: MdButtonSpec = { icon: 'file-text', title: '切換到 Word 模式', keys: S.ctrlE !== false ? 'Mod+E' : null, label: 'Word 模式', big: true, viewMode: true, demo: 'word', desc: '像 Word 一樣直接看到格式來編輯，存檔仍是純 Markdown。', run: () => { void this.plugin.switchToWord(this.view.leaf); }, always: true };
 
     // ---- 常用
     let g = G.undo;
@@ -250,10 +253,11 @@ export class MarkdownBar {
     // ---- 檢視：前三個按鈕的位置、大小跟 Word 模式的「檢視」分頁一樣
     g = G.views;
     this.button(g, toWord);
-    this.button(g, { icon: 'code-2', title: 'Markdown 編輯', label: 'Markdown', big: true, viewMode: true, active: () => this.mode === 'source', run: () => { void this.setMode('source'); }, always: true });
-    this.button(g, { icon: 'book-open', title: '閱讀模式', label: '閱讀', big: true, viewMode: true, demo: 'reading', active: () => this.mode === 'preview', run: () => { void this.setMode('preview'); }, always: true });
+    this.button(g, { icon: 'code-2', title: 'Markdown 編輯', label: 'Markdown', big: true, viewMode: true, demo: 'markdown', desc: '用 Obsidian 原本的 Markdown 編輯這份筆記。', active: () => this.mode === 'source', run: () => { void this.setMode('source'); }, always: true });
+    this.button(g, { icon: 'book-open', title: '閱讀模式', label: '閱讀', big: true, viewMode: true, demo: 'reading', desc: '用 Obsidian 的閱讀模式檢視（不能編輯）。', active: () => this.mode === 'preview', run: () => { void this.setMode('preview'); }, always: true });
     g = G.show;
     this.button(g, { icon: 'list-tree', title: '大綱', label: '大綱', big: true, demo: 'outline', run: () => { void this.plugin.toggleOutline(); }, active: () => this.plugin.outlineOpen(), always: true });
+    this.button(g, { icon: 'clipboard-list', title: '查看文件屬性', label: '屬性', big: true, demo: 'properties', desc: '不用捲到最上方，直接看這份筆記的屬性（標籤、日期等）。屬性很多時可以篩選。', run: (e, b) => openMarkdownPeek(this.plugin, this.view, b), always: true });
     this.button(g, { icon: 'chevrons-down-up', title: '摺疊全部標題', label: '全部摺疊', big: true, demo: 'fold', run: this.cmd('editor:fold-all') });
     this.button(g, { icon: 'chevrons-up-down', title: '展開全部標題', label: '全部展開', big: true, demo: 'unfold', run: this.cmd('editor:unfold-all') });
     this.button(G.help, { icon: 'settings', title: 'Word 模式設定', label: '設定', big: true, run: () => this.plugin.openSettings(), always: true });
@@ -376,3 +380,29 @@ export class MarkdownBar {
 }
 
 export function isMarkdownView(v: unknown): v is MarkdownView { return v instanceof MarkdownView; }
+
+// 「查看文件屬性」小視窗（功能區與狀態列的按鈕）：讀這份筆記的原文，所以還沒存檔的修改也看得到
+export function openMarkdownPeek(plugin: WordModePlugin, view: MarkdownView, btn: HTMLElement): void {
+  let text = '';
+  try { text = view.getViewData(); } catch { /* 檢視還沒載入完成 */ }
+  const data = peekData(frontmatterOf(text), yaml => parseYaml(yaml) as unknown);
+  const reading = view.getMode && view.getMode() === 'preview';
+  // 有屬性：捲到最上方（Obsidian 把屬性顯示在那裡）；沒有屬性：編輯模式才能新增
+  const go = data.kind !== 'none' ? () => { try { view.currentMode.applyScroll(0); } catch { /* 沒有捲動的方法 */ } }
+    : reading ? null : () => addMarkdownProperty(plugin, view);
+  openPropsPeek(btn, data, {
+    icon: (target, name, fallback) => { setIcon(target, name); if (!target.querySelector('svg') && fallback) target.setText(fallback); },
+    typeHint: k => propertyWidget(plugin.app, k), go, isMobile: !!Platform.isMobile,
+  });
+}
+
+// 在 Markdown 編輯模式新增文件屬性：用 Obsidian 的「新增檔案屬性」指令；沒有這個指令時直接在最前面加上 ---
+function addMarkdownProperty(plugin: WordModePlugin, view: MarkdownView): void {
+  const commands = plugin.app.commands;
+  if (commands && commands.executeCommandById('markdown:add-metadata-property')) return;
+  const ed = view.editor;
+  if (!ed) return;
+  ed.replaceRange('---\n\n---\n', { line: 0, ch: 0 });
+  ed.setCursor({ line: 1, ch: 0 });
+  ed.focus();
+}

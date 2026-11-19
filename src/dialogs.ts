@@ -13,6 +13,7 @@ import type WordModePlugin from './main.js';
 import type { WordModeView } from './view.js';
 import type { I18nKey } from './i18n.js';
 import type { DemoName } from './hints.js';
+import type { WordStats } from './textstats.js';
 
 // 原文編輯、輸入框按「套用／確定」後收到輸入的文字
 export type TextCallback = (value: string) => void;
@@ -758,6 +759,18 @@ export class CleanupModal extends Modal {
 }
 
 export const SAMPLE: Record<WeirdKindId, string> = { zw: '␣', ctrl: '␣', nbsp: '·', repl: '�', md: '**', quote: '"', space: '··' };
+
+// 字數統計視窗的每一列：整份文件，有選取時再加一欄選取範圍
+export function wordCountRows(all: WordStats, sel: WordStats | null): WordCountRow[] {
+  const f = (n: number) => n.toLocaleString();
+  const row = (label: string, k: keyof WordStats): WordCountRow => [label, f(all[k]), sel ? f(sel[k]) : null];
+  const rows: WordCountRow[] = [];
+  if (sel) rows.push(['', t('整份文件'), t('選取範圍')]);
+  rows.push(row(t('字數'), 'words'), row(t('字元數（不含空白）'), 'chars'), row(t('字元數（含空白）'), 'charsSp'),
+    row(t('段落數'), 'paras'), row(t('標題數'), 'heads'), row(t('表格'), 'tables'), row(t('圖片'), 'images'), row(t('連結'), 'links'));
+  rows.push([t('預估閱讀時間'), t('{n} 分鐘', { n: all.minutes }), sel ? t('{n} 分鐘', { n: sel.minutes }) : null]);
+  return rows;
+}
 
 // 字數統計（像 Word 的「字數統計」視窗）
 export class WordCountModal extends Modal {

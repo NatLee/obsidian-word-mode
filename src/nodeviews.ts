@@ -3,7 +3,7 @@ import { CALLOUT_TYPES, calloutIcon, CODE_LANGUAGES } from './commands.js';
 import { t, key } from './i18n.js';
 import { FOOTNOTE_DEF, FOOTNOTE_REF, footnoteBody } from './footnotes.js';
 import { el, whenVisible } from './dom.js';
-import { propType, isTagKey, summarize, propLink, convertProp, renameProp, propsSummary } from './props.js';
+import { propType, isTagKey, summarize, propLink, convertProp, renameProp, propsSummary, PROP_ICONS as TYPE_ICON, frontmatterBody } from './props.js';
 import type { PropType } from './props.js';
 import type { Attrs, Node as PMNode } from 'prosemirror-model';
 import type { Selection } from 'prosemirror-state';
@@ -454,7 +454,6 @@ class RawInlineView implements NodeView {
 // 文件屬性（frontmatter / metadata）：像 Word 的「摘要資訊」，以表單編輯，存回 YAML。
 // 類型的判斷與轉換在 props.ts。
 const TYPE_LABEL: Record<PropType, string> = { text: t('文字'), list: t('清單'), number: t('數字'), checkbox: t('核取方塊'), date: t('日期'), datetime: t('日期時間'), object: t('其他') };
-const TYPE_ICON: Record<PropType, string> = { text: 'text', list: 'list', number: 'binary', checkbox: 'check-square', date: 'calendar', datetime: 'clock', object: 'braces' };
 // 可以從選單換成的類型（巢狀資料只能用原文編輯）
 const EDITABLE_TYPES: Exclude<PropType, 'object'>[] = ['text', 'list', 'number', 'checkbox', 'date', 'datetime'];
 
@@ -471,7 +470,7 @@ class FrontmatterView implements NodeView {
     this.dom.wmOpen = () => { this.ctx.setPropsOpen(true); this.render(); };
     this.render();
   }
-  inner(): string { return (this.node.attrs as FrontmatterAttrs).src.replace(/^---[^\n]*\r?\n/, '').replace(/\r?\n?(---|\.\.\.)\s*$/, ''); }
+  inner(): string { return frontmatterBody((this.node.attrs as FrontmatterAttrs).src); }
   data(): PropValues | null {
     const tv = this.inner();
     if (!tv.trim()) return {};
@@ -513,6 +512,8 @@ class FrontmatterView implements NodeView {
     const obj = this.data();
     const head = el('div', 'wm-props-head', d);
     const chev = el('span', 'wm-props-chev', head); this.ctx.icon(chev, open ? 'chevron-down' : 'chevron-right', open ? '▾' : '▸');
+    // 跟「查看文件屬性」小視窗、固定在上方的屬性列用同一個圖示，看得出是同一份資料
+    this.ctx.icon(el('span', 'wm-props-badge', head), 'clipboard-list', '');
     el('span', 'wm-props-title', head, t('文件屬性'));
     // 收合時在標題列顯示內容摘要，不用展開也看得到重點
     const count = obj ? t('{n} 個屬性', { n: Object.keys(obj).length }) : 'YAML';
