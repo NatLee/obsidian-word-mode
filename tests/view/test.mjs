@@ -846,6 +846,22 @@ for (const [title, sel, n] of [['插入圖表', '.wm-hint-demo .wm-demo-flow .wm
   await new Promise(r => setTimeout(r, 150));
   assert(document.querySelectorAll('.wm-hint-card.is-shown ' + sel).length === n, '詳細提示：「' + title + '」也有動畫示意');
 }
+// 快速滑過下一個按鈕（還沒換成它的提示）就移到群組的空白處：以前提示卡會一直留著
+boldB.dispatchEvent(new MouseEvent('mouseenter'));
+await new Promise(r => setTimeout(r, 150));
+boldB.dispatchEvent(new MouseEvent('mouseleave'));
+italB.dispatchEvent(new MouseEvent('mouseenter'));
+await new Promise(r => setTimeout(r, 30));
+italB.dispatchEvent(new MouseEvent('mouseleave'));
+await new Promise(r => setTimeout(r, 250));
+assert(!document.querySelector('.wm-hint-card.is-shown'), '快速滑過幾個按鈕再移到群組空白處：提示卡會收起');
+// 往下移時經過提示卡（蓋在群組名稱上）：提示卡不會因此留著
+boldB.dispatchEvent(new MouseEvent('mouseenter'));
+await new Promise(r => setTimeout(r, 650));
+boldB.dispatchEvent(new MouseEvent('mouseleave'));
+document.querySelector('.wm-hint-card').dispatchEvent(new MouseEvent('mouseenter'));
+await new Promise(r => setTimeout(r, 250));
+assert(!document.querySelector('.wm-hint-card.is-shown'), '離開按鈕後滑鼠碰到提示卡：提示卡照樣收起，不會蓋住群組');
 boldB.dispatchEvent(new MouseEvent('mousedown'));
 plugin.settings.richHints = false;
 view.buildToolbar();

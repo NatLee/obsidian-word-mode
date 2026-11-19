@@ -584,7 +584,7 @@
 
 /* 詳細提示卡 */
 .wm-hint-card { position: fixed; z-index: calc(var(--layer-tooltip, 70) + 1); width: 260px; padding: 10px 12px; border-radius: 8px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); box-shadow: var(--shadow-l, 0 8px 24px rgba(0,0,0,.25)); font-size: var(--font-ui-small); color: var(--text-normal); opacity: 0; transform: translateY(-4px); transition: opacity .15s, transform .15s; pointer-events: none; }
-.wm-hint-card.is-shown { opacity: 1; transform: none; pointer-events: auto; }
+.wm-hint-card.is-shown { opacity: 1; transform: none; }
 .wm-hint-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-weight: 600; margin-bottom: 4px; }
 .wm-hint-keys { display: inline-flex; align-items: center; gap: 2px; font-weight: 400; }
 .wm-hint-keys kbd, .wm-sc-keys kbd { font-family: var(--font-interface); font-size: 11px; min-width: 20px; text-align: center; padding: 1px 6px; border: 1px solid var(--background-modifier-border); border-bottom-width: 2px; border-radius: 5px; background: var(--background-secondary); color: var(--text-normal); }
