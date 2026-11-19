@@ -59,12 +59,17 @@
 - 手機上輸入框的字要 16px 以上，iOS 才不會在取得焦點時放大畫面。
 - 按鈕不能搶走輸入位置的焦點：用 `dom.ts` 的 `keepFocus()`（連 pointerdown 一起擋，螢幕鍵盤才不會收起來）。
 - 螢幕鍵盤常常沒有按鍵事件（`^`、Backspace 的 keydown 收不到）、也沒有方向鍵與 Tab：要靠 `input` 事件判斷打了什麼，並提供對應的按鈕。
-- README 的示意圖由 `node docs/images/generate.mjs` 產生（文字取自翻譯檔與圖表範本）；介面文字或範本有變就重跑。
+
+## README 與文件
+
+- README 給 Obsidian 使用者看：介紹、功能、操作動畫、安裝、隱私揭露。開發、架構、測試、發佈流程寫在 `docs/development.md` 與 `docs/development.zh-TW.md`（日文、韓文 README 連到英文版）。
+- 操作動畫（`docs/images/<場景>.<語言>.webp`，WebP 動畫、品質 75）由 `node docs/record/record.mjs <場景> [--lang en]` 錄製：真的外掛程式碼在無頭 Chrome 裡跑，Obsidian 換成 `docs/record/mock.js`；每個場景的操作在 `docs/record/scenes.mjs`。功能區、對話框的版面或文字有變，只重錄受影響的場景（每次重錄都會永久留在 git 歷史；全部重錄要加 `--all`）。需要 Chrome、ffmpeg 與網路。
+- 存檔示意圖（`saving.*.svg`）由 `node docs/images/generate.mjs` 產生。
 
 ## 測試
 
 - `tests/*.mjs`：純函式測試，由 `tests/run.mjs` 用 esbuild 打包後執行。斷言失敗印 `FAIL`。
 - `tests/view/*.mjs`：在 jsdom 裡跑整個 `WordModeView`，Obsidian 由 `tests/view/obsidian-mock.js` 代替，環境在 `harness.mjs`（`makeEnv`、`type`、`press`、`caret`）。新的介面測試加在 `ui.mjs`，一個功能一段，用 `// ======== 標題 ========` 分開。要測的模組沒有匯出時加進 `tests/view/entry.js`。
 - jsdom 的限制：元素的位置與大小都是 0；`contentEditable` 的 `focus()` 不會真的取得焦點；直接改 `textContent` 不會移動游標（要自己用 `MathField.place` 放）；`MarkdownRenderer` 的替身只輸出 `RENDERED:` 加原文，沒有 SVG。
-- 預覽圖、版面、真的打字這類 jsdom 測不到的東西，用記憶 `word-mode-visual-check` 的無頭 Chrome 做法檢查。
+- 預覽圖、版面、真的打字這類 jsdom 測不到的東西，在真的 Chrome 裡看：`docs/record/` 的錄製工具加 `--png` 只存最後一個畫面，或在 `scenes.mjs` 暫時加一個場景；也可以照記憶 `word-mode-visual-check` 的做法。
 - 拆成多個 commit 時，每個 commit 都要單獨通過測試與 lint。
