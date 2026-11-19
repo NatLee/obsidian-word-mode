@@ -1006,6 +1006,13 @@ export class MermaidModal extends Modal {
       this.changed(true, true);
       if (list && row && !next) this.markRow(list, row, false);
     };
+    // 小框裡的「新增下一步」與色塊會關掉輸入框：先把框裡改過的文字寫回去，不然剛打的字會不見
+    const keepTyped = (): void => {
+      const value = multiline ? readLines(input.value) : input.value.trim();
+      if (value === (multiline ? current : current.trim())) return;
+      setValue(d.kind, d.model, slot, value, true);
+      this.slots = null;
+    };
     const button = (name: string, label: string, run: () => void, cls = ''): void => {
       const b = top.createEl('button', { cls: 'clickable-icon wm-mmd-inline-btn' + (cls ? ' ' + cls : '') });
       b.setAttribute('aria-label', label);
@@ -1018,7 +1025,7 @@ export class MermaidModal extends Modal {
     button('arrow-right-to-line', t('套用並跳到下一段文字') + ' (Tab)', () => commit(1));
     if (list && row) {
       for (const a of list.actions || []) {
-        button(a.icon, t(a.label), () => { done = true; this.closeInline(); const next = a.run(d.model, row, t); this.changed(true, true); if (next) this.markRow(list, next, true); });
+        button(a.icon, t(a.label), () => { done = true; keepTyped(); this.closeInline(); const next = a.run(d.model, row, t); this.changed(true, true); if (next) this.markRow(list, next, true); });
       }
       const pinned = !!list.fixedFirst && d.model.lists[list.key].indexOf(row) === 0;
       if (!pinned) button('trash-2', t('刪除這一列'), () => { done = true; this.closeInline(); this.removeRow(list, row); this.preview(); }, 'is-danger');
@@ -1027,6 +1034,7 @@ export class MermaidModal extends Modal {
         if (f.kind !== 'color') continue;
         this.swatches(box.createDiv('wm-mmd-swatches'), f, row[f.key] || '', c => {
           done = true;
+          keepTyped();
           this.closeInline();
           row[f.key] = c;
           this.changed(true, true);
