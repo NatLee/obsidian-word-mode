@@ -1216,5 +1216,6 @@ export default {
  "還有 {n} 項，多打幾個字可以縮小範圍": "{n} más. Sigue escribiendo para acotar.",
  "找不到「{q}」相關的設定。換個說法試試，或從下面的分類找找看。": "Ningún ajuste coincide con «{q}». Prueba con otras palabras o explora las categorías de abajo.",
  "包含": "Incluye",
- "其他語言": "Otro idioma"
+ "其他語言": "Otro idioma",
+ "開啟 Word 模式的設定。在上方的搜尋框打幾個字就能找到想要的設定，也可以打英文。": "Abre los ajustes del modo Word. Escribe unas letras en el cuadro de búsqueda de arriba para encontrar un ajuste; también puedes escribir en inglés."
 };

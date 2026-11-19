@@ -1162,6 +1162,21 @@ await fresh('一段文字\n');
   assert(sHints.every(x => !x.endsWith(':-') && x !== 'none') && sHints.map(x => x.split(':')[0]).join() === 'Word 模式（目前）,Markdown 編輯,閱讀模式,查看文件屬性',
     '狀態列的檢視按鈕與查看文件屬性：提示卡有動畫：' + sHints.join(' / '));
   sbtns[0].dispatchEvent(new MouseEvent('mousedown'));
+  // 「設定」按鈕以前是唯一沒有說明、沒有動畫的按鈕：兩條功能區都示範設定頁的搜尋（打字、跳出結果、那一列閃一下）
+  const iconBtn = (root, icon) => root.querySelector('.wm-btn [data-icon="' + icon + '"]').closest('.wm-btn');
+  // 上面按下按鈕收起了提示卡，下一次要等完整的出現時間
+  wait = 650;
+  const setHints = [];
+  for (const root of [view.toolbar.dom, bar.dom]) {
+    setHints.push(await hover(iconBtn(root, 'settings')));
+    const c = document.querySelector('.wm-hint-card.is-shown');
+    assert(c && c.querySelector('.wm-hint-desc').textContent.includes('搜尋框') && c.querySelector('.wm-demo-setq-text').textContent === '縮放'
+      && c.querySelector('.wm-demo-sethit-name').textContent === '頁面縮放' && c.querySelector('.wm-demo-setrow'),
+    '「設定」按鈕的提示卡：說明設定頁可以搜尋，動畫是打「縮放」→ 跳出「頁面縮放」→ 那一列閃一下');
+  }
+  assert(setHints.every(x => x === 'Word 模式設定:wm-demo-setfind'), '兩條功能區的「設定」按鈕都有動畫：' + setHints.join(' / '));
+  const undoRedo = [await hover(iconBtn(bar.dom, 'undo-2')), await hover(iconBtn(bar.dom, 'redo-2'))];
+  assert(undoRedo.every(x => !x.endsWith(':-') && x !== 'none'), 'Markdown 工具列的復原、取消復原也有動畫（DEMOS 裡本來就有，只是沒接上）：' + undoRedo.join(' / '));
   bar.destroy(); md.containerEl.remove(); sbar.remove();
   plugin.settings.richHints = false;
   view.buildToolbar();

@@ -702,7 +702,7 @@ export class Toolbar {
     this.button(g, { icon: 'scan', title: '恢復 100%', text: '100%', label: '100%', big: true, demo: 'zoom', desc: '把頁面恢復成原本的大小。', onClick: () => this.d.zoom(0) });
     g = G.help;
     this.button(g, { icon: 'keyboard', title: '快速鍵說明', keys: 'Mod+/', text: '?', label: '快速鍵', big: true, demo: 'kbd', desc: '列出所有快速鍵；點一列可以看動畫示範。', onClick: () => this.d.shortcuts() });
-    this.button(g, { icon: 'settings', title: 'Word 模式設定', text: '設', label: '設定', big: true, onClick: () => this.d.settings() });
+    this.button(g, { icon: 'settings', title: 'Word 模式設定', text: '設', label: '設定', big: true, demo: 'settings', desc: '開啟 Word 模式的設定。在上方的搜尋框打幾個字就能找到想要的設定，也可以打英文。', onClick: () => this.d.settings() });
   }
 
   update(state: EditorState): void {

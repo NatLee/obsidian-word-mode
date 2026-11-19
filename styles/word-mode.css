@@ -1646,3 +1646,20 @@ mark.wm-set-find-hl { padding: 0 1px; border-radius: 3px; background: hsla(var(-
   100% { background-color: transparent; box-shadow: 0 0 0 2px transparent; }
 }
 @media (prefers-reduced-motion: reduce) { .wm-set-find-pop { animation: none; } }
+
+/* 提示卡的示意動畫「設定」（hints.ts 的 DEMOS.settings）：搜尋框打字 → 跳出符合的設定 → 那一列閃一下。
+   三個步驟比其他動畫多，所以一輪 4 秒；三段用同一個時間軸，各自在不同的百分比動作 */
+.wm-demo-setfind { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.wm-demo-setq { display: flex; align-items: center; gap: 4px; height: 20px; padding: 0 6px; border: 1px solid var(--interactive-accent); border-radius: 6px; background: var(--background-primary); color: var(--text-normal); }
+.wm-demo-setq-icon { display: inline-flex; color: var(--text-faint); }
+.wm-demo-setq-icon svg { width: 12px; height: 12px; }
+/* 打字：一個字一個字出現，後面跟著游標 */
+.wm-demo-setq-text { display: inline-block; max-width: 0; overflow: hidden; white-space: nowrap; border-right: 1px solid var(--text-normal); animation: wm-set-type 4s steps(4, end) infinite; }
+.wm-demo-sethit { display: flex; justify-content: space-between; gap: 8px; padding: 2px 6px; border-radius: 4px; background: var(--background-modifier-hover); opacity: 0; animation: wm-set-hit 4s infinite; }
+.wm-demo-sethit-name { font-weight: 600; }
+.wm-demo-sethit-sec { color: var(--text-muted); font-size: 11px; }
+.wm-demo-setrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 2px 6px; border-radius: 4px; color: var(--text-muted); animation: wm-set-row 4s infinite; }
+.wm-demo-slider { flex: 0 0 40%; height: 4px; border-radius: 2px; background: linear-gradient(90deg, var(--interactive-accent) 55%, var(--background-modifier-border) 55%); }
+@keyframes wm-set-type { 0%, 6% { max-width: 0; } 30%, 92% { max-width: 6em; } 100% { max-width: 0; } }
+@keyframes wm-set-hit { 0%, 32% { opacity: 0; transform: translateY(-3px); } 38%, 56% { opacity: 1; transform: none; } 62%, 100% { opacity: 0; } }
+@keyframes wm-set-row { 0%, 60% { background: transparent; box-shadow: 0 0 0 2px transparent; color: var(--text-muted); } 66%, 88% { background: hsla(var(--interactive-accent-hsl), .16); box-shadow: 0 0 0 2px hsla(var(--interactive-accent-hsl), .6); color: var(--text-normal); } 100% { background: transparent; box-shadow: 0 0 0 2px transparent; } }
