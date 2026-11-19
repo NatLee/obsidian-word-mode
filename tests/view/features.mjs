@@ -383,6 +383,38 @@ await fresh('面積公式：\n');
   typeIn(tilde.querySelector('.wm-mv-text'), 'n');
   assert(tilde.classList.contains('is-low') && eq.ta.value.includes('\\tilde{n}'), '把 N 改成 n：符號跟著放低：' + eq.ta.value);
 
+  // 上括號、下括號：以前格子裡照原文顯示「\overbrace」，標籤變成右上角的上標；現在畫出橫的大括號，標籤在括號外面一格
+  await fresh('式 $\\overbrace{a+b}^{n}$ 完\n');
+  view.pm.dom.querySelector('.wm-raw-inline.is-math').dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }));
+  eq = mock.Modal.last;
+  await sleep(25);
+  const over = q('.wm-mv-hbrace.is-over');
+  assert(over && over.querySelector(':scope > .wm-mv-hb-body > .wm-mv-hbmark svg path') && over.querySelector(':scope > .wm-mv-hb-label').textContent === 'n'
+    && !q('.wm-mv').textContent.includes('\\overbrace') && !q('.wm-mv-sup'), '上括號：畫出括號，標籤在另一格，不顯示指令原文');
+  const braceCells = qa('.wm-mv-text').map(s => s.textContent).filter(Boolean).join(',');
+  assert(braceCells === 'a+b,n', '格子的順序：先內容、再標籤：' + braceCells);
+  typeIn(over.querySelector('.wm-mv-hb-label .wm-mv-text'), 'm');
+  assert(eq.ta.value === '\\overbrace{a+b}^{m}', '改標籤：' + eq.ta.value);
+  // 打 \underbrace 再按空白：變成下括號（內容、標籤兩個空格子）
+  // 游標要在打的字後面才認得「\指令 」（同 ui.mjs 的 typeIn）
+  const braceTail = qa('.wm-mv-text').pop();
+  braceTail.textContent = '+\\underbrace ';
+  eq.field.place(braceTail, braceTail.textContent.length);
+  braceTail.dispatchEvent(new Event('input', { bubbles: true }));
+  assert(q('.wm-mv-hbrace.is-under .wm-mv-hb-body .wm-mv-text.is-slot') && q('.wm-mv-hbrace.is-under .wm-mv-hb-label .wm-mv-text.is-slot'), '打 \\underbrace 再按空白：出現下括號的兩格');
+  typeIn(q('.wm-mv-hbrace.is-under .wm-mv-hb-body .wm-mv-text'), '1+1');
+  typeIn(q('.wm-mv-hbrace.is-under .wm-mv-hb-label .wm-mv-text'), 'k');
+  assert(eq.ta.value === '\\overbrace{a+b}^{m}+\\underbrace{1+1}_{k}', '下括號：' + eq.ta.value);
+  // 空心字、花體：框線與標記（CSS 依 data-cmd 畫框）；功能區的按鈕顯示範例字，不是一個方框
+  qa('.wm-eq-cat').find(b => b.textContent === '標記').click();
+  snippet('\\mathbb{}').click();
+  const bb = q('.wm-mv-group[data-cmd="mathbb"]');
+  assert(bb && bb.querySelector(':scope > .wm-mv-tag').textContent === 'ℍ' && bb.querySelector('.wm-mv-text.is-slot'), '空心字：有標記與空格子');
+  const demoOf = s => snippet(s).querySelector('.wm-eq-btn-math').textContent;
+  assert(demoOf('\\mathbb{}') === '\\mathbb{ABC}' && demoOf('\\mathcal{}') === '\\mathcal{ABC}' && demoOf('\\mathbf{}') === '\\mathbf{abc}' && demoOf('\\overbrace{}^{}') === '\\overbrace{\\square}^{\\square}',
+    '按鈕的示意圖：字型類放範例字：' + demoOf('\\mathbb{}'));
+  eq.close();
+
   // 既有的方程式：沒有在格子裡改東西就不會動到原本的寫法
   await fresh('公式 $x^2 + \\sqrt{y}$ 結束\n');
   const math = view.pm.dom.querySelector('.wm-raw-inline.is-math');

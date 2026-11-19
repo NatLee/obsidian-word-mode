@@ -64,6 +64,7 @@ export function fromDisplay(text: string): string {
 //   { t: 'sqrt', a, n }              根號（n 是次方根，可為 null）
 //   { t: 'sup', a } / { t: 'sub', a } 上標／下標
 //   { t: 'group', cmd, a }           \vec{…}、\mathbf{…}、\text{…} 等
+//   { t: 'brace', cmd, a, b }        \overbrace{a}^{b}、\underbrace{a}_{b}（a 是內容、b 是括號外的標籤）
 //   { t: 'paren', l, r, a }          \left( … \right)
 //   { t: 'env', name, rows }         矩陣、分段函數（rows 是「列」的陣列，每列是「格」的陣列，每格是一列項目）
 //   { t: 'braces', a }               單純的 { … }
@@ -75,11 +76,15 @@ export interface FracItem extends MathSlots { t: 'frac'; cmd: string; a: MathRow
 export interface SqrtItem extends MathSlots { t: 'sqrt'; a: MathRow; n: MathRow | null; }
 export interface ScriptItem extends MathSlots { t: 'sup' | 'sub'; a: MathRow; }
 export interface GroupItem extends MathSlots { t: 'group'; cmd: string; a: MathRow; }
+export interface BraceItem extends MathSlots { t: 'brace'; cmd: string; a: MathRow; b: MathRow; }
 export interface ParenItem extends MathSlots { t: 'paren'; l: string; r: string; a: MathRow; }
 export interface EnvItem extends MathSlots { t: 'env'; name: string; rows: MathRow[][]; }
 export interface BracesItem extends MathSlots { t: 'braces'; a: MathRow; }
-export type MathItem = TextItem | FracItem | SqrtItem | ScriptItem | GroupItem | ParenItem | EnvItem | BracesItem;
+export type MathItem = TextItem | FracItem | SqrtItem | ScriptItem | GroupItem | BraceItem | ParenItem | EnvItem | BracesItem;
 const FRACS = ['\\frac', '\\dfrac', '\\tfrac', '\\binom'];
+// 上括號、下括號：標籤寫成接在後面的 ^{…}（上括號）或 _{…}（下括號），TeX 會把它放在括號的正上方／正下方。
+// 以前不認得這兩個指令，格子裡照原文顯示「\overbrace」，標籤還被當成右上角的上標
+const H_BRACES: Record<string, '^' | '_'> = { '\\overbrace': '^', '\\underbrace': '_' };
 export const GROUP_CMDS = ['\\vec', '\\bar', '\\hat', '\\tilde', '\\dot', '\\ddot', '\\overline', '\\underline', '\\mathbf', '\\mathbb', '\\mathrm', '\\mathcal', '\\mathit', '\\text', '\\boldsymbol', '\\overrightarrow'];
 const ENVS = ['matrix', 'bmatrix', 'pmatrix', 'vmatrix', 'Bmatrix', 'Vmatrix', 'cases', 'aligned', 'align', 'array', 'gathered'];
 
@@ -103,6 +108,15 @@ function parseRow(s: string, pos: number, stops: string[]): RowResult {
     return r.row;
   };
   const command = () => { const m = /^\\[A-Za-z]+/.exec(s.slice(pos)); return m ? m[0] : null; };
+  // ^ 或 _ 後面的內容：{…}、一個指令（x^\alpha）或一個字（x^2）
+  const scriptArg = (): MathRow => {
+    skipSpace();
+    if (s[pos] === '{') return group();
+    const c = command();
+    if (c) { pos += c.length; return [{ t: 'text', v: c }]; }
+    if (pos < s.length) return [{ t: 'text', v: s[pos++] }];
+    throw new ParseError('^');
+  };
   while (pos < s.length) {
     if (isStop()) { flush(); return { row, pos }; }
     const ch = s[pos];
@@ -111,14 +125,7 @@ function parseRow(s: string, pos: number, stops: string[]): RowResult {
     if (ch === '^' || ch === '_') {
       flush();
       pos++;
-      skipSpace();
-      let a: MathRow;
-      if (s[pos] === '{') a = group();
-      else {
-        const c = command();
-        if (c) { a = [{ t: 'text', v: c }]; pos += c.length; } else if (pos < s.length) { a = [{ t: 'text', v: s[pos] }]; pos++; } else throw new ParseError('^');
-      }
-      row.push({ t: ch === '^' ? 'sup' : 'sub', a });
+      row.push({ t: ch === '^' ? 'sup' : 'sub', a: scriptArg() });
       continue;
     }
     if (ch === '\\') {
@@ -138,6 +145,22 @@ function parseRow(s: string, pos: number, stops: string[]): RowResult {
         const save = pos;
         pos += c.length; skipSpace();
         if (s[pos] === '{') { flush(); row.push({ t: 'group', cmd: c, a: group() }); continue; }
+        pos = save;
+      }
+      if (H_BRACES[c]) {
+        const save = pos;
+        pos += c.length; skipSpace();
+        if (s[pos] === '{') {
+          flush();
+          const a = group();
+          // 後面緊接 ^（上括號）或 _（下括號）就是標籤；沒有標籤時標籤格是空的，空白留給後面的文字
+          const afterBody = pos;
+          skipSpace();
+          let b: MathRow = [];
+          if (s[pos] === H_BRACES[c]) { pos++; b = scriptArg(); } else pos = afterBody;
+          row.push({ t: 'brace', cmd: c, a, b });
+          continue;
+        }
         pos = save;
       }
       if (c === '\\left') {
@@ -202,6 +225,7 @@ export function toLatex(row: MathRow): string {
     else if (it.t === 'sup') out += '^{' + trimRow(it.a) + '}';
     else if (it.t === 'sub') out += '_{' + trimRow(it.a) + '}';
     else if (it.t === 'group') out += it.cmd + '{' + (it.cmd === '\\text' ? toLatex(it.a) : trimRow(it.a)) + '}';
+    else if (it.t === 'brace') { const label = trimRow(it.b); out += it.cmd + '{' + trimRow(it.a) + '}' + (label ? H_BRACES[it.cmd] + '{' + label + '}' : ''); }
     else if (it.t === 'paren') out += '\\left' + it.l + ' ' + trimRow(it.a) + ' \\right' + it.r;
     else if (it.t === 'braces') out += '{' + toLatex(it.a) + '}';
     else if (it.t === 'env') out += '\\begin{' + it.name + '} ' + it.rows.map(r => r.map(trimRow).join(' & ')).join(' \\\\ ') + ' \\end{' + it.name + '}';
@@ -232,11 +256,13 @@ const PLAIN_GROUPS = new Set(['\\text', '\\mathrm', '\\mathit']);
 // 外面的分數線、根號才不會壓到它（見 CSS 的 .has-accent）
 const ACCENTS = new Set(['\\vec', '\\overrightarrow', '\\bar', '\\overline', '\\hat', '\\tilde', '\\dot', '\\ddot']);
 const isScript = (it: MathItem | undefined): it is ScriptItem => !!it && (it.t === 'sup' || it.t === 'sub');
-const GROUP_LABEL: Record<string, string> = { '\\text': 'T', '\\mathrm': 'rm', '\\mathit': 'it', '\\mathcal': '𝒞', '\\mathbb': '𝔹', '\\boldsymbol': 'B' };
+// 空心字、花體的標記用基本平面（BMP）的字母符號：以前的 𝔹、𝒞 在補充平面，手機上常常沒有字型，縮小後也認不出來
+const GROUP_LABEL: Record<string, string> = { '\\text': 'T', '\\mathrm': 'rm', '\\mathit': 'it', '\\mathcal': 'ℒ', '\\mathbb': 'ℍ', '\\boldsymbol': 'B' };
 // 在格子裡打「\指令」再按空白，就變成對應的結構（\frac → 分數的兩格、\sqrt → 根號…）
 const TYPED_STRUCTS: Record<string, string> = { '\\sqrt': '\\sqrt{}' };
 for (const c of FRACS) TYPED_STRUCTS[c] = c + '{}{}';
 for (const c of GROUP_CMDS) TYPED_STRUCTS[c] = c + '{}';
+for (const [c, mark] of Object.entries(H_BRACES)) TYPED_STRUCTS[c] = c + '{}' + mark + '{}';
 
 export interface MathFieldOptions {
   onChange?(latex: string): void;
@@ -257,7 +283,7 @@ type ChangeKind = 'type' | 'struct';
 // 一個結構項目的所有格子，依畫面上的順序
 function slotsOf(it: MathItem): MathRow[] {
   if (it.t === 'text') return [];
-  if (it.t === 'frac') return [it.a, it.b];
+  if (it.t === 'frac' || it.t === 'brace') return [it.a, it.b];
   if (it.t === 'sqrt') return it.n ? [it.n, it.a] : [it.a];
   if (it.t === 'env') return it.rows.flat();
   return [it.a];
@@ -375,6 +401,26 @@ function drawDelim(doc: Document, parent: HTMLElement, d: string): void {
   ext();
   if (shape.mid) { piece('wm-mv-dmid', 11, shape.mid); ext(); }
   piece(capCls, capH, shape.bottom);
+}
+
+// 上括號、下括號的橫向大括號：跟 drawDelim 同樣的做法，兩端的彎鉤與中間的尖角大小固定，
+// 中間的直線（.wm-mv-hbext）跟著內容的寬度伸長。形狀是 DELIM_SHAPES 的「{」轉成橫的（x、y 對調）：
+// 每段高 10 單位、線在 y = 5，兩端寬 9、尖角寬 11（CSS 的寬度要跟這些比例一致）。
+// 畫的是上括號（尖角朝上、兩端往下彎），下括號由 CSS 上下翻轉
+function horizontalBrace(doc: Document, parent: HTMLElement, over: boolean): void {
+  const box = drawnBox('wm-mv-hbmark', over ? '⏞' : '⏟', parent);
+  const piece = (cls: string, w: number, path: string, stretch?: boolean): void => {
+    const attrs: Record<string, string> = { class: cls, viewBox: `0 0 ${w} 10`, 'aria-hidden': 'true', focusable: 'false' };
+    // 伸長的直線段：只有寬度跟著拉，高度的比例跟兩端相同，所以線一樣粗
+    if (stretch) attrs.preserveAspectRatio = 'none';
+    svgEl(doc, 'path', { d: path }, svgEl(doc, 'svg', attrs, box));
+  };
+  const ext = () => piece('wm-mv-hbext', 10, 'M0,5H10', true);
+  piece('wm-mv-hbcap', 9, 'M.8,8.8C.8,6 2,5 4.5,5H9');
+  ext();
+  piece('wm-mv-hbmid', 11, 'M0,5C3.6,5 5.1,4 5.5,1.2C5.9,4 7.4,5 11,5');
+  ext();
+  piece('wm-mv-hbcap', 9, 'M0,5H4.5C7,5 8.2,6 8.2,8.8');
 }
 
 export class MathField {
@@ -649,6 +695,15 @@ export class MathField {
         accentMark(this.host.ownerDocument, f, it.cmd);
         f.classList.toggle('is-low', LOW_TEXT.test(inner.textContent || ''));
       }
+      return f;
+    }
+    if (it.t === 'brace') {
+      const over = it.cmd === '\\overbrace';
+      const f = el('span', 'wm-mv-hbrace ' + (over ? 'is-over' : 'is-under'));
+      // 格子的順序是先內容、再標籤（Tab 照這個順序走），上下的位置由 CSS 排
+      const body = slot('wm-mv-hb-body', it.a, f);
+      horizontalBrace(this.host.ownerDocument, body, over);
+      slot('wm-mv-hb-label', it.b, f);
       return f;
     }
     if (it.t === 'paren') {
