@@ -1204,5 +1204,17 @@ export default {
  "只有框線": "Solo borde",
  "簡潔（沒有框線）": "Mínimo (sin borde)",
  "固定的屬性列顯示屬性名稱": "Mostrar los nombres de las propiedades en la barra fija",
- "關閉後屬性列只顯示值，一行可以放更多屬性。": "Si está desactivado, la barra fija solo muestra los valores, así caben más propiedades en una línea."
+ "關閉後屬性列只顯示值，一行可以放更多屬性。": "Si está desactivado, la barra fija solo muestra los valores, así caben más propiedades en una línea.",
+ "搜尋設定，例如：縮放、工具列、快速鍵": "Buscar ajustes, p. ej.: zoom, barra de herramientas, atajos",
+ "搜尋設定": "Buscar ajustes",
+ "清除搜尋": "Borrar búsqueda",
+ "選擇": "Elegir",
+ "前往": "Ir",
+ "關閉": "Cerrar",
+ "常用的設定": "Ajustes frecuentes",
+ "{n} 項符合": "Coincidencias: {n}",
+ "還有 {n} 項，多打幾個字可以縮小範圍": "{n} más. Sigue escribiendo para acotar.",
+ "找不到「{q}」相關的設定。換個說法試試，或從下面的分類找找看。": "Ningún ajuste coincide con «{q}». Prueba con otras palabras o explora las categorías de abajo.",
+ "包含": "Incluye",
+ "其他語言": "Otro idioma"
 };

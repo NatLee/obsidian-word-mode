@@ -1003,6 +1003,115 @@ await fresh('第一段\n');
   assert(ids.length >= 8 && ids.join() === used.join() && !missing.length, '設定的每一類都有隱藏其他分類的樣式規則：' + (missing.join() || ids.join()));
 }
 
+// ======== 設定頁的搜尋框：打字時列出符合的設定，選一個就捲過去 ========
+{
+  const box = document.body.createDiv();
+  const page = document.body.createDiv();
+  // 假的設定頁：兩列設定，其中一列有下拉選單
+  const zoomEl = page.createDiv('setting-item');
+  zoomEl.createEl('input', { type: 'range' });
+  const posEl = page.createDiv('setting-item');
+  const sel = posEl.createEl('select');
+  for (const x of ['自動', '上方', '下方']) sel.createEl('option', { text: x });
+  const doc = (name, desc, el, extra = {}) => Object.assign({ name, desc, terms: [], alt: [], section: '顯示', icon: 'monitor', el }, extra);
+  let docs = [];
+  const picked = [];
+  let asked = 0;
+  const search = B.SETNAV.buildSettingSearch(box, () => { asked++; return docs; }, (item, byKeyboard) => picked.push(item.name + ':' + byKeyboard));
+  const { input } = search;
+  const pop = box.querySelector('.wm-set-find-pop');
+  const items = () => [...box.querySelectorAll('.wm-set-find-item')];
+  const shown = () => items().map(r => (r.getAttribute('aria-selected') === 'true' ? '*' : '') + r.querySelector('.wm-set-find-name').textContent).join();
+  const head = () => box.querySelector('.wm-set-find-head').textContent;
+  const type = v => { input.value = v; input.dispatchEvent(new Event('input')); };
+  const key = k => { const e = new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }); input.dispatchEvent(e); return e; };
+
+  assert(B.SETNAV.settingTerms(posEl).join() === '自動,上方,下方' && B.SETNAV.settingTerms(zoomEl).length === 0, '收集一列裡的選項文字（搜尋時也比對）');
+  docs = [
+    doc('頁面縮放', '也可以用 Ctrl+滑鼠滾輪調整。', zoomEl, { common: true, alt: [{ name: 'Page zoom', desc: '' }] }),
+    doc('工具列位置', '「自動」在手機上放在畫面下方。', posEl, { common: true, section: '工具列', icon: 'layout-panel-top', terms: B.SETNAV.settingTerms(posEl), alt: [{ name: 'Toolbar position', desc: '' }] }),
+    doc('全寬頁面', '使用整個視窗寬度。', zoomEl),
+  ];
+  assert(input.getAttribute('role') === 'combobox' && input.getAttribute('aria-expanded') === 'false' && pop.hidden && input.placeholder.includes('例如'), '搜尋框：一開始收起來，提示文字舉例可以搜尋什麼');
+  input.dispatchEvent(new Event('focus'));
+  assert(asked === 1 && !pop.hidden && input.getAttribute('aria-expanded') === 'true' && head() === '常用的設定' && shown() === '*頁面縮放,工具列位置', '取得焦點：還沒打字先列出常用的設定：' + shown());
+  assert(input.getAttribute('aria-activedescendant') === items()[0].id && box.querySelector('.wm-set-find-list').id === input.getAttribute('aria-controls'), '反白的那一筆讓螢幕閱讀器知道');
+  type('頁面');
+  assert(head() === '2 項符合' && shown() === '*頁面縮放,全寬頁面', '打字：列出符合的設定：' + shown());
+  assert([...items()[0].querySelectorAll('mark')].map(m => m.textContent).join() === '頁面' && items()[0].querySelector('.wm-set-find-sec').textContent === '顯示' && items()[0].querySelector('[data-icon="monitor"]'), '符合的字標出來，旁邊是所屬的分類');
+  assert(!box.querySelector('.wm-set-find-clear').hidden, '有打字時出現清除按鈕');
+  type('zoom');
+  const snip = items()[0].querySelector('.wm-set-find-snip');
+  assert(shown() === '*頁面縮放' && snip.textContent === 'Page zoom' && snip.querySelector('[data-icon="languages"]') && snip.dir === 'auto', '打英文也找得到，下面顯示符合的那個語言的名稱：' + snip.textContent);
+  type('上方');
+  assert(shown() === '*工具列位置', '選項的文字也找得到');
+  type('自');
+  assert(shown() === '*工具列位置', '說明裡有的也找得到');
+  type('xyz');
+  assert(head().includes('找不到「xyz」') && shown() === '*頁面縮放,工具列位置', '找不到：說明找不到，下面仍然列出常用的設定');
+  type('頁');
+  const down = key('ArrowDown');
+  assert(shown() === '頁面縮放,*全寬頁面' && down.defaultPrevented, '方向鍵往下移');
+  key('ArrowDown');
+  assert(shown() === '*頁面縮放,全寬頁面', '最後一筆再往下回到第一筆');
+  key('ArrowUp');
+  key('Enter');
+  assert(picked.join() === '全寬頁面:true' && pop.hidden && input.getAttribute('aria-expanded') === 'false', '按 Enter：選反白的那一筆，清單收起來');
+  const esc1 = key('Escape');
+  assert(input.value === '' && esc1.defaultPrevented === true && box.querySelector('.wm-set-find-clear').hidden, '清單收著時按 Esc：清掉打的字');
+  const esc2 = key('Escape');
+  assert(!esc2.defaultPrevented, '沒有字也沒有清單時，Esc 照常傳出去（關掉設定視窗）');
+  type('寬');
+  key('Escape');
+  assert(pop.hidden && input.value === '寬', 'Esc 先收起清單，打的字還在');
+  input.dispatchEvent(new Event('focus'));
+  click(items()[0]);
+  assert(picked.join() === '全寬頁面:true,全寬頁面:false' && pop.hidden, '用滑鼠點一筆：也會選，byKeyboard 為 false');
+  input.dispatchEvent(new Event('focus'));
+  click(box.querySelector('.wm-set-find-clear'));
+  assert(input.value === '' && head() === '常用的設定', '按清除：清掉打的字，回到常用的設定');
+  input.dispatchEvent(new Event('blur'));
+  assert(pop.hidden, '離開搜尋框：清單收起來');
+
+  // Esc 也可能先被 Obsidian 的按鍵處理收到：清單開著或有字時推一層 scope，先收清單、再清字，都沒有了才拿掉
+  {
+    const keymap = { stack: [], pushScope(s) { this.stack.push(s); }, popScope(s) { this.stack = this.stack.filter(x => x !== s); } };
+    const host = document.body.createDiv();
+    const s2 = B.SETNAV.buildSettingSearch(host, () => docs, () => {}, { keymap, scope: new mock.Scope() });
+    const esc = () => keymap.stack[0].keys.find(k => k.key === 'Escape').fn(new KeyboardEvent('keydown', { key: 'Escape' }));
+    s2.input.focus();
+    const p2 = host.querySelector('.wm-set-find-pop');
+    assert(keymap.stack.length === 1 && !p2.hidden, '取得焦點、清單打開：推上一層處理 Esc 的 scope');
+    s2.input.value = '頁';
+    s2.input.dispatchEvent(new Event('input'));
+    assert(esc() === false && p2.hidden && s2.input.value === '頁' && keymap.stack.length === 1, 'Obsidian 先收到 Esc：收起清單（回傳 false 不再往外傳），還有字所以 scope 留著');
+    const handled = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    handled.preventDefault();
+    s2.input.dispatchEvent(handled);
+    assert(s2.input.value === '頁', '已經處理過的 Esc 搜尋框不再處理一次');
+    assert(esc() === false && s2.input.value === '' && keymap.stack.length === 0, '再按一次：清掉字，沒有東西可以收了，拿掉 scope（下一次 Esc 照常關掉設定視窗）');
+    s2.input.dispatchEvent(new Event('input'));
+    assert(keymap.stack.length === 1, '又打開清單：再推上去');
+    s2.input.blur();
+    assert(keymap.stack.length === 0 && p2.hidden, '離開搜尋框：一定拿掉 scope');
+    host.remove();
+  }
+
+  // 選了之後：那一列閃一下；用鍵盤選的，焦點移到那一列的控制項
+  B.SETNAV.revealSetting(posEl, true);
+  assert(posEl.classList.contains('wm-set-flash') && document.activeElement === sel, '捲到那一列並閃一下，焦點移到下拉選單');
+  B.SETNAV.revealSetting(zoomEl, false);
+  assert(zoomEl.classList.contains('wm-set-flash') && document.activeElement === sel, '用滑鼠選的不移動焦點');
+  await sleep(2300);
+  assert(!posEl.classList.contains('wm-set-flash') && !zoomEl.classList.contains('wm-set-flash'), '閃完就拿掉');
+  box.remove();
+  page.remove();
+
+  // 樣式表：用 hidden 收起來的元素自己設了 display，要另外寫 [hidden] 的規則，不然藏不起來
+  const css = (await import('node:fs')).readFileSync(new URL('../../styles/word-mode.css', import.meta.url), 'utf8');
+  assert(['.wm-set-find-pop[hidden]', '.wm-set-find-clear[hidden]', '.wm-set-find-more[hidden]'].every(s => css.includes(s)), '搜尋框用 hidden 收起來的元素在樣式表裡都有 [hidden] 規則');
+}
+
 // 假的 Markdown 檢視（Markdown 工具列、狀態列、查看文件屬性用）：text 是編輯中的原文，sel 是選取的文字
 const fakeMarkdown = (path, text, mode = 'source') => {
   const containerEl = document.createElement('div');
