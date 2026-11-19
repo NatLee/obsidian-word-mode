@@ -1855,7 +1855,8 @@ export class WordModeView extends TextFileView {
   openNoteLinkPicker(): void {
     if (!this.pm || this.blockedInCode()) return;
     const files = this.app.vault.getFiles().filter(f => f !== this.file && !f.path.startsWith(this.app.vault.configDir + '/'))
-      .sort((a, b) => ((b.extension === 'md') as unknown as number) - ((a.extension === 'md') as unknown as number) || a.path.localeCompare(b.path));
+      // 筆記排在附件前面，其餘照路徑
+      .sort((a, b) => (Number(b.extension === 'md') - Number(a.extension === 'md')) || a.path.localeCompare(b.path));
     new FilePicker(this.app, files, t('輸入筆記或檔案名稱…'), f => this.insertFileLink(f)).open();
   }
 

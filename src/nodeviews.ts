@@ -879,7 +879,14 @@ class CodeBlockView implements NodeView {
     const tall = on && this.dom.classList.contains('has-preview') && this.preview.scrollHeight > TALL_LIMIT;
     this.dom.classList.toggle('is-tall', tall && !this.expanded);
     this.more.hidden = !tall;
-    if (tall) this.more.textContent = this.expanded ? t('收合') : t('顯示完整內容');
+    // 按鈕裡是置中的小膠囊：箭頭圖示加文字（樣式見 .wm-code-more-pill）。ResizeObserver 常常呼叫這裡，文字沒變就不重做
+    const label = this.expanded ? t('收合') : t('顯示完整內容');
+    if (!tall || this.more.textContent === label) return;
+    const pill = el('span', 'wm-code-more-pill');
+    const icon = el('span', 'wm-code-more-icon', pill);
+    if (this.ctx.icon) this.ctx.icon(icon, this.expanded ? 'chevron-up' : 'chevron-down', '');
+    el('span', null, pill, label);
+    this.more.replaceChildren(pill);
   }
   // 顯示結果：內容或語言變了才重畫（打字時延後一下，不要每個字都重畫）
   syncPreview(now: boolean): void {

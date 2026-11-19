@@ -34,7 +34,7 @@ Word Mode 是 Obsidian 外掛：用 ProseMirror 把 Markdown 筆記變成像 Wor
 
 - 不用 regex lookbehind（`(?<=…)`、`(?<!…)`）：iOS 16.4 以前會讓整個外掛載入失敗。lookahead 可以。
 - 遵守 Obsidian 外掛規範：不用 `innerHTML`、不用全域的 `app`、靜態樣式寫在 CSS 不寫在 JS、指令不設預設快速鍵、英文介面文字用 sentence case。
-- Obsidian 的外掛掃描也檢查 CSS（`npm run lint` 不會抓到）：不用 `!important`（改用更具體的選擇器，或在 JS 拿掉第三方寫在元素上的樣式）、不用 `:has`（改加類別）、同一條規則不寫兩次同一個屬性（後援寫成 `@supports`）、捲軸不直接寫 `scrollbar-width`（用 Obsidian 的 `--scrollbar-native-width: none` 加 `::-webkit-scrollbar`）。`mask-image` 的「partial support」警告是誤報（Obsidian 自己也用），NatLee 2026-11-19 決定保留。
+- Obsidian 的外掛掃描也檢查 CSS（`npm run lint` 不會抓到）：不用 `!important`（改用更具體的選擇器，或在 JS 拿掉第三方寫在元素上的樣式）、不用 `:has`（改加類別）、同一條規則不寫兩次同一個屬性（後援寫成 `@supports`）、捲軸不直接寫 `scrollbar-width`（用 Obsidian 的 `--scrollbar-native-width: none` 加 `::-webkit-scrollbar`）、不用 `mask-image`／`-webkit-mask-image`（掃描以 Obsidian 1.4.5 的 Chromium 為準，會報「partial support」）。淡出改成蓋一層從透明到底色的漸層，底下有淡色時疊在 `--wm-fade-tint`（做法見 `styles/word-mode.css` 收合的圖表）。掃描讀的是 `styles/word-mode.css`，本機可以用 `npx doiuse@6 --browsers "chrome 114" styles/word-mode.css` 重現（沒有輸出就是通過）。
 - 新用到的 Obsidian API 要在 1.5.7 存在。非公開的 API 一律宣告在 `src/obsidian-internal.d.ts` 並標成可能不存在，呼叫前先檢查，壞掉時只少一項功能。
 - 功能有變動時，十三份 README（`README.md`、`.zh-TW`、`.nan-TW`（台文）、`.yue-HK`（粵語）、`.zh-CN`、`.ja`、`.ko`、`.vi`、`.fr`、`.de`、`.es`、`.ar`、`.he`）都要更新。README 只寫給使用者看的介紹與功能；開發、架構、發佈寫在 `docs/development.md`（與 `.zh-TW`）。動畫裡的介面變了就用 `node docs/record/record.mjs <場景>` 重錄，只錄受影響的場景（每次重錄都會永久留在 git 歷史）。
 - GitHub Actions：`ci.yml` 只能手動觸發，維持這樣，平常的驗證都在本機做。`release.yml` 會在推版本 tag 時自動執行（測試、建置、來源證明、建立 GitHub Release）。

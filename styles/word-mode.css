@@ -32,12 +32,11 @@
   border-bottom: 1px solid var(--background-modifier-border);
   user-select: none;
 }
-.wm-group { display: flex; align-items: center; gap: 1px; padding-right: 6px; border-right: 1px solid var(--background-modifier-border); }
+.wm-group { display: flex; gap: 1px; padding-right: 6px; border-right: 1px solid var(--background-modifier-border); }
 .wm-group:last-child { border-right: none; }
 .wm-group.is-hidden { display: none; }
 .wm-table-tools { background: var(--background-modifier-hover); border-radius: 4px; padding: 0 4px; }
 .wm-group-label { font-size: var(--font-ui-smaller); color: var(--text-muted); padding: 0 4px; }
-.wm-spacer { flex: 1 1 auto; }
 .wm-toolbar button.wm-btn {
   min-width: 28px;
   height: 28px;
@@ -109,7 +108,7 @@
 .wm-editor hr { border: none; border-top: 1px solid var(--hr-color, var(--background-modifier-border)); margin: 1.2em 0; }
 .wm-editor hr.ProseMirror-selectednode { border-top-color: var(--interactive-accent); }
 .wm-editor code { font-family: var(--font-monospace); background: var(--code-background); padding: .1em .3em; border-radius: 3px; font-size: .9em; }
-.wm-editor pre.wm-code { position: relative; background: var(--code-background); padding: .8em 1em; border-radius: 4px; overflow-x: auto; }
+.wm-editor pre.wm-code { position: relative; border-radius: 4px; overflow-x: auto; }
 .wm-editor pre.wm-code code { background: none; padding: 0; white-space: pre-wrap; }
 .wm-code-lang { position: absolute; top: 2px; right: 8px; font-size: var(--font-ui-smaller); color: var(--text-faint); user-select: none; }
 .wm-editor mark { padding: 0 1px; border-radius: 2px; }
@@ -197,12 +196,11 @@
 
 .wm-raw-inline { border-radius: 3px; }
 .wm-raw-inline.is-source { font-family: var(--font-monospace); font-size: .85em; color: var(--text-muted); background: var(--background-modifier-hover); padding: 0 3px; }
-.wm-raw-inline.is-comment { opacity: .6; cursor: default; }
+.wm-raw-inline.is-comment { opacity: .6; }
 .wm-raw-inline.is-footnote { vertical-align: super; font-size: .75em; color: var(--link-color); }
 .wm-raw-inline.ProseMirror-selectednode { outline: 2px solid var(--interactive-accent); }
 
 .wm-frontmatter { margin: 0 0 1em; font-size: var(--font-ui-small); color: var(--text-muted); border-bottom: 1px solid var(--background-modifier-border); padding-bottom: 4px; cursor: default; }
-.wm-fm-head { cursor: pointer; user-select: none; }
 .wm-fm-body { margin: 4px 0 0; background: var(--background-secondary); padding: 6px 10px; border-radius: 4px; white-space: pre-wrap; }
 .wm-frontmatter.ProseMirror-selectednode { outline: 2px solid var(--interactive-accent); }
 
@@ -227,12 +225,11 @@
 .wm-mobile .wm-scroller { padding: 0 0 45vh; -webkit-overflow-scrolling: touch; }
 .wm-mobile .wm-page { max-width: none; min-height: 100%; box-shadow: none; border-radius: 0; padding: 16px 18px; }
 .wm-mobile .wm-toolbar {
-  flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch;
+  overflow-y: hidden; -webkit-overflow-scrolling: touch;
   gap: 0 4px; padding: 4px 6px;
 }
 .wm-mobile .wm-toolbar::-webkit-scrollbar { display: none; }
 .wm-mobile .wm-group { flex: 0 0 auto; }
-.wm-mobile .wm-spacer { display: none; }
 .wm-mobile .wm-toolbar button.wm-btn { min-width: 38px; height: 38px; }
 .wm-mobile .wm-toolbar button.wm-btn svg { width: 19px; height: 19px; }
 .wm-mobile .wm-toolbar select.wm-style { height: 36px; }
@@ -311,16 +308,12 @@
 .wm-shortcuts h4 { margin: 12px 0 4px; }
 .wm-shortcuts table { width: 100%; border-collapse: collapse; }
 .wm-shortcuts td { padding: 3px 6px; border-bottom: 1px solid var(--background-modifier-border); vertical-align: top; font-size: var(--font-ui-small); }
-.wm-shortcuts td.wm-key { white-space: nowrap; font-family: var(--font-monospace); color: var(--text-accent); width: 40%; }
-.wm-shortcuts-note { color: var(--text-muted); font-size: var(--font-ui-smaller); }
 .wm-editor .wm-flash { animation: wm-flash 1.2s ease-out; }
 @keyframes wm-flash { 0% { background: rgba(var(--interactive-accent-rgb, 120, 82, 238), .3); } 100% { background: transparent; } }
 .wm-toolbar button.wm-btn.is-sticky { box-shadow: inset 0 -3px 0 var(--interactive-accent); }
 
 /* 狀態列 */
 .wm-status { display: inline-flex; align-items: center; gap: 4px; }
-.wm-status-icon { display: inline-flex; }
-.wm-status-icon svg { width: 12px; height: 12px; }
 .wm-status.is-conflict { color: var(--text-error); }
 
 /* 手機：尋找列與提示 */
@@ -333,8 +326,7 @@
 .wm-toolbar.wm-toolbar.wm-toolbar button.wm-btn.wm-hl-btn { border-bottom: 3px solid var(--wm-hl, rgba(255, 208, 0, .6)); }
 .wm-toolbar button.wm-btn.wm-split-arrow { min-width: 14px; width: 14px; padding: 0; margin-left: -2px; }
 .wm-toolbar button.wm-btn.wm-split-arrow svg { width: 12px; height: 12px; }
-.wm-popup-title { font-size: var(--font-ui-smaller); color: var(--text-muted); margin-bottom: 6px; }
-.wm-popup-note { font-size: var(--font-ui-smaller); color: var(--text-faint); margin-top: 6px; max-width: 220px; white-space: normal; }
+.wm-popup-note { white-space: normal; }
 
 /* 下方狀態列 */
 .wm-bottombar { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; padding: 2px 10px; min-height: 28px; border-top: 1px solid var(--background-modifier-border); background: var(--background-secondary); font-size: var(--font-ui-smaller); color: var(--text-muted); user-select: none; }
@@ -355,10 +347,6 @@
 .wm-mobile :is(.wm-bottombar, .wm-statusbar) button.wm-bb-btn { height: 30px; min-width: 30px; }
 
 /* 方程式編輯器 */
-.wm-eq-palette { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 6px 0 8px; }
-.wm-eq-group-title { font-size: var(--font-ui-smaller); color: var(--text-muted); margin-bottom: 2px; }
-.wm-eq-items { display: flex; flex-wrap: wrap; gap: 3px; max-width: 420px; }
-.wm-eq-btn { height: 26px; padding: 0 7px; font-size: var(--font-ui-small); }
 .wm-eq-input { width: 100%; font-family: var(--font-monospace); }
 .wm-eq-label { font-size: var(--font-ui-smaller); color: var(--text-muted); margin-top: 8px; }
 .wm-eq-preview { min-height: 48px; padding: 10px; border: 1px solid var(--background-modifier-border); border-radius: 6px; overflow-x: auto; text-align: center; }
@@ -639,7 +627,7 @@
 .wm-anim-link { text-decoration: underline; }
 .wm-demo-src { font-weight: 700; color: #e03131; }
 .wm-demo-brush { display: inline-block; animation: wm-pop 2.8s infinite; margin-left: 4px; }
-.wm-anim-undo, .wm-anim-cut { display: inline-block; overflow: hidden; vertical-align: bottom; white-space: nowrap; animation-name: wm-fadeout; }
+.wm-anim-undo { display: inline-block; overflow: hidden; vertical-align: bottom; white-space: nowrap; animation-name: wm-fadeout; }
 .wm-anim-redo, .wm-anim-type { animation-name: wm-pop; }
 .wm-anim-copy { animation-name: wm-hl; background-image: linear-gradient(var(--text-selection), var(--text-selection)); background-repeat: no-repeat; background-size: 0% 100%; }
 .wm-demo-swap { position: relative; display: inline-grid; margin: 0 4px; }
@@ -859,8 +847,8 @@ body:not(.is-mobile) .wm-shortcuts-modal { align-self: flex-start; margin-top: 6
 .wm-settings-tab { font-weight: 600; display: flex; align-items: center; gap: 6px; }
 
 /* 方程式編輯器 v1.2 */
-.wm-eq-modal { width: min(760px, 94vw); max-width: none; }
-.wm-eq-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.wm-eq-modal { max-width: none; }
+.wm-eq-top { display: flex; align-items: center; }
 .wm-eq-hint { font-size: var(--font-ui-smaller); color: var(--text-faint); }
 .wm-eq-cats { display: flex; flex-wrap: wrap; gap: 2px; margin: 10px 0 0; border-bottom: 1px solid var(--background-modifier-border); }
 .wm-eq-cats button.wm-eq-cat { height: 28px; padding: 0 10px; background: transparent; box-shadow: none; border: none; border-bottom: 2px solid transparent; border-radius: 0; color: var(--text-muted); font-size: var(--font-ui-small); }
@@ -920,18 +908,15 @@ body:not(.is-mobile) .wm-shortcuts-modal { align-self: flex-start; margin-top: 6
 .wm-code-preview .mermaid { text-align: center; }
 
 /* ---------- Mermaid 圖表編輯器 ---------- */
-.wm-mmd-modal { width: min(1100px, 94vw); }
 .wm-mmd-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
-.wm-mmd-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; min-height: 360px; }
-.wm-mmd-edit { max-height: 60vh; overflow-y: auto; padding-right: 4px; }
-.wm-mmd-input { width: 100%; min-height: 340px; font-family: var(--font-monospace); font-size: var(--font-ui-small); resize: vertical; tab-size: 4; }
+.wm-mmd-body { display: grid; gap: 12px; }
+.wm-mmd-edit { overflow-y: auto; }
+.wm-mmd-input { width: 100%; font-family: var(--font-monospace); font-size: var(--font-ui-small); resize: vertical; tab-size: 4; }
 .wm-mmd-preview { border: 1px solid var(--background-modifier-border); border-radius: 6px; padding: 10px; min-height: 320px; max-height: 60vh; overflow: auto; text-align: center; }
-.wm-mmd-preview g.node { cursor: pointer; }
-.wm-mmd-section { font-weight: 600; margin: 10px 0 4px; font-size: var(--font-ui-small); }
-.wm-mmd-row { display: flex; align-items: center; gap: 4px; padding: 2px; border-radius: 4px; }
-.wm-mmd-row.is-current { background: var(--background-modifier-hover); }
-.wm-mmd-row .wm-mmd-text { flex: 1 1 120px; min-width: 80px; height: 28px; }
-.wm-mmd-row select { height: 28px; max-width: 150px; font-size: var(--font-ui-smaller); }
+.wm-mmd-section { font-weight: 600; font-size: var(--font-ui-small); }
+.wm-mmd-row { display: flex; align-items: center; }
+.wm-mmd-row .wm-mmd-text { height: 28px; }
+.wm-mmd-row select { height: 28px; font-size: var(--font-ui-smaller); }
 .wm-mmd-iconbtn svg { width: 15px; height: 15px; }
 .wm-mmd-add { margin-top: 4px; height: 28px; font-size: var(--font-ui-small); }
 .wm-mmd-note { color: var(--text-muted); font-size: var(--font-ui-small); margin: 8px 0; }
@@ -963,11 +948,9 @@ audio.wm-embed-media { width: 100%; }
 /* ---------- 方程式的視覺化編輯 ---------- */
 .wm-eq-visual { min-height: 64px; padding: 12px; border: 1px solid var(--background-modifier-border); border-radius: 6px; background: var(--background-primary); font-size: 1.25em; font-family: 'Cambria Math', 'STIX Two Math', 'Latin Modern Math', var(--font-text); overflow-x: auto; cursor: text; }
 .wm-eq-visual-hint { font-size: var(--font-ui-smaller); color: var(--text-faint); margin-top: 4px; }
-.wm-mv { display: flex; align-items: center; min-height: 40px; }
+.wm-mv { display: flex; align-items: center; }
 .wm-mv-row { display: inline-flex; align-items: center; flex-wrap: nowrap; }
-.wm-mv-text { display: inline-block; min-width: 4px; padding: 1px; outline: none; white-space: pre; border-radius: 2px; }
-.wm-mv-text:focus { background: var(--background-modifier-hover); }
-.wm-mv-text.is-slot { min-width: .9em; min-height: 1.1em; border: 1px dashed var(--text-faint); }
+.wm-mv-text { display: inline-block; outline: none; white-space: pre; }
 .wm-mv-frac { display: inline-flex; flex-direction: column; align-items: center; margin: 0 3px; }
 .wm-mv-num { display: flex; justify-content: center; align-self: stretch; padding: 0 4px 1px; border-bottom: 1px solid currentColor; }
 .wm-mv-den { display: flex; justify-content: center; padding: 1px 4px 0; }
@@ -1061,22 +1044,16 @@ audio.wm-embed-media { width: 100%; }
 .wm-callout.is-collapsed > .callout-content { display: none; }
 
 /* ---------- 文件屬性：沒有外框，像 Obsidian 內建的屬性區；按鈕在滑鼠移上去時才出現 ---------- */
-.wm-editor .wm-props { margin: 0 0 1em; padding: 0 0 6px; border: none; border-bottom: 1px solid var(--background-modifier-border); border-radius: 0; }
-.wm-editor .wm-props.is-collapsed { padding-bottom: 2px; }
-.wm-props .wm-props-head { min-height: 28px; padding: 2px 4px; border-radius: 4px; }
-.wm-props .wm-props-title { font-weight: 500; color: var(--text-muted); white-space: nowrap; }
+.wm-props .wm-props-title { white-space: nowrap; }
 .wm-props .wm-props-count { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-faint); }
-.wm-props .wm-props-body { padding: 2px 0 0; border-top: none; }
-.wm-props .wm-prop { min-height: 30px; padding: 0 4px; border-bottom: none; border-radius: 4px; }
-.wm-props .wm-prop:hover, .wm-props .wm-prop:focus-within { background: var(--background-secondary); }
+.wm-props .wm-props-body { border-top: none; }
+.wm-props .wm-prop { border-bottom: none; }
 .wm-props button.wm-prop-icon { flex: 0 0 auto; height: 22px; min-width: 22px; padding: 0 3px; background: transparent; box-shadow: none; border: none; border-radius: 4px; color: var(--text-faint); cursor: pointer; align-items: center; justify-content: center; }
 .wm-props button.wm-prop-icon:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
 .wm-prop-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .wm-props button.wm-props-raw, .wm-props button.wm-prop-del { opacity: 0; transition: opacity .12s; }
 .wm-props .wm-props-head:hover button.wm-props-raw, .wm-props .wm-prop:hover button.wm-prop-del, .wm-props .wm-prop:focus-within button.wm-prop-del, .wm-props button.wm-props-raw:focus, .wm-props button.wm-prop-del:focus { opacity: 1; }
 .wm-mobile .wm-props button.wm-props-raw, .wm-mobile .wm-props button.wm-prop-del { opacity: 1; }
-.wm-props .wm-chip { padding: 0 4px 0 8px; min-height: 22px; background: var(--background-secondary); border: 1px solid var(--background-modifier-border); }
-.wm-props .wm-chip-tag { background: var(--tag-background, var(--background-modifier-hover)); border-color: var(--tag-border-color, transparent); color: var(--tag-color, var(--text-accent)); }
 .wm-props .wm-chip-link .wm-chip-text { color: var(--link-color); cursor: pointer; }
 .wm-props .wm-chip-link .wm-chip-text:hover { color: var(--link-color-hover, var(--link-color)); border-bottom: 1px solid; }
 .wm-props button.wm-prop-open { flex: 0 0 auto; height: 24px; min-width: 24px; padding: 0 4px; background: transparent; box-shadow: none; border: none; border-radius: 4px; color: var(--link-color); cursor: pointer; display: inline-flex; align-items: center; }
@@ -1088,7 +1065,6 @@ audio.wm-embed-media { width: 100%; }
 .wm-prop-tree-row > .wm-prop-tree { flex: 1 1 100%; }
 .wm-prop-tree-key { color: var(--text-muted); }
 .wm-prop-tree-key::after { content: ':'; }
-.wm-props .wm-prop-add { opacity: .6; }
 .wm-props .wm-prop-add:hover, .wm-props .wm-prop-add:focus-within { opacity: 1; background: transparent; }
 
 /* ---------- 程式碼區塊：沒有標題列；語言與按鈕浮在右上角，按鈕在滑鼠移上去或游標在裡面時才出現 ---------- */
@@ -1247,7 +1223,7 @@ body:not(.is-phone) .modal.wm-eq-modal, body:not(.is-phone) .modal.wm-mmd-modal 
 .wm-mmd-confirm button { height: 28px; }
 .wm-mmd .wm-mmd-top { margin-bottom: 0; }
 .wm-mmd .wm-mmd-top .wm-eq-hint { margin-left: auto; }
-.wm-mmd-body { grid-template-columns: minmax(0, 11fr) minmax(0, 9fr); min-height: 380px; align-items: stretch; }
+.wm-mmd-body { min-height: 380px; align-items: stretch; }
 .wm-mmd-body > .wm-eq-card { min-width: 0; }
 .wm-mmd-edit { max-height: 62vh; padding-right: 8px; }
 .wm-mmd-right { display: flex; flex-direction: column; }
@@ -1269,16 +1245,11 @@ body:not(.is-phone) .modal.wm-eq-modal, body:not(.is-phone) .modal.wm-mmd-modal 
 .wm-mmd-row { flex-wrap: wrap; gap: 4px; padding: 3px 4px 3px calc(4px + var(--wm-mmd-level, 0) * 18px); border: 1px solid transparent; border-radius: 6px; }
 .wm-mmd-row:hover { background: var(--background-modifier-hover); }
 .wm-mmd-row.is-current { background: rgba(var(--interactive-accent-rgb, 120, 82, 238), .1); border-color: rgba(var(--interactive-accent-rgb, 120, 82, 238), .45); }
-.wm-mmd-row .wm-mmd-text { flex: 2 1 110px; min-width: 70px; }
-.wm-mmd-row .wm-mmd-text.is-l { flex: 4 1 150px; }
-.wm-mmd-row .wm-mmd-text.is-s { flex: 1 1 80px; min-width: 60px; }
-.wm-mmd-row .wm-mmd-text.is-xs { flex: 0 1 62px; min-width: 46px; }
-.wm-mmd-row select { flex: 1 1 96px; min-width: 70px; max-width: 190px; }
-.wm-mmd-row select.is-s { flex: 0 1 112px; }
+.wm-mmd-row select { max-width: 190px; }
 .wm-mmd-row textarea.wm-mmd-lines { flex: 4 1 170px; min-width: 120px; min-height: 0; padding: 4px 8px; font-size: var(--font-ui-small); line-height: 1.45; resize: vertical; }
 .wm-mmd-tools { display: inline-flex; align-items: center; gap: 0; margin-left: auto; opacity: .45; transition: opacity .1s; }
 .wm-mmd-row:hover .wm-mmd-tools, .wm-mmd-row:focus-within .wm-mmd-tools, .wm-mmd-row.is-current .wm-mmd-tools, .is-mobile .wm-mmd-tools { opacity: 1; }
-.wm-mmd-tools button.wm-mmd-iconbtn { height: 26px; padding: 2px 5px; }
+.wm-mmd-tools button.wm-mmd-iconbtn { height: 26px; }
 .wm-mmd-tools button.wm-mmd-iconbtn:disabled { opacity: .25; cursor: default; }
 .wm-mmd-level { display: inline-flex; align-items: center; }
 .wm-mmd-level button.wm-mmd-levelbtn { height: 26px; padding: 2px 3px; }
@@ -1292,7 +1263,7 @@ body:not(.is-phone) .modal.wm-eq-modal, body:not(.is-phone) .modal.wm-mmd-modal 
 .wm-mmd-blocked-icon svg { width: 30px; height: 30px; }
 .wm-mmd-blocked .wm-mmd-note { margin: 0; max-width: 420px; line-height: 1.5; }
 /* 在圖上編輯：蓋在文字上的小輸入框與這一列的動作 */
-.wm-mmd-inline { position: absolute; z-index: 5; display: flex; align-items: center; gap: 2px; padding: 3px; background: var(--background-primary); border: 1px solid var(--interactive-accent); border-radius: 8px; box-shadow: var(--shadow-l, var(--shadow-s)); }
+.wm-mmd-inline { position: absolute; z-index: 5; display: flex; gap: 2px; padding: 3px; background: var(--background-primary); border: 1px solid var(--interactive-accent); border-radius: 8px; box-shadow: var(--shadow-l, var(--shadow-s)); }
 .wm-mmd-inline input.wm-mmd-inline-input { height: 28px; padding: 0 8px; border: none; box-shadow: none; background: transparent; font-size: var(--font-ui-small); }
 .wm-mmd-inline button.wm-mmd-inline-btn { height: 26px; padding: 2px 5px; }
 .wm-mmd-inline button.wm-mmd-inline-btn.is-apply { color: var(--text-accent); }
@@ -1339,7 +1310,7 @@ body:not(.is-phone) .modal.wm-eq-modal, body:not(.is-phone) .modal.wm-mmd-modal 
 .wm-mmd button.wm-mmd-swatch { width: 24px; height: 24px; padding: 0; background: var(--wm-mmd-fill, transparent); box-shadow: none; border: 1px solid rgba(128, 128, 128, .45); border-radius: 6px; cursor: pointer; }
 .wm-mmd button.wm-mmd-swatch:hover { box-shadow: 0 0 0 2px var(--background-primary), 0 0 0 3px var(--text-muted); }
 .wm-mmd button.wm-mmd-swatch.is-active { box-shadow: 0 0 0 2px var(--background-primary), 0 0 0 4px var(--interactive-accent); }
-.wm-mmd-inline { flex-wrap: wrap; max-width: calc(100% - 4px); }
+.wm-mmd-inline { max-width: calc(100% - 4px); }
 .wm-mmd-inline .wm-mmd-swatches { padding: 4px 3px 2px; border-top: 1px solid var(--background-modifier-border); margin-top: 3px; }
 .wm-mmd-head .wm-mmd-opt input.is-s { width: 110px; }
 
@@ -1448,10 +1419,34 @@ body:not(.is-phone) .modal.wm-eq-modal, body:not(.is-phone) .modal.wm-mmd-modal 
 
 /* ---------- 文件裡的圖表與查詢結果：還沒畫時先佔位置、很高時先收合 ---------- */
 .wm-codeblock.has-preview:not(.is-empty) .wm-code-preview:empty { min-height: 96px; }
-.wm-codeblock.is-tall:not(.wm-code-active):not(.show-code) .wm-code-preview { max-height: 460px; overflow: hidden; -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 60px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 60px), transparent); }
-.wm-editor .wm-codeblock button.wm-code-more { display: block; width: 100%; height: 28px; background: transparent; box-shadow: none; border: none; border-top: 1px dashed var(--background-modifier-border); border-radius: 0 0 6px 6px; color: var(--text-muted); font-size: var(--font-ui-smaller); cursor: pointer; }
-.wm-editor .wm-codeblock button.wm-code-more:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
+.wm-codeblock.is-tall:not(.wm-code-active):not(.show-code) .wm-code-preview { max-height: 460px; overflow: hidden; }
+/* 收合／展開的按鈕：整列都可以按，看得到的是置中的小膠囊「⌄ 顯示完整內容」或「⌃ 收合」（圖示與文字由 nodeviews.ts 的 syncTall 放進去）。
+   上緣不畫分隔線：結果淡出就表示下面還有，再畫一條線反而像是到底了 */
+.wm-editor .wm-codeblock button.wm-code-more { display: flex; align-items: center; justify-content: center; width: 100%; height: 34px; padding: 0; background: transparent; box-shadow: none; border: none; border-radius: 0 0 6px 6px; color: var(--text-muted); font-size: var(--font-ui-smaller); cursor: pointer; }
 .wm-editor .wm-codeblock button.wm-code-more[hidden] { display: none; }
+/* 游標在區塊裡、或正在看原始碼時，結果本來就完整顯示，按鈕沒有作用 */
+.wm-codeblock.wm-code-active button.wm-code-more, .wm-codeblock.show-code button.wm-code-more { display: none; }
+.wm-code-more-pill { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 10px 0 7px; border: 1px solid var(--background-modifier-border); border-radius: 12px; transition: background-color .12s ease, border-color .12s ease; }
+.wm-code-more-icon { display: inline-flex; }
+.wm-code-more-icon svg { width: 14px; height: 14px; }
+/* 滑鼠移上去只有膠囊變色、不是整列；鍵盤的焦點框也畫在膠囊上 */
+.wm-editor .wm-codeblock button.wm-code-more:hover { background: transparent; color: var(--text-normal); }
+.wm-editor .wm-codeblock button.wm-code-more:hover .wm-code-more-pill { background: var(--background-modifier-hover); border-color: var(--background-modifier-border-hover); }
+.wm-editor .wm-codeblock button.wm-code-more:focus-visible { box-shadow: none; }
+.wm-editor .wm-codeblock button.wm-code-more:focus-visible .wm-code-more-pill { box-shadow: 0 0 0 2px var(--background-modifier-border-focus); }
+/* 手機：手指按得到的範圍高一點 */
+.wm-mobile .wm-editor .wm-codeblock button.wm-code-more { height: 44px; }
+.wm-mobile .wm-code-more-pill { height: 30px; padding: 0 12px 0 9px; border-radius: 15px; }
+/* 收合時下緣 60px 淡出：蓋一層從透明到底色的漸層。不用 mask-image：Obsidian 的外掛掃描以舊版 Chromium 為準，會報「部分支援」。
+   結果沒有底色、融入頁面，所以漸層的底色是頁面的 --background-primary，在提示框裡再疊上提示框的淡色（--wm-fade-tint）。
+   漸層掛在按鈕上、往上蓋住結果最後的 60px；放在結果裡面的話，結果左右捲動過再收合時，漸層會跟著內容位移 */
+.wm-codeblock.is-tall:not(.wm-code-active):not(.show-code) button.wm-code-more { position: relative; }
+.wm-codeblock.is-tall:not(.wm-code-active):not(.show-code) button.wm-code-more::before { content: ""; position: absolute; left: 0; right: 0; bottom: 100%; height: 60px; background: linear-gradient(to bottom, transparent, var(--wm-fade-tint, transparent)), linear-gradient(to bottom, transparent, var(--background-primary)); pointer-events: none; }
+/* 漸層上層的淡色：預設沒有；提示框裡是提示框的底色。Obsidian 1.5 的 --callout-color 是三個數字（8, 109, 221）、底色是 rgba(…, .1)，
+   新版改成顏色、底色是 color-mix(…)。兩種寫法各放一層：註冊成 <color> 的變數在算不出顏色時沿用上一層的值，所以哪一版都拿得到 */
+@property --wm-fade-tint { syntax: "<color>"; inherits: true; initial-value: transparent; }
+.wm-editor .callout { --wm-fade-tint: rgba(var(--callout-color), .1); }
+.wm-editor .callout > .callout-content { --wm-fade-tint: color-mix(in oklch, var(--callout-color) 10%, transparent); }
 /* 圖表編輯器的預覽：圖以原本的大小為準，太寬就用捲的。
    Mermaid 寫在 SVG 上的 max-width 由 mermaid.ts 的 sizeCanvas 拿掉，這裡不必用 important 去蓋 */
 .wm-mmd-canvas svg.wm-mmd-natural { max-width: none; }
@@ -1484,7 +1479,8 @@ body.wm-md-status .status-bar-item.plugin-word-count { display: none; }
 .wm-peek input.wm-peek-filter { width: 100%; height: 30px; border-radius: 8px; }
 .wm-peek-list { display: flex; flex-direction: column; gap: 1px; max-height: min(50vh, 420px); overflow-y: auto; overscroll-behavior: contain; }
 .wm-peek-row { display: flex; align-items: flex-start; gap: 10px; padding: 5px 6px; border-radius: 6px; }
-.wm-peek-row:hover { background: var(--background-modifier-hover); }
+/* 整列變色時，被截掉的值下緣的漸層也疊上同一層顏色（見下面的 .is-clamped.is-more） */
+.wm-peek-row:hover { background: var(--background-modifier-hover); --wm-fade-tint: var(--background-modifier-hover); }
 .wm-peek-key { display: flex; align-items: center; gap: 6px; flex: 0 0 108px; min-width: 0; min-height: 22px; color: var(--metadata-label-text-color, var(--text-muted)); }
 .wm-peek-icon { display: inline-flex; flex: 0 0 auto; color: var(--text-faint); }
 .wm-peek-icon svg { width: 14px; height: 14px; }
@@ -1493,7 +1489,9 @@ body.wm-md-status .status-bar-item.plugin-word-count { display: none; }
 /* 很長的值先顯示三行；真的被截掉時下緣變淡，點一下展開 */
 .wm-peek-value.is-clamped { max-height: 4.5em; overflow: hidden; }
 .wm-peek-value.is-more { cursor: pointer; }
-.wm-peek-value.is-clamped.is-more { -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent); mask-image: linear-gradient(to bottom, #000 55%, transparent); }
+/* 下緣淡出：從 55% 起蓋一層從透明到小視窗底色的漸層（不用 mask-image，理由見收合的圖表） */
+.wm-peek-value.is-clamped.is-more { position: relative; }
+.wm-peek-value.is-clamped.is-more::after { content: ""; position: absolute; left: 0; right: 0; top: 55%; bottom: 0; background: linear-gradient(to bottom, transparent, var(--wm-fade-tint, transparent)), linear-gradient(to bottom, transparent, var(--background-primary)); pointer-events: none; }
 .wm-peek .wm-chip { padding: 0 9px; min-height: 22px; border-radius: var(--pill-radius, 2em); background: var(--pill-background, var(--background-modifier-hover)); border: var(--pill-border-width, 1px) solid var(--pill-border-color, transparent); color: var(--pill-color, var(--text-normal)); }
 .wm-peek .wm-chip-tag { background: var(--tag-background, var(--background-modifier-hover)); border-color: var(--tag-border-color, transparent); color: var(--tag-color, var(--text-accent)); }
 .wm-peek-check { margin: 0; }
@@ -1512,9 +1510,16 @@ body.wm-md-status .status-bar-item.plugin-word-count { display: none; }
 /* 參考 Notion 的「釘選屬性」：重要的屬性橫排成一行、名稱小而淡；其餘點開再看。屬性列浮在文件上，不佔版面、文件不會跳動 */
 .wm-pin-host { position: relative; flex: 0 0 auto; height: 0; z-index: 6; }
 .wm-pin { position: absolute; top: 8px; left: 16px; width: calc(100% - 32px); box-sizing: border-box; border: 1px solid var(--background-modifier-border); border-radius: 14px; background: var(--background-primary); box-shadow: 0 6px 20px rgba(0, 0, 0, .08), 0 1px 3px rgba(0, 0, 0, .06); font-size: var(--font-ui-small); opacity: 0; transform: translateY(-6px); pointer-events: none; transition: opacity .18s ease, transform .18s ease; }
-/* 支援的環境用半透明加模糊（不支援 color-mix 時這一行無效，維持上面的實色） */
-.wm-pin { background: color-mix(in srgb, var(--background-primary) 86%, transparent); -webkit-backdrop-filter: blur(12px) saturate(1.4); backdrop-filter: blur(12px) saturate(1.4); }
+/* 支援 color-mix 的環境用半透明加模糊，不支援時維持上面的實色。半透明的值裡有 var()，瀏覽器解析時一律接受、
+   算不出來時變成透明而不是退回上面那一個，所以後援要用 @supports 分開寫 */
+.wm-pin { -webkit-backdrop-filter: blur(12px) saturate(1.4); backdrop-filter: blur(12px) saturate(1.4); }
+@supports (background: color-mix(in srgb, red 50%, transparent)) {
+  .wm-pin { background: color-mix(in srgb, var(--background-primary) 86%, transparent); }
+}
 .wm-pin.is-shown { opacity: 1; transform: none; pointer-events: auto; }
+/* 展開成完整清單時用實色：一長串屬性疊在文件上，後面透出來的圖片或彩色內容會干擾閱讀；
+   被截掉的值下緣的漸層（.wm-peek-value.is-more）也要跟底色一致，看起來才是淡出而不是一條白帶 */
+.wm-pin.is-open { background: var(--background-primary); }
 /* 屬性列後面墊一條頁面底色、往下淡出的帶子：捲過去的文字在屬性列上下不會亂成一團 */
 .wm-pin::before { content: ""; position: absolute; z-index: -1; left: -24px; right: -24px; top: -9px; height: 60px; background: linear-gradient(to bottom, var(--background-primary) 70%, transparent); pointer-events: none; }
 .wm-pin-bar { display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 6px 0 7px; border-radius: 13px; cursor: pointer; user-select: none; }
@@ -1523,8 +1528,11 @@ body.wm-md-status .status-bar-item.plugin-word-count { display: none; }
 .wm-pin-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 26px; height: 26px; border-radius: 8px; background: rgba(var(--interactive-accent-rgb, 120, 82, 238), .12); color: var(--text-accent); transition: background .15s; }
 .wm-pin-bar:hover .wm-pin-icon { background: rgba(var(--interactive-accent-rgb, 120, 82, 238), .2); }
 .wm-pin-icon svg { width: 15px; height: 15px; }
-/* 屬性之間用很淡的直線分開；一行放不下的往右淡出，完整內容點開屬性列看 */
-.wm-pin-items { display: flex; align-items: center; flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 48px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 48px), transparent); }
+/* 屬性之間用很淡的直線分開；一行放不下的往右淡出，完整內容點開屬性列看。
+   淡出是右端 48px 蓋一層漸層（不用 mask-image，理由見收合的圖表）：屬性列墊在 .wm-pin::before 那條實色的帶子上，
+   看起來就是 --background-primary，所以漸層到同一個顏色 */
+.wm-pin-items { position: relative; display: flex; align-items: center; flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; }
+.wm-pin-items::after { content: ""; position: absolute; top: 0; right: 0; bottom: 0; width: 48px; background: linear-gradient(to right, transparent, var(--background-primary)); pointer-events: none; }
 .wm-pin-item { display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; padding: 0 12px; }
 .wm-pin-item:first-child { padding-left: 2px; }
 .wm-pin-item + .wm-pin-item { border-left: 1px solid var(--background-modifier-border); }
