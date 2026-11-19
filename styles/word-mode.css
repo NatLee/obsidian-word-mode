@@ -1137,6 +1137,9 @@ audio.wm-embed-media { width: 100%; }
 
 /* ---------- 方程式編輯器（v1.5 的版面） ---------- */
 .wm-eq-modal { width: min(820px, 94vw); }
+/* 方程式與圖表編輯器在打字、加列、換分類時高度會變；Obsidian 的對話框垂直置中，高度一變整個對話框就跟著上下跳，
+   正在輸入的地方會移動。桌機與平板改成上緣固定，變高只往下長，最高到視窗底部留同樣的空白。手機維持 Obsidian 的版面 */
+body:not(.is-phone) .modal.wm-eq-modal, body:not(.is-phone) .modal.wm-mmd-modal { align-self: flex-start; margin-top: max(16px, 5vh); margin-bottom: auto; max-height: calc(100vh - 2 * max(16px, 5vh)); }
 .wm-eq { display: flex; flex-direction: column; gap: 10px; }
 .wm-eq-top { flex-wrap: wrap; justify-content: flex-start; gap: 8px 10px; }
 .wm-eq-top .wm-eq-modes { margin-left: 0; }
