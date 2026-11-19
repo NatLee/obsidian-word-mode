@@ -354,6 +354,35 @@ await fresh('面積公式：\n');
   q('button.mod-cta').click();
   assert(out() === '面積公式：$\\frac{a}{b}^{2}\\alpha+\\sin x$\n', '套用後存成 LaTeX：' + JSON.stringify(out()));
 
+  // 上下標的版面：a_i^2 疊成一組；接在向量、括號後面的上下標跟那個結構包在一起；向量箭頭要佔高度
+  await fresh('式 $a_i^2+\\vec{v}_1+\\left(x\\right)^2$ 完\n');
+  view.pm.dom.querySelector('.wm-raw-inline.is-math').dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }));
+  eq = mock.Modal.last;
+  await sleep(25);
+  const pair = eq.contentEl.querySelector('.wm-mv-scripts.is-pair');
+  assert(pair && pair.querySelector(':scope > .wm-mv-sub') && pair.querySelector(':scope > .wm-mv-sup'), 'a_i^2：下標與上標疊成同一組');
+  const attached = [...eq.contentEl.querySelectorAll('.wm-mv-attach')];
+  assert(attached.length === 2 && attached[0].matches('.has-accent') && attached[0].querySelector(':scope > .wm-mv-group.has-accent > .wm-mv-inner')
+    && attached[1].querySelector(':scope > .wm-mv-paren') && attached.every(a => a.querySelector(':scope > .wm-mv-scripts')), '接在向量、括號後面的上下標：跟前面的結構包在一起');
+  // 只改畫面：格子的順序（游標移動的順序）跟模型一樣，沒有修改就交回原本的 LaTeX
+  const cells = [...eq.contentEl.querySelectorAll('.wm-mv-text')].map(s => s.textContent).filter(Boolean).join(',');
+  assert(cells === 'a,i,2,+,v,1,+,x,2', '格子的順序不變：' + cells);
+  eq.contentEl.querySelector('button.mod-cta').click();
+  assert(out() === '式 $a_i^2+\\vec{v}_1+\\left(x\\right)^2$ 完\n', '只改畫面，LaTeX 一字不動：' + JSON.stringify(out()));
+
+  // 字上的符號畫成 SVG（不是疊上去的「→」「~」字元）；沒有上伸筆畫的小寫字母，符號放低（is-low）；打字後重新判斷
+  await fresh('式 $\\vec{v}+\\tilde{N}+\\bar{x}$ 完\n');
+  view.pm.dom.querySelector('.wm-raw-inline.is-math').dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }));
+  eq = mock.Modal.last;
+  await sleep(25);
+  const accentOf = cmd => eq.contentEl.querySelector(`.wm-mv-group.has-accent[data-cmd="${cmd}"]`);
+  const vec = accentOf('vec'), tilde = accentOf('tilde'), bar = accentOf('bar');
+  assert(vec && vec.querySelector('.wm-mv-accent svg line') && vec.querySelector('.wm-mv-accent svg polyline') && !vec.querySelector('.wm-mv-accent').textContent, '向量：箭頭與線是同一個 SVG');
+  assert(tilde && tilde.querySelector('.wm-mv-accent svg path') && bar && bar.querySelector('.wm-mv-accent svg line'), '~ 與上橫線也是 SVG');
+  assert(vec.classList.contains('is-low') && !tilde.classList.contains('is-low') && bar.classList.contains('is-low'), '小寫 v、x 的符號放低，大寫 N 不放低');
+  typeIn(tilde.querySelector('.wm-mv-text'), 'n');
+  assert(tilde.classList.contains('is-low') && eq.ta.value.includes('\\tilde{n}'), '把 N 改成 n：符號跟著放低：' + eq.ta.value);
+
   // 既有的方程式：沒有在格子裡改東西就不會動到原本的寫法
   await fresh('公式 $x^2 + \\sqrt{y}$ 結束\n');
   const math = view.pm.dom.querySelector('.wm-raw-inline.is-math');

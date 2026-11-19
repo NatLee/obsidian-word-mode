@@ -982,18 +982,43 @@ audio.wm-embed-media { width: 100%; }
 .wm-mv-radical polyline { stroke-width: 1.4px; }
 .wm-mv-radicand { display: inline-flex; align-items: center; padding: 1px 3px 0; border-top: 1px solid currentColor; }
 .wm-mv-sup, .wm-mv-sub { display: inline-flex; font-size: .72em; }
-.wm-mv-sup { align-self: flex-start; margin-top: -.4em; }
-.wm-mv-sub { align-self: flex-end; margin-bottom: -.4em; }
+/* 上下標（mathvisual.ts 的 renderRow 把它們排成一組 .wm-mv-scripts）：以前用負的外距移上移下，本身不佔高度，
+   外面的根號上框線、分數線、括號會壓到它（√b² 的 2 頂到根號），而且對齊的是整列的頂端或底端，
+   同一列有分數這類高的東西時就跑遠了。現在整組佔真的高度，並以前面那個字為準：
+   前面是文字：整組以列的中線為中心（文字也在中線上），上標的中心比中線高約半個字、下標低約半個字；
+   只有一個時用外距撐出另一半（1.3em × .72 ≈ .94em），整組才會以中線為中心 */
+.wm-mv-scripts { display: inline-flex; flex-direction: column; align-items: flex-start; align-self: center; position: relative; padding: .12em 0; }
+.wm-mv-scripts > .wm-mv-sup { order: -1; }
+.wm-mv-scripts:not(.is-pair) > .wm-mv-sup { margin-bottom: 1.3em; }
+.wm-mv-scripts:not(.is-pair) > .wm-mv-sub { margin-top: 1.3em; }
+.wm-mv-scripts.is-pair > .wm-mv-sup { margin-bottom: .2em; }
+/* a_i^2 疊起來的上下標中間那個空的文字格：不佔位置，放在這組的右邊，一樣點得到 */
+.wm-mv-scripts.is-pair > .wm-mv-text { position: absolute; left: 100%; top: 50%; transform: translateY(-50%); }
+/* 前面是結構（括號、根號、向量…）：跟它包在一起，上標對齊它的頂端、下標對齊它的底端 */
+.wm-mv-attach { display: inline-flex; align-items: center; }
+.wm-mv-attach > .wm-mv-scripts { align-self: stretch; justify-content: space-between; padding: 0; }
+.wm-mv-attach > .wm-mv-scripts > .wm-mv-sup, .wm-mv-attach > .wm-mv-scripts > .wm-mv-sub { margin: 0; }
+.wm-mv-attach > .wm-mv-scripts:not(.is-pair) > .wm-mv-sub { margin-top: auto; }
 .wm-mv-group { display: inline-flex; align-items: center; position: relative; margin: 0 1px; }
+/* 字上面的符號（.has-accent：向量箭頭、上橫線、^、~、點；SVG 由 mathvisual.ts 的 accentMark 畫）：
+   符號畫在上面留出來的空間裡，外面的分數線、根號才不會壓到。下面用外距留同樣的高度，
+   字才會跟同一列的其他字對齊（整列以中線對齊）。後面接上下標時，下面的空間改由外面那一組（.wm-mv-attach）留，
+   下標才會貼著字的底部。
+   位置以字框的頂端為準：--acc-d 是符號的底邊在字框頂端下面多少。Cambria Math 的字框裡，大寫與 b、d 的頂端
+   約在 .19–.24em，沒有上伸筆畫的小寫（.is-low）約在 .43em，符號的底邊放在這上面約 .07em */
+.wm-mv-group.has-accent { --acc-pad: .18em; --acc-d: .12em; padding-top: var(--acc-pad); margin-bottom: var(--acc-pad); }
+.wm-mv-group.has-accent.is-low { --acc-d: .36em; }
+.wm-mv-attach > .wm-mv-group.has-accent { margin-bottom: 0; }
+.wm-mv-attach.has-accent { margin-bottom: .18em; }
+.wm-mv-accent { position: absolute; left: .05em; right: .05em; height: .26em; top: calc(var(--acc-pad) + var(--acc-d) - .26em); pointer-events: none; }
+.wm-mv-accent > svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: visible; fill: none; stroke: currentColor; stroke-width: 1px; stroke-linecap: round; stroke-linejoin: round; }
+.wm-mv-accent polyline, .wm-mv-accent path { stroke-width: 1.2px; }
+.wm-mv-accent circle { fill: currentColor; stroke: none; }
+/* 點比較小；上橫線只是一條線，線（外框的正中間）比其他符號的底邊再高一點 */
+.wm-mv-group[data-cmd="dot"] > .wm-mv-accent, .wm-mv-group[data-cmd="ddot"] > .wm-mv-accent { height: .15em; top: calc(var(--acc-pad) + var(--acc-d) - .15em); }
+.wm-mv-group[data-cmd="bar"] > .wm-mv-accent, .wm-mv-group[data-cmd="overline"] > .wm-mv-accent { height: .1em; top: calc(var(--acc-pad) + var(--acc-d) - .08em); }
 .wm-mv-inner, .wm-mv-braces { display: inline-flex; align-items: center; }
-.wm-mv-group[data-cmd="bar"] > .wm-mv-inner, .wm-mv-group[data-cmd="overline"] > .wm-mv-inner, .wm-mv-group[data-cmd="vec"] > .wm-mv-inner, .wm-mv-group[data-cmd="overrightarrow"] > .wm-mv-inner { border-top: 1px solid currentColor; }
 .wm-mv-group[data-cmd="underline"] > .wm-mv-inner { border-bottom: 1px solid currentColor; }
-.wm-mv-group[data-cmd="vec"]::before, .wm-mv-group[data-cmd="overrightarrow"]::before, .wm-mv-group[data-cmd="hat"]::before, .wm-mv-group[data-cmd="tilde"]::before, .wm-mv-group[data-cmd="dot"]::before, .wm-mv-group[data-cmd="ddot"]::before { position: absolute; top: -.8em; right: 0; left: 0; text-align: center; font-size: .7em; pointer-events: none; }
-.wm-mv-group[data-cmd="vec"]::before, .wm-mv-group[data-cmd="overrightarrow"]::before { content: '→'; text-align: right; }
-.wm-mv-group[data-cmd="hat"]::before { content: '^'; }
-.wm-mv-group[data-cmd="tilde"]::before { content: '~'; }
-.wm-mv-group[data-cmd="dot"]::before { content: '˙'; }
-.wm-mv-group[data-cmd="ddot"]::before { content: '¨'; }
 .wm-mv-group[data-cmd="mathbf"] .wm-mv-text, .wm-mv-group[data-cmd="boldsymbol"] .wm-mv-text { font-weight: 700; }
 .wm-mv-group[data-cmd="text"] .wm-mv-text, .wm-mv-group[data-cmd="mathrm"] .wm-mv-text { font-family: var(--font-interface); }
 .wm-mv-tag { align-self: flex-start; margin-right: 1px; font-size: .5em; color: var(--text-faint); user-select: none; }

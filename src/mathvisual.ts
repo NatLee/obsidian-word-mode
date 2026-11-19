@@ -5,7 +5,11 @@ import type { I18nKey } from './i18n.js';
 // 不依賴 Obsidian；看不懂的 LaTeX 會原樣放在文字格裡，不會遺失。
 
 // ---------------------------------------------------------------- 符號 ⇄ LaTeX 指令
+// 間距指令顯示成差不多寬的空白字元，不然會照原文顯示「\,」（\int f(x)\,dx 很常見）：
+// \, 細空白、\: 中等數學空白、\; 三分之一 em、\quad 一個 em（\qquad 顯示成兩個，改過再存回時寫成 \quad\quad，看起來一樣）
+const SPACE_PAIRS: [string, string][] = [['\\,', '\u2009'], ['\\:', '\u205F'], ['\\;', '\u2004']];
 const SYMBOL_PAIRS: [string, string][] = [
+  ['\\quad', '\u2003'],
   ['\\alpha', 'α'], ['\\beta', 'β'], ['\\gamma', 'γ'], ['\\delta', 'δ'], ['\\epsilon', 'ϵ'], ['\\varepsilon', 'ε'], ['\\zeta', 'ζ'], ['\\eta', 'η'],
   ['\\theta', 'θ'], ['\\iota', 'ι'], ['\\kappa', 'κ'], ['\\lambda', 'λ'], ['\\mu', 'μ'], ['\\nu', 'ν'], ['\\xi', 'ξ'], ['\\pi', 'π'], ['\\rho', 'ρ'],
   ['\\sigma', 'σ'], ['\\tau', 'τ'], ['\\upsilon', 'υ'], ['\\phi', 'ϕ'], ['\\varphi', 'φ'], ['\\chi', 'χ'], ['\\psi', 'ψ'], ['\\omega', 'ω'],
@@ -19,16 +23,19 @@ const SYMBOL_PAIRS: [string, string][] = [
   ['\\sum', '∑'], ['\\prod', '∏'], ['\\int', '∫'], ['\\iint', '∬'], ['\\oint', '∮'], ['\\mathbb{R}', 'ℝ'], ['\\mathbb{N}', 'ℕ'], ['\\mathbb{Z}', 'ℤ'], ['\\mathbb{Q}', 'ℚ'], ['\\mathbb{C}', 'ℂ'],
 ];
 const CMD_TO_CHAR = new Map(SYMBOL_PAIRS);
+const SPACE_TO_CHAR = new Map(SPACE_PAIRS);
 const CHAR_TO_CMD = new Map<string, string>();
-for (const [cmd, ch] of SYMBOL_PAIRS) if (!CHAR_TO_CMD.has(ch)) CHAR_TO_CMD.set(ch, cmd);
+for (const [cmd, ch] of [...SYMBOL_PAIRS, ...SPACE_PAIRS]) if (!CHAR_TO_CMD.has(ch)) CHAR_TO_CMD.set(ch, cmd);
 const FUNCS = ['arcsin', 'arccos', 'arctan', 'sinh', 'cosh', 'tanh', 'sin', 'cos', 'tan', 'cot', 'sec', 'csc', 'log', 'ln', 'lim', 'max', 'min', 'exp', 'det', 'gcd'];
 const FUNC_SET = new Set(FUNCS);
 
-// LaTeX 文字 → 顯示：\alpha → α、\sin → sin；不認得的指令照原樣顯示
+// LaTeX 文字 → 顯示：\alpha → α、\sin → sin、\, → 細空白；不認得的指令照原樣顯示
 export function toDisplay(latex: string): string {
-  // bb 與 name 只會有一個有值；bb 有值時前面就先回傳了，所以 name 在後面一定是字串
-  return latex.replace(/\\mathbb\{([RNZQC])\}|\\([A-Za-z]+) ?/g, (m: string, bb: string | undefined, name: string) => {
+  // bb、sp、name 只會有一個有值；前兩個有值時就先回傳了，所以 name 在後面一定是字串
+  return latex.replace(/\\mathbb\{([RNZQC])\}|\\([,:;])|\\([A-Za-z]+) ?/g, (m: string, bb: string | undefined, sp: string | undefined, name: string) => {
     if (bb) return CMD_TO_CHAR.get('\\mathbb{' + bb + '}')!;
+    if (sp) return SPACE_TO_CHAR.get('\\' + sp)!;
+    if (name === 'qquad') return '\u2003\u2003';
     const cmd = '\\' + name;
     if (CMD_TO_CHAR.has(cmd)) return CMD_TO_CHAR.get(cmd)!;
     if (FUNC_SET.has(name)) return name + (m.endsWith(' ') ? ' ' : '');
@@ -44,7 +51,8 @@ export function fromDisplay(text: string): string {
     const cmd = CHAR_TO_CMD.get(chars[i]);
     if (!cmd) { out += chars[i]; continue; }
     out += cmd;
-    if (!cmd.endsWith('}') && /^[A-Za-z]$/.test(chars[i + 1] || '')) out += ' ';
+    // 指令以字母結尾（\alpha、\quad）時，後面接字母要隔一個空白；\, 與 \mathbb{R} 不用
+    if (/[A-Za-z]$/.test(cmd) && /^[A-Za-z]$/.test(chars[i + 1] || '')) out += ' ';
   }
   return out.replace(new RegExp('(^|[^A-Za-z\\\\])(' + FUNCS.join('|') + ')(?![A-Za-z])', 'g'), '$1\\$2');
 }
@@ -220,6 +228,10 @@ export function normalize(row: MathRow): MathRow {
 const MARK = '\u0001'; // 插入後游標要停的位置（暫時的記號）
 // \text{…} 等裡面是一般文字：不把 sin 變成 \sin、不把 α 變成 \alpha
 const PLAIN_GROUPS = new Set(['\\text', '\\mathrm', '\\mathit']);
+// 字上面另外畫一個符號的結構（向量箭頭、上橫線、^、~、點，畫法見 accentMark）：符號要佔高度，
+// 外面的分數線、根號才不會壓到它（見 CSS 的 .has-accent）
+const ACCENTS = new Set(['\\vec', '\\overrightarrow', '\\bar', '\\overline', '\\hat', '\\tilde', '\\dot', '\\ddot']);
+const isScript = (it: MathItem | undefined): it is ScriptItem => !!it && (it.t === 'sup' || it.t === 'sub');
 const GROUP_LABEL: Record<string, string> = { '\\text': 'T', '\\mathrm': 'rm', '\\mathit': 'it', '\\mathcal': '𝒞', '\\mathbb': '𝔹', '\\boldsymbol': 'B' };
 // 在格子裡打「\指令」再按空白，就變成對應的結構（\frac → 分數的兩格、\sqrt → 根號…）
 const TYPED_STRUCTS: Record<string, string> = { '\\sqrt': '\\sqrt{}' };
@@ -280,6 +292,31 @@ function radicalSign(doc: Document, parent: HTMLElement): void {
   // 外層沒有 viewBox，單位是 CSS 像素：終點放在 1px 上框線的正中間
   svgEl(doc, 'line', { x1: '50%', y1: '100%', x2: '100%', y2: '0.5' }, outer);
 }
+
+// 字上面的符號（向量箭頭、上橫線、^、~、點）：以前用「→」「^」這些字元疊在字上，字元的筆畫在字框裡的高度各不相同
+// （~ 在字框中間，看起來飄得很高），向量還另外畫一條框線，箭頭跟線常常對不齊。改成跟根號一樣畫 SVG：
+// 外框的大小與位置由 CSS 決定（.wm-mv-accent，依字母高低放在字的頂端上方），這裡只畫形狀。
+// 箭頭與上橫線跟著內容的寬度伸長；^、~、點保持比例，置中在字的上方
+function accentMark(doc: Document, parent: HTMLElement, cmd: string): void {
+  const box = el('span', 'wm-mv-accent', parent);
+  const outer = svgEl(doc, 'svg', { 'aria-hidden': 'true', focusable: 'false' }, box);
+  const shape = (viewBox: string, align: string): Element =>
+    svgEl(doc, 'svg', { viewBox, preserveAspectRatio: align + ' meet', width: '100%', height: '100%', overflow: 'visible' }, outer);
+  if (cmd === '\\bar' || cmd === '\\overline' || cmd === '\\vec' || cmd === '\\overrightarrow') {
+    // 外層沒有 viewBox，單位是 CSS 像素：線畫在外框的正中間，從左到右
+    svgEl(doc, 'line', { x1: '0', y1: '50%', x2: '100%', y2: '50%' }, outer);
+    // 箭頭的尖端剛好是線的右端（viewBox 5×8，尖端在 (5, 4)，靠右、上下置中）
+    if (cmd === '\\vec' || cmd === '\\overrightarrow') svgEl(doc, 'polyline', { points: '.6,1 5,4 .6,7' }, shape('0 0 5 8', 'xMaxYMid'));
+    return;
+  }
+  if (cmd === '\\hat') svgEl(doc, 'polyline', { points: '1,5.4 5,1 9,5.4' }, shape('0 0 10 6', 'xMidYMax'));
+  else if (cmd === '\\tilde') svgEl(doc, 'path', { d: 'M1,4.2C2.7,1.2 4.5,1.2 6,2.8S9.3,4.4 11,1.4' }, shape('0 0 12 5.6', 'xMidYMax'));
+  else if (cmd === '\\dot') svgEl(doc, 'circle', { cx: '2', cy: '2', r: '1.3' }, shape('0 0 4 4', 'xMidYMax'));
+  else if (cmd === '\\ddot') for (const cx of ['2', '8']) svgEl(doc, 'circle', { cx, cy: '2', r: '1.3' }, shape('0 0 10 4', 'xMidYMax'));
+}
+// 符號要放低一點的內容：只有沒有上伸筆畫的小寫字母（n、x、a…），符號貼在 x 高度上方；
+// 大寫、b、d、h、i 的點、其他結構，符號放在大寫字母的高度上方（TeX 也是看字的高度決定符號的位置）
+const LOW_TEXT = /^[acegmnopqrsuvwxyz]+$/;
 
 // \left…\right 的括號，跟根號同樣的問題：字元大小固定，包住分數、矩陣時不會跟著變高。
 // 改畫成上下疊起來的幾段 SVG：上端、下端（大括號還有中間的尖角）大小固定，
@@ -501,12 +538,41 @@ export class MathField {
     if (focusItem && this.byItem.get(focusItem)) this.place(this.byItem.get(focusItem)!, 0);
   }
 
+  // 一列的畫面。上下標另外排：只改畫面的結構，模型與 DOM 裡格子的順序（游標移動的順序）都不變
   renderRow(row: MathRow, plain?: boolean): HTMLSpanElement {
     const box = el('span', 'wm-mv-row');
-    row.forEach((it, index) => {
-      if (it.t === 'text') box.appendChild(this.renderText(row, index, plain));
-      else box.appendChild(this.renderItem(it, row));
-    });
+    let i = 0;
+    while (i < row.length) {
+      const it = row[i];
+      if (!isScript(it)) {
+        box.appendChild(it.t === 'text' ? this.renderText(row, i, plain) : this.renderItem(it, row));
+        i++;
+        continue;
+      }
+      // 上下標排成一組，佔真的高度（外面的根號上框線、分數線、括號才會讓開，見 CSS 的 .wm-mv-scripts）。
+      // 下標後面緊接上標（中間是 normalize 補的空文字格，例如 a_i^2）：疊成上下兩層，像 TeX 一樣
+      const scripts = el('span', 'wm-mv-scripts');
+      scripts.appendChild(this.renderItem(it, row));
+      const mid = row[i + 1], other = row[i + 2];
+      let used = 1;
+      if (mid && mid.t === 'text' && !mid.v && isScript(other) && other.t !== it.t) {
+        scripts.classList.add('is-pair');
+        scripts.appendChild(this.renderText(row, i + 1, plain));
+        scripts.appendChild(this.renderItem(other, row));
+        used = 3;
+      }
+      // 上下標屬於前面的結構（括號、根號、向量…，中間隔著 normalize 補的空文字格）：跟那個結構包在一起，
+      // 上標對齊它的頂端、下標對齊它的底端。前面是文字時，文字跟上下標都以整列的中線為準
+      const prev = row[i - 1], base = row[i - 2];
+      const prevEl = box.lastElementChild, baseEl = prevEl && prevEl.previousElementSibling;
+      if (prev && prev.t === 'text' && !prev.v && base && base.t !== 'text' && !isScript(base) && baseEl) {
+        const wrap = el('span', 'wm-mv-attach');
+        if (baseEl.classList.contains('has-accent')) wrap.classList.add('has-accent');
+        box.insertBefore(wrap, baseEl);
+        wrap.append(baseEl, prevEl, scripts);
+      } else box.appendChild(scripts);
+      i += used;
+    }
     return box;
   }
 
@@ -530,6 +596,10 @@ export class MathField {
       if (!plain && (this.typedCommand(row, index, span, raw) || this.typedScript(row, index, span, raw))) return;
       it.v = plain ? raw : fromDisplay(raw);
       span.classList.toggle('is-slot', row.length === 1 && !it.v);
+      // 在向量、~ 這類符號下面打字：打字不會重畫，這裡重新判斷符號要不要放低
+      const accent = span.closest('.wm-mv-group.has-accent');
+      const inner = accent && accent.querySelector(':scope > .wm-mv-inner');
+      if (accent && inner) accent.classList.toggle('is-low', LOW_TEXT.test(inner.textContent || ''));
       this.changed('type');
     });
     span.addEventListener('paste', e => {
@@ -570,10 +640,15 @@ export class MathField {
     }
     if (it.t === 'sup' || it.t === 'sub') return slot('wm-mv-' + it.t, it.a, null);
     if (it.t === 'group') {
-      const f = el('span', 'wm-mv-group');
+      const accent = ACCENTS.has(it.cmd);
+      const f = el('span', 'wm-mv-group' + (accent ? ' has-accent' : ''));
       f.dataset.cmd = it.cmd.slice(1);
       if (GROUP_LABEL[it.cmd]) el('span', 'wm-mv-tag', f, GROUP_LABEL[it.cmd]);
-      slot('wm-mv-inner', it.a, f, PLAIN_GROUPS.has(it.cmd));
+      const inner = slot('wm-mv-inner', it.a, f, PLAIN_GROUPS.has(it.cmd));
+      if (accent) {
+        accentMark(this.host.ownerDocument, f, it.cmd);
+        f.classList.toggle('is-low', LOW_TEXT.test(inner.textContent || ''));
+      }
       return f;
     }
     if (it.t === 'paren') {
