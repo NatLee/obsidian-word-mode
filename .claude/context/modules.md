@@ -65,7 +65,7 @@
 
 ## README 與文件
 
-- README 給 Obsidian 使用者看：介紹、功能、操作動畫、安裝、隱私揭露。開發、架構、測試、發佈流程寫在 `docs/development.md` 與 `docs/development.zh-TW.md`（日文、韓文 README 連到英文版）。
+- README 給 Obsidian 使用者看：介紹、功能、操作動畫、安裝、隱私揭露。開發、架構、測試、發佈流程寫在 `docs/development.md` 與 `docs/development.zh-TW.md`（繁體中文、台文 README 連到中文版，其他語言連到英文版）。阿拉伯文、希伯來文 README 整份包在 `<div dir="rtl">` 裡。操作動畫只錄了 en、zh-TW、ja、ko 四種：台文、簡體中文的 README 用 zh-TW 的動畫，西班牙文、阿拉伯文、希伯來文用 en 的。存檔示意圖（`docs/images/generate.mjs`）九種語言都有，阿拉伯文與希伯來文整張左右鏡像。
 - 操作動畫（`docs/images/<場景>.<語言>.webp`，WebP 動畫、品質 75）由 `node docs/record/record.mjs <場景> [--lang en]` 錄製：真的外掛程式碼在無頭 Chrome 裡跑，Obsidian 換成 `docs/record/mock.js`；每個場景的操作在 `docs/record/scenes.mjs`。功能區、對話框的版面或文字有變，只重錄受影響的場景（每次重錄都會永久留在 git 歷史；全部重錄要加 `--all`）。需要 Chrome、ffmpeg 與網路。
 - 存檔示意圖（`saving.*.svg`）由 `node docs/images/generate.mjs` 產生。
 

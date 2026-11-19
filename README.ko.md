@@ -1,6 +1,6 @@
 # Word Mode
 
-[English](README.md) | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md) | **한국어**
+[English](README.md) | [繁體中文](README.zh-TW.md) | [台文](README.nan-TW.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | **한국어** | [Español](README.es.md) | [العربية](README.ar.md) | [עברית](README.he.md)
 
 [Obsidian](https://obsidian.md) 노트를 Word처럼 편집하세요. 리본 도구 모음, 표, 수식, 다이어그램을 지원하며, Markdown 문법을 외울 필요가 없습니다. 모든 노트는 일반 Markdown 파일 그대로 저장됩니다.
 

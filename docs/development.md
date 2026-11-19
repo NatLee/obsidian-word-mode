@@ -155,7 +155,7 @@ All styles are in `styles/word-mode.css`, and every class starts with `wm-`. The
 - **Obsidian API version**: the `obsidian` typings are pinned to the version in `minAppVersion` (1.5.7), so using a newer API fails the type check. To raise the minimum version, update `minAppVersion` in `manifest.json` and install the matching `obsidian` package.
 - **APIs that aren't public** are declared in one place, `src/obsidian-internal.d.ts`, each as optional. Check that a member exists before you call it, so that only one feature is lost if Obsidian changes it.
 - **Write new logic in the pure modules** (`commands.ts`, `markdown.ts`, `diagrams.ts`, and so on) when you can. They can be tested without Obsidian.
-- **Keep the four READMEs in step** (`README.md`, `README.zh-TW.md`, `README.ja.md`, `README.ko.md`) when a feature changes.
+- **Keep the nine READMEs in step** (`README.md` and `README.<lang>.md` for `zh-TW`, `nan-TW` (Taiwanese), `zh-CN`, `ja`, `ko`, `es`, `ar`, `he`) when a feature changes. The Arabic and Hebrew READMEs are wrapped in `<div dir="rtl">`. The animations are recorded in English, Traditional Chinese, Japanese and Korean only: the Taiwanese and Simplified Chinese READMEs use the Traditional Chinese ones, and the Spanish, Arabic and Hebrew READMEs use the English ones. The saving illustration (`docs/images/generate.mjs`) exists in all nine languages; for Arabic and Hebrew it is mirrored.
 
 Before you open a pull request, run `npm test`, `npm run lint`, and `npm run build`, and search `src/` for `(?<=` and `(?<!`.
 
@@ -177,7 +177,7 @@ jsdom can't measure layout or draw diagrams. For layout, real typing, and drawin
 - **Re-record only the scenes whose interface changed.** Every recorded file stays in the Git history for good, so the recorder needs the scene names, and `--all` to record everything:
 
   ```sh
-  node docs/record/record.mjs table                    # one scene, all four languages
+  node docs/record/record.mjs table                    # one scene, all four recorded languages
   node docs/record/record.mjs table --lang en --png    # save only the last frame, to check a scene
   node docs/record/record.mjs --all                    # every scene
   ```

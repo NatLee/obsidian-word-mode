@@ -1,6 +1,6 @@
 # Word Mode（Word 模式）
 
-[English](README.md) | **繁體中文** | [日本語](README.ja.md) | [한국어](README.ko.md)
+[English](README.md) | **繁體中文** | [台文](README.nan-TW.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Español](README.es.md) | [العربية](README.ar.md) | [עברית](README.he.md)
 
 像用 Word 一樣編輯 [Obsidian](https://obsidian.md) 筆記：有功能區工具列、表格、方程式、圖表，不用記 Markdown 語法。每份筆記存檔後仍然是純 Markdown 檔案。
 

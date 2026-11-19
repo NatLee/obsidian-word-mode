@@ -155,7 +155,7 @@ Word 模式的功能區（`src/toolbar.ts`）與 Markdown、閱讀模式的功�
 - **Obsidian API 的版本**：`obsidian` 型別套件鎖在 `minAppVersion` 的版本（1.5.7），用到更新的 API 時型別檢查會失敗。要提高最低版本時，請更新 `manifest.json` 的 `minAppVersion`，並安裝對應版本的 `obsidian` 套件。
 - **非公開的 API** 集中宣告在 `src/obsidian-internal.d.ts`，全部標成可能不存在。呼叫前先檢查成員是否存在，Obsidian 改掉時只會少一項功能。
 - **新的邏輯盡量寫在純邏輯的模組**（`commands.ts`、`markdown.ts`、`diagrams.ts` 等），不需要 Obsidian 就能測試。
-- **功能有變動時，四份 README 一起更新**（`README.md`、`README.zh-TW.md`、`README.ja.md`、`README.ko.md`）。
+- **功能有變動時，九份 README 一起更新**（`README.md`，以及 `zh-TW`、`nan-TW`（台文）、`zh-CN`、`ja`、`ko`、`es`、`ar`、`he` 的 `README.<語言>.md`）。阿拉伯文、希伯來文 README 整份包在 `<div dir="rtl">` 裡。操作動畫只錄了英文、繁體中文、日文、韓文：台文、簡體中文的 README 用繁體中文的動畫，西班牙文、阿拉伯文、希伯來文用英文的。存檔示意圖（`docs/images/generate.mjs`）九種語言都有，阿拉伯文與希伯來文整張左右鏡像。
 
 開 pull request 之前，請執行 `npm test`、`npm run lint`、`npm run build`，並在 `src/` 搜尋 `(?<=` 與 `(?<!`。
 
@@ -177,7 +177,7 @@ jsdom 量不到版面，也畫不出圖表。版面、真的打字、畫圖這�
 - **只重錄介面有變的場景**：每次錄出來的檔案都會永久留在 git 歷史裡，所以錄製工具要指名場景，全部重錄要明確加 `--all`：
 
   ```sh
-  node docs/record/record.mjs table                    # 一個場景、四種語言
+  node docs/record/record.mjs table                    # 一個場景、錄製的四種語言
   node docs/record/record.mjs table --lang en --png    # 只存最後一個畫面，檢查場景用
   node docs/record/record.mjs --all                    # 全部場景
   ```

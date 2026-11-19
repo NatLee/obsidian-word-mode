@@ -35,7 +35,7 @@ Word Mode 是 Obsidian 外掛：用 ProseMirror 把 Markdown 筆記變成像 Wor
 - 不用 regex lookbehind（`(?<=…)`、`(?<!…)`）：iOS 16.4 以前會讓整個外掛載入失敗。lookahead 可以。
 - 遵守 Obsidian 外掛規範：不用 `innerHTML`、不用全域的 `app`、靜態樣式寫在 CSS 不寫在 JS、指令不設預設快速鍵、英文介面文字用 sentence case。
 - 新用到的 Obsidian API 要在 1.5.7 存在。非公開的 API 一律宣告在 `src/obsidian-internal.d.ts` 並標成可能不存在，呼叫前先檢查，壞掉時只少一項功能。
-- 功能有變動時，四份 README（`README.md`、`.zh-TW`、`.ja`、`.ko`）都要更新。README 只寫給使用者看的介紹與功能；開發、架構、發佈寫在 `docs/development.md`（與 `.zh-TW`）。動畫裡的介面變了就用 `node docs/record/record.mjs <場景>` 重錄，只錄受影響的場景（每次重錄都會永久留在 git 歷史）。
+- 功能有變動時，九份 README（`README.md`、`.zh-TW`、`.nan-TW`（台文）、`.zh-CN`、`.ja`、`.ko`、`.es`、`.ar`、`.he`）都要更新。README 只寫給使用者看的介紹與功能；開發、架構、發佈寫在 `docs/development.md`（與 `.zh-TW`）。動畫裡的介面變了就用 `node docs/record/record.mjs <場景>` 重錄，只錄受影響的場景（每次重錄都會永久留在 git 歷史）。
 - GitHub Actions：`ci.yml` 只能手動觸發，維持這樣，平常的驗證都在本機做。`release.yml` 會在推版本 tag 時自動執行（測試、建置、來源證明、建立 GitHub Release）。
 - 程式碼註解用繁體中文，說明「為什麼」。
 - Commit 與 PR：英文，標題 `type(scope): what`；作者只用 git config 的 NatLee，不加任何 Claude／AI 的署名或字樣。交付流程用 `ship` skill（拆成主題 commit、開 PR、merge commit、刪分支）。

@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 430" width="1200" height="430" role="img" aria-label="تُعاد كتابة الكتلة التي غيّرتها فقط، ويبقى كل ما عداها كما هو حرفًا بحرف.">
+<title>تُعاد كتابة الكتلة التي غيّرتها فقط، ويبقى كل ما عداها كما هو حرفًا بحرف.</title>
+<rect x="0.5" y="0.5" width="1199" height="429" rx="10" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1"/>
+<text x="1170" y="44" direction="rtl" font-family="'Segoe UI', 'Noto Sans Arabic', 'Geeza Pro', Tahoma, 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="15" fill="#1f2328" font-weight="600">ملف Markdown</text>
+<text x="765" y="44" direction="rtl" font-family="'Segoe UI', 'Noto Sans Arabic', 'Geeza Pro', Tahoma, 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="15" fill="#1f2328" font-weight="600">تعدّل فقرة واحدة</text>
+<text x="360" y="44" direction="rtl" font-family="'Segoe UI', 'Noto Sans Arabic', 'Geeza Pro', Tahoma, 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="15" fill="#1f2328" font-weight="600">الملف المحفوظ</text>
+<rect x="840" y="66" width="330" height="56" rx="7" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+<text x="1154" y="100" direction="rtl" font-family="ui-monospace, 'Cascadia Mono', Consolas, 'Segoe UI', 'Noto Sans Arabic', 'Geeza Pro', Tahoma, monospace" font-size="13" fill="#1f2328"># الاجتماع الأسبوعي</text>
+<rect x="840" y="134" width="330" height="56" rx="7" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+<text x="1154" y="168" direction="rtl" font-family="ui-monospace, 'Cascadia Mono', Consolas, 'Segoe UI', 'Noto Sans Arabic', 'Geeza Pro', Tahoma, monospace" font-size="13" fill="#1f2328">**هدف** هذا الأسبوع: إنهاء الإصدار 1.</text>
+<rect x="840" y="202" width="330" height="56" rx="7" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+<text x="1154" y="236" direction="rtl" font-family="ui-monospace, 'Cascadia Mono', Consolas, 'Segoe UI', 'Noto Sans Arabic', 'Geeza Pro', Tahoma, monospace" font-size="13" fill="#1f2328">- [x] تحديث المستندات  …</text>
+<rect x="840" y="270" width="330" height="56" rx="7" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+<text x="1154" y="304" direction="rtl" font-family="ui-monospace, 'Cascadia Mono', Consolas, 'Segoe UI', 'Noto Sans Arabic', 'Geeza Pro', Tahoma, monospace" font-size="13" fill="#1f2328">| البند | المسؤول |  …</text>
+<rect x="435" y="66" width="330" height="260" rx="7" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+<text x="743" y="108" direction="rtl" font-family="'Segoe UI', 'Noto Sans Arabic', 'Geeza Pro', Tahoma, 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="21" fill="#1f2328" font-weight="700">الاجتماع الأسبوعي</text>
+<rect x="447" y="136" width="306" height="52" rx="6" fill="#fff1e0" stroke="#f0a54a" stroke-width="1"/>
+<text x="743" y="169" direction="rtl" font-family="'Segoe UI', 'Noto Sans Arabic', 'Geeza Pro', Tahoma, 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="14" fill="#1f2328" xml:space="preserve" textLength="286" lengthAdjust="spacingAndGlyphs"><tspan font-weight="700">هدف</tspan><tspan> هذا الأسبوع: إنهاء الإصدار 1</tspan><tspan fill="#b35900" font-weight="600"> قبل الجمعة</tspan><tspan>.</tspan></text>
+<rect x="728" y="223" width="14" height="14" rx="3" fill="#6f52d9"/>
+<g transform="translate(270 0)"><path d="M461 230.5l3 3 5-6" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g>
+<text x="719" y="236" direction="rtl" font-family="'Segoe UI', 'Noto Sans Arabic', 'Geeza Pro', Tahoma, 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="14" fill="#656d76" text-decoration="line-through">تحديث المستندات</text>
+<rect x="543" y="278" width="200" height="20" rx="0" fill="#f3f4f6"/>
+<text x="735" y="292.5" direction="rtl" font-family="'Segoe UI', 'Noto Sans Arabic', 'Geeza Pro', Tahoma, 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="12" fill="#1f2328" font-weight="600">البند</text>
+<text x="635" y="292.5" direction="rtl" font-family="'Segoe UI', 'Noto Sans Arabic', 'Geeza Pro', Tahoma, 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="12" fill="#1f2328" font-weight="600">المسؤول</text>
+<text x="735" y="312.5" direction="rtl" font-family="'Segoe UI', 'Noto Sans Arabic', 'Geeza Pro', Tahoma, 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="12" fill="#1f2328">الاختبار</text>
+<text x="635" y="312.5" direction="rtl" font-family="'Segoe UI', 'Noto Sans Arabic', 'Geeza Pro', Tahoma, 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="12" fill="#1f2328">سارة</text>
+<line x1="743" y1="278" x2="543" y2="278" stroke="#c9d1d9" stroke-width="1"/>
+<line x1="743" y1="298" x2="543" y2="298" stroke="#c9d1d9" stroke-width="1"/>
+<line x1="743" y1="318" x2="543" y2="318" stroke="#c9d1d9" stroke-width="1"/>
+<line x1="743" y1="278" x2="743" y2="318" stroke="#c9d1d9" stroke-width="1"/>
+<line x1="643" y1="278" x2="643" y2="318" stroke="#c9d1d9" stroke-width="1"/>
+<line x1="543" y1="278" x2="543" y2="318" stroke="#c9d1d9" stroke-width="1"/>
+<rect x="30" y="66" width="330" height="56" rx="7" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+<text x="344" y="90" direction="rtl" font-family="ui-monospace, 'Cascadia Mono', Consolas, 'Segoe UI', 'Noto Sans Arabic', 'Geeza Pro', Tahoma, monospace" font-size="13" fill="#1f2328"># الاجتماع الأسبوعي</text>
+<g transform="translate(-522.5 0)"><path d="M857 107l3 3 5.5-6.5" fill="none" stroke="#1a7f37" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g>
+<text x="328" y="112" direction="rtl" font-family="'Segoe UI', 'Noto Sans Arabic', 'Geeza Pro', Tahoma, 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="11.5" fill="#1a7f37" font-weight="600">دون تغيير</text>
+<rect x="30" y="134" width="330" height="56" rx="7" fill="#fff1e0" stroke="#f0a54a" stroke-width="1"/>
+<text x="344" y="158" direction="rtl" font-family="ui-monospace, 'Cascadia Mono', Consolas, 'Segoe UI', 'Noto Sans Arabic', 'Geeza Pro', Tahoma, monospace" font-size="13" fill="#1f2328" textLength="298" lengthAdjust="spacingAndGlyphs">**هدف** هذا الأسبوع: إنهاء الإصدار 1 قبل الجمعة.</text>
+<g transform="translate(-522 0)"><path d="M857 179l8-8M862 171h3v3" fill="none" stroke="#b35900" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></g>
+<text x="328" y="180" direction="rtl" font-family="'Segoe UI', 'Noto Sans Arabic', 'Geeza Pro', Tahoma, 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="11.5" fill="#b35900" font-weight="600">أُعيدت كتابته</text>
+<rect x="30" y="202" width="330" height="56" rx="7" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+<text x="344" y="226" direction="rtl" font-family="ui-monospace, 'Cascadia Mono', Consolas, 'Segoe UI', 'Noto Sans Arabic', 'Geeza Pro', Tahoma, monospace" font-size="13" fill="#1f2328">- [x] تحديث المستندات  …</text>
+<g transform="translate(-522.5 0)"><path d="M857 243l3 3 5.5-6.5" fill="none" stroke="#1a7f37" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g>
+<text x="328" y="248" direction="rtl" font-family="'Segoe UI', 'Noto Sans Arabic', 'Geeza Pro', Tahoma, 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="11.5" fill="#1a7f37" font-weight="600">دون تغيير</text>
+<rect x="30" y="270" width="330" height="56" rx="7" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+<text x="344" y="294" direction="rtl" font-family="ui-monospace, 'Cascadia Mono', Consolas, 'Segoe UI', 'Noto Sans Arabic', 'Geeza Pro', Tahoma, monospace" font-size="13" fill="#1f2328">| البند | المسؤول |  …</text>
+<g transform="translate(-522.5 0)"><path d="M857 311l3 3 5.5-6.5" fill="none" stroke="#1a7f37" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g>
+<text x="328" y="316" direction="rtl" font-family="'Segoe UI', 'Noto Sans Arabic', 'Geeza Pro', Tahoma, 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="11.5" fill="#1a7f37" font-weight="600">دون تغيير</text>
+<line x1="824" y1="196" x2="788" y2="196" stroke="#8c959f" stroke-width="2" stroke-linecap="round"/><path d="M790 190 L781 196 L790 202" fill="none" stroke="#8c959f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="419" y1="196" x2="383" y2="196" stroke="#8c959f" stroke-width="2" stroke-linecap="round"/><path d="M385 190 L376 196 L385 202" fill="none" stroke="#8c959f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="600" y="384" direction="rtl" font-family="'Segoe UI', 'Noto Sans Arabic', 'Geeza Pro', Tahoma, 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="14" fill="#1f2328" text-anchor="middle">تُعاد كتابة الكتلة التي غيّرتها فقط، ويبقى كل ما عداها كما هو حرفًا بحرف.</text>
+<text x="28" y="414" direction="rtl" font-family="'Segoe UI', 'Noto Sans Arabic', 'Geeza Pro', Tahoma, 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" font-size="11.5" fill="#8c959f" text-anchor="end">رسم توضيحي</text>
+</svg>

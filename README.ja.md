@@ -1,6 +1,6 @@
 # Word Mode
 
-[English](README.md) | [繁體中文](README.zh-TW.md) | **日本語** | [한국어](README.ko.md)
+[English](README.md) | [繁體中文](README.zh-TW.md) | [台文](README.nan-TW.md) | [简体中文](README.zh-CN.md) | **日本語** | [한국어](README.ko.md) | [Español](README.es.md) | [العربية](README.ar.md) | [עברית](README.he.md)
 
 [Obsidian](https://obsidian.md) のノートを Word のように編集できます。リボンツールバー、表、数式、図に対応し、Markdown の記法を覚える必要はありません。ノートはすべてプレーンな Markdown ファイルのまま保存されます。
 
