@@ -361,6 +361,9 @@ await fresh('面積公式：\n');
   eq = mock.Modal.last;
   await sleep(25);
   assert(eq.contentEl.querySelector('.wm-mv-sup') && eq.contentEl.querySelector('.wm-mv-sqrt'), '既有的方程式拆成上標與根號的格子');
+  // 根號畫成 SVG（跟著內容伸長），不是固定大小的「√」字元；開頭不會多出文字
+  const radical = eq.contentEl.querySelector('.wm-mv-sqrt > .wm-mv-radical');
+  assert(radical && radical.querySelector('svg line') && radical.querySelector('svg svg polyline') && radical.textContent === '', '根號是會伸長的 SVG');
   eq.contentEl.querySelector('button.mod-cta').click();
   assert(out() === '公式 $x^2 + \\sqrt{y}$ 結束\n', '沒有修改：原本的 LaTeX 一字不動：' + JSON.stringify(out()));
   math.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }));

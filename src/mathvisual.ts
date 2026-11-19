@@ -253,6 +253,35 @@ function slotsOf(it: MathItem): MathRow[] {
 }
 const rowEmpty = (row: MathRow): boolean => !toLatex(row).trim();
 
+// 根號的符號。不用「√」字元：字的大小固定，裡面放分數、矩陣這類較高的內容時，
+// 上方那條線（被開方數的上框線）會被頂到內容頂端，跟縮在中間的「√」接不起來。
+// 改畫成 SVG，外框跟著被開方數一樣高：左下的小勾保持比例、貼齊左下角，
+// 只有從勾底往右上的長斜線隨高度伸長，終點剛好接上上框線的左端（TeX 的高根號也是這樣長高的）。
+// 勾的 viewBox 是 10×12，勾底在 (5, 12)，所以長斜線從 (50%, 100%) 出發；
+// 外框要比寬度的 1.2 倍高（CSS 的 min-height），勾才會撐滿寬度、勾底對得上 50%。
+const SVG_NS = 'http://www.w3.org/2000/svg';
+function svgEl(doc: Document, tag: string, attrs: Record<string, string>, parent: Element): Element {
+  const e = doc.createElementNS(SVG_NS, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  parent.appendChild(e);
+  return e;
+}
+// 符號外框：螢幕閱讀器念 label，裡面的 SVG 不念
+function drawnBox(cls: string, label: string, parent: HTMLElement): HTMLSpanElement {
+  const box = el('span', cls, parent);
+  box.setAttribute('role', 'img');
+  box.setAttribute('aria-label', label);
+  return box;
+}
+function radicalSign(doc: Document, parent: HTMLElement): void {
+  const box = drawnBox('wm-mv-radical', '√', parent);
+  const outer = svgEl(doc, 'svg', { 'aria-hidden': 'true', focusable: 'false' }, box);
+  const hook = svgEl(doc, 'svg', { viewBox: '0 0 10 12', preserveAspectRatio: 'xMinYMax meet', width: '100%', height: '100%', overflow: 'visible' }, outer);
+  svgEl(doc, 'polyline', { points: '0.4,7.6 2.3,6.5 5,12' }, hook);
+  // 外層沒有 viewBox，單位是 CSS 像素：終點放在 1px 上框線的正中間
+  svgEl(doc, 'line', { x1: '50%', y1: '100%', x2: '100%', y2: '0.5' }, outer);
+}
+
 export class MathField {
   declare host: HTMLElement;
   declare opts: MathFieldOptions;
@@ -470,7 +499,7 @@ export class MathField {
     if (it.t === 'sqrt') {
       const f = el('span', 'wm-mv-sqrt');
       if (it.n) slot('wm-mv-root', it.n, f);
-      el('span', 'wm-mv-radical', f, '√');
+      radicalSign(this.host.ownerDocument, f);
       slot('wm-mv-radicand', it.a, f);
       return f;
     }
