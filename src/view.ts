@@ -1926,8 +1926,9 @@ export class WordModeView extends TextFileView {
   openImageMenu(btn: HTMLElement | null | undefined, replacePos?: number | null, evt?: MouseEvent): void {
     if (!this.pm || (replacePos == null && this.blockedInCode())) return;
     const m = new Menu();
-    const verb = replacePos != null ? t('更換為') : t('插入');
-    m.addItem(i => i.setTitle(verb + t('保管庫裡的圖片…')).setIcon('image').onClick(() => {
+    // 選單文字用整句翻譯，不拼「插入／更換為」加上來源：各語言的語序不同（日文、韓文動詞在後面），拼起來英文也會少空格
+    const replacing = replacePos != null;
+    m.addItem(i => i.setTitle(replacing ? t('更換為保管庫裡的圖片…') : t('插入保管庫裡的圖片…')).setIcon('image').onClick(() => {
       const imgs = this.app.vault.getFiles().filter(f => IMAGE_EXT.test(f.extension));
       new FilePicker(this.app, imgs, t('輸入圖片檔名…'), f => this.insertImageFile(f, replacePos)).open();
     }));
@@ -1937,7 +1938,7 @@ export class WordModeView extends TextFileView {
       input.addEventListener('change', () => { void this.insertUploadedImages(Array.from(input.files || []), replacePos); });
       input.click();
     }));
-    m.addItem(i => i.setTitle(verb + t('網路圖片（網址）…')).setIcon('globe').onClick(() => {
+    m.addItem(i => i.setTitle(replacing ? t('更換為網路圖片（網址）…') : t('插入網路圖片（網址）…')).setIcon('globe').onClick(() => {
       new PromptModal(this.app, t('圖片網址'), '', t('https://…/圖片.png'), v => {
         const url = v.trim();
         if (!url) return;

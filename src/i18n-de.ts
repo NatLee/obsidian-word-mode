@@ -490,11 +490,8 @@ export default {
  "選擇要套用的範本…": "Anzuwendende Vorlage wählen…",
  "已切換到 Markdown 編輯並在游標處插入範本；完成後可按右上角切回 Word 模式。": "Zur Markdown-Bearbeitung gewechselt und die Vorlage am Cursor eingefügt; danach über die Schaltfläche oben rechts zum Word-Modus zurückwechseln.",
  "套用範本失敗：": "Anwenden der Vorlage fehlgeschlagen: ",
- "更換為": "Ersetzen durch",
- "保管庫裡的圖片…": ": Bild aus dem Tresor…",
  "輸入圖片檔名…": "Bilddateinamen eingeben…",
  "從電腦上傳圖片…": "Bild vom Computer hochladen…",
- "網路圖片（網址）…": ": Online-Bild (URL)…",
  "圖片網址": "Bild-URL",
  "https://…/圖片.png": "https://…/bild.png",
  "貼上的圖片": "Eingefügtes Bild",
@@ -1217,5 +1214,10 @@ export default {
  "找不到「{q}」相關的設定。換個說法試試，或從下面的分類找找看。": "Keine Einstellungen zu „{q}“ gefunden. Andere Begriffe versuchen oder die Kategorien unten durchsuchen.",
  "包含": "Enthält",
  "其他語言": "Andere Sprache",
- "開啟 Word 模式的設定。在上方的搜尋框打幾個字就能找到想要的設定，也可以打英文。": "Die Einstellungen des Word-Modus öffnen. Ein paar Buchstaben in das Suchfeld oben eingeben, um eine Einstellung zu finden – auch englische Begriffe funktionieren."
+ "開啟 Word 模式的設定。在上方的搜尋框打幾個字就能找到想要的設定，也可以打英文。": "Die Einstellungen des Word-Modus öffnen. Ein paar Buchstaben in das Suchfeld oben eingeben, um eine Einstellung zu finden – auch englische Begriffe funktionieren.",
+ "插入保管庫裡的圖片…": "Bild aus dem Tresor einfügen…",
+ "插入網路圖片（網址）…": "Online-Bild (URL) einfügen…",
+ "更換為保管庫裡的圖片…": "Durch Bild aus dem Tresor ersetzen…",
+ "更換為網路圖片（網址）…": "Durch Online-Bild (URL) ersetzen…",
+ "編輯{name}": "{name} bearbeiten"
 };

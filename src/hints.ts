@@ -97,7 +97,8 @@ const DEMOS = {
     });
   },
   symbol: b => { const l = el('div', 'wm-demo-line', b); ['→', '©', '℃', 'α', '①'].forEach((s, i) => el('span', 'wm-demo-sym wm-sym-' + i, l, s)); },
-  link: b => textDemo(b, 'wm-anim-link', t('連結')),
+  // 跟粗體等一樣是「套用在［範例文字］上」：以前前面接的是按鈕名稱「連結」，英文會變成「Linksample text」
+  link: b => textDemo(b, 'wm-anim-link'),
   // 註腳：內文後面冒出編號，下面出現對應的註腳內容
   footnote: b => { const l = el('div', 'wm-demo-line', b); el('span', null, l, SAMPLE()); el('span', 'wm-demo-fnref wm-step-0', l, '1'); el('div', 'wm-demo-note wm-step-2', b, '1. ' + t('註腳')); },
   notelink: b => { const l = el('div', 'wm-demo-line', b); el('span', null, l, t('參考')); el('span', 'wm-demo-target wm-anim-link', l, t('另一份筆記')); },

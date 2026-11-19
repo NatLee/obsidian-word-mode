@@ -19,3 +19,4 @@ export * as SETNAV from '../../src/settingsnav.js';
 export { MdStatusBar, buildStatusBar, VIEW_BUTTONS } from '../../src/statusbar.js';
 export * as PEEK from '../../src/propview.js';
 export { openMarkdownPeek } from '../../src/mdbar.js';
+export { buildDemo } from '../../src/hints.js';
