@@ -38,6 +38,15 @@ ok('矩陣 2×2', mat.t === 'env' && mat.name === 'bmatrix' && mat.rows.length =
 ok('矩陣結尾多的 \\\\ 不會多出一列', parseLatex('\\begin{pmatrix} a \\\\ b \\\\ \\end{pmatrix}')[1].rows.length === 2);
 ok('\\rightarrow 不會被當成 \\right', kinds('a \\rightarrow b') === 'text');
 
+// 上括號、下括號：內容與標籤是同一個結構的兩格（以前 \overbrace 被當成文字，標籤變成上標）
+for (const s of ['\\overbrace{a+b}^{n}', '\\underbrace{1+\\cdots+1}_{k}', '\\overbrace{x}', 'x + \\overbrace{a} b', '\\frac{\\overbrace{x}^{2}}{y}']) ok('往返：' + s, rt(s) === s, rt(s));
+const ob = parseLatex('\\overbrace{a+b}^{n}')[1];
+ok('上括號的結構：a 是內容、b 是標籤', kinds('\\overbrace{a+b}^{n}') === 'text,brace,text' && ob.t === 'brace' && toLatex(ob.a) === 'a+b' && toLatex(ob.b) === 'n', kinds('\\overbrace{a+b}^{n}'));
+ok('標籤的簡寫：\\overbrace{a}^n → ^{n}', rt('\\overbrace{a}^n') === '\\overbrace{a}^{n}' && rt('\\underbrace{a} _\\alpha') === '\\underbrace{a}_{\\alpha}', rt('\\underbrace{a} _\\alpha'));
+ok('上括號後面的 _ 不是標籤，是一般的下標', kinds('\\overbrace{a}_{b}') === 'text,brace,text,sub,text' && rt('\\overbrace{a}_{b}') === '\\overbrace{a}_{b}', kinds('\\overbrace{a}_{b}'));
+ok('沒有標籤：標籤格是空的，輸出時不加 ^{}', toLatex(parseLatex('\\overbrace{a}^{}')) === '\\overbrace{a}' && parseLatex('\\overbrace{a}')[1].b.length === 1);
+ok('沒有 { } 的寫法看不懂，照原文', kinds('\\overbrace x') === 'text' && rt('\\overbrace x') === '\\overbrace x');
+
 // 符號顯示
 ok('顯示：\\alpha + \\beta → α+ β', toDisplay('\\alpha + \\beta') === 'α+ β', toDisplay('\\alpha + \\beta'));
 ok('顯示：\\sin x → sin x', toDisplay('\\sin x') === 'sin x', toDisplay('\\sin x'));
