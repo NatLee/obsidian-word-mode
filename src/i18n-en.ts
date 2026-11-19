@@ -571,7 +571,6 @@ export default {
  "移到分頁": "Move to tab",
  "這個分頁沒有群組": "No groups on this tab",
  "還原預設的群組名稱與排列": "Reset group names and order",
- "用 Word 模式編輯這份筆記。": "Edit this note in Word mode.",
  "把這一行改成標題 1～6 或內文。": "Turn this line into Heading 1–6 or normal text.",
  "醒目提示": "Highlight",
  "插入提示框": "Insert callout",
@@ -1184,5 +1183,8 @@ export default {
  "快速鍵分類": "Shortcut categories",
  "{n} 個快速鍵": "{n} shortcuts",
  "看動畫示範": "Play the demo",
- "有這個記號的項目，按一下可以看動畫示範。": "Click an item with this mark to see an animated demo."
+ "有這個記號的項目，按一下可以看動畫示範。": "Click an item with this mark to see an animated demo.",
+ "像 Word 一樣直接看到格式來編輯，存檔仍是純 Markdown。": "Edit with the formatting visible, like in Word. The note is still saved as plain Markdown.",
+ "把頁面恢復成原本的大小。": "Return the page to its original size.",
+ "列出所有快速鍵；點一列可以看動畫示範。": "Lists every keyboard shortcut. Click a row to see an animated demo."
 };

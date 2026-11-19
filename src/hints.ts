@@ -112,6 +112,14 @@ const DEMOS = {
   unfold: b => { el('div', 'wm-demo-target wm-anim-heading-static', b, '▸ ' + t('標題')); linesDemo(b, 'wm-anim-unfold', 2); },
   zoom: b => linesDemo(b, 'wm-anim-zoom', 3),
   fullwidth: b => linesDemo(b, 'wm-anim-wide', 3),
+  // Word 模式：Markdown 的符號收起來，文字直接顯示成粗體與連結（跟下面的 markdown 正好相反）
+  word: b => {
+    const l = el('div', 'wm-demo-line wm-anim-wysiwyg', b);
+    const mark = (s: string) => el('span', 'wm-demo-mdmark', l, s);
+    mark('**'); el('span', 'wm-demo-wbold', l, t('粗體')); mark('**');
+    el('span', null, l, ' ');
+    mark('[['); el('span', 'wm-demo-wlink', l, t('連結')); mark(']]');
+  },
   markdown: b => { const l = el('div', 'wm-demo-line wm-demo-mono', b); el('span', 'wm-anim-mdsyntax', l, '**'); el('span', null, l, t('粗體')); el('span', 'wm-anim-mdsyntax', l, '**'); el('span', null, l, ' '); el('span', 'wm-anim-mdsyntax', l, '[['); el('span', null, l, t('連結')); el('span', 'wm-anim-mdsyntax', l, ']]'); },
   reading: b => { const w = linesDemo(b, 'wm-anim-reading', 3); w.classList.add('wm-demo-sel'); },
   paste: b => { const l = el('div', 'wm-demo-line', b); el('span', null, l, t('游標處')); el('span', 'wm-demo-target wm-anim-type', l, t('貼上的內容')); },

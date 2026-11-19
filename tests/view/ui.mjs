@@ -1003,4 +1003,50 @@ await fresh('第一段\n');
   assert(ids.length >= 8 && ids.join() === used.join() && !missing.length, '設定的每一類都有隱藏其他分類的樣式規則：' + (missing.join() || ids.join()));
 }
 
+// 假的 Markdown 檢視（Markdown 工具列、狀態列、查看文件屬性用）：text 是編輯中的原文，sel 是選取的文字
+const fakeMarkdown = (path, text, mode = 'source') => {
+  const containerEl = document.createElement('div');
+  const contentEl = containerEl.createDiv('view-content');
+  document.body.appendChild(containerEl);
+  const md = {
+    containerEl, contentEl, leaf: {}, mode, text, sel: '', scrolled: null, inserted: [],
+    file: Object.assign(new mock.TFile(path), { stat: { size: 10, mtime: 0 } }),
+    getMode() { return this.mode; }, getViewData() { return this.text; },
+    getState() { return {}; }, async setState(st) { this.mode = st.mode; },
+    currentMode: { applyScroll(n) { md.scrolled = n; } },
+  };
+  md.editor = { focus() {}, getSelection: () => md.sel, replaceRange: (s, at) => md.inserted.push([s, at]), setCursor() {} };
+  return md;
+};
+
+// ======== 檢視模式的按鈕：提示卡都有動畫（兩條功能區） ========
+await fresh('一段文字\n');
+{
+  plugin.settings.richHints = true;
+  view.buildToolbar();
+  let wait = 650;
+  // 滑鼠移到按鈕上：回傳提示卡的「標題:第一段動畫的 class」
+  const hover = async b => {
+    b.dispatchEvent(new MouseEvent('mouseenter'));
+    await sleep(wait); wait = 150;
+    const c = document.querySelector('.wm-hint-card.is-shown');
+    if (!c) return 'none';
+    const demo = c.querySelector('.wm-hint-demo');
+    return c.querySelector('.wm-hint-title').textContent + ':' + (demo && demo.firstElementChild ? demo.firstElementChild.className : '-');
+  };
+  const viewBtns = root => [...root.querySelectorAll('.wm-group-views .wm-btn')];
+  const word = []; for (const b of viewBtns(view.toolbar.dom)) word.push(await hover(b));
+  assert(word.length === 3 && word.every(x => !x.endsWith(':-') && x !== 'none') && word[0].startsWith('Word 模式（目前）:') && word[0].includes('wm-anim-wysiwyg'),
+    'Word 模式的功能區：檢視模式三個按鈕都有動畫，Word 模式是「符號收起來、直接看到格式」：' + word.join(' / '));
+  const md = fakeMarkdown('筆記/測試.md', '一段文字\n');
+  const bar = new B.MarkdownBar(plugin, md);
+  const mdHints = []; for (const b of viewBtns(bar.dom)) mdHints.push(await hover(b));
+  assert(mdHints.length === 3 && mdHints.every(x => !x.endsWith(':-') && x !== 'none') && mdHints[0].includes('wm-anim-wysiwyg') && mdHints[1].startsWith('Markdown 編輯:') && mdHints[1].includes('wm-demo-mono'),
+    'Markdown／閱讀模式的功能區：三個按鈕都有動畫，「切換到 Word 模式」不再用 Markdown 的動畫：' + mdHints.join(' / '));
+  viewBtns(bar.dom)[0].dispatchEvent(new MouseEvent('mousedown'));
+  bar.destroy(); md.containerEl.remove();
+  plugin.settings.richHints = false;
+  view.buildToolbar();
+}
+
 finish();

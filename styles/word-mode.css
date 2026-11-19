@@ -1421,3 +1421,10 @@ body:not(.is-phone) .modal.wm-eq-modal, body:not(.is-phone) .modal.wm-mmd-modal 
 .wm-editor .wm-codeblock button.wm-code-more[hidden] { display: none; }
 /* 圖表編輯器的預覽：圖以原本的大小為準（蓋掉 Mermaid 寫在 SVG 上的 max-width），太寬就用捲的 */
 .wm-mmd-canvas svg.wm-mmd-natural { max-width: none !important; }
+
+/* ---------- 檢視模式的示意動畫：Word 模式（Markdown 符號收起來，文字直接變成格式） ---------- */
+@keyframes wm-mdhide { 0%, 25%, 100% { opacity: 1; max-width: 2em; } 40%, 85% { opacity: 0; max-width: 0; } }
+@keyframes wm-wlink { 0%, 25%, 100% { color: var(--text-normal); } 40%, 85% { color: var(--link-color, var(--text-accent)); } }
+.wm-anim-wysiwyg .wm-demo-mdmark { display: inline-block; overflow: hidden; vertical-align: bottom; color: var(--text-faint); font-family: var(--font-monospace); animation: wm-mdhide 2.8s infinite ease-in-out; }
+.wm-anim-wysiwyg .wm-demo-wbold { animation: wm-bold 2.8s infinite ease-in-out; }
+.wm-anim-wysiwyg .wm-demo-wlink { text-decoration: underline; animation: wm-wlink 2.8s infinite ease-in-out; }

@@ -518,7 +518,7 @@ export class Toolbar {
     const quick = el('div', 'wm-tabs-quick', quickHost);
     const prevSeen = this.seen; this.seen = new Set();
     this.findBtn = this.button(quick, { icon: 'search', title: '尋找與取代', keys: 'Mod+F', text: '找', desc: '在這份筆記裡尋找文字，再按一次關閉。', demo: 'find', onClick: () => this.d.find(), active: () => this.isFindOpen() });
-    if (!this.hiddenGroups.has('help')) this.button(quick, { icon: 'help-circle', title: '快速鍵說明', keys: 'Mod+/', text: '?', onClick: () => this.d.shortcuts() });
+    if (!this.hiddenGroups.has('help')) this.button(quick, { icon: 'help-circle', title: '快速鍵說明', keys: 'Mod+/', text: '?', demo: 'kbd', desc: '列出所有快速鍵；點一列可以看動畫示範。', onClick: () => this.d.shortcuts() });
     this.button(quick, { icon: 'code-2', title: '切換到 Markdown 編輯', keys: 'Mod+E', text: 'MD', desc: '用 Obsidian 原本的 Markdown 編輯這份筆記，再按一次（或在 Markdown 畫面按同樣的快速鍵）切回 Word 模式。', demo: 'markdown', onClick: () => this.d.markdown() });
     this.seen = prevSeen;
     if (!this.tabsEl.childElementCount || this.layout !== 'tabs' || menuTabs) this.tabsEl.classList.add('is-hidden');
@@ -682,7 +682,7 @@ export class Toolbar {
   // ----------------------------------------------------------- 檢視
   buildView(G: GroupBodies): void {
     let g = G.views;
-    this.button(g, { icon: 'file-text', title: 'Word 模式（目前）', text: 'W', label: 'Word 模式', big: true, viewMode: true, cls: 'is-active' });
+    this.button(g, { icon: 'file-text', title: 'Word 模式（目前）', text: 'W', label: 'Word 模式', big: true, viewMode: true, cls: 'is-active', demo: 'word', desc: '像 Word 一樣直接看到格式來編輯，存檔仍是純 Markdown。' });
     this.button(g, { icon: 'code-2', title: '切換到 Markdown 編輯', keys: 'Mod+E', text: 'MD', label: 'Markdown', big: true, viewMode: true, demo: 'markdown', desc: '用 Obsidian 原本的 Markdown 編輯這份筆記。', onClick: () => this.d.markdown() });
     this.button(g, { icon: 'book-open', title: '閱讀模式', text: '讀', label: '閱讀', big: true, viewMode: true, demo: 'reading', desc: '用 Obsidian 的閱讀模式檢視（不能編輯）。', onClick: () => this.d.reading() });
     g = G.show;
@@ -694,9 +694,9 @@ export class Toolbar {
     g = G.zoom;
     this.button(g, { icon: 'zoom-out', title: '縮小', text: '－', demo: 'zoom', desc: '縮小頁面（也可以按住 Ctrl 滾動滑鼠滾輪）。', onClick: () => this.d.zoom(-10) });
     this.button(g, { icon: 'zoom-in', title: '放大', text: '＋', demo: 'zoom', desc: '放大頁面（也可以按住 Ctrl 滾動滑鼠滾輪）。', onClick: () => this.d.zoom(10) });
-    this.button(g, { icon: 'scan', title: '恢復 100%', text: '100%', label: '100%', big: true, onClick: () => this.d.zoom(0) });
+    this.button(g, { icon: 'scan', title: '恢復 100%', text: '100%', label: '100%', big: true, demo: 'zoom', desc: '把頁面恢復成原本的大小。', onClick: () => this.d.zoom(0) });
     g = G.help;
-    this.button(g, { icon: 'keyboard', title: '快速鍵說明', keys: 'Mod+/', text: '?', label: '快速鍵', big: true, onClick: () => this.d.shortcuts() });
+    this.button(g, { icon: 'keyboard', title: '快速鍵說明', keys: 'Mod+/', text: '?', label: '快速鍵', big: true, demo: 'kbd', desc: '列出所有快速鍵；點一列可以看動畫示範。', onClick: () => this.d.shortcuts() });
     this.button(g, { icon: 'settings', title: 'Word 模式設定', text: '設', label: '設定', big: true, onClick: () => this.d.settings() });
   }
 

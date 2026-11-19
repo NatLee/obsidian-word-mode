@@ -197,7 +197,7 @@ export class MarkdownBar {
       el('div', 'wm-group-name', g, name);
     }
     const E = (fn: (ed: Editor) => void) => () => { const ed = this.editor; if (ed) { fn(ed); ed.focus(); } };
-    const toWord: MdButtonSpec = { icon: 'file-text', title: '切換到 Word 模式', keys: S.ctrlE !== false ? 'Mod+E' : null, label: 'Word 模式', big: true, viewMode: true, demo: 'markdown', desc: '用 Word 模式編輯這份筆記。', run: () => { void this.plugin.switchToWord(this.view.leaf); }, always: true };
+    const toWord: MdButtonSpec = { icon: 'file-text', title: '切換到 Word 模式', keys: S.ctrlE !== false ? 'Mod+E' : null, label: 'Word 模式', big: true, viewMode: true, demo: 'word', desc: '像 Word 一樣直接看到格式來編輯，存檔仍是純 Markdown。', run: () => { void this.plugin.switchToWord(this.view.leaf); }, always: true };
 
     // ---- 常用
     let g = G.undo;
@@ -250,8 +250,8 @@ export class MarkdownBar {
     // ---- 檢視：前三個按鈕的位置、大小跟 Word 模式的「檢視」分頁一樣
     g = G.views;
     this.button(g, toWord);
-    this.button(g, { icon: 'code-2', title: 'Markdown 編輯', label: 'Markdown', big: true, viewMode: true, active: () => this.mode === 'source', run: () => { void this.setMode('source'); }, always: true });
-    this.button(g, { icon: 'book-open', title: '閱讀模式', label: '閱讀', big: true, viewMode: true, demo: 'reading', active: () => this.mode === 'preview', run: () => { void this.setMode('preview'); }, always: true });
+    this.button(g, { icon: 'code-2', title: 'Markdown 編輯', label: 'Markdown', big: true, viewMode: true, demo: 'markdown', desc: '用 Obsidian 原本的 Markdown 編輯這份筆記。', active: () => this.mode === 'source', run: () => { void this.setMode('source'); }, always: true });
+    this.button(g, { icon: 'book-open', title: '閱讀模式', label: '閱讀', big: true, viewMode: true, demo: 'reading', desc: '用 Obsidian 的閱讀模式檢視（不能編輯）。', active: () => this.mode === 'preview', run: () => { void this.setMode('preview'); }, always: true });
     g = G.show;
     this.button(g, { icon: 'list-tree', title: '大綱', label: '大綱', big: true, demo: 'outline', run: () => { void this.plugin.toggleOutline(); }, active: () => this.plugin.outlineOpen(), always: true });
     this.button(g, { icon: 'chevrons-down-up', title: '摺疊全部標題', label: '全部摺疊', big: true, demo: 'fold', run: this.cmd('editor:fold-all') });
