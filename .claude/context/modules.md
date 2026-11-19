@@ -39,6 +39,7 @@
 
 - 清單一次只畫一段（`CHUNK` 列，`ListView` 的 `start`／`shown`），`markRow` 會換到那一列所在的段落。不要為了某個功能把整個清單畫出來。
 - 下拉選單的選項超過 `LAZY_OPTIONS` 個時只放目前選的那一個，取得焦點才補齊、離開就收回（`fillSelect`）。選項內容用 `optionsOf` 取，同一輪更新每個欄位只算一次。
+- 方程式與圖表編輯器的對話框在桌機與平板上是上緣固定（`word-mode.css` 的 `body:not(.is-phone) .modal.wm-eq-modal, … .wm-mmd-modal`），不要改回 Obsidian 預設的垂直置中：高度會隨打字、加列改變，置中會讓整個對話框跳動。
 - 預覽重畫時新的圖先畫在 `stage` 裡看不見的 canvas，畫好（出現 `svg`）才換上去（`whenDrawn`），所以捲動位置不會跑掉。要在新圖出來之後做的事放進 `afterDraw`。
 - 預覽的圖以 SVG 的 viewBox 寬度為準（`sizeCanvas`），100% 是原本的大小；`autoZoom` 為 true 時每次畫好自動決定倍率，使用者動過縮放就不再自動。
 - 文件裡的程式碼區塊結果與內嵌用 `dom.ts` 的 `whenVisible`，捲到看得到才畫；很高的結果由 `CodeBlockView.syncTall` 收合。
