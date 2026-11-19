@@ -96,6 +96,8 @@ Word 模式的功能區（`src/toolbar.ts`）與 Markdown、閱讀模式的功�
 
 介面文字以繁體中文原文為鍵。`I18nKey` 是 `keyof typeof EN`，新字串沒加進 `src/i18n-en.ts` 型別檢查就會失敗。其他翻譯檔也要一併補上：`src/i18n-ja.ts`、`i18n-ko.ts`、`i18n-nan.ts`（台文，漢字）、`i18n-yue.ts`（粵語）、`i18n-zh-cn.ts`、`i18n-vi.ts`、`i18n-fr.ts`、`i18n-de.ts`、`i18n-es.ts`、`i18n-ar.ts`、`i18n-he.ts`。沒有的鍵會退回英文（台文、粵語退回繁體中文原文）。有哪些語言、設定頁上顯示的名稱，在 `src/i18n.ts` 的 `LANGUAGE_NAMES`。
 
+不要把翻譯好的片段接成一句（`t('插入') + t('…的圖片')`）：各語言的語序不同，英文還會少空格（「Insertimage」）。整句當一個鍵，會變的部分寫成 `{name}` 變數。一定要分開的片段（例如示意動畫裡有一個字會動），用空格分詞的語言要在那一段的譯文裡自己帶空格；`tests/view/ui.mjs` 會在每種這樣的語言檢查這些交界。
+
 ### 樣式
 
 樣式全部在 `styles/word-mode.css`，類別前綴都是 `wm-`。這個檔案是隨版本往後加的，後面的規則會蓋掉前面的，改既有元件前先搜尋檔案後段有沒有覆蓋。

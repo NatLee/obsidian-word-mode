@@ -30,7 +30,7 @@
 
 **加一個設定**：`main.ts` 三處：`Settings` 介面、`DEFAULTS`、`settingSections()` 裡的一列（`toggleRow`、`row`，或 `kind: 'grid'` 放自訂內容），放進合適的分類。要加新的分類時：`SectionId` 加一個 id、`settingSections()` 加一段，`styles/word-mode.css`「設定頁：分類列」的隱藏規則也要加一個選擇器（`tests/view/ui.mjs` 會檢查）。會影響功能區的設定，`onChange` 要呼叫 `refreshToolbars()`，並把欄位加進 `ToolbarContext.settings`。
 
-**加介面文字**：直接在程式裡寫中文原文（`t('…')` 或標成 `I18nKey` 的欄位），再把鍵加進 `i18n-en.ts`，以及 `i18n-ja.ts`、`i18n-ko.ts`、`i18n-nan.ts`（台文，漢字）、`i18n-yue.ts`（粵語）、`i18n-zh-cn.ts`、`i18n-vi.ts`、`i18n-fr.ts`、`i18n-de.ts`、`i18n-es.ts`、`i18n-ar.ts`、`i18n-he.ts` 的結尾。每個檔案每筆一行，格式是 `JSON.stringify` 的結果。帶變數的寫 `{name}`。阿拉伯文與希伯來文裡寫進 Mermaid 程式碼的範例與識別名稱（例如 `NewState`）保留英文，由右往左的文字會打亂程式碼那一行的顯示。
+**加介面文字**：直接在程式裡寫中文原文（`t('…')` 或標成 `I18nKey` 的欄位），再把鍵加進 `i18n-en.ts`，以及 `i18n-ja.ts`、`i18n-ko.ts`、`i18n-nan.ts`（台文，漢字）、`i18n-yue.ts`（粵語）、`i18n-zh-cn.ts`、`i18n-vi.ts`、`i18n-fr.ts`、`i18n-de.ts`、`i18n-es.ts`、`i18n-ar.ts`、`i18n-he.ts` 的結尾。每個檔案每筆一行，格式是 `JSON.stringify` 的結果。帶變數的寫 `{name}`。不要把翻譯好的片段接成一句（各語言語序不同，英文會變成「Insertimage」），整句當一個鍵、會變的部分用 `{name}`；示意動畫裡必須分開的片段，用空格分詞的語言要在譯文裡自己帶空格（`tests/view/ui.mjs` 的「拼接的文字」會檢查）。阿拉伯文與希伯來文裡寫進 Mermaid 程式碼的範例與識別名稱（例如 `NewState`）保留英文，由右往左的文字會打亂程式碼那一行的顯示。
 
 **加一種圖表或一個表單欄位**：只改 `diagrams.ts`（新的欄位種類才要動 `mermaid.ts` 的 `field()`；現有的種類是 text、lines、select、check、level、color）。新增一個 `DiagramKind`（`head`、`parse`、`generate`、`opts`、`lists`），加進 `DIAGRAM_KINDS`，並在 `flowchart.ts` 的 `MERMAID_TEMPLATES` 加範本。`parse` 遇到看不懂的寫法要回傳原因（`'blocks'`、`'syntax'`），不要硬猜。欄位的 `group` 讓同一類名稱在圖上改名時一起改，`def` 讓表單裡改名也連動。
 
