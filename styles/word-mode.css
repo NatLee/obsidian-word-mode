@@ -1809,3 +1809,55 @@ mark.wm-set-find-hl { padding: 0 1px; border-radius: 3px; background: hsla(var(-
 /* 快速鍵說明底部的「動畫提示」開關：比旁邊的說明文字醒目一點，看得出是可以按的 */
 .wm-sc-richhints { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); cursor: pointer; }
 .wm-sc-richhints input { margin: 0; }
+
+/* ===== 由右到左的介面（阿拉伯文、希伯來文…） =====
+   Obsidian 1.15 的介面語言由右到左時只在 body 加 mod-rtl，再用它自己的樣式讓 .workspace、.modal、.menu、.status-bar、.popover
+   這些容器 direction: rtl；body 本身仍是 ltr。Obsidian 1.5 沒有這個功能，介面一律由左到右。
+   上面的規則大多已改用 inline-start／inline-end，跟著元素實際的方向走，一條規則兩個方向都對。這一段只放邏輯屬性表達不了的：
+   直接掛在 body 底下、繼承不到方向的面板，寫死左右的對齊、漸層、旋轉，以及不能跟著鏡射的內容（程式碼、數學、圖表、網址、快速鍵）。
+   以 .mod-rtl 為條件的規則在由左到右時不會套用；沒有條件、直接寫 direction: ltr 的都是區塊或彈性盒子的項目，由左到右時計算值不變 */
+
+/* 直接放在 body 底下的面板（下拉面板、自動完成、文件屬性小視窗、提示卡）：Obsidian 只替自己的容器設方向 */
+.mod-rtl :is(.wm-popup, .wm-hint-card) { direction: rtl; }
+
+/* 寫死左右的對齊：選單的字靠右；數字欄原本靠右（結尾），由右到左時結尾在左邊 */
+.mod-rtl .wm-menu-popup button.wm-menu-item { text-align: right; }
+.mod-rtl :is(.wm-cleanup-count, .wm-count-num, .wm-cp-alpha-value) { text-align: left; }
+
+/* 漸層、旋轉、變形的原點與文字裡的箭頭：左右對調 */
+.mod-rtl .wm-pin-items::after { background: linear-gradient(to left, transparent, var(--background-primary)); }
+/* 快速鍵說明的三角形：Obsidian 由右到左時把圖示翻成朝左，展開時要往反方向轉，才會跟由左到右一樣朝下 */
+.mod-rtl .wm-sc-row.is-open .wm-sc-play { transform: rotate(-90deg); }
+.mod-rtl .wm-anim-zoom { transform-origin: right center; }
+.mod-rtl .wm-demo-slider { background: linear-gradient(-90deg, var(--interactive-accent) 55%, var(--background-modifier-border) 55%); }
+.mod-rtl .wm-ws-tab::before { content: '←'; }
+
+/* 圖示：Obsidian 由右到左時把所有圖示左右翻過來（.mod-rtl svg.svg-icon 的 scaleX(-1)）。箭頭、清單、縮排、復原翻過來才對；
+   字母與符號（粗體的 B、斜體、上下標、Σ、A→Z 排序）翻過來變成反字，靠左、靠右對齊是固定的左右，這些翻回來。
+   Obsidian 自己也把幾個字母圖示排除在外（lucide-uppercase-lowercase-a 等）。只限外掛自己的介面，不動 Obsidian 的選單 */
+.mod-rtl :is(.wm-view, .wm-mdbar, .wm-popup, .wm-hint-card, .wm-statusbar, .wm-outline-view, .wm-eq, .wm-mmd, .wm-shortcuts, .wm-settings) svg.svg-icon:is(.lucide-bold, .lucide-italic, .lucide-underline, .lucide-strikethrough, .lucide-subscript, .lucide-superscript, .lucide-baseline, .lucide-remove-formatting, .lucide-case-sensitive, .lucide-whole-word, .lucide-regex, .lucide-sigma, .lucide-arrow-down-a-z, .lucide-arrow-up-z-a, .lucide-languages, .lucide-align-left, .lucide-align-right) { transform: none; }
+
+/* 內文：Obsidian 1.15 介面由右到左時，筆記的基本方向是由右到左，但每一段的方向依它的第一個強方向字元決定
+   （閱讀畫面的段落、標題、清單項目加 dir="auto"；編輯器每一行各自加 dir），英文段落由左到右、靠左。
+   這裡用 unicode-bidi: plaintext 做到同樣的事 */
+.mod-rtl .wm-editor :is(p, h1, h2, h3, h4, h5, h6) { unicode-bidi: plaintext; }
+/* 清單項目例外：項目符號與核取方塊在清單那一邊（右邊），Obsidian 會把英文項目的符號移到左邊，CSS 做不到，
+   所以字靠右貼著符號，不要符號在右、字在左中間空一大段。字的排列順序仍依內容（英文的句點在句尾） */
+.mod-rtl .wm-editor li > .wm-li-content > p { text-align: right; }
+/* 表格標題列原本寫死靠左：改成跟著每一格內容的方向 */
+.mod-rtl .wm-editor th { text-align: start; }
+/* 行內的程式碼、按鍵、數學、原始碼：自成一段由左到右，前後的阿拉伯文不會把它裡面的符號重新排列 */
+.mod-rtl .wm-editor :is(code, kbd, .wm-raw-inline.is-math, .wm-raw-inline.is-source) { direction: ltr; unicode-bidi: isolate; }
+
+/* 不跟著鏡射的區塊：程式碼本體與行號欄（行號留在左邊）、程式碼區塊角落的語言與按鈕（浮在由左到右的程式碼上，留在右上角，
+   不然會蓋住每一行的開頭）、Mermaid 與數學的成品與原始碼、方程式編輯器的格子（mathvisual.ts 依左右排根號與上下標）、
+   圖表編輯器的預覽（mermaid.ts 用 scrollLeft 算圖上輸入框的位置）、網址與色碼的輸入框、快速鍵的按鍵順序 */
+.wm-code-body, .wm-codeblock .wm-code-head, .wm-code-preview .mermaid, .wm-raw-block[data-kind="math"] .wm-raw-body,
+.wm-eq-visual, .wm-eq-input, .wm-eq-preview, .wm-eq-btn-math, .wm-mmd-input, .wm-mmd-stage, .wm-tpl-src, .wm-tpl-preview,
+.wm-link-dialog input.wm-link-href, .wm-cp input.wm-cp-hex, .wm-hint-keys, .wm-sc-keys, .wm-style-key { direction: ltr; }
+/* 圖上的小輸入框是介面，不是圖：跟著介面的方向 */
+.mod-rtl .wm-mmd-inline { direction: rtl; }
+/* Obsidian 由右到左時讓所有輸入框的字靠右（.mod-rtl input），由左到右的網址與色碼靠左 */
+.mod-rtl :is(.wm-link-dialog input.wm-link-href, .wm-cp input.wm-cp-hex) { text-align: left; }
+/* 方向說不準的文字（網址或筆記名稱、檔案路徑、原始碼、YAML、註解）：每一行依內容決定方向 */
+.mod-rtl :is(.wm-bubble-label, .wm-link-path, .wm-suggest-detail, .wm-source-input, .wm-fm-body, .wm-peek-raw, .wm-raw-comment) { unicode-bidi: plaintext; }
