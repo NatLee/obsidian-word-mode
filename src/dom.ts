@@ -9,6 +9,19 @@ export function el(tag: string, cls?: string | null, parent?: Node | null, text?
   return e;
 }
 
+// 元素是不是由右到左排。Obsidian 1.15 的介面語言是阿拉伯文、希伯來文時，工作區與對話框是 direction: rtl。
+// 看元素實際的方向而不是 body 的 mod-rtl：舊版 Obsidian 沒有 mod-rtl，佈景主題也可能自己改方向
+export function isRtl(e: Element): boolean {
+  const win = e.ownerDocument.defaultView || window;
+  return win.getComputedStyle(e).direction === 'rtl';
+}
+
+// 浮動面板的左緣：由左到右時面板左緣對齊錨點左緣，往右展開；由右到左時面板右緣對齊錨點右緣，往左展開。
+// 兩種都不超出 margin 到 vw - margin 的範圍
+export function popupLeft(anchor: { left: number; right: number }, w: number, vw: number, rtl: boolean, margin = 4): number {
+  return Math.max(margin, Math.min(rtl ? anchor.right - w : anchor.left, vw - w - margin));
+}
+
 // 按鈕按下時不搶走輸入位置的焦點（編輯區、方程式的格子、圖上的輸入框）。
 // 觸控裝置要連 pointerdown 一起擋，螢幕鍵盤才不會收起來
 export function keepFocus(b: HTMLElement): void {

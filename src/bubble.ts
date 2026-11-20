@@ -2,7 +2,7 @@
 import { Plugin } from 'prosemirror-state';
 import { t, withKey, key } from './i18n.js';
 import { linkContext } from './links.js';
-import { el } from './dom.js';
+import { el, isRtl } from './dom.js';
 import type { EditorState } from 'prosemirror-state';
 import type { EditorView } from 'prosemirror-view';
 import type { Attrs } from 'prosemirror-model';
@@ -88,7 +88,7 @@ class Bubble {
 
   position(info: LinkContext) {
     const v = this.view;
-    let rect: { left: number; top: number; bottom: number };
+    let rect: { left: number; right: number; top: number; bottom: number };
     try {
       if (info.pos != null) {
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- the cast is needed: Node has no getBoundingClientRect, and removing it fails the type check
@@ -96,12 +96,15 @@ class Bubble {
         rect = dom && dom.getBoundingClientRect ? dom.getBoundingClientRect() : v.coordsAtPos(info.pos);
       } else {
         const a = v.coordsAtPos(info.from);
-        rect = { left: a.left, bottom: a.bottom, top: a.top };
+        rect = { left: a.left, right: a.right, bottom: a.bottom, top: a.top };
       }
     } catch { return; }
     const host = this.ctx.host.getBoundingClientRect();
-    const maxLeft = Math.max(0, host.width - (this.dom.offsetWidth || 320) - 8);
-    this.dom.style.left = Math.min(maxLeft, Math.max(0, rect.left - host.left)) + 'px';
+    const w = this.dom.offsetWidth || 320;
+    const maxLeft = Math.max(0, host.width - w - 8);
+    // 由左到右時小工具列的左緣對齊連結的開頭；介面由右到左時連結從右邊開始，改成右緣對齊連結的右緣
+    const x = isRtl(this.ctx.host) ? rect.right - host.left - w : rect.left - host.left;
+    this.dom.style.left = Math.min(maxLeft, Math.max(0, x)) + 'px';
     this.dom.style.top = (rect.bottom - host.top + 6) + 'px';
   }
 

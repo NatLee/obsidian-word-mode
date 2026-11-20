@@ -1803,4 +1803,24 @@ await fresh('公式 $x^2 + a_i \\leq b_{max} + \\left(y\\right)$ 結束\n');
   eq.close();
 }
 
+// ======== 介面由右到左（Obsidian 的 mod-rtl）：下拉面板對齊按鈕的右緣、往左展開，而且不超出畫面 ========
+await fresh('一段文字\n');
+{
+  // jsdom 沒有版面：按鈕的位置自己給，面板寬度是 openPopup 的預設值 200，視窗寬 1024
+  const owner = btn('段落樣式');
+  const at = (left, right) => { owner.getBoundingClientRect = () => ({ left, right, top: 10, bottom: 40, width: right - left, height: 30 }); };
+  const leftOf = () => { click(owner); const x = view.toolbar.popup.style.left; view.toolbar.closePopup(); return x; };
+  at(600, 700);
+  const ltr = leftOf();
+  owner.style.direction = 'rtl';
+  const rtl = leftOf();
+  at(20, 120);
+  const rtlEdge = leftOf();
+  owner.style.direction = '';
+  delete owner.getBoundingClientRect;
+  assert(ltr === '600px', '由左到右：面板左緣對齊按鈕左緣：' + ltr);
+  assert(rtl === '500px', '由右到左：面板右緣對齊按鈕右緣（700 - 200）：' + rtl);
+  assert(rtlEdge === '4px', '由右到左、按鈕靠近左邊：面板不超出畫面左緣：' + rtlEdge);
+}
+
 finish();

@@ -108,7 +108,7 @@ const DEMOS = {
   hr: b => { linesDemo(b, '', 1); el('div', 'wm-demo-hr wm-anim-grow', b); linesDemo(b, '', 1); },
   template: b => { const w = linesDemo(b, 'wm-anim-template', 3); w.classList.add('wm-demo-sel'); },
   properties: b => { const p = el('div', 'wm-demo-props wm-anim-pop', b); el('div', null, p, 'tags: #' + t('會議')); el('div', null, p, 'date: 2026-11-17'); },
-  outline: b => { const w = el('div', 'wm-demo-outline', b); ([[1, '第一章'], [2, '背景'], [2, '方法'], [1, '第二章']] as const).forEach(([lv, x], i) => { const r = el('div', 'wm-demo-oitem wm-oitem-' + i, w, t(x)); r.style.paddingLeft = (lv - 1) * 12 + 'px'; }); },
+  outline: b => { const w = el('div', 'wm-demo-outline', b); ([[1, '第一章'], [2, '背景'], [2, '方法'], [1, '第二章']] as const).forEach(([lv, x], i) => { const r = el('div', 'wm-demo-oitem wm-oitem-' + i, w, t(x)); r.style.paddingInlineStart = (lv - 1) * 12 + 'px'; }); },
   fold: b => { el('div', 'wm-demo-target wm-anim-heading-static', b, '▾ ' + t('標題')); linesDemo(b, 'wm-anim-fold', 2); },
   unfold: b => { el('div', 'wm-demo-target wm-anim-heading-static', b, '▸ ' + t('標題')); linesDemo(b, 'wm-anim-unfold', 2); },
   zoom: b => linesDemo(b, 'wm-anim-zoom', 3),

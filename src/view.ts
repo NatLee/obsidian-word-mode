@@ -37,6 +37,7 @@ import { SourceModal, PromptModal, LinkDialog, FilePicker, ShortcutModal, Equati
 import { countText, docText, docStats } from './textstats.js';
 import { buildStatusBar, renderSaveStatus, renderCount, showZoom } from './statusbar.js';
 import { openPropsPeek, propertyWidget, fillPropsPeek, fillPinSummary, markOverflow } from './propview.js';
+import { isRtl } from './dom.js';
 import { frontmatterBody, peekData } from './props.js';
 import { t, key, withKey } from './i18n.js';
 import type { Modifier, TAbstractFile, WorkspaceLeaf } from 'obsidian';
@@ -1496,7 +1497,10 @@ export class WordModeView extends TextFileView {
     try {
       const c = v.coordsAtPos(to);
       const host = this.page.getBoundingClientRect();
-      chip.style.left = Math.max(0, Math.min(c.left - host.left, host.width - 260)) + 'px';
+      // 介面由右到左時往左展開：右緣對齊貼上內容的結尾（由左到右照舊，左緣對齊、預留 260px）
+      const rtl = isRtl(this.page);
+      const w = rtl ? chip.offsetWidth || 260 : 260;
+      chip.style.left = Math.max(0, Math.min(rtl ? c.right - host.left - w : c.left - host.left, host.width - w)) + 'px';
       chip.style.top = (c.bottom - host.top + 6) + 'px';
     } catch { /* 預設位置 */ }
     this.pasteChip = { el: chip, from, to };
