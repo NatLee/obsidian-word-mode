@@ -898,8 +898,9 @@ class CodeBlockView implements NodeView {
     this.editBtn.hidden = !(on && this.lang() === 'mermaid');
     if (!on) { this.dispose(); this.preview.replaceChildren(); this.rendered = null; this.syncTall(); return; }
     const key = this.node.attrs.params + '\n' + text;
-    if (key === this.rendered) return;
+    // 先取消還沒執行的預覽：內容改了又改回來時，key 跟畫面上的一樣，但計時器裡排的是中間那一版
     window.clearTimeout(this.timer);
+    if (key === this.rendered) return;
     const run = () => {
       this.dispose();
       this.rendered = key;

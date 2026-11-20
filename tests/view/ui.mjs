@@ -1441,4 +1441,14 @@ await fresh('<div>html</div>\n\n一段\n');
   assert(!glued.length, '示意動畫的「動詞｜受詞」之間有空格：' + (glued.join('；') || '全部正確'));
 }
 
+// ======== 格式刷開著的時候重建功能區：編輯區不留著刷子游標 ========
+await fresh('**粗體** 一般\n');
+{
+  select(2, 4);
+  view.toolbar.togglePainter(true);
+  assert(view.pm.dom.classList.contains('wm-painting'), '格式刷開啟');
+  view.buildToolbar();
+  assert(!view.pm.dom.classList.contains('wm-painting') && !view.toolbar.painter, '重建功能區後格式刷已經停止');
+}
+
 finish();

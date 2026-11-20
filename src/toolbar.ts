@@ -361,6 +361,8 @@ export class Toolbar {
   }
 
   destroy(): void {
+    // 格式刷還開著就重建功能區（改了設定）：不停掉的話，編輯區會留著舊功能區的事件與刷子游標
+    this.stopPainter();
     this.dom.ownerDocument.removeEventListener('pointerdown', this.onDocDown, true);
     this.closePopup();
     closePropsPeek();
