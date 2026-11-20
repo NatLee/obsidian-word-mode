@@ -40,8 +40,9 @@ interface FieldBase {
 }
 // 一行文字。group：這個欄位的值是某一類東西的名稱（例如參與者、狀態），在圖上改名時同一類的欄位一起改；
 // def：這一欄是那類東西的「定義」，在表單裡改名也會連帶更新其他引用它的欄位；
-// multiline：文字可以換行（表單裡用「 / 」表示換行）；suggest：輸入時的建議
-export interface TextField extends FieldBase { kind: 'text'; placeholder?: I18nKey; group?: string; def?: boolean; multiline?: boolean; suggest?: (m: DiagramModel) => string[]; }
+// multiline：文字可以換行（表單裡用「 / 」表示換行）；suggest：輸入時的建議；
+// blank：這一類名稱可以不填（區段），在圖上把它清空時同一類的欄位一起清空
+export interface TextField extends FieldBase { kind: 'text'; placeholder?: I18nKey; group?: string; def?: boolean; blank?: boolean; multiline?: boolean; suggest?: (m: DiagramModel) => string[]; }
 // 多行文字，一行一項（類別的成員、實體的欄位、時間軸的事件）；存成用換行分開的字串
 export interface LinesField extends FieldBase { kind: 'lines'; placeholder?: I18nKey; }
 export interface SelectField extends FieldBase { kind: 'select'; options: (m: DiagramModel, tr: Translate) => Choice[]; group?: string; }
@@ -98,7 +99,16 @@ const one = (s: string | undefined): string => String(s == null ? '' : s).replac
 const unquote = (s: string): string => { const v = s.trim(); return v.length >= 2 && v.startsWith('"') && v.endsWith('"') ? v.slice(1, -1) : v; };
 const emptyModel = (): DiagramModel => ({ opts: {}, lists: {}, extra: [], pre: [] });
 const fixed = (list: readonly (readonly [string, I18nKey])[]) => (_m: DiagramModel, tr: Translate): Choice[] => list.map(([v, label]) => [v, tr(label)]);
-const names = (list: string, key = 'name') => (m: DiagramModel): Choice[] => (m.lists[list] || []).map(r => [r[key], r[key]]);
+// 「定義」欄位（參與者、類別、實體的名稱）改到一半、還不能用（空的，或跟另一列同名）的列 → 引用它的欄位還在用的名稱
+// （由 setValue 記錄）。用列本身當鍵：重新讀程式碼之後列是新的物件，舊的紀錄自然就沒有了
+const heldNames = new WeakMap<Row, string>();
+// 引用這一列時用的名稱（名稱改到一半時是原本的名稱，其他時候就是欄位的值）
+export function refName(row: Row, key = 'name'): string {
+  const held = heldNames.get(row);
+  return held != null ? held : (row[key] || '');
+}
+// 選單裡列出某個清單的名稱。用 refName：名稱改到一半的列，引用它的欄位還在用原本的名稱，選單裡要找得到
+const names = (list: string, key = 'name') => (m: DiagramModel): Choice[] => (m.lists[list] || []).map(r => { const v = refName(r, key); return [v, v]; });
 const template = (name: I18nKey): I18nKey => MERMAID_TEMPLATES.find(x => x[0] === name)![1];
 
 // 把程式碼分成：種類那一行之前的行（註解）、種類那一行的比對結果、之後的每一行（去掉空行與行尾分號）
@@ -147,7 +157,8 @@ const flowchart: DiagramKind = {
     }
     m.opts = { keyword: f.keyword, dir: f.dir };
     m.lists.nodes = f.nodes.map(n => ({ id: n.id, text: n.text == null ? '' : n.text, shape: n.shape || 'rect', fill: '' }));
-    m.lists.edges = f.edges.map(e => ({ from: e.from, style: e.style, to: e.to, text: e.text || '' }));
+    // len（連線加長幾級）沒有對應的欄位，只是跟著這一列保留下來：以前讀進來就丟掉，---> 寫回去變成 -->，節點的層次就變了
+    m.lists.edges = f.edges.map(e => ({ from: e.from, style: e.style, to: e.to, text: e.text || '', len: e.len ? String(e.len) : '' }));
     for (const line of f.extra) {
       const x = NODE_STYLE.exec(line);
       const node = x ? m.lists.nodes.find(n => n.id === x[1]) : undefined;
@@ -161,7 +172,7 @@ const flowchart: DiagramKind = {
     return [...m.pre, generateFlowchart({
       keyword: m.opts.keyword, dir: m.opts.dir,
       nodes: m.lists.nodes.map(r => ({ id: r.id, text: r.text, shape: r.shape })),
-      edges: m.lists.edges.map(r => ({ from: r.from, to: r.to, text: r.text, style: r.style })),
+      edges: m.lists.edges.map(r => ({ from: r.from, to: r.to, text: r.text, style: r.style, len: +r.len || 0 })),
       extra: [...m.lists.nodes.filter(r => /^#[0-9a-f]{6}$/.test(r.fill || '')).map(r => styleOf(r.id, r.fill)), ...m.extra],
     })].join('\n');
   },
@@ -251,6 +262,8 @@ const sequence: DiagramKind = {
       if (/^(loop|alt|else|opt|par|and|end|rect|critical|option|break|activate|deactivate|box|create|destroy|links?|title|accTitle|accDescr)(\s|$)/.test(text)) return 'blocks';
       if ((x = SEQ_MESSAGE.exec(text))) {
         if (/^[+-]/.test(x[3])) return 'blocks'; // A->>+B：啟動條的簡寫
+        // A<<->>B：雙向箭頭，表單沒有這種箭頭。不擋的話會讀成一個叫「A<<」的參與者，寫回去多一行 participant A<<
+        if (/<<$/.test(x[1])) return 'syntax';
         person(x[1]); person(x[3]);
         steps.push({ from: x[1], arrow: x[2], to: x[3], text: x[4] });
         continue;
@@ -370,7 +383,7 @@ const gantt: DiagramKind = {
     key: 'tasks', title: '工作', add: '＋ 新增工作', hint: '開始可以填日期，或「after 代號」接在另一項工作後面；留白表示接在上一項後面。長度例如 5d、2w，也可以填結束日期。',
     fields: [
       { kind: 'text', key: 'name', label: '工作名稱', placeholder: '工作名稱', size: 'l' },
-      { kind: 'text', key: 'section', label: '區段', placeholder: '區段（可不填）', group: 'section', suggest: m => [...new Set(m.lists.tasks.map(r => r.section).filter(Boolean))] },
+      { kind: 'text', key: 'section', label: '區段', placeholder: '區段（可不填）', group: 'section', blank: true, suggest: m => [...new Set(m.lists.tasks.map(r => r.section).filter(Boolean))] },
       { kind: 'select', key: 'status', label: '狀態', options: fixed(GANTT_STATUS), size: 's' },
       { kind: 'text', key: 'id', label: '代號', placeholder: '代號', size: 'xs' },
       { kind: 'text', key: 'start', label: '開始', placeholder: '開始', size: 's' },
@@ -442,8 +455,12 @@ const state: DiagramKind = {
       let x: RegExpExecArray | null;
       if (/^%%/.test(text)) { m.extra.push(text); continue; }
       if ((x = /^direction\s+(TB|TD|BT|RL|LR)$/.exec(text))) { m.opts.dir = x[1] === 'TD' ? 'TB' : x[1]; continue; }
+      // 狀態:::樣式 是套用樣式的寫法。以前「A:::warn --> B」被讀成狀態 A 的說明文字「::warn --> B」，
+      // 寫回去是「A : ::warn --> B」，轉換就不見了
+      if (/:::/.test(text)) return 'blocks';
       if ((x = new RegExp('^' + STATE + '\\s*-->\\s*' + STATE + '(?:\\s*:\\s*(.*))?$').exec(text))) { moves.push({ from: x[1], to: x[2], text: x[3] || '' }); continue; }
-      if ((x = /^state\s+"([^"]*)"\s+as\s+(\S+)$/.exec(text))) { states.push({ name: x[2], text: x[1] }); continue; }
+      // 說明的另一種寫法（state "說明" as 名稱）：記在這一列的 as，寫回去時用同一種寫法
+      if ((x = /^state\s+"([^"]*)"\s+as\s+([^\s:]+)$/.exec(text))) { states.push({ name: x[2], text: x[1], as: '1' }); continue; }
       if (/^(?:(?:state|note|end note|classDef|class|style|accTitle|accDescr)(?:\s|$)|\}|--$)/.test(text) || /<<|\{$/.test(text)) return 'blocks';
       if ((x = /^([^\s:]+)\s*:\s*(.+)$/.exec(text))) { states.push({ name: x[1], text: x[2] }); continue; }
       return 'syntax';
@@ -454,7 +471,10 @@ const state: DiagramKind = {
   generate(m) {
     const out: string[] = [];
     if (m.opts.dir) out.push(INDENT + 'direction ' + m.opts.dir);
-    for (const r of m.lists.states) if (one(r.name) && one(r.text)) out.push(INDENT + one(r.name) + ' : ' + one(r.text));
+    for (const r of m.lists.states) {
+      if (!one(r.name) || !one(r.text)) continue;
+      out.push(INDENT + (r.as ? 'state "' + one(r.text).replace(/"/g, '\'') + '" as ' + one(r.name) : one(r.name) + ' : ' + one(r.text)));
+    }
     for (const r of m.lists.moves) if (one(r.from) && one(r.to)) out.push(INDENT + one(r.from) + ' --> ' + one(r.to) + (one(r.text) ? ' : ' + one(r.text) : ''));
     return join(m, 'stateDiagram' + (m.opts.v2 ? '-v2' : ''), out);
   },
@@ -490,6 +510,11 @@ const CLASS_RELATIONS: [string, I18nKey][] = [
   ['--|>', '繼承（方向相反）'], ['--*', '組合（方向相反）'], ['--o', '聚合（方向相反）'], ['<--', '關聯（方向相反）'], ['<..', '依賴（方向相反）'], ['<|..', '實作（方向相反）'],
 ];
 const CLASS_REL = /^(\S+)\s+(?:"([^"]*)"\s+)?(<\|--|<\|\.\.|\*--|o--|-->|--\|>|\.\.\|>|--\*|--o|<--|\.\.>|<\.\.|--|\.\.)\s+(?:"([^"]*)"\s+)?(\S+)(?:\s*:\s*(.*))?$/;
+// 關係的符號緊貼著類別名稱的寫法（Animal<|--Dog）。聚合的 o-- 與 --o 不在這裡：o 緊貼著名稱時分不出是不是名稱的一部分
+const CLASS_REL_TIGHT = /^([^\s:<>|*."{}-]+)\s*(?:"([^"]*)"\s*)?(<\|--|<\|\.\.|\*--|-->|--\|>|\.\.\|>|--\*|<--|\.\.>|<\.\.|--|\.\.)\s*(?:"([^"]*)"\s*)?([^\s:<>|*."{}-]+)(?:\s*:\s*(.*))?$/;
+// 類別名稱裡不會有關係的符號、冒號、引號與大括號。以前「名稱 : 成員」的寫法什麼都收，
+// Animal<|--Dog : inherits 被讀成一個叫「Animal<|--Dog」的類別，成員是 inherits，寫回去整個關係就不見了
+const classNameOk = (name: string): boolean => /^[^\s:<>|*."{}]+$/.test(name) && !name.includes('--');
 const classDiagram: DiagramKind = {
   id: 'class', name: '類別圖', icon: 'boxes', head: /^classDiagram(-v2)?\s*$/, template: template('類別圖'),
   parse(src) {
@@ -497,6 +522,8 @@ const classDiagram: DiagramKind = {
     if (!s) return 'unknownKind';
     const m = emptyModel();
     m.pre = s.pre;
+    // 舊的寫法 classDiagram-v2 照樣寫回去
+    m.opts.v2 = s.head[1] ? '1' : '';
     const classes: Row[] = []; const relations: Row[] = [];
     const cls = (name: string): Row => { ensure(classes, name, n => ({ name: n, members: '' })); return classes.find(r => r.name === name)!; };
     const member = (row: Row, line: string) => { row.members = row.members ? row.members + '\n' + line : line; };
@@ -506,15 +533,20 @@ const classDiagram: DiagramKind = {
       if (open) { if (text === '}') open = null; else member(open, text); continue; }
       if (/^%%/.test(text)) { m.extra.push(text); continue; }
       if ((x = /^direction\s+(TB|TD|BT|RL|LR)$/.exec(text))) { m.opts.dir = x[1] === 'TD' ? 'TB' : x[1]; continue; }
-      if ((x = /^class\s+(\S+?)\s*\{$/.exec(text))) { open = cls(x[1]); continue; }
-      if ((x = /^class\s+(\S+)$/.exec(text))) { cls(x[1]); continue; }
-      if ((x = CLASS_REL.exec(text))) {
+      if ((x = /^class\s+(\S+?)\s*\{$/.exec(text))) { if (!classNameOk(x[1])) return 'syntax'; open = cls(x[1]); continue; }
+      // class 名稱:::樣式 是套用樣式的寫法
+      if ((x = /^class\s+(\S+)$/.exec(text))) { if (!classNameOk(x[1])) return x[1].includes(':::') ? 'blocks' : 'syntax'; cls(x[1]); continue; }
+      const spaced = CLASS_REL.exec(text);
+      if ((x = spaced || CLASS_REL_TIGHT.exec(text))) {
+        if (!classNameOk(x[1]) || !classNameOk(x[5])) return 'syntax';
+        // 緊貼的寫法裡，-- 旁邊的名稱以 o 結尾或開頭（Zoo--Dog）：可能是聚合的 o--，分不出來就不猜
+        if (!spaced && ((x[3].startsWith('--') && x[1].endsWith('o')) || (x[3].endsWith('--') && x[5].startsWith('o')))) return 'syntax';
         cls(x[1]); cls(x[5]);
         relations.push({ a: x[1], ca: x[2] || '', type: x[3], cb: x[4] || '', b: x[5], text: x[6] || '' });
         continue;
       }
       if (/^(?:(?:class|namespace|note|click|link|callback|style|cssClass|classDef|accTitle|accDescr)(?:\s|$)|<<)/.test(text)) return 'blocks';
-      if ((x = /^(\S+)\s*:\s*(.+)$/.exec(text))) { member(cls(x[1]), x[2]); continue; }
+      if ((x = /^(\S+)\s*:\s*(.+)$/.exec(text))) { if (!classNameOk(x[1])) return 'syntax'; member(cls(x[1]), x[2]); continue; }
       return 'syntax';
     }
     if (open) return 'syntax';
@@ -536,7 +568,7 @@ const classDiagram: DiagramKind = {
       if (!one(r.a) || !one(r.b)) continue;
       out.push(INDENT + one(r.a).replace(/\s+/g, '_') + ' ' + q(r.ca) + r.type + ' ' + q(r.cb) + one(r.b).replace(/\s+/g, '_') + (one(r.text) ? ' : ' + one(r.text) : ''));
     }
-    return join(m, 'classDiagram', out);
+    return join(m, 'classDiagram' + (m.opts.v2 ? '-v2' : ''), out);
   },
   opts: [{ kind: 'select', key: 'dir', label: '方向', options: fixed([['', '預設（由上到下）'], ['TB', '由上到下'], ['LR', '由左到右'], ['BT', '由下到上'], ['RL', '由右到左']]) }],
   lists: [
@@ -600,7 +632,8 @@ const mindmap: DiagramKind = {
       const level = stack.length;
       stack.push(indent);
       if (level === 0 && nodes.length) return 'syntax'; // 只能有一個中心主題
-      let row: Row = { level: String(level), text: unquote(text), shape: 'default', id: '' };
+      // 沒有形狀的節點整行都是文字（引號也是），照原樣保留；有形狀的節點文字可以加引號
+      let row: Row = { level: String(level), text, shape: 'default', id: '' };
       for (const [shape, re] of MIND_RE) {
         const x = re.exec(text);
         if (x) { row = { level: String(level), text: unquote(x[2]), shape, id: x[1] }; break; }
@@ -615,7 +648,10 @@ const mindmap: DiagramKind = {
     const body = m.lists.nodes.map(r => {
       const shape = MIND_SHAPES.find(x => x[0] === r.shape) || MIND_SHAPES[0];
       const text = one(r.text) || '?';
-      return '  '.repeat(+r.level + 1) + (shape[0] === 'default' ? text : (r.id || '') + shape[2] + text + shape[3]);
+      // 有形狀的節點，文字裡有括號或引號時要加引號：不加的話 Mermaid 會把文字裡的括號當成形狀的結尾。
+      // 以前讀進來時拿掉引號、寫回去沒有加回來：root(("計畫 (2026)")) 變成 root((計畫 (2026)))，整張圖畫不出來
+      const label = /[()[\]{}"]/.test(text) ? '"' + text.replace(/"/g, '\'') + '"' : text;
+      return '  '.repeat(+r.level + 1) + (shape[0] === 'default' ? text : (r.id || '') + shape[2] + label + shape[3]);
     });
     return [...m.pre, 'mindmap', ...m.extra.map(x => '  ' + x), ...body].join('\n');
   },
@@ -698,7 +734,7 @@ const timeline: DiagramKind = {
     fields: [
       { kind: 'text', key: 'time', label: '時間', placeholder: '時間，例如 2026', size: 's' },
       { kind: 'lines', key: 'events', label: '事件', placeholder: '事件（一行一件）' },
-      { kind: 'text', key: 'section', label: '區段', placeholder: '區段（可不填）', size: 's', group: 'section', suggest: m => [...new Set(m.lists.periods.map(r => r.section).filter(Boolean))] },
+      { kind: 'text', key: 'section', label: '區段', placeholder: '區段（可不填）', size: 's', group: 'section', blank: true, suggest: m => [...new Set(m.lists.periods.map(r => r.section).filter(Boolean))] },
     ],
     make(m, tr) {
       const last = m.lists.periods[m.lists.periods.length - 1];
@@ -836,7 +872,7 @@ const journey: DiagramKind = {
       { kind: 'text', key: 'name', label: '步驟', placeholder: '做了什麼', size: 'l' },
       { kind: 'select', key: 'score', label: '感受', options: (_m, tr) => [['1', '1 ' + tr('（最糟）')], ['2', '2'], ['3', '3'], ['4', '4'], ['5', '5 ' + tr('（最好）')]], size: 's' },
       { kind: 'text', key: 'actors', label: '參與的人', placeholder: '參與的人' },
-      { kind: 'text', key: 'section', label: '區段', placeholder: '區段（可不填）', size: 's', group: 'section', suggest: m => [...new Set(m.lists.steps.map(r => r.section).filter(Boolean))] },
+      { kind: 'text', key: 'section', label: '區段', placeholder: '區段（可不填）', size: 's', group: 'section', blank: true, suggest: m => [...new Set(m.lists.steps.map(r => r.section).filter(Boolean))] },
     ],
     make(m, tr) {
       const last = m.lists.steps[m.lists.steps.length - 1];
@@ -852,7 +888,8 @@ const quoted = (v: string): string => '"' + one(v).replace(/"/g, '\'') + '"';
 const QUAD_TEXT = '("[^"]*"|[^"\\s][^"]*?)';
 const QUAD_AXIS = new RegExp('^([xy])-axis\\s+' + QUAD_TEXT + '(?:\\s*-->\\s*' + QUAD_TEXT + ')?$');
 const QUAD_POINT = new RegExp('^' + QUAD_TEXT + '\\s*:\\s*\\[\\s*(\\d*\\.?\\d+)\\s*,\\s*(\\d*\\.?\\d+)\\s*\\]$');
-const unit = (v: string): string => { const n = parseFloat(v); return String(n >= 0 && n <= 1 ? n : 0.5); };
+// 位置：0 到 1 的數字照使用者寫的樣子（0.50、1.0）寫回去，不合規定的改成 0.5
+const unit = (v: string): string => { const s = one(v); const n = parseFloat(s); return n >= 0 && n <= 1 ? (/^\d+(\.\d+)?$/.test(s) ? s : String(n)) : '0.5'; };
 const quadrant: DiagramKind = {
   id: 'quadrant', name: '象限圖', icon: 'layout-grid', head: /^quadrantChart\s*$/, template: template('象限圖'),
   parse(src) {
@@ -869,7 +906,7 @@ const quadrant: DiagramKind = {
       if ((x = /^quadrant-([1-4])\s+(.+)$/.exec(text))) { m.opts['q' + x[1]] = unquote(x[2]); continue; }
       if (/^(classDef|accTitle|accDescr)(\s|$)/.test(text)) return 'blocks';
       if (!(x = QUAD_POINT.exec(text))) return 'syntax';
-      points.push({ name: unquote(x[1]), x: String(parseFloat(x[2])), y: String(parseFloat(x[3])) });
+      points.push({ name: unquote(x[1]), x: unit(x[2]), y: unit(x[3]) });
     }
     m.lists.points = points;
     return m;
@@ -937,14 +974,47 @@ export type DiagramResult = { ok: true; kind: DiagramKind; model: DiagramModel }
 
 export const sameModel = (a: DiagramModel, b: DiagramModel): boolean => JSON.stringify([a.opts, a.lists, a.extra, a.pre]) === JSON.stringify([b.opts, b.lists, b.extra, b.pre]);
 
-// 這段程式碼能不能用表單編輯：認得種類、讀得出來，而且「寫回去再讀一次」內容不變（表示沒有遺漏任何東西）
+// 原始碼裡有、表單寫回去的程式碼裡卻沒有的內容（空陣列＝沒有少東西）。
+//
+// 為什麼需要：「讀進來 → 寫出去 → 再讀一次」的資料相同，只能證明寫出去的東西讀得回來；
+// 第一次讀的時候就丟掉的東西（連線的長度）它看不出來，因為兩次讀到的資料一樣少了那一塊。
+// 所以另外拿原始碼跟寫出去的程式碼直接比。
+//
+// 不能逐字比：表單寫回去時本來就會重排（縮排、空白、節點與連線分開寫、補上沒宣告的參與者、
+// 引號有需要才加、A -- 文字 --> B 改寫成 A -->|文字| B）。所以把兩邊的空白與引號都拿掉，只比
+// 「不管怎麼重排都應該還連在一起」的兩種片段，原始碼的每一段都要能在寫回去的程式碼裡找到：
+// 1. 字：連在一起的文字、數字、底線（不分大小寫）。名稱、說明、關鍵字、數值少了就找不到
+//    （例如底下沒有工作的 section、同一個節點前後寫了兩種文字，表單都只會留下一部分）。
+// 2. 符號：連在一起兩個以上的符號（-->、--->、-..->、<|--、||--o{ 的 ||--）。---> 被寫成 --> 就找不到。
+//    單獨一個符號不比（多半是分隔用的），括號、逗號、分號、冒號、引號也不比，它們只是把符號隔開
+//    （表單會調整冒號前後的空白、決定引號加不加，隔著它們的符號不算連在一起）。
+// 只看「找不找得到」，不算次數：同一個節點寫兩次（B[處理] 出現在兩行）寫回去只會有一次。
+// 表單固定會換掉的寫法先換成同一種再比：<br/> 與 <br>、TB 與 TD（同一個方向的兩種寫法）。
+//
+// 這個檢查抓不到「字都還在，但意思變了」的情況（A[\文字/] 寫成 A["\文字/"]）：那要靠各種圖表的 parse
+// 遇到看不懂的寫法就回報原因。它擋的是另一類：parse 以為自己看懂了，其實漏掉一部分。
+export function lostContent(src: string, out: string): string[] {
+  const clean = (code: string): string => code.replace(/\r\n?/g, '\n').replace(/<br\s*\/?>/gi, '<br>').replace(/["']/g, '').toLowerCase();
+  const pieces = (code: string): Set<string> => new Set(code.match(/[\p{L}\p{N}_]+|[^\p{L}\p{N}_\s()[\]{},;:]{2,}/gu) || []);
+  const a = clean(src); const b = clean(out);
+  const flat = b.replace(/\s+/g, '');
+  const written = pieces(b);
+  const other: Record<string, string> = { tb: 'td', td: 'tb' };
+  // 先查寫回去的程式碼裡有沒有一模一樣的片段（大部分都有，很長的圖表才不會每一段都掃過整份程式碼），
+  // 沒有再看是不是連在別的字或符號旁邊（A --x B 寫回去是 A--xB，x 跟 B 連在一起）
+  return [...pieces(a)].filter(p => !written.has(p) && !flat.includes(p) && !(other[p] && written.has(other[p])));
+}
+
+// 這段程式碼能不能用表單編輯：認得種類、讀得出來，「寫回去再讀一次」資料不變，而且寫回去的程式碼沒有比原本少東西
 export function editableDiagram(src: string): DiagramResult {
   const kind = detectKind(src);
   if (!kind) return { ok: false, kind: null, reason: 'unknownKind' };
   const model = parseDiagram(kind, src);
   if (typeof model === 'string') return { ok: false, kind, reason: model };
-  const again = parseDiagram(kind, generateDiagram(kind, model));
+  const out = generateDiagram(kind, model);
+  const again = parseDiagram(kind, out);
   if (typeof again === 'string' || !sameModel(model, again)) return { ok: false, kind, reason: 'roundtrip' };
+  if (lostContent(src, out).length) return { ok: false, kind, reason: 'roundtrip' };
   return { ok: true, kind, model };
 }
 
@@ -1002,7 +1072,7 @@ export function rowSlot(slots: TextSlot[], row: Row): TextSlot | null {
 }
 
 // 改一個欄位的值。欄位屬於某一類名稱（group）而且 everywhere 為 true 時，同一類裡原本同名的欄位一起改
-// （在圖上把「使用者」改名，所有訊息裡的「使用者」都跟著改）
+// （在圖上把「使用者」改名，所有訊息裡的「使用者」都跟著改）。改名不能讓引用它的列消失，見裡面的說明
 export function setValue(kind: DiagramKind, m: DiagramModel, slot: { field: Field; list: ListSpec | null; row: Row | null; line?: number }, value: string, everywhere: boolean): void {
   const { field, row } = slot;
   const target = row || m.opts;
@@ -1015,11 +1085,46 @@ export function setValue(kind: DiagramKind, m: DiagramModel, slot: { field: Fiel
   }
   target[field.key] = value;
   const group = (field.kind === 'text' || field.kind === 'select') ? field.group : undefined;
-  if (!group || !everywhere || !old || old === value) return;
+  if (!group || !everywhere) return;
+  // 改的是「定義」欄位（參與者、類別、實體的名稱）時，它所在的列；其他欄位是 null
+  const defRow = field.kind === 'text' && field.def ? row : null;
+  // 引用這個名稱的欄位現在用的名稱：平常就是改之前的值；名稱改到一半（見 heldNames）時是當初留下來的那個
+  const from = defRow && heldNames.has(defRow) ? heldNames.get(defRow)! : old;
+  if (defRow) heldNames.delete(defRow);
+  if (!from || from === value) return;
+  if (defRow && slot.list) {
+    // 表單裡每打一個字就會進來一次。名稱被清空、或暫時跟另一列同名（把 Alice 改成 Bobby 會經過 Bob）時，
+    // 引用它的欄位先不動，記住它們用的名稱，等名稱可以用了再一起改。
+    // 以前照樣跟著改：清空時所有訊息都指向空白，再打新名稱也對不回來，那些訊息就從圖上消失了；
+    // 經過別人的名稱時兩邊的訊息混在一起，再往下打就把別人的訊息也一起改名
+    const others = m.lists[slot.list.key] || [];
+    if (!value || others.some(r => r !== defRow && (r[field.key] === value || heldNames.get(r) === value))) { heldNames.set(defRow, from); return; }
+  } else if (!value && !(field.kind === 'text' && field.blank)) {
+    // 在圖上把名稱清空：只清這一格。其他引用同一個名稱的欄位跟著清空的話，那些列（轉換、訊息）就寫不出去了
+    return;
+  }
   for (const list of kind.lists) {
     for (const f of list.fields) {
       if ((f.kind !== 'text' && f.kind !== 'select') || f.group !== group) continue;
-      for (const r of m.lists[list.key] || []) if (r[f.key] === old) r[f.key] = value;
+      for (const r of m.lists[list.key] || []) if (r[f.key] === from) r[f.key] = value;
     }
   }
+}
+
+// 改名結束（離開輸入框）時名稱還是不能用：改回引用它的欄位還在用的名稱。回傳有沒有改回去。
+// 留著空的或重複的名稱，寫出去的程式碼會少一個宣告或多一個同名的宣告，下次就開不了表單
+export function restoreName(field: Field, row: Row): boolean {
+  const held = heldNames.get(row);
+  if (held == null) return false;
+  heldNames.delete(row);
+  row[field.key] = held;
+  return true;
+}
+
+// 刪除一列之前，連帶刪掉引用它的列（list.onDelete）。名稱改到一半時，引用它的列用的是原本的名稱，要用那個名稱去找：
+// 不然會刪到剛好跟它暫時同名的另一列的東西
+export function dropRefs(list: ListSpec, m: DiagramModel, row: Row): void {
+  if (!list.onDelete) return;
+  const def = list.fields.find(f => f.kind === 'text' && f.def);
+  list.onDelete(m, def && heldNames.has(row) ? { ...row, [def.key]: heldNames.get(row)! } : row);
 }

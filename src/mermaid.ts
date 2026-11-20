@@ -5,7 +5,7 @@
 import { Modal, Notice, setIcon } from 'obsidian';
 import { t, key } from './i18n.js';
 import { keepFocus } from './dom.js';
-import { DIAGRAM_KINDS, DIAGRAM_REASONS, COMMON_OPTS, editableDiagram, generateDiagram, detectKind, textSlots, findSlot, setValue, squash, sameSlot, slotNth, rowSlot } from './diagrams.js';
+import { DIAGRAM_KINDS, DIAGRAM_REASONS, COMMON_OPTS, editableDiagram, generateDiagram, detectKind, textSlots, findSlot, setValue, restoreName, dropRefs, squash, sameSlot, slotNth, rowSlot } from './diagrams.js';
 import { uniqueName } from './templates.js';
 import type { App } from 'obsidian';
 import type { Choice, ColorField, DiagramKind, DiagramModel, DiagramReason, Field, ListSpec, Row, SelectField, TextField, TextSlot } from './diagrams.js';
@@ -450,7 +450,8 @@ export class MermaidModal extends Modal {
       this.markTemplates();
     };
     save.addEventListener('click', run);
-    input.addEventListener('keydown', e => { if (e.key === 'Enter' && !(e.ctrlKey || e.metaKey)) { e.preventDefault(); e.stopPropagation(); run(); } });
+    // isComposing：輸入法選字中的 Enter 是確定選字，不是儲存
+    input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing && !(e.ctrlKey || e.metaKey)) { e.preventDefault(); e.stopPropagation(); run(); } });
     p.createDiv({ cls: 'wm-mmd-hint', text: t('同名的範本會被新的內容取代。改名、修改、刪除在「設定 → 方程式與圖表」。') });
   }
 
@@ -697,7 +698,7 @@ export class MermaidModal extends Modal {
     const rows = d.model.lists[list.key];
     const i = rows.indexOf(row);
     if (i < 0 || (list.fixedFirst && i === 0)) return;
-    if (list.onDelete) list.onDelete(d.model, row);
+    dropRefs(list, d.model, row);
     // onDelete 可能換掉其他清單的陣列，所以重新取一次這個清單
     const now = d.model.lists[list.key];
     const j = now.indexOf(row);
@@ -730,10 +731,13 @@ export class MermaidModal extends Modal {
         input.addEventListener('focus', () => { dl.replaceChildren(); for (const v of f.suggest!(d.model)) dl.createEl('option').value = v; });
       }
       input.addEventListener('input', () => {
-        // 「定義」的欄位（參與者、類別、實體的名稱）改名：引用它的欄位一起改
+        // 「定義」的欄位（參與者、類別、實體的名稱）改名：引用它的欄位一起改。
+        // 名稱清空或暫時跟別人同名時，setValue 會先留著引用它的欄位不動，等名稱能用了再一起改
         setValue(d.kind, d.model, { field: f, list, row }, f.multiline ? readLines(input.value) : input.value, !!f.def);
         this.changed(false);
       });
+      // 離開輸入框時名稱還是空的或跟別人同名：改回原本的名稱（引用它的訊息、關係都還在用那個名稱）
+      if (f.def && row) input.addEventListener('change', () => { if (restoreName(f, row)) { input.value = row[f.key] || ''; this.changed(false); } });
     } else if (f.kind === 'lines') {
       const ta = host.createEl('textarea', { cls: 'wm-mmd-lines ' + cls });
       ta.value = store[f.key] || '';
@@ -986,6 +990,11 @@ export class MermaidModal extends Modal {
     input.setAttribute('aria-label', t(field.label));
     let done = false;
     this.cancelInline = () => { done = true; };
+    // 在圖上改名：同一類的名稱一起改。「定義」的名稱（參與者、類別、實體）改成空的或跟別人同名時不算數，維持原本的名稱
+    const rename = (value: string): void => {
+      setValue(d.kind, d.model, slot, value, true);
+      if (row && field.kind === 'text' && field.def) restoreName(field, row);
+    };
     // go：套用之後跳到下一段（1）或上一段（-1）文字繼續改；0 是只套用
     const commit = (go = 0) => {
       if (done) return;
@@ -995,7 +1004,7 @@ export class MermaidModal extends Modal {
       this.closeInline();
       const same = value === (multiline ? current : current.trim());
       // 在圖上改名：同一類的名稱（參與者、狀態、類別…）一起改
-      if (!same) { setValue(d.kind, d.model, slot, value, true); this.slots = null; }
+      if (!same) { rename(value); this.slots = null; }
       // 下一段文字：照表單的順序（這段文字被清空時，從它原本的位置接著算）
       let next: TextSlot | null = null;
       const after = go ? this.getSlots() : [];
@@ -1014,7 +1023,7 @@ export class MermaidModal extends Modal {
     const keepTyped = (): void => {
       const value = multiline ? readLines(input.value) : input.value.trim();
       if (value === (multiline ? current : current.trim())) return;
-      setValue(d.kind, d.model, slot, value, true);
+      rename(value);
       this.slots = null;
     };
     const button = (name: string, label: string, run: () => void, cls = ''): void => {
@@ -1047,6 +1056,8 @@ export class MermaidModal extends Modal {
       }
     }
     input.addEventListener('keydown', e => {
+      // 輸入法還在選字：這時的 Enter 是確定選字，不是寫回圖上
+      if (e.isComposing) return;
       if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); commit(); }
       else if (e.key === 'Tab') { e.preventDefault(); e.stopPropagation(); commit(e.shiftKey ? -1 : 1); }
     });

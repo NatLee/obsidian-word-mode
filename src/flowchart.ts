@@ -3,7 +3,8 @@
 import type { I18nKey } from './i18n.js';
 
 export interface FlowNode { id: string; text: string | null; shape: string | null; }
-export interface FlowEdge { from: string; to: string; text: string; style: string; }
+// len：連線加長了幾級（--> 是 0、---> 是 1、----> 是 2；Mermaid 用它決定兩個節點隔幾層）
+export interface FlowEdge { from: string; to: string; text: string; style: string; len?: number; }
 // 解析成功的結果；也是表單編輯與 generateFlowchart 使用的資料
 export interface FlowModel { ok: true; keyword: string; dir: string; nodes: FlowNode[]; edges: FlowEdge[]; extra: string[]; }
 export interface FlowFailure { ok: false; reason: FlowReason; }
@@ -13,7 +14,7 @@ export interface FlowSource { keyword?: string; dir?: string; nodes: FlowNode[];
 // 解析不出來的原因；給使用者看的說明在 diagrams.ts 的 DIAGRAM_REASONS（notFlowchart 在那裡算成 unknownKind）
 export type FlowReason = 'notFlowchart' | 'subgraph' | 'linkStyle' | 'multi' | 'syntax';
 interface ReadNode extends FlowNode { rest: string; }
-interface ReadLink { style: string; text: string; rest: string; }
+interface ReadLink { style: string; text: string; rest: string; len: number; }
 
 export const DIRECTIONS: [string, I18nKey][] = [['TD', '由上到下'], ['LR', '由左到右'], ['BT', '由下到上'], ['RL', '由右到左']];
 
@@ -67,27 +68,48 @@ function readNode(s: string): ReadNode | null {
       else if (!inQuote && rest.startsWith(close, i)) break;
     }
     if (i >= rest.length) return null;
-    const text = unquote(rest.slice(open.length, i));
+    const inner = rest.slice(open.length, i);
+    // A[\文字/]、A[\文字\]：梯形與反向的平行四邊形，表單沒有這些形狀。當成方形的話，
+    // 斜線會變成文字的一部分，寫回去是 A["\文字/"]（一個方形，文字裡有斜線）
+    if (shape === 'rect' && inner.startsWith('\\')) return null;
+    const text = unquote(inner);
     return { id, text, shape, rest: rest.slice(i + close.length) };
   }
   if (/^[[({>]/.test(rest)) return null; // 不認得的形狀
   return { id, text: null, shape: null, rest };
 }
 
-// 從字串開頭讀一條連線：-->、-->|文字|、-- 文字 -->、-.->、==>、<-->…；回傳 { style, text, rest } 或 null
+// 各種連線最短的寫法裡，會隨長度增加的那個符號（- . =）有幾個：多出來的就是加長的級數
+const LINK_BASE: Record<string, number> = { arrow: 2, line: 3, dotted: 1, thick: 2, both: 2 };
+// 連線的寫法：len 是加長的級數（-->、--->、---->；-.->、-..->；==>、===>）
+function linkCode(style: string, len = 0): string {
+  const n = Math.max(0, Math.floor(len) || 0);
+  if (style === 'line') return '---' + '-'.repeat(n);
+  if (style === 'dotted') return '-.' + '.'.repeat(n) + '->';
+  if (style === 'thick') return '==' + '='.repeat(n) + '>';
+  if (style === 'both') return '<--' + '-'.repeat(n) + '>';
+  return '--' + '-'.repeat(n) + '>';
+}
+
+// 從字串開頭讀一條連線：-->、-->|文字|、-- 文字 -->、-.->、==>、<-->…；回傳 { style, text, rest, len } 或 null。
+// 每個樣式的比對裡，第一組括號是「會隨長度增加的符號」（寫在線中間的文字是第一組，符號是第二組）
 function readLink(s: string): ReadLink | null {
   let m: RegExpExecArray | null;
   const label = (rest: string): { text: string; rest: string } => { const lm = /^\|([^|]*)\|/.exec(rest); return lm ? { text: unquote(lm[1]), rest: rest.slice(lm[0].length) } : { text: '', rest }; };
-  if ((m = /^<-{2,}>/.exec(s))) { const l = label(s.slice(m[0].length)); return { style: 'both', text: l.text, rest: l.rest }; }
-  if ((m = /^-{2,}>/.exec(s))) { const l = label(s.slice(m[0].length)); return { style: 'arrow', text: l.text, rest: l.rest }; }
-  if ((m = /^-{3,}(?![->])/.exec(s))) { const l = label(s.slice(m[0].length)); return { style: 'line', text: l.text, rest: l.rest }; }
-  if ((m = /^-\.+->/.exec(s))) { const l = label(s.slice(m[0].length)); return { style: 'dotted', text: l.text, rest: l.rest }; }
-  if ((m = /^={2,}>/.exec(s))) { const l = label(s.slice(m[0].length)); return { style: 'thick', text: l.text, rest: l.rest }; }
+  // 符號後面可以接 |文字|
+  const plain = (style: string): ReadLink => { const l = label(s.slice(m![0].length)); return { style, text: l.text, rest: l.rest, len: m![1].length - LINK_BASE[style] }; };
+  // 文字寫在中間
+  const inline = (style: string): ReadLink => ({ style, text: unquote(m![1]), rest: s.slice(m![0].length), len: m![2].length - LINK_BASE[style] });
+  if ((m = /^<(-{2,})>/.exec(s))) return plain('both');
+  if ((m = /^(-{2,})>/.exec(s))) return plain('arrow');
+  if ((m = /^(-{3,})(?![->])/.exec(s))) return plain('line');
+  if ((m = /^-(\.+)->/.exec(s))) return plain('dotted');
+  if ((m = /^(={2,})>/.exec(s))) return plain('thick');
   // 文字寫在中間：A -- 文字 --> B、A -. 文字 .-> B、A == 文字 ==> B、A -- 文字 --- B
-  if ((m = /^--\s+([^-|>][^|>]*?)\s+-{2,}>/.exec(s))) return { style: 'arrow', text: unquote(m[1]), rest: s.slice(m[0].length) };
-  if ((m = /^--\s+([^-|>][^|>]*?)\s+-{3,}(?![->])/.exec(s))) return { style: 'line', text: unquote(m[1]), rest: s.slice(m[0].length) };
-  if ((m = /^-\.\s+([^|>]*?)\s+\.+->/.exec(s))) return { style: 'dotted', text: unquote(m[1]), rest: s.slice(m[0].length) };
-  if ((m = /^==\s+([^=|>][^|>]*?)\s+={2,}>/.exec(s))) return { style: 'thick', text: unquote(m[1]), rest: s.slice(m[0].length) };
+  if ((m = /^--\s+([^-|>][^|>]*?)\s+(-{2,})>/.exec(s))) return inline('arrow');
+  if ((m = /^--\s+([^-|>][^|>]*?)\s+(-{3,})(?![->])/.exec(s))) return inline('line');
+  if ((m = /^-\.\s+([^|>]*?)\s+(\.+)->/.exec(s))) return inline('dotted');
+  if ((m = /^==\s+([^=|>][^|>]*?)\s+(={2,})>/.exec(s))) return inline('thick');
   return null;
 }
 
@@ -128,7 +150,7 @@ export function parseFlowchart(src: string): FlowResult {
       node = readNode(link.rest.trim());
       if (!node) return fail('syntax');
       const next = touch(node);
-      model.edges.push({ from: prev.id, to: next.id, text: link.text || '', style: link.style });
+      model.edges.push({ from: prev.id, to: next.id, text: link.text || '', style: link.style, len: link.len });
       prev = next;
       s = node.rest.trim();
       if (/^:::/.test(s)) return fail('syntax');
@@ -146,7 +168,7 @@ export function generateFlowchart(model: FlowSource): string {
   }
   for (const e of model.edges) {
     const link = LINKS.find(x => x[0] === e.style) || LINKS[0];
-    out.push('    ' + e.from + ' ' + link[2] + (e.text ? '|' + quote(e.text) + '|' : '') + ' ' + e.to);
+    out.push('    ' + e.from + ' ' + linkCode(link[0], e.len) + (e.text ? '|' + quote(e.text) + '|' : '') + ' ' + e.to);
   }
   for (const x of model.extra || []) out.push('    ' + x);
   return out.join('\n');
