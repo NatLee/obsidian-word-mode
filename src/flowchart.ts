@@ -67,7 +67,11 @@ function readNode(s: string): ReadNode | null {
       else if (!inQuote && rest.startsWith(close, i)) break;
     }
     if (i >= rest.length) return null;
-    const text = unquote(rest.slice(open.length, i));
+    const inner = rest.slice(open.length, i);
+    // A[\文字/]、A[\文字\]：梯形與反向的平行四邊形，表單沒有這些形狀。當成方形的話，
+    // 斜線會變成文字的一部分，寫回去是 A["\文字/"]（一個方形，文字裡有斜線）
+    if (shape === 'rect' && inner.startsWith('\\')) return null;
+    const text = unquote(inner);
     return { id, text, shape, rest: rest.slice(i + close.length) };
   }
   if (/^[[({>]/.test(rest)) return null; // 不認得的形狀
