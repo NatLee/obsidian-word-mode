@@ -3,6 +3,7 @@ import { el } from './dom.js';
 import { t } from './i18n.js';
 import { HIGHLIGHT_COLORS } from './commands.js';
 import type { HighlightColor } from './commands.js';
+import type { IconFn } from './icons.js';
 import type { I18nKey } from './i18n.js';
 
 // 「字元網底」的灰色（醒目提示的一種，有自己的按鈕）
@@ -19,7 +20,7 @@ export interface ColorPanelOptions {
   // 最近使用的自訂色彩（最新的在前）
   recent: readonly string[];
   // 在 el 裡放圖示
-  icon: (el: HTMLElement, name: string, fallback: string) => void;
+  icon: IconFn;
   // 讓按鈕不搶走編輯區的焦點
   keepFocus: (b: HTMLElement) => void;
   // 選了色彩。醒目提示的預設黃色是 null；custom 表示是使用者自己調的色彩（要記進「最近使用」）

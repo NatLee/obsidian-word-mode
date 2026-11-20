@@ -8,6 +8,8 @@ import { EditorView } from 'prosemirror-view';
 import { loadPrism } from 'obsidian';
 import { TextSelection, NodeSelection } from 'prosemirror-state';
 import { linkContext, isExternal, isUrl } from './links.js';
+import { iconOr } from './icons.js';
+import type { IconFn } from './icons.js';
 import { bubblePlugin } from './bubble.js';
 import { parseWidth, imageAttrsWithWidth } from './nodeviews.js';
 import { findPlugin, FindBar } from './find.js';
@@ -215,10 +217,9 @@ export class WordModeView extends TextFileView {
     this.scroller = this.contentEl.createDiv('wm-scroller');
     this.page = this.scroller.createDiv('wm-page');
     this.buildToolbar();
-    const icon = (el: HTMLElement, name: string, fallback: string) => { setIcon(el, name); if (!el.querySelector('svg') && fallback) el.setText(fallback); };
-    this.findBar = new FindBar(this.findHost, { getView: () => this.pm, icon, onChange: () => this.toolbar && this.toolbar.refresh() });
+    this.findBar = new FindBar(this.findHost, { getView: () => this.pm, icon: iconOr, onChange: () => this.toolbar && this.toolbar.refresh() });
     this.bubble = bubblePlugin(this.bubbleContext());
-    this.fold = foldPlugin({ icon });
+    this.fold = foldPlugin({ icon: iconOr });
     Promise.resolve(loadPrism()).then((P: PrismLike) => {
       this.prism = P;
       if (this.pm) this.pm.dispatch(this.pm.state.tr.setMeta(codeKey, true));
@@ -280,7 +281,7 @@ export class WordModeView extends TextFileView {
     this.contentEl.toggleClass('wm-toolbar-bottom', pos === 'bottom' || (pos === 'auto' && !!Platform.isPhone));
     this.toolbar = new Toolbar(this.toolbarHost, {
       getView: () => this.pm,
-      icon: (el, name, fallback) => { setIcon(el, name); if (!el.querySelector('svg')) el.setText(fallback); },
+      icon: iconOr,
       isMobile: !!Platform.isMobile,
       settings: S,
       initialTab: this.plugin.lastTab || 'home',
@@ -468,9 +469,9 @@ export class WordModeView extends TextFileView {
     return pin;
   }
 
-  pinOptions(): { icon: (el: HTMLElement, name: string, fallback: string) => void; typeHint: (k: string) => string | null } {
+  pinOptions(): { icon: IconFn; typeHint: (k: string) => string | null } {
     return {
-      icon: (el, name, fallback) => { setIcon(el, name); if (!el.querySelector('svg') && fallback) el.setText(fallback); },
+      icon: iconOr,
       typeHint: k => propertyWidget(this.app, k),
     };
   }
@@ -550,7 +551,7 @@ export class WordModeView extends TextFileView {
   editorPlugins(): Plugin[] {
     if (!this.marks) this.marks = marksPlugin({ on: !!this.plugin.settings.showMarks, always: this.plugin.settings.highlightWeird !== false });
     if (!this.code) this.code = codePlugin(() => this.prism);
-    if (!this.suggest) this.suggest = suggestPlugin(suggestContext(this, (el, name, fallback) => { setIcon(el, name); if (!el.querySelector('svg') && fallback) el.setText(fallback); }));
+    if (!this.suggest) this.suggest = suggestPlugin(suggestContext(this, iconOr));
     return [this.suggest, this.bubble, findPlugin, this.fold, this.marks, this.code, codeActivePlugin];
   }
 
@@ -698,7 +699,7 @@ export class WordModeView extends TextFileView {
   peekProperties(btn: HTMLElement): void {
     if (!this.pm) return;
     openPropsPeek(btn, this.propsPeekData(), {
-      icon: (el, name, fallback) => { setIcon(el, name); if (!el.querySelector('svg') && fallback) el.setText(fallback); },
+      icon: iconOr,
       typeHint: k => propertyWidget(this.app, k),
       go: () => this.openProperties(),
       isMobile: !!Platform.isMobile,
@@ -1070,7 +1071,7 @@ export class WordModeView extends TextFileView {
 
   nodeViewContext(): NodeViewContext {
     return {
-      icon: (el, name, fallback) => { setIcon(el, name); if (!el.querySelector('svg') && fallback) el.setText(fallback); },
+      icon: iconOr,
       openLink: (tv, n) => this.openLink(tv, n),
       isResolved: tv => !!this.resolveFile(tv),
       resolveImage: a => {
@@ -1724,7 +1725,7 @@ export class WordModeView extends TextFileView {
   bubbleContext(): BubbleContext {
     return {
       host: this.page,
-      icon: (el, name, fallback) => { setIcon(el, name); if (!el.querySelector('svg') && fallback) el.setText(fallback); },
+      icon: iconOr,
       describe: (tv, wiki) => this.describe(tv, wiki),
       open: (info, newTab) => this.openLink(info.kind === 'wikilink' ? (info.node.attrs as WikilinkAttrs).target : info.href!, newTab),
       edit: info => this.openLinkDialog(info),

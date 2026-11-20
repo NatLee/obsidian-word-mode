@@ -7,6 +7,7 @@ import { attachHint, hideHint } from './hints.js';
 import type { DemoName } from './hints.js';
 import { CODE_LANGUAGES } from './commands.js';
 import { el } from './dom.js';
+import { iconOr } from './icons.js';
 import { frontmatterOf, peekData } from './props.js';
 import { openPropsPeek, closePropsPeek, propertyWidget } from './propview.js';
 import { TABS, TAB_ICONS, tabName, fillTab, groupLayout } from './toolbar.js';
@@ -160,7 +161,6 @@ export class MarkdownBar {
     const S = this.plugin.settings;
     const tabs = this.layout === 'tabs';
     const menuTabs = tabs && this.tabStyle === 'menu';
-    const icon = (target: HTMLElement, name: string, fallback: string) => { setIcon(target, name); if (!target.querySelector('svg') && fallback) target.setText(fallback); };
     const tabsEl = el('div', 'wm-tabs', this.dom);
     const bar = el('div', 'wm-toolbar', this.dom);
     bar.setAttribute('role', 'toolbar');
@@ -170,7 +170,7 @@ export class MarkdownBar {
         const sw = el('button', 'wm-tab-switch', bar);
         sw.type = 'button';
         el('span', 'wm-tab-switch-label', sw);
-        icon(el('span', 'wm-tab-switch-arrow', sw), 'chevron-down', '▾');
+        iconOr(el('span', 'wm-tab-switch-arrow', sw), 'chevron-down', '▾');
         sw.addEventListener('mousedown', e => e.preventDefault());
         sw.addEventListener('click', () => this.menu(sw, TABS.filter(([id]) => this.tabNames[id] != null)
           .map(([id]) => ({ title: this.tabNames[id]!, icon: TAB_ICONS[id], run: () => this.showTab(id) }))));
@@ -184,7 +184,7 @@ export class MarkdownBar {
         if (menuTabs) continue;
         const b = el('button', 'wm-tab', tabsEl);
         b.type = 'button';
-        fillTab(b, id, name, this.tabStyle, icon);
+        fillTab(b, id, name, this.tabStyle, iconOr);
         b.addEventListener('mousedown', e => e.preventDefault());
         b.addEventListener('click', () => this.showTab(id));
         this.tabBtns[id] = b;
@@ -389,7 +389,7 @@ export function openMarkdownPeek(plugin: WordModePlugin, view: MarkdownView, btn
   const go = data.kind !== 'none' ? () => { try { view.currentMode.applyScroll(0); } catch { /* 沒有捲動的方法 */ } }
     : reading ? null : () => addMarkdownProperty(plugin, view);
   openPropsPeek(btn, data, {
-    icon: (target, name, fallback) => { setIcon(target, name); if (!target.querySelector('svg') && fallback) target.setText(fallback); },
+    icon: iconOr,
     typeHint: k => propertyWidget(plugin.app, k), go, isMobile: !!Platform.isMobile,
   });
 }

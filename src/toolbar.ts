@@ -11,6 +11,7 @@ import { el, keepFocus } from './dom.js';
 import { closePropsPeek } from './propview.js';
 import { buildColorPanel, SHADING } from './colorpicker.js';
 import type { ColorKind } from './colorpicker.js';
+import type { IconFn } from './icons.js';
 import type { Command, EditorState } from 'prosemirror-state';
 import type { EditorView } from 'prosemirror-view';
 import type { Mark, MarkType } from 'prosemirror-model';
@@ -46,7 +47,7 @@ export interface ToolbarContext {
   // 目前的編輯器；還沒載入筆記時是 null
   getView(): EditorView | null;
   // 在 el 裡放 Obsidian 圖示；找不到圖示時改顯示 fallback 文字
-  icon: (el: HTMLElement, name: string, fallback: string) => void;
+  icon: IconFn;
   isMobile: boolean;
   // 外掛設定（只列出功能區會讀的欄位）
   settings?: {

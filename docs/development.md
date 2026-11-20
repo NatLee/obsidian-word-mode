@@ -137,7 +137,7 @@ All styles are in `styles/word-mode.css`, and every class starts with `wm-`. The
 | `src/mermaid.ts`, `src/diagrams.ts`, `src/flowchart.ts` | Diagram editor, the description of each diagram kind (parser, generator, and form fields) that drives its form and on-diagram editing, and the flowchart parser. |
 | `src/embeds.ts` | Embedded notes, media, and PDFs. |
 | `src/footnotes.ts` | Footnote commands. |
-| `src/decoutil.ts`, `src/dom.ts`, `src/textstats.ts` | Shared helpers. |
+| `src/decoutil.ts`, `src/dom.ts`, `src/icons.ts`, `src/textstats.ts` | Shared helpers. |
 | `src/hints.ts` | Detailed button tooltips. |
 | `src/i18n.ts`, `src/i18n-*.ts` | Translations, keyed by the Traditional Chinese text. |
 | `src/obsidian-internal.d.ts` | Declarations for the Obsidian APIs the plugin uses that aren't public. |
