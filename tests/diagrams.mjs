@@ -1,6 +1,19 @@
 // 圖表 ⇄ 表單資料：九種圖表的解析、產生、不支援的寫法、圖上的文字對應到欄位（表單介面的操作測試在 tests/view/features.mjs）
-import { DIAGRAM_KINDS, editableDiagram, detectKind, textSlots, findSlot, setValue, sameModel, parseDiagram, generateDiagram, NODE_FILLS } from '../src/diagrams.js';
+import { DIAGRAM_KINDS, editableDiagram, detectKind, textSlots, findSlot, setValue, sameModel, parseDiagram, generateDiagram, lostContent, NODE_FILLS } from '../src/diagrams.js';
 import { MERMAID_TEMPLATES } from '../src/flowchart.js';
+// 各語言的翻譯（範本也會翻譯）：直接匯入字典，不經過 i18n.ts（它依賴 Obsidian）
+import EN from '../src/i18n-en.js';
+import JA from '../src/i18n-ja.js';
+import KO from '../src/i18n-ko.js';
+import NAN from '../src/i18n-nan.js';
+import YUE from '../src/i18n-yue.js';
+import ZH_CN from '../src/i18n-zh-cn.js';
+import VI from '../src/i18n-vi.js';
+import FR from '../src/i18n-fr.js';
+import DE from '../src/i18n-de.js';
+import ES from '../src/i18n-es.js';
+import AR from '../src/i18n-ar.js';
+import HE from '../src/i18n-he.js';
 
 let fails = 0;
 const ok = (label, cond, extra = '') => { if (!cond) { fails++; console.log('FAIL ' + label + '  ' + extra); } else console.log('PASS ' + label); };
@@ -239,6 +252,72 @@ ok('不認得的圖表種類', editableDiagram('gitGraph\n    commit').reason ==
   ok('象限圖：寫回程式碼（名稱加引號、超出範圍的位置改成 0.5）', out === 'quadrantChart\n    title 優先順序\n    x-axis "不急" --> "很急"\n    y-axis "Low" --> "High"\n    quadrant-1 "馬上做"\n    quadrant-3 "Later"\n    "寫報告": [0.8, 0.9]\n    "Inbox": [0.5, 0.2]', out);
   ok('象限圖：圖上的象限名稱對應到設定', findSlot(textSlots(r.kind, m), '馬上做').field.key === 'q1');
   ok('象限圖：點的樣式不能用表單', editableDiagram('quadrantChart\n    A: [0.1, 0.2] radius: 12').ok === false);
+}
+
+// ---- 寫回去的程式碼不能比原本少東西（editableDiagram 的第二道檢查）
+// 「讀進來 → 寫出去 → 再讀一次」資料相同，看不出第一次讀的時候就丟掉的東西；所以另外拿原始碼跟寫出去的程式碼比
+{
+  // 少了東西：列出少掉的片段
+  for (const [name, src, out, lost] of [
+    ['連線變短', 'flowchart TD\n  A ---> B', 'flowchart TD\n    A[A]\n    B[B]\n    A --> B', '--->'],
+    ['虛線變短', 'flowchart TD\n  A -..-> B', 'flowchart TD\n    A[A]\n    B[B]\n    A -.-> B', '-..->'],
+    ['文字不見', 'sequenceDiagram\n  A->>B: 你好 world', 'sequenceDiagram\n    participant A\n    participant B\n    A->>B: 你好', 'world'],
+    ['數字不見', 'pie\n  "甲" : 45', 'pie\n    "甲" : 4', '45'],
+    ['關係的符號變了', 'classDiagram\n  A <|-- B', 'classDiagram\n    class A\n    class B\n    A <-- B', '<|--'],
+    ['關鍵字不見', 'sequenceDiagram\n  autonumber\n  A->>B: hi', 'sequenceDiagram\n    participant A\n    participant B\n    A->>B: hi', 'autonumber'],
+  ]) ok('少了東西：' + name, lostContent(src, out).join() === lost, JSON.stringify(lostContent(src, out)));
+  // 表單本來就會做的重排不算少：縮排、空白、引號、節點與連線分開寫、補上宣告、同一個方向的兩種寫法
+  for (const [name, src, out] of [
+    ['節點與連線分開寫', 'flowchart TD\n  A[開始]-->B{判斷};', 'flowchart TD\n    A[開始]\n    B{判斷}\n    A --> B'],
+    ['線上文字的另一種寫法', 'flowchart TD\n  A -- 否 --> B\n  A -. 也許 .-> B\n  A == 好 ==> B', 'flowchart TD\n    A[A]\n    B[B]\n    A -->|否| B\n    A -.->|也許| B\n    A ==>|好| B'],
+    ['不需要的引號', 'flowchart TD\n  A["開始"] --> B', 'flowchart TD\n    A[開始]\n    B[B]\n    A --> B'],
+    ['TB 與 TD', 'graph TB\n  A --> B', 'graph TD\n    A[A]\n    B[B]\n    A --> B'],
+    ['<br/> 與 <br>', 'flowchart TD\n  A["一<br/>二"]', 'flowchart TD\n    A["一<br>二"]'],
+    ['同一個節點寫兩次', 'flowchart TD\n  A[開始] --> B[處理]\n  B[處理] --> C', 'flowchart TD\n    A[開始]\n    B[處理]\n    C[C]\n    A --> B\n    B --> C'],
+    ['冒號前後的空白', 'pie\n  "甲？":45', 'pie\n    "甲？" : 45'],
+    ['備註的大小寫、箭頭旁的空白', 'sequenceDiagram\n  note over A,B: 好\n  A --x B: 不', 'sequenceDiagram\n    participant A\n    participant B\n    Note over A,B: 好\n    A--xB: 不'],
+    ['成員寫在冒號後面', 'classDiagram\n  狗:+叫()', 'classDiagram\n    class 狗 {\n        +叫()\n    }'],
+  ]) ok('不算少：' + name, !lostContent(src, out).length, JSON.stringify(lostContent(src, out)));
+
+  // 表單只會留下一部分的寫法：以前照樣開表單，一改就少東西
+  for (const [name, src] of [
+    ['甘特圖：底下沒有工作的 section', 'gantt\n    section 規劃\n    需求 :a1, 2026-01-05, 5d\n    section 之後再排'],
+    ['流程圖：同一個節點前後寫了兩種文字', 'flowchart TD\n    A[草稿] --> B[結束]\n    A[定稿] --> B'],
+    ['旅程圖：底下沒有步驟的 section', 'journey\n    section 上午\n      泡茶: 5: 我\n    section 下午'],
+  ]) { const r = editableDiagram(src); ok('會少東西就不開表單：' + name, !r.ok && r.reason === 'roundtrip', r.ok ? r.kind.generate(r.model) : r.reason); }
+
+  // 不能誤擋：每一種語言的每一個範本都要能開表單
+  const DICTS = { en: EN, ja: JA, ko: KO, nan: NAN, yue: YUE, 'zh-cn': ZH_CN, vi: VI, fr: FR, de: DE, es: ES, ar: AR, he: HE };
+  const blocked = [];
+  for (const [lang, dict] of Object.entries(DICTS)) for (const k of DIAGRAM_KINDS) {
+    const r = editableDiagram(dict[k.template] || '');
+    if (!r.ok || r.kind !== k) blocked.push(lang + ' ' + k.id + '（' + (r.ok ? '種類不對' : r.reason) + '）');
+  }
+  ok('十二種語言的範本都能用表單編輯', !blocked.length, blocked.join('、'));
+  // 常見的寫法（Mermaid 文件裡的例子）也都要能開
+  for (const src of [
+    'flowchart LR\n    A-->B\n    A---C\n    A-- text ---D\n    A---|This is the text|E\n    A-->|text|F\n    A-- text -->G\n    A-.->H\n    A-. text .-> I\n    A ==> J\n    A == text ==> K',
+    'graph TD;\n    A[Christmas] -->|Get money| B(Go shopping);\n    B --> C{Let me think};\n    C -->|One| D[Laptop];\n    C -->|Two| E["A dec char:#9829; (#quot;quoted#quot;)"];',
+    '%%{init: {\'theme\': \'forest\'}}%%\n%% 註解\nflowchart TB\n    Start --> Stop\n    style Start fill:#F9F,stroke:#333,stroke-width:4px\n    click Stop "https://example.com/a?b=1&c=2"',
+    'sequenceDiagram\n    participant A as Alice\n    actor J as John\n    A->>J: Hello John, how are you?\n    J-->>A: Great!\n    A-)J: See you later!\n    J--xA: no\n    A -x J : bye\n    Note right of J: Text in note\n    note over A,J: A typical interaction<br/>But now in two lines',
+    'gantt\n    title A Gantt Diagram\n    dateFormat  YYYY-MM-DD HH:mm\n    axisFormat %m/%d\n    excludes weekends\n    section Section\n        A task          :a1, 2014-01-01 10:00, 30d\n        Another task    :crit, active, after a1, 20d\n    section Another\n        Task in Another :done, 2014-01-12, 12d\n        another task    :24d',
+    'pie showData\n    title Key elements in Product X\n    "Calcium" : 42.96\n    "Iron" :  5',
+    'stateDiagram\n    direction TD\n    [*]-->Still\n    Still-->[*]\n    Still-->Moving:go!\n    s2 : This is a state description\n    state "Another: description" as s3\n    s2 --> s3: A transition',
+    'classDiagram-v2\n    direction TD\n    Animal <|-- Duck\n    Customer "1" --> "1..*" Ticket : buys\n    Animal : +int age\n    Animal: +isMammal()\n    Animal:+mate()\n    class Duck{\n        +String beakColor\n        +swim()\n    }\n    class Square~Shape~{\n        List~int~ position\n        getPoints() List~int~\n    }\n    classE o-- classF\n    classM <|.. classN',
+    'mindmap\n    id[I am a square]\n      id2(I am a rounded square)\n      id3((I am a circle))\n      id4))I am a bang((\n      id5)I am a cloud(\n      id6{{I am a hexagon}}\n      I am the default shape\n        On effectiveness<br/>and features',
+    'timeline\n    title Timeline of Industrial Revolution\n    section 17th-20th century\n        Industry 1.0 : Machinery, Water power, Steam <br>power\n        2004 : Facebook\n             : Google\n    section 21st century\n        Industry 4.0 : Internet, Robotics',
+    'erDiagram\n    CUSTOMER ||--o{ ORDER : places\n    ORDER ||--|{ LINE-ITEM : contains\n    CUSTOMER }|..|{ DELIVERY-ADDRESS : uses\n    A |o--o| B : "zero or one"\n    PERSON {\n        string firstName\n        int age "years, >= 18"\n    }\n    ALONE',
+    'journey\n    title My working day\n    section Go to work\n      Make tea: 5: Me\n      Do work: 1: Me,Cat\n    section Go home\n      Sit down: 5',
+    'quadrantChart\n    title Reach and engagement of campaigns\n    x-axis Low Reach --> High Reach\n    y-axis Low Engagement --> High Engagement\n    quadrant-1 We should expand\n    quadrant-4 May be improved\n    Campaign A: [0.3, 0.6]\n    Campaign E: [0.40, 1.0]\n    "Campaign F": [.35, 0.78]',
+  ]) { const r = editableDiagram(src); ok('常見的寫法能開表單：' + src.split('\n').find(l => !l.startsWith('%%')), r.ok, r.ok ? '' : r.reason + ' ' + JSON.stringify(lostContent(src, generateDiagram(r.kind, parseDiagram(r.kind, src))))); }
+
+  // 為了不少東西而跟著原本寫法的三個地方
+  const st = edit('stateDiagram-v2\n    state "處理中的訂單" as s1\n    s2 : 完成\n    s1 --> s2');
+  ok('狀態圖：state "說明" as 名稱 照同樣的寫法寫回去', st.kind.generate(st.model) === 'stateDiagram-v2\n    state "處理中的訂單" as s1\n    s2 : 完成\n    s1 --> s2' && st.model.lists.states[0].text === '處理中的訂單', st.kind.generate(st.model));
+  const cv = edit('classDiagram-v2\n    A <|-- B');
+  ok('類別圖：classDiagram-v2 照樣寫回去', cv.kind.generate(cv.model).startsWith('classDiagram-v2\n') && edit('classDiagram\n    A <|-- B').kind.generate(edit('classDiagram\n    A <|-- B').model).startsWith('classDiagram\n'), cv.kind.generate(cv.model));
+  const qd = edit('quadrantChart\n    "甲": [0.50, 1.0]');
+  ok('象限圖：位置照原本的寫法（0.50、1.0）', qd.kind.generate(qd.model) === 'quadrantChart\n    "甲": [0.50, 1.0]', qd.kind.generate(qd.model));
 }
 
 console.log(fails ? '\n' + fails + ' 個測試失敗' : '\nALL PASS');

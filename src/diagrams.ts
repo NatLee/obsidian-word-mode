@@ -447,7 +447,8 @@ const state: DiagramKind = {
       // 寫回去是「A : ::warn --> B」，轉換就不見了
       if (/:::/.test(text)) return 'blocks';
       if ((x = new RegExp('^' + STATE + '\\s*-->\\s*' + STATE + '(?:\\s*:\\s*(.*))?$').exec(text))) { moves.push({ from: x[1], to: x[2], text: x[3] || '' }); continue; }
-      if ((x = /^state\s+"([^"]*)"\s+as\s+(\S+)$/.exec(text))) { states.push({ name: x[2], text: x[1] }); continue; }
+      // 說明的另一種寫法（state "說明" as 名稱）：記在這一列的 as，寫回去時用同一種寫法
+      if ((x = /^state\s+"([^"]*)"\s+as\s+([^\s:]+)$/.exec(text))) { states.push({ name: x[2], text: x[1], as: '1' }); continue; }
       if (/^(?:(?:state|note|end note|classDef|class|style|accTitle|accDescr)(?:\s|$)|\}|--$)/.test(text) || /<<|\{$/.test(text)) return 'blocks';
       if ((x = /^([^\s:]+)\s*:\s*(.+)$/.exec(text))) { states.push({ name: x[1], text: x[2] }); continue; }
       return 'syntax';
@@ -458,7 +459,10 @@ const state: DiagramKind = {
   generate(m) {
     const out: string[] = [];
     if (m.opts.dir) out.push(INDENT + 'direction ' + m.opts.dir);
-    for (const r of m.lists.states) if (one(r.name) && one(r.text)) out.push(INDENT + one(r.name) + ' : ' + one(r.text));
+    for (const r of m.lists.states) {
+      if (!one(r.name) || !one(r.text)) continue;
+      out.push(INDENT + (r.as ? 'state "' + one(r.text).replace(/"/g, '\'') + '" as ' + one(r.name) : one(r.name) + ' : ' + one(r.text)));
+    }
     for (const r of m.lists.moves) if (one(r.from) && one(r.to)) out.push(INDENT + one(r.from) + ' --> ' + one(r.to) + (one(r.text) ? ' : ' + one(r.text) : ''));
     return join(m, 'stateDiagram' + (m.opts.v2 ? '-v2' : ''), out);
   },
@@ -506,6 +510,8 @@ const classDiagram: DiagramKind = {
     if (!s) return 'unknownKind';
     const m = emptyModel();
     m.pre = s.pre;
+    // 舊的寫法 classDiagram-v2 照樣寫回去
+    m.opts.v2 = s.head[1] ? '1' : '';
     const classes: Row[] = []; const relations: Row[] = [];
     const cls = (name: string): Row => { ensure(classes, name, n => ({ name: n, members: '' })); return classes.find(r => r.name === name)!; };
     const member = (row: Row, line: string) => { row.members = row.members ? row.members + '\n' + line : line; };
@@ -550,7 +556,7 @@ const classDiagram: DiagramKind = {
       if (!one(r.a) || !one(r.b)) continue;
       out.push(INDENT + one(r.a).replace(/\s+/g, '_') + ' ' + q(r.ca) + r.type + ' ' + q(r.cb) + one(r.b).replace(/\s+/g, '_') + (one(r.text) ? ' : ' + one(r.text) : ''));
     }
-    return join(m, 'classDiagram', out);
+    return join(m, 'classDiagram' + (m.opts.v2 ? '-v2' : ''), out);
   },
   opts: [{ kind: 'select', key: 'dir', label: '方向', options: fixed([['', '預設（由上到下）'], ['TB', '由上到下'], ['LR', '由左到右'], ['BT', '由下到上'], ['RL', '由右到左']]) }],
   lists: [
@@ -870,7 +876,8 @@ const quoted = (v: string): string => '"' + one(v).replace(/"/g, '\'') + '"';
 const QUAD_TEXT = '("[^"]*"|[^"\\s][^"]*?)';
 const QUAD_AXIS = new RegExp('^([xy])-axis\\s+' + QUAD_TEXT + '(?:\\s*-->\\s*' + QUAD_TEXT + ')?$');
 const QUAD_POINT = new RegExp('^' + QUAD_TEXT + '\\s*:\\s*\\[\\s*(\\d*\\.?\\d+)\\s*,\\s*(\\d*\\.?\\d+)\\s*\\]$');
-const unit = (v: string): string => { const n = parseFloat(v); return String(n >= 0 && n <= 1 ? n : 0.5); };
+// 位置：0 到 1 的數字照使用者寫的樣子（0.50、1.0）寫回去，不合規定的改成 0.5
+const unit = (v: string): string => { const s = one(v); const n = parseFloat(s); return n >= 0 && n <= 1 ? (/^\d+(\.\d+)?$/.test(s) ? s : String(n)) : '0.5'; };
 const quadrant: DiagramKind = {
   id: 'quadrant', name: '象限圖', icon: 'layout-grid', head: /^quadrantChart\s*$/, template: template('象限圖'),
   parse(src) {
@@ -887,7 +894,7 @@ const quadrant: DiagramKind = {
       if ((x = /^quadrant-([1-4])\s+(.+)$/.exec(text))) { m.opts['q' + x[1]] = unquote(x[2]); continue; }
       if (/^(classDef|accTitle|accDescr)(\s|$)/.test(text)) return 'blocks';
       if (!(x = QUAD_POINT.exec(text))) return 'syntax';
-      points.push({ name: unquote(x[1]), x: String(parseFloat(x[2])), y: String(parseFloat(x[3])) });
+      points.push({ name: unquote(x[1]), x: unit(x[2]), y: unit(x[3]) });
     }
     m.lists.points = points;
     return m;
@@ -955,14 +962,47 @@ export type DiagramResult = { ok: true; kind: DiagramKind; model: DiagramModel }
 
 export const sameModel = (a: DiagramModel, b: DiagramModel): boolean => JSON.stringify([a.opts, a.lists, a.extra, a.pre]) === JSON.stringify([b.opts, b.lists, b.extra, b.pre]);
 
-// 這段程式碼能不能用表單編輯：認得種類、讀得出來，而且「寫回去再讀一次」內容不變（表示沒有遺漏任何東西）
+// 原始碼裡有、表單寫回去的程式碼裡卻沒有的內容（空陣列＝沒有少東西）。
+//
+// 為什麼需要：「讀進來 → 寫出去 → 再讀一次」的資料相同，只能證明寫出去的東西讀得回來；
+// 第一次讀的時候就丟掉的東西（連線的長度）它看不出來，因為兩次讀到的資料一樣少了那一塊。
+// 所以另外拿原始碼跟寫出去的程式碼直接比。
+//
+// 不能逐字比：表單寫回去時本來就會重排（縮排、空白、節點與連線分開寫、補上沒宣告的參與者、
+// 引號有需要才加、A -- 文字 --> B 改寫成 A -->|文字| B）。所以把兩邊的空白與引號都拿掉，只比
+// 「不管怎麼重排都應該還連在一起」的兩種片段，原始碼的每一段都要能在寫回去的程式碼裡找到：
+// 1. 字：連在一起的文字、數字、底線（不分大小寫）。名稱、說明、關鍵字、數值少了就找不到
+//    （例如底下沒有工作的 section、同一個節點前後寫了兩種文字，表單都只會留下一部分）。
+// 2. 符號：連在一起兩個以上的符號（-->、--->、-..->、<|--、||--o{ 的 ||--）。---> 被寫成 --> 就找不到。
+//    單獨一個符號不比（多半是分隔用的），括號、逗號、分號、冒號、引號也不比，它們只是把符號隔開
+//    （表單會調整冒號前後的空白、決定引號加不加，隔著它們的符號不算連在一起）。
+// 只看「找不找得到」，不算次數：同一個節點寫兩次（B[處理] 出現在兩行）寫回去只會有一次。
+// 表單固定會換掉的寫法先換成同一種再比：<br/> 與 <br>、TB 與 TD（同一個方向的兩種寫法）。
+//
+// 這個檢查抓不到「字都還在，但意思變了」的情況（A[\文字/] 寫成 A["\文字/"]）：那要靠各種圖表的 parse
+// 遇到看不懂的寫法就回報原因。它擋的是另一類：parse 以為自己看懂了，其實漏掉一部分。
+export function lostContent(src: string, out: string): string[] {
+  const clean = (code: string): string => code.replace(/\r\n?/g, '\n').replace(/<br\s*\/?>/gi, '<br>').replace(/["']/g, '').toLowerCase();
+  const pieces = (code: string): Set<string> => new Set(code.match(/[\p{L}\p{N}_]+|[^\p{L}\p{N}_\s()[\]{},;:]{2,}/gu) || []);
+  const a = clean(src); const b = clean(out);
+  const flat = b.replace(/\s+/g, '');
+  const written = pieces(b);
+  const other: Record<string, string> = { tb: 'td', td: 'tb' };
+  // 先查寫回去的程式碼裡有沒有一模一樣的片段（大部分都有，很長的圖表才不會每一段都掃過整份程式碼），
+  // 沒有再看是不是連在別的字或符號旁邊（A --x B 寫回去是 A--xB，x 跟 B 連在一起）
+  return [...pieces(a)].filter(p => !written.has(p) && !flat.includes(p) && !(other[p] && written.has(other[p])));
+}
+
+// 這段程式碼能不能用表單編輯：認得種類、讀得出來，「寫回去再讀一次」資料不變，而且寫回去的程式碼沒有比原本少東西
 export function editableDiagram(src: string): DiagramResult {
   const kind = detectKind(src);
   if (!kind) return { ok: false, kind: null, reason: 'unknownKind' };
   const model = parseDiagram(kind, src);
   if (typeof model === 'string') return { ok: false, kind, reason: model };
-  const again = parseDiagram(kind, generateDiagram(kind, model));
+  const out = generateDiagram(kind, model);
+  const again = parseDiagram(kind, out);
   if (typeof again === 'string' || !sameModel(model, again)) return { ok: false, kind, reason: 'roundtrip' };
+  if (lostContent(src, out).length) return { ok: false, kind, reason: 'roundtrip' };
   return { ok: true, kind, model };
 }
 
