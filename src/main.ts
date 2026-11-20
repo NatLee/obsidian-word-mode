@@ -175,7 +175,7 @@ export default class WordModePlugin extends Plugin {
     this.registerInterval(window.setInterval(() => {
       for (const b of this.mdBars.values()) b.update();
       // Markdown 的編輯／閱讀切換沒有事件：定時讓狀態列的按鈕跟上（Word 模式的狀態列自己會更新）
-      if (!this.app.workspace.getActiveViewOfType(WordModeView)) this.updateStatus(null);
+      if (!(this.statusDoc() instanceof WordModeView)) this.updateStatus(null);
     }, 700));
 
     this.addSettingTab(new WordModeSettings(this.app, this));
@@ -418,10 +418,24 @@ export default class WordModePlugin extends Plugin {
     this.zoomSave = window.setTimeout(() => { this.zoomSave = undefined; void this.saveSettings(); }, 400);
   }
 
+  // 狀態列要顯示哪一份筆記。平常是目前的分頁；焦點在側邊欄（檔案總管、大綱、搜尋結果）時，
+  // 是主編輯區最近用過的那個分頁。getActiveViewOfType() 只看「目前有焦點的分頁」，焦點一到側邊欄就回傳 null，
+  // 只靠它的話，點一下檔案總管，字數與存檔狀態就不見了
+  statusDoc(): WordModeView | MarkdownView | null {
+    const ws = this.app.workspace;
+    const active = ws.getActiveViewOfType(WordModeView) || ws.getActiveViewOfType(MarkdownView);
+    if (active) return active;
+    // 主編輯區（含獨立視窗）最近用過、而且看得到的分頁。它是圖片、關聯圖這類別的檢視時就沒有筆記可以顯示
+    const leaf = ws.getMostRecentLeaf();
+    const v = leaf ? leaf.view : null;
+    return v instanceof WordModeView || v instanceof MarkdownView ? v : null;
+  }
+
   updateStatus(view: WordModeView | null): void {
     const el = this.statusEl;
     if (!el) return;
-    const active = this.app.workspace.getActiveViewOfType(WordModeView);
+    const doc = this.statusDoc();
+    const active = doc instanceof WordModeView ? doc : null;
     if (view && view !== active) return;
     if (Platform.isMobile) { el.hide(); this.hideMdStatus(); return; }
     if (active && active.pm) {
@@ -436,7 +450,7 @@ export default class WordModePlugin extends Plugin {
       return;
     }
     // Markdown 編輯與閱讀模式：狀態列放跟 Word 模式一樣的內容（字數、存檔狀態、檢視切換、文件屬性、縮放）
-    const md = this.settings.mdStatusBar !== false ? this.app.workspace.getActiveViewOfType(MarkdownView) : null;
+    const md = this.settings.mdStatusBar !== false && doc instanceof MarkdownView ? doc : null;
     if (!md || !md.file || !/\.md$/i.test(md.file.path)) { this.hideMdStatus(); el.hide(); return; }
     const mode = md.getMode && md.getMode() === 'preview' ? 'preview' : 'source';
     const stamp = md.file.path + '|' + mode;
