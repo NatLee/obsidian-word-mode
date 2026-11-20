@@ -943,7 +943,26 @@ export class WordModeView extends TextFileView {
 
   // 原文行號 → 文件位置：找出包含該行的原文區塊
   lineToPos(line: number): number | null {
-    const segs = this.meta!.segments;
+    const doc = this.pm!.state.doc;
+    let segs = this.meta!.segments;
+    // meta 記的是載入當時每個區塊在第幾行。編輯之後（上面多一段、刪掉一段）檔案裡的行號就不一樣了，
+    // 照舊的行號會跳到別的區塊。改過的話，把現在會存出去的內容重新切一次：
+    // 切出來的最上層區塊跟目前文件的最上層區塊一一對應（順序相同），用順序對回目前的位置
+    if (this.changed) {
+      try {
+        const fresh = this.plugin.converter.parse(this.getViewData());
+        if (fresh.doc.childCount === doc.childCount) {
+          segs = fresh.meta.segments;
+          let at = -1;
+          for (let i = 0; i < segs.length; i++) if (segs[i].line != null && segs[i].line <= line) at = i;
+          if (at < 0) return 0;
+          let pos = 0; let hit: number | null = null;
+          fresh.doc.forEach((n, _offset, i) => { if (hit == null && n.attrs.bid === at) hit = pos; pos += doc.child(i).nodeSize; });
+          if (hit != null) return hit;
+        }
+      } catch (e) { console.error('[Word 模式] 找不到這一行對應的位置', e); }
+      segs = this.meta!.segments;
+    }
     let idx = -1;
     for (let i = 0; i < segs.length; i++) if (segs[i].line != null && segs[i].line <= line) idx = i;
     if (idx < 0) return 0;

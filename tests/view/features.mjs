@@ -768,6 +768,25 @@ await fresh('---\ntags:\n  - 會議\nrelated:\n  - [[其他筆記]]\n  - https:/
   assert(first.firstChild.type.name === 'table_header' && first.textContent === '甲乙丙', '標題列還是標題列');
 }
 
+// ======== 跳到指定的行（大綱、反向連結、搜尋結果）：文件改過之後行號還是對得上 ========
+{
+  await fresh('# 一\n\n段落一\n\n# 二\n\n段落二\n\n# 三\n\n段落三\n');
+  const at = () => view.pm.state.selection.$from.parent.textContent;
+  const lineOf = text => view.getViewData().split('\n').indexOf(text);
+  view.setEphemeralState({ line: lineOf('# 二') });
+  assert(at() === '二', '沒改過：跳到第二個標題：' + at());
+  // 在最前面加兩段、把第一個標題整個刪掉：後面每一段的行號都變了
+  const P = B.schema.nodes.paragraph;
+  view.pm.dispatch(view.pm.state.tr.insert(0, [P.create(null, B.schema.text('新的第一段')), P.create(null, B.schema.text('新的第二段'))]));
+  view.setEphemeralState({ line: lineOf('# 二') });
+  assert(at() === '二', '前面加了兩段之後：還是跳到第二個標題：' + at());
+  view.setEphemeralState({ line: lineOf('新的第二段') });
+  assert(at() === '新的第二段', '新加的段落也跳得到：' + at());
+  view.setEphemeralState({ line: lineOf('段落三') });
+  assert(at() === '段落三', '最後一段：' + at());
+  await view.save();
+}
+
 // ======== 裝飾的局部更新：改動之後，跟整份重算的結果一樣 ========
 // 編輯標記、程式碼上色、標籤與網址的裝飾在文件改動時只重算有變的區塊（decoutil.js）。
 // 這裡用固定的亂數種子改很多次，每次都跟「同一份文件從頭算」比對
