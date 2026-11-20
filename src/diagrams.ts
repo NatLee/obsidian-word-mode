@@ -443,6 +443,9 @@ const state: DiagramKind = {
       let x: RegExpExecArray | null;
       if (/^%%/.test(text)) { m.extra.push(text); continue; }
       if ((x = /^direction\s+(TB|TD|BT|RL|LR)$/.exec(text))) { m.opts.dir = x[1] === 'TD' ? 'TB' : x[1]; continue; }
+      // 狀態:::樣式 是套用樣式的寫法。以前「A:::warn --> B」被讀成狀態 A 的說明文字「::warn --> B」，
+      // 寫回去是「A : ::warn --> B」，轉換就不見了
+      if (/:::/.test(text)) return 'blocks';
       if ((x = new RegExp('^' + STATE + '\\s*-->\\s*' + STATE + '(?:\\s*:\\s*(.*))?$').exec(text))) { moves.push({ from: x[1], to: x[2], text: x[3] || '' }); continue; }
       if ((x = /^state\s+"([^"]*)"\s+as\s+(\S+)$/.exec(text))) { states.push({ name: x[2], text: x[1] }); continue; }
       if (/^(?:(?:state|note|end note|classDef|class|style|accTitle|accDescr)(?:\s|$)|\}|--$)/.test(text) || /<<|\{$/.test(text)) return 'blocks';

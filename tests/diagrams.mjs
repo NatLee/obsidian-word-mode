@@ -78,6 +78,10 @@ for (const k of DIAGRAM_KINDS) {
   const out = r.kind.generate(m);
   ok('狀態圖：在圖上改名，全部一起改', out === 'stateDiagram-v2\n    direction LR\n    處理中 : 正在處理\n    [*] --> 待處理\n    待處理 --> 處理中 : 開始\n    處理中 --> [*]', out);
   ok('狀態圖：子狀態不能用表單', editableDiagram('stateDiagram-v2\n    state 外層 {\n        [*] --> a\n    }').reason === 'blocks');
+  // 套用樣式的 :::：以前「A:::warn --> B」被讀成 A 的說明文字，寫回去是「A : ::warn --> B」，轉換不見了
+  for (const src of ['stateDiagram-v2\n    A:::warn --> B', 'stateDiagram-v2\n    A --> B:::warn', 'stateDiagram-v2\n    A --> B\n    B:::warn']) {
+    ok('狀態圖：套用樣式（:::）不能用表單：' + src.split('\n')[1].trim(), editableDiagram(src).reason === 'blocks', JSON.stringify(editableDiagram(src).model));
+  }
 }
 
 // ---- 類別圖
