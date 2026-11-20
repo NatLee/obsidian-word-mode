@@ -241,6 +241,12 @@ await fresh('cat concat cat2 Cat\n\n2026-11-17 與 2025-01-02\n');
   const find = q => { fb.input.value = q; fb.input.dispatchEvent(new Event('input')); return fb.count.textContent; };
   fb.open(false);
   assert(find('cat') === '1/4', '一般尋找：包含就算（4 處）：' + fb.count.textContent);
+  // 輸入法選字時按的 Enter 是「確定選這個字」，不能當成「找下一個」
+  fb.input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', isComposing: true, bubbles: true, cancelable: true }));
+  assert(fb.count.textContent === '1/4', '輸入法選字中的 Enter 不會跳到下一個：' + fb.count.textContent);
+  fb.input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+  assert(fb.count.textContent === '2/4', '一般的 Enter 跳到下一個：' + fb.count.textContent);
+  fb.input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', shiftKey: true, bubbles: true, cancelable: true }));
   fb.wordBtn.click();
   assert(fb.count.textContent === '1/2', '全字相符：只剩獨立的 cat 與 Cat（2 處）：' + fb.count.textContent);
   fb.wordBtn.click();

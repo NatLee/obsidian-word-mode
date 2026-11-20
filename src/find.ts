@@ -211,6 +211,8 @@ export class FindBar {
 
     this.input.addEventListener('input', () => this.search(this.input.value));
     const keys = (e: KeyboardEvent) => {
+      // 輸入法還在選字：這時的 Enter 是「確定選這個字」、Esc 是「取消選字」，不是給這裡的
+      if (e.isComposing) return;
       if (e.key === 'Enter') { e.preventDefault(); if (e.target === this.replInput) this.replaceOne(); else this.step(e.shiftKey ? -1 : 1); }
       else if (e.key === 'Escape') { e.preventDefault(); this.close(); }
       else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'h') { e.preventDefault(); this.showReplace(!this.replacing); }
