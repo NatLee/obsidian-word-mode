@@ -150,7 +150,11 @@ export type DemoName = keyof typeof DEMOS;
 export function buildDemo(name: DemoName, box: HTMLElement): void { DEMOS[name](box); }
 
 function ensureCard(): HTMLDivElement {
-  if (card && card.isConnected) return card;
+  if (card && card.isConnected) {
+    // 筆記拉到獨立視窗之後，卡片要跟到滑鼠所在的那個視窗
+    if (card.ownerDocument !== activeDocument) activeDocument.body.appendChild(card);
+    return card;
+  }
   card = el('div', 'wm-hint-card', activeDocument.body);
   card.setAttribute('role', 'tooltip');
   // 提示卡不接滑鼠（CSS 的 pointer-events: none）：它蓋在下一排按鈕與群組名稱上，

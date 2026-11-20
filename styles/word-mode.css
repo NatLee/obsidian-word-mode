@@ -1725,3 +1725,6 @@ mark.wm-set-find-hl { padding: 0 1px; border-radius: 3px; background: hsla(var(-
 @keyframes wm-set-type { 0%, 6% { max-width: 0; } 30%, 92% { max-width: 6em; } 100% { max-width: 0; } }
 @keyframes wm-set-hit { 0%, 32% { opacity: 0; transform: translateY(-3px); } 38%, 56% { opacity: 1; transform: none; } 62%, 100% { opacity: 0; } }
 @keyframes wm-set-row { 0%, 60% { background: transparent; box-shadow: 0 0 0 2px transparent; color: var(--text-muted); } 66%, 88% { background: hsla(var(--interactive-accent-hsl), .16); box-shadow: 0 0 0 2px hsla(var(--interactive-accent-hsl), .6); color: var(--text-normal); } 100% { background: transparent; box-shadow: 0 0 0 2px transparent; } }
+
+/* 提示卡收起來只是變透明，裡面的示意動畫還在；不暫停的話會一直跑到下一次顯示 */
+.wm-hint-card:not(.is-shown) .wm-hint-demo, .wm-hint-card:not(.is-shown) .wm-hint-demo *, .wm-hint-card:not(.is-shown) .wm-hint-demo *::before, .wm-hint-card:not(.is-shown) .wm-hint-demo *::after { animation-play-state: paused; }

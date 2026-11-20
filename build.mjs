@@ -20,6 +20,9 @@ await esbuild.build({
   external: ['obsidian', 'electron', '@codemirror/*', '@lezer/*'],
   outfile: 'dist/main.js',
   minify: prod,
+  // 介面文字有十二種語言，大多不是英文字母。esbuild 預設把它們寫成 \uXXXX（每個字 6 個位元組），
+  // 照原樣輸出 UTF-8 的話 main.js 小三成。Obsidian 以 UTF-8 讀外掛的 main.js
+  charset: 'utf8',
   legalComments: 'eof',
   banner: { js: '/* Word Mode for Obsidian. Bundles ProseMirror, markdown-it and their dependencies (MIT, BSD-2-Clause). Source and credits: https://github.com/NatLee/obsidian-word-mode */' },
   logLevel: 'info',
