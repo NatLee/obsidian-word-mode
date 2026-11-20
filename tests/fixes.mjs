@@ -133,6 +133,25 @@ const select = (state, text, len = text.length) => { const p = posOf(state.doc, 
   check('還沒有註腳：定義加在文件最後', r.out === 'Only[^1] text\n\n[^1]: new\n' && sameDoc(r), JSON.stringify(r.out));
 }
 
+// ---- 清除格式、格式刷：拿掉的是格式，連結要留著
+{
+  const all = s => s.tr.setSelection(TextSelection.create(s.doc, 1, s.doc.content.size - 1));
+  let r = save('see [site](https://example.com) **bold** <u>==mark==</u>\n', (s, d, cur) => { d(all(s)); C.clearFormatting(cur(), d); });
+  check('清除格式：粗體、底線、螢光都拿掉，連結還在', r.out === 'see [site](https://example.com) bold mark\n' && sameDoc(r), JSON.stringify(r.out));
+  r = save('see [**site**](https://example.com) here\n', (s, d, cur) => { d(select(s, 'site', 0)); d(cur().tr.setSelection(TextSelection.create(cur().doc, cur().selection.from + 2))); C.clearFormatting(cur(), d); });
+  check('清除格式（游標在連結的字裡）：只拿掉粗體', r.out === 'see [site](https://example.com) here\n', JSON.stringify(r.out));
+  r = save('**bold** and [site](https://example.com) here\n', (s, d, cur) => {
+    d(select(s, 'bold', 2)); const marks = C.captureMarks(cur());
+    d(select(cur(), 'site')); C.applyMarks(marks)(cur(), d);
+  });
+  check('格式刷刷在連結上：套上粗體，連結還在', r.out === '**bold** and [**site**](https://example.com) here\n' && sameDoc(r), JSON.stringify(r.out));
+  r = save('[**link**](https://example.com) and *plain* here\n', (s, d, cur) => {
+    d(select(s, 'link', 2)); const marks = C.captureMarks(cur());
+    d(select(cur(), 'plain')); C.applyMarks(marks)(cur(), d);
+  });
+  check('格式刷從連結取格式：只帶粗體，不會把連結帶過去', r.out === '[**link**](https://example.com) and **plain** here\n' && sameDoc(r), JSON.stringify(r.out));
+}
+
 // ---- 文件屬性的值：顯示文字、連結、類型轉換
 {
   const nested = { 作者: { 姓名: '小明', 信箱: 'a@b.c' }, 清單: [{ k: 1 }, 'x'] };

@@ -493,14 +493,20 @@ export function setColor(color: string | null): Command {
   };
 }
 
+// 移除一段文字的格式，連結留著：連結是內容不是格式（Word 的清除格式、格式刷也不會動超連結），拿掉就找不回網址了
+function removeFormats(tr: Transaction, from: number, to: number): Transaction {
+  for (const type of Object.values(M)) if (type !== M.link) tr.removeMark(from, to, type);
+  return tr;
+}
+
 // 清除格式（像 Word 的「清除所有格式」）：移除文字格式，標題與程式碼區塊改回內文
 export function clearFormatting(state: EditorState, dispatch?: Dispatch): boolean {
   if (dispatch) {
     let tr = state.tr;
     const w = wordRangeAt(state);
-    if (w) tr = tr.removeMark(w.from, w.to, null);
-    else if (state.selection.empty) tr = tr.setStoredMarks([]);
-    else eachRange(state, (from, to) => { tr = tr.removeMark(from, to, null); });
+    if (w) tr = removeFormats(tr, w.from, w.to);
+    else if (state.selection.empty) tr = tr.setStoredMarks((state.storedMarks || state.selection.$from.marks()).filter(m => m.type === M.link));
+    else eachRange(state, (from, to) => { tr = removeFormats(tr, from, to); });
     eachRange(state, (from, to) => {
       state.doc.nodesBetween(from, to, (node, pos) => {
         if (node.type === N.heading || node.type === N.code_block) {
@@ -547,7 +553,8 @@ export function applyMarks(marks: readonly Mark[]): Command {
     if (dispatch) {
       let tr = state.tr;
       eachRange(state, (from, to) => {
-        tr = tr.removeMark(from, to, null);
+        // 換掉目標的格式；目標原本的連結留著，來源的連結也不會帶過去
+        tr = removeFormats(tr, from, to);
         for (const m of marks) if (m.type !== M.link) tr = tr.addMark(from, to, m);
       });
       dispatch(tr);
