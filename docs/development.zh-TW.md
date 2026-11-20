@@ -86,7 +86,7 @@ sequenceDiagram
 
 `src/view.ts` 的 `WordModeView` 是中樞：建立編輯器、功能區、尋找列，是所有對話框的進入點，也處理右鍵選單、貼上、同步衝突。`src/toolbar.ts` 的功能區不直接呼叫 Obsidian，而是透過 `ToolbarContext.dialogs` 的回呼請檢視處理。
 
-Word 模式的功能區（`src/toolbar.ts`）與 Markdown、閱讀模式的功能區（`src/mdbar.ts`）共用 `TABS`、`GROUPS`、同樣的 DOM 結構與 CSS 類別，所以兩條長得一樣。改其中一邊的版面，另一邊也要跟著改。
+Word 模式的功能區（`src/toolbar.ts`）與 Markdown、閱讀模式的功能區（`src/mdbar.ts`）長得一樣，因為兩條都用 `src/ribbon.ts` 建立。這個檔案有分頁與群組的清單（`TABS`、`GROUPS`、`groupLayout`）、建立分頁列、面板、群組與按鈕的外殼（`RibbonShell`），以及 `ACTIONS`：兩條功能區都有的按鈕，圖示、名稱、文字、快速鍵、說明與提示動畫都只寫在這裡。兩條功能區各自只寫按鈕做什麼：`toolbar.ts` 給 ProseMirror 指令或點擊處理，`mdbar.ts` 給操作 Markdown 編輯器的函式。兩邊刻意不同的地方（例如只有 Word 模式綁的快速鍵）寫在 `ACTIONS` 那一項的 `word` 或 `md`。只有一條功能區有的按鈕，直接寫在那一條功能區的檔案裡。
 
 ### 圖表編輯器是資料驅動的
 
@@ -114,12 +114,13 @@ Word 模式的功能區（`src/toolbar.ts`）與 Markdown、閱讀模式的功�
 | `src/schema.ts` | 文件模型（ProseMirror schema）。 |
 | `src/editor.ts` | 編輯器狀態的設定。 |
 | `src/commands.ts` | 編輯指令。純 ProseMirror，不依賴 Obsidian。 |
-| `src/toolbar.ts` | 功能區工具列，以及每個按鈕群組的順序、分頁與名稱。 |
+| `src/toolbar.ts` | Word 模式的功能區：每個按鈕做什麼，以及它的下拉面板。 |
+| `src/ribbon.ts` | 兩條功能區共用的部分：分頁與按鈕群組（順序、分頁、名稱）、共用按鈕的外觀（`ACTIONS`），以及建立分頁、群組與按鈕的外殼。 |
 | `src/groupsettings.ts` | 設定頁裡自訂分頁與按鈕群組的清單。 |
 | `src/settingsnav.ts` | 設定頁上方的分類頁籤，以及上面的搜尋框（邊打邊列出符合的設定，選了就跳過去）。 |
 | `src/settingsearch.ts` | 設定搜尋的比對與排序：設定名稱、說明、下拉選單的選項、其他語言的名稱與同義詞。純函式。 |
 | `src/colorpicker.ts` | 字型色彩與醒目提示的色彩面板。 |
-| `src/mdbar.ts` | Markdown 與閱讀模式的工具列。 |
+| `src/mdbar.ts` | Markdown 與閱讀模式的功能區：每個按鈕對 Markdown 編輯器做什麼。 |
 | `src/statusbar.ts` | 狀態列的內容（字數、存檔狀態、檢視切換、文件屬性、縮放），Word 模式與 Markdown、閱讀模式共用。 |
 | `src/props.ts`、`src/propview.ts` | 文件屬性的值（類型、轉換、讀出文件屬性），以及查看文件屬性的小視窗與固定在上方的屬性列。 |
 | `src/bubble.ts` | 連結與圖片的浮動工具列。 |
