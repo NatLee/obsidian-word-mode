@@ -205,10 +205,10 @@ assert(out().includes('[其他筆記](%E8%B3%87%E6%96%99%E5%A4%BE/%E5%85%B6%E4%B
 // 存檔後的外部修改：內容相同不重載；不同且無待存修改則重載
 const saved = out();
 await view.save();
-await view.onExternalModify(view.file);
+await view.onModify(view.file);
 assert(view.pm.state.doc.textContent.includes('結束'), '自己存檔觸發的修改不重載');
 files.set('資料夾/週會.md', '# 同步來的新內容\n');
-await view.onExternalModify(view.file);
+await view.onModify(view.file);
 assert(view.pm.state.doc.firstChild.textContent === '同步來的新內容', '外部（同步）修改會重新載入');
 assert(view.getViewData() === '# 同步來的新內容\n', '重新載入後未修改即原樣輸出');
 
@@ -485,7 +485,7 @@ await view.save();
 assert(view.status === 'saved', '存檔後狀態為已儲存');
 C.insertText('未存')(view.pm.state, tr => view.pm.dispatch(tr));
 files.set('資料夾/長文.md', '# 第一章\n\n別台電腦改的\n');
-await view.onExternalModify(view.file);
+await view.onModify(view.file);
 assert(view.conflict && view.bannerHost.querySelector('.wm-banner'), '有未存檔修改時，同步進來的新版本會跳出衝突選擇');
 await view.save();
 assert(files.get('資料夾/長文.md') === '# 第一章\n\n別台電腦改的\n', '衝突未解決前不會覆蓋同步來的版本');

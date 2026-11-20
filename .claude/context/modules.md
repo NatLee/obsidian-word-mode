@@ -73,6 +73,7 @@
 
 - `tests/*.mjs`：純函式測試，由 `tests/run.mjs` 用 esbuild 打包後執行。斷言失敗印 `FAIL`。
 - `tests/view/*.mjs`：在 jsdom 裡跑整個 `WordModeView`，Obsidian 由 `tests/view/obsidian-mock.js` 代替，環境在 `harness.mjs`（`makeEnv`、`type`、`press`、`caret`）。新的介面測試加在 `ui.mjs`，一個功能一段，用 `// ======== 標題 ========` 分開。要測的模組沒有匯出時加進 `tests/view/entry.js`。
+- 存檔與同步衝突：Obsidian 的 `TextFileView` 自己監聽檔案變動，有還沒自動存檔的修改時會先呼叫 `getViewData()`、合併，再呼叫 `setViewData(合併結果, false)`；存檔也可能失敗。所以 `WordModeView` 用 `editRev`／`savedRev` 記「有沒有還沒寫進檔案的修改」（`unsaved`），不看 `getViewData()` 有沒有被呼叫，也不自己監聽 `modify`。測試替身的 `save`／`onModify`／`loadFileInternal` 照 Obsidian 的流程寫（對照過 1.5.8 與 1.15.1），測試裡改完 `env.files` 之後呼叫 `view.onModify(view.file)` 模擬檔案在外面被改。
 - jsdom 的限制：元素的位置與大小都是 0；`contentEditable` 的 `focus()` 不會真的取得焦點；直接改 `textContent` 不會移動游標（要自己用 `MathField.place` 放）；`MarkdownRenderer` 的替身只輸出 `RENDERED:` 加原文，沒有 SVG。
 - 預覽圖、版面、真的打字這類 jsdom 測不到的東西，在真的 Chrome 裡看：`docs/record/` 的錄製工具加 `--png` 只存最後一個畫面，或在 `scenes.mjs` 暫時加一個場景；也可以照記憶 `word-mode-visual-check` 的做法。
 - 拆成多個 commit 時，每個 commit 都要單獨通過測試與 lint。

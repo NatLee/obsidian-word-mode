@@ -59,7 +59,9 @@ export class TextFileView {
     this.contentEl = this.containerEl.createDiv('view-content');
     document.body.appendChild(this.containerEl);
     this.saves = [];
-    this.requestSave = () => { this.saveRequested = (this.saveRequested || 0) + 1; };
+    this.data = null; this.lastSavedData = null; this.dirty = false; this.saving = false; this.saveAgain = false;
+    // 真的 Obsidian 在 2 秒後自動存檔；測試自己決定什麼時候呼叫 save()
+    this.requestSave = () => { this.dirty = true; this.saveRequested = (this.saveRequested || 0) + 1; };
   }
   load() { this._loaded = true; }
   registerDomEvent(el, type, fn, opt) { el.addEventListener(type, fn, opt); }
@@ -67,9 +69,50 @@ export class TextFileView {
   registerEvent() {}
   register() {}
   onPaneMenu() {}
-  async save() { const d = this.getViewData(); this.saves.push(d); await this.app.vault.modify(this.file, d); }
-  async onUnloadFile() {}
-  async loadFile(file, data) { this.file = file; this.setViewData(data, true); }
+  // ---- 存檔、關閉、檔案在外面被改：照 Obsidian 的 TextFileView 寫（對照過 1.5.8 與 1.15.1 的 app.js，
+  // 兩版流程相同）。重點是 Obsidian 自己會在這幾個時機呼叫 getViewData()／setViewData()，
+  // 外掛的存檔狀態不能假設「getViewData() 被呼叫就等於存好了」
+  async save(clear) {
+    this.dirty = false;
+    const file = this.file;
+    if (!file) return;
+    if (this.saving) { if (!clear) this.saveAgain = true; return; }
+    this.saveAgain = false;
+    const data = this.getViewData();
+    if (this.lastSavedData === data || this.lastSavedData === null) return;
+    const before = this.lastSavedData;
+    if (clear) { this.data = null; this.lastSavedData = null; this.clear(); } else { this.data = data; this.lastSavedData = data; }
+    this.saving = true;
+    try { await this.app.vault.modify(file, data); this.saves.push(data); }
+    catch (e) { this.lastSavedData = before; throw e; } // 真的 Obsidian 還會跳通知、把內容存進檔案復原
+    finally { this.saving = false; if (this.saveAgain && !clear) void this.save(); }
+  }
+  async onUnloadFile() { await this.save(true); }
+  // 檔案被改（同步、其他外掛、自己存檔）時 Obsidian 會呼叫；測試改完 files 之後自己呼叫
+  async onModify(file) { if (!this.saving && file === this.file) await this.loadFileInternal(file, false); }
+  async loadFileInternal(file, initial) {
+    let data = await this.app.vault.read(file);
+    const before = this.lastSavedData;
+    this.lastSavedData = data;
+    if (!initial && before) {
+      if (before === data) return;
+      if (this.dirty) {
+        const mine = this.getViewData();
+        if (mine === data) return;
+        if (mine !== before) data = merge3(before, mine, data);
+      }
+    }
+    this.setData(data, initial);
+  }
+  setData(data, clear) { if (this.data !== data || clear) { this.data = data; this.setViewData(data, clear); } }
+  async loadFile(file, data) { this.file = file; this.dirty = false; this.lastSavedData = data; this.setData(data, true); }
+}
+// Obsidian 用 diff-match-patch 做三方合併；這裡以行為單位，足以表現「兩邊改不同行就都保留」。
+// 行數不同時當成合併不了，用磁碟上的版本
+function merge3(base, mine, theirs) {
+  const b = base.split('\n'), m = mine.split('\n'), th = theirs.split('\n');
+  if (b.length !== m.length || b.length !== th.length) return theirs;
+  return b.map((line, i) => (m[i] !== line ? m[i] : th[i])).join('\n');
 }
 export class Plugin {}
 export class PluginSettingTab {}
