@@ -45,6 +45,23 @@ check('align: 空字串 → 預設', normalizeCellAlign('') === null && normaliz
   check('一般連結：往返相同', strip(roundtrip(doc)) === strip(doc), ser(doc));
 }
 
+// ---- 連按兩次換行、段落一開頭就換行：不能寫成空白行（讀回來會變成兩段，或換行不見）
+{
+  const br = () => N.hard_break.create();
+  const T = s => schema.text(s);
+  const same = (name, ...blocks) => { const doc = N.doc.create(null, blocks); check(name, strip(roundtrip(doc)) === strip(doc), JSON.stringify(ser(doc))); };
+  check('連續兩個換行：第一個寫成 <br>', ser(N.doc.create(null, [para(T('a'), br(), br(), T('b'))])) === 'a<br>\nb', JSON.stringify(ser(N.doc.create(null, [para(T('a'), br(), br(), T('b'))]))));
+  same('連續兩個換行：讀回還是一段', para(T('a'), br(), br(), T('b')));
+  same('連續三個換行', para(T('a'), br(), br(), br(), T('b')));
+  same('段落開頭就換行', para(br(), T('a'), br(), T('b')));
+  same('引文裡連續兩個換行', N.blockquote.create(null, [para(T('a'), br(), br(), T('b'))]));
+  same('清單裡連續兩個換行、待辦事項開頭就換行', N.bullet_list.create(null, [
+    N.list_item.create(null, [para(T('a'), br(), br(), T('b'))]), N.list_item.create({ checked: false }, [para(br(), T('c'))])]));
+  const blankLine = roundtrip(N.doc.create(null, [para(T('a'), br(), T('  '), br(), T('b'))]));
+  check('兩個換行中間只有空白：讀回還是一段、兩個換行', blankLine.childCount === 1 && strip(blankLine.firstChild) === strip(para(T('a'), br(), br(), T('b'))), strip(blankLine));
+  check('一般的換行照舊寫成換行', ser(N.doc.create(null, [para(T('a'), br(), T('b'), br(), T('c'))])) === 'a\nb\nc');
+}
+
 // ---- 文件屬性的值：顯示文字、連結、類型轉換
 {
   const nested = { 作者: { 姓名: '小明', 信箱: 'a@b.c' }, 清單: [{ k: 1 }, 'x'] };

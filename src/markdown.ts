@@ -634,13 +634,21 @@ function createSerializer(): MarkdownSerializer {
     raw_block(state, node) { state.text((node.attrs as RawBlockAttrs).src, false); state.closeBlock(node); },
     frontmatter(state, node) { state.text((node.attrs as FrontmatterAttrs).src, false); state.closeBlock(node); },
     hard_break(state, node, parent, index) {
-      for (let i = index + 1; i < parent.childCount; i++) {
-        if (parent.child(i).type !== node.type) {
-          if ((state as SerializerState).inTable || parent.type.name === 'heading') state.write('<br>');
-          else state.text('\n', false);
-          return;
-        }
-      }
+      const isBreak = (i: number): boolean => parent.child(i).type === node.type;
+      // from 到 to 之間只有空白（或什麼都沒有）
+      const blank = (from: number, to: number): boolean => {
+        for (let i = from; i < to; i++) { const c = parent.child(i); if (!isBreak(i) && !(c.isText && !c.text!.trim())) return false; }
+        return true;
+      };
+      // 段落結尾的換行（後面沒有內容了）不寫
+      if (blank(index + 1, parent.childCount)) return;
+      let next = index + 1;
+      while (next < parent.childCount && !isBreak(next)) next++;
+      // 真的換行會讓檔案裡多出一行空白行，讀回來就變成分段、或這個換行不見：
+      // 下一行是空的（連按兩次換行）、或前面整段都還是空的（段落一開頭就換行）時改寫 <br>
+      const emptyLine = (next < parent.childCount && blank(index + 1, next)) || blank(0, index);
+      if ((state as SerializerState).inTable || parent.type.name === 'heading' || emptyLine) state.write('<br>');
+      else state.text('\n', false);
     },
     text(state, node) {
       if ((state as SerializerState).inAutolink) { state.text(node.text!, false); return; }
