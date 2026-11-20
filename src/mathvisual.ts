@@ -6,7 +6,7 @@ import type { I18nKey } from './i18n.js';
 
 // ---------------------------------------------------------------- 符號 ⇄ LaTeX 指令
 // 間距指令顯示成差不多寬的空白字元，不然會照原文顯示「\,」（\int f(x)\,dx 很常見）：
-// \, 細空白、\: 中等數學空白、\; 三分之一 em、\quad 一個 em（\qquad 顯示成兩個，改過再存回時寫成 \quad\quad，看起來一樣）
+// \, 細空白、\: 中等數學空白、\; 三分之一 em、\quad 一個 em（\qquad 顯示成兩個；沒改到的話存回去還是 \qquad，見 displaySegs）
 const SPACE_PAIRS: [string, string][] = [['\\,', '\u2009'], ['\\:', '\u205F'], ['\\;', '\u2004']];
 const SYMBOL_PAIRS: [string, string][] = [
   ['\\quad', '\u2003'],
@@ -28,42 +28,152 @@ const CHAR_TO_CMD = new Map<string, string>();
 for (const [cmd, ch] of [...SYMBOL_PAIRS, ...SPACE_PAIRS]) if (!CHAR_TO_CMD.has(ch)) CHAR_TO_CMD.set(ch, cmd);
 const FUNCS = ['arcsin', 'arccos', 'arctan', 'sinh', 'cosh', 'tanh', 'sin', 'cos', 'tan', 'cot', 'sec', 'csc', 'log', 'ln', 'lim', 'max', 'min', 'exp', 'det', 'gcd'];
 const FUNC_SET = new Set(FUNCS);
+// 指令名稱只由英文字母組成：判斷「接起來會不會變成另一個指令」都用這個
+const isLetter = (ch: string | undefined): boolean => !!ch && /[A-Za-z]/.test(ch);
 
-// LaTeX 文字 → 顯示：\alpha → α、\sin → sin、\, → 細空白；不認得的指令照原樣顯示。
-// 顯示的結果要能用 fromDisplay 轉回原本的 LaTeX：使用者只改格子裡的一個字，整格都會從顯示的文字轉回去，
-// 轉不回來的寫法就等於被改掉。所以只有「轉得回來」的時候才換成好讀的樣子，否則照原文顯示
-export function toDisplay(latex: string): string {
+// ---------------------------------------------------------------- 一格文字：原文 ⇄ 畫面上的字
+// 格子裡顯示的是好讀的樣子（\alpha → α、\sin → sin、\, → 細空白），不認得的指令照原樣顯示。
+// 顯示是一段一段對出來的，每一段記著原文（src）與畫面上的字（shown）：使用者改了格子裡的字之後，
+// 沒改到的段落用記著的原文寫回去，只有改到的地方才從畫面上的字轉換。
+// 以前整格都從畫面上的字轉回去，畫面上分不出來的寫法（\leq 與 \le 都是 ≤、α 與 \alpha、max 與 \max）
+// 只要在同一格改一個字，就全部變成編輯器自己偏好的那一種
+export interface Seg { src: string; shown: string; }
+export const segSrc = (segs: Seg[]): string => segs.map(s => s.src).join('');
+const segShown = (segs: Seg[]): string => segs.map(s => s.shown).join('');
+
+// 原文 → 一段一段。一般的字一個字一段；指令（連同它顯示成的符號）是一段，不能只留半個
+export function displaySegs(latex: string): Seg[] {
+  const out: Seg[] = [];
+  const plain = (t: string): void => { for (const ch of Array.from(t)) out.push({ src: ch, shown: ch }); };
   // 反斜線加一個不是字母的字（\\、\{、\,）是一個單位：不這樣讀的話，「\\sin」（換行後面接 sin）會被看成「\」加「\sin」。
-  // bb、other 有值時就先回傳了，所以 name 與 space 在後面一定是字串
-  return latex.replace(/\\mathbb\{([RNZQC])\}|\\([^A-Za-z])|\\([A-Za-z]+)( ?)/g, (m: string, bb: string | undefined, other: string | undefined, name: string, space: string, at: number) => {
-    if (bb) return CMD_TO_CHAR.get('\\mathbb{' + bb + '}')!;
-    if (other != null) return SPACE_TO_CHAR.get('\\' + other) || m;
+  // u：反斜線後面是補充平面的字（\𝔹）時整個字算進去，不會只拿到半個
+  const re = /\\mathbb\{([RNZQC])\}|\\([^A-Za-z])|\\([A-Za-z]+)( ?)/gu;
+  let last = 0;
+  for (let m = re.exec(latex); m; m = re.exec(latex)) {
+    plain(latex.slice(last, m.index));
+    last = m.index + m[0].length;
+    // 沒有對到的群組是 undefined（型別定義寫成 string）
+    const bb = m[1] as string | undefined, other = m[2] as string | undefined, name = m[3], space = m[4];
+    if (bb) { out.push({ src: m[0], shown: CMD_TO_CHAR.get(m[0])! }); continue; }
+    if (other != null) { out.push({ src: m[0], shown: SPACE_TO_CHAR.get(m[0]) || m[0] }); continue; }
     const cmd = '\\' + name;
-    // 符號後面的空白只有在「隔開後面的字母」時才不顯示（\alpha x → αx，轉回去時 fromDisplay 會補上）；
-    // 其他的空白照樣顯示，轉回去才一字不差（以前 \alpha + \beta 改過一個字就變成 \alpha+ \beta）
-    const shownSpace = space && /[A-Za-z]/.test(latex[at + m.length] || '') ? '' : space;
-    if (name === 'qquad') return '\u2003\u2003' + shownSpace;
-    if (CMD_TO_CHAR.has(cmd)) return CMD_TO_CHAR.get(cmd)! + shownSpace;
-    // 函數名稱前面緊接字母或反斜線（n\log n、\sin\cos x、\arg\max）時不能拿掉反斜線：
-    // 拿掉之後跟前面的字連在一起，轉回去就變成 nlog n、\argmax（少了反斜線，或變成不存在的指令）
-    if (FUNC_SET.has(name) && !/[A-Za-z\\]/.test(latex[at - 1] || '')) return name + space;
-    return m;
-  });
+    // \qquad 顯示成兩個 em 的空白（整段記著 \qquad，沒改到就照原文寫回去）
+    const symbol = name === 'qquad' ? '\u2003\u2003' : CMD_TO_CHAR.get(cmd);
+    // 函數名稱前面緊接字母或反斜線（n\log n、\sin\cos x、\arg\max）時不拿掉反斜線：
+    // 拿掉之後畫面上跟前面的字連成一個字，看不出哪裡是函數
+    const bare = !symbol && FUNC_SET.has(name) && !/[A-Za-z\\]/.test(latex[m.index - 1] || '');
+    out.push({ src: cmd, shown: symbol || (bare ? name : cmd) });
+    // 符號後面的空白只有在「隔開後面的字母」時才不顯示（\alpha x → αx）：那個空白只是 LaTeX 的分隔，不佔位置。
+    // 其他的空白照樣顯示
+    if (space) out.push({ src: space, shown: symbol && isLetter(latex[last]) ? '' : space });
+  }
+  plain(latex.slice(last));
+  return out;
 }
 
-// 顯示 → LaTeX：α → \alpha（後面接字母時補一個空白）、獨立的 sin → \sin
-export function fromDisplay(text: string): string {
-  let out = '';
+// 新打的字 → 一段一段：α → \alpha、獨立的 sin → \sin（auto 為 false 時不轉換函數名稱），其他照打的字。
+// prev 是這段字前面緊接的那個字：前面是字母或反斜線時，開頭的字不是獨立的一個詞
+function freshSegs(text: string, prev: string, auto: boolean): Seg[] {
+  const out: Seg[] = [];
   const chars = Array.from(text);
   for (let i = 0; i < chars.length; i++) {
     const cmd = CHAR_TO_CMD.get(chars[i]);
-    if (!cmd) { out += chars[i]; continue; }
-    out += cmd;
-    // 指令以字母結尾（\alpha、\quad）時，後面接字母要隔一個空白；\, 與 \mathbb{R} 不用
-    if (/[A-Za-z]$/.test(cmd) && /^[A-Za-z]$/.test(chars[i + 1] || '')) out += ' ';
+    if (cmd) { out.push({ src: cmd, shown: chars[i] }); continue; }
+    if (auto && isLetter(chars[i]) && !/[A-Za-z\\]/.test(i ? chars[i - 1] : prev)) {
+      let j = i;
+      while (isLetter(chars[j])) j++;
+      const word = chars.slice(i, j).join('');
+      if (FUNC_SET.has(word)) { out.push({ src: '\\' + word, shown: word }); i = j - 1; continue; }
+    }
+    out.push({ src: chars[i], shown: chars[i] });
   }
-  return out.replace(new RegExp('(^|[^A-Za-z\\\\])(' + FUNCS.join('|') + ')(?![A-Za-z])', 'g'), '$1\\$2');
+  return out;
 }
+
+// 指令（\alpha）後面緊接字母時補一個不顯示的空白，不然會接成另一個指令（\alphax）
+function sealSegs(segs: Seg[]): Seg[] {
+  const out: Seg[] = [];
+  for (const s of segs) {
+    const last = out[out.length - 1];
+    if (last && /^\\[A-Za-z]+$/.test(last.src) && isLetter(s.src[0])) out.push({ src: ' ', shown: '' });
+    out.push(s);
+  }
+  return out;
+}
+
+// 畫面上第 a 到第 b 個字之間的段落。只切到一半的段落（游標在 \foo 中間）留下的部分照畫面上的字。
+// 剛好在邊界上的「不顯示的空白」不算在內：它是隔開前後兩段用的，要不要留由 sealSegs 決定
+function sliceSegs(segs: Seg[], a: number, b: number): Seg[] {
+  const out: Seg[] = [];
+  let pos = 0;
+  for (const s of segs) {
+    const from = pos, to = pos + s.shown.length;
+    pos = to;
+    if (from === to) { if (from > a && from < b) out.push(s); continue; }
+    if (to <= a || from >= b) continue;
+    if (from >= a && to <= b) out.push(s);
+    else out.push(...freshSegs(s.shown.slice(Math.max(a, from) - from, Math.min(b, to) - from), '', false));
+  }
+  return out;
+}
+
+// 把畫面上第 from 到第 to 個字換成 put
+function spliceSegs(segs: Seg[], from: number, to: number, put: Seg[]): Seg[] {
+  return sealSegs([...sliceSegs(segs, 0, from), ...put, ...sliceSegs(segs, to, Infinity)]);
+}
+
+// 畫面上的字從 segs 變成 text：找出改到的範圍（from 起，舊的到 toOld、新的到 toNew）；沒有變就回傳 null。
+// 範圍會往外擴到完整的詞與完整的段落：
+// ・詞（連續的英文字母）被加了字、刪了字或切開時，整個詞都算改過。sin 後面多打一個 e 是 sine，不是 \sin 加 e；
+//   反過來，原本就寫 max（不是 \max）的地方後面加一個數字，max 這個詞沒有變，就照原文留著
+// ・一個指令顯示成好幾個字時（\foo、sin）不能只留半個
+// caret 是改完之後游標的位置（打字、刪字、貼上，改過的地方都在游標前面或剛好在游標上）：
+// 先找結尾相同的部分而且不越過游標，同樣的字連在一起時（\le\leq 是 ≤≤，中間再打一個 ≤）才知道改的是哪一個，
+// 前後記著的原文才對得上
+function diffRegion(segs: Seg[], text: string, caret?: number): { from: number; toOld: number; toNew: number } | null {
+  const old = segShown(segs);
+  if (old === text) return null;
+  const max = Math.min(old.length, text.length);
+  const sMax = caret == null || caret > text.length ? max : Math.min(max, text.length - caret);
+  let s = 0;
+  while (s < sMax && old[old.length - 1 - s] === text[text.length - 1 - s]) s++;
+  let p = 0;
+  while (p < max - s && old[p] === text[p]) p++;
+  let from = p, toOld = old.length - s, toNew = text.length - s;
+  for (;;) {
+    const f0 = from, t0 = toOld;
+    // 範圍的邊界前後都是字母（不管是改之前還是改之後）：邊界在一個詞的中間，往外擴到詞的開頭與結尾
+    while (from > 0 && isLetter(text[from - 1]) && (isLetter(text[from]) || isLetter(old[from]))) from--;
+    while (toNew < text.length && isLetter(text[toNew]) && (isLetter(text[toNew - 1]) || isLetter(old[toOld - 1]))) { toNew++; toOld++; }
+    let pos = 0;
+    for (const sg of segs) {
+      const a = pos, b = pos + sg.shown.length;
+      pos = b;
+      if (a < from && from < b) from = a;
+      if (a < toOld && toOld < b) { toNew += b - toOld; toOld = b; }
+    }
+    if (from === f0 && toOld === t0) break;
+  }
+  return { from, toOld, toNew };
+}
+
+// 使用者把格子裡的字改成 text 之後的段落。segs 是改之前的段落；base 是這一格剛畫出來時的段落（原文）；
+// caret 見 diffRegion。改到的地方照新打的字轉換，其他地方留著。再跟 base 比一次：跟原文一樣的開頭與結尾直接用原文，
+// 所以打錯一個字再刪掉、刪掉一個符號再打回來，都會回到原本的寫法
+export function editSegs(segs: Seg[], text: string, auto = true, base: Seg[] = segs, caret?: number): Seg[] {
+  const r = diffRegion(segs, text, caret);
+  const next = r ? spliceSegs(segs, r.from, r.toOld, freshSegs(text.slice(r.from, r.toNew), text[r.from - 1] || '', auto)) : segs;
+  if (base === segs) return next;
+  const b = diffRegion(base, text, caret);
+  if (!b) return base;
+  return sealSegs([...sliceSegs(base, 0, b.from), ...sliceSegs(next, b.from, b.toNew), ...sliceSegs(base, b.toOld, Infinity)]);
+}
+
+// LaTeX 文字 → 顯示
+export function toDisplay(latex: string): string { return segShown(displaySegs(latex)); }
+
+// 顯示 → LaTeX，整段都當成新打的字：α → \alpha（後面接字母時補一個空白）、獨立的 sin → \sin
+export function fromDisplay(text: string): string { return segSrc(editSegs([], text)); }
 
 // ---------------------------------------------------------------- LaTeX ⇄ 結構
 // 一列（row）是項目的陣列；項目：
@@ -77,8 +187,11 @@ export function fromDisplay(text: string): string {
 //   { t: 'env', name, rows }         矩陣、分段函數（rows 是「列」的陣列，每列是「格」的陣列，每格是一列項目）
 //   { t: 'braces', a }               單純的 { … }
 export type MathRow = MathItem[];
-// 結構項目放子列的欄位（a、b、n、rows）：走訪整棵樹時直接用欄位名稱取值，不必先分辨是哪一種項目
-interface MathSlots { a?: MathRow; b?: MathRow; n?: MathRow | null; rows?: MathRow[][]; }
+// 結構項目放子列的欄位（a、b、n、rows）：走訪整棵樹時直接用欄位名稱取值，不必先分辨是哪一種項目。
+// g：從原文讀進來的結構記著格子之間的原文（依格子的順序，第一段在第一格前面、最後一段在最後一格後面），
+// 寫回去時用這些原文接上格子的內容，所以沒改到的地方一字不差：x^2 不會變成 x^{2}、\left(x\right) 不會被加上空白、
+// 分成好幾行寫的矩陣不會接成一行。新插入的結構沒有 g，照編輯器自己的寫法（x^{…}、\left( … \right)）
+interface MathSlots { a?: MathRow; b?: MathRow; n?: MathRow | null; rows?: MathRow[][]; g?: string[]; }
 // raw：整段看不懂的 LaTeX（見 parseLatex），格子裡照原文顯示、原文存回
 export interface TextItem { t: 'text'; v: string; raw?: boolean; }
 export interface FracItem extends MathSlots { t: 'frac'; cmd: string; a: MathRow; b: MathRow; }
@@ -87,7 +200,8 @@ export interface ScriptItem extends MathSlots { t: 'sup' | 'sub'; a: MathRow; }
 export interface GroupItem extends MathSlots { t: 'group'; cmd: string; a: MathRow; }
 export interface BraceItem extends MathSlots { t: 'brace'; cmd: string; a: MathRow; b: MathRow; }
 export interface ParenItem extends MathSlots { t: 'paren'; l: string; r: string; a: MathRow; }
-export interface EnvItem extends MathSlots { t: 'env'; name: string; rows: MathRow[][]; }
+// w：讀進來時每一列有幾格（之後按「＋列」「＋欄」加的格子不在原文裡，照編輯器的寫法前後各空一格）
+export interface EnvItem extends MathSlots { t: 'env'; name: string; rows: MathRow[][]; w?: number[]; }
 export interface BracesItem extends MathSlots { t: 'braces'; a: MathRow; }
 export type MathItem = TextItem | FracItem | SqrtItem | ScriptItem | GroupItem | BraceItem | ParenItem | EnvItem | BracesItem;
 const FRACS = ['\\frac', '\\dfrac', '\\tfrac', '\\binom'];
@@ -120,81 +234,110 @@ function parseRow(s: string, pos: number, stops: string[]): RowResult {
   const flush = () => { if (text) { row.push({ t: 'text', v: text }); text = ''; } };
   const at = (w: string) => s.startsWith(w, pos);
   const isStop = () => stops.some(w => at(w) && (!/^\\[A-Za-z]+$/.test(w) || !/[A-Za-z]/.test(s[pos + w.length] || '')));
-  const skipSpace = () => { while (s[pos] === ' ') pos++; };
-  const group = (): MathRow => {
+  // 空白、換行都跳過（TeX 找參數時也跳過）。跳過的原文記在結構的 g 裡，寫回去還在
+  const skipSpace = () => { while (s[pos] === ' ' || s[pos] === '\n' || s[pos] === '\t' || s[pos] === '\r') pos++; };
+  // 讀一個 {…}。cut 依序記下每一格內容在原文的開頭與結尾（格子以外的原文就是結構的 g，見 glue）
+  const group = (cut: number[]): MathRow => {
     skipSpace();
     if (s[pos] !== '{') throw new ParseError('{');
     const r = parseRow(s, pos + 1, ['}']);
+    cut.push(pos + 1, r.pos);
     pos = r.pos + 1;
     return r.row;
   };
+  // 結構從 start 到目前位置的原文裡，cut 以外的部分：第一格前面、格子之間、最後一格後面
+  const glue = (start: number, cut: number[]): string[] => {
+    const g: string[] = [];
+    let from = start;
+    for (let i = 0; i < cut.length; i += 2) { g.push(s.slice(from, cut[i])); from = cut[i + 1]; }
+    g.push(s.slice(from, pos));
+    return g;
+  };
   const command = () => { const m = /^\\[A-Za-z]+/.exec(s.slice(pos)); return m ? m[0] : null; };
   // 文字類指令的 {…}：原樣讀到成對的 } 為止（\{、\} 不算），整段是一格文字
-  const verbatim = (): MathRow => {
+  const verbatim = (cut: number[]): MathRow => {
     const start = pos + 1;
     let depth = 0;
     for (; pos < s.length; pos++) {
       if (s[pos] === '\\') { pos++; continue; }
       if (s[pos] === '{') depth++;
-      else if (s[pos] === '}' && --depth === 0) { pos++; return [{ t: 'text', v: s.slice(start, pos - 1) }]; }
+      else if (s[pos] === '}' && --depth === 0) { cut.push(start, pos); pos++; return [{ t: 'text', v: s.slice(start, pos - 1) }]; }
     }
     throw new ParseError('{');
   };
+  // 原文裡空著的選擇性的格子（\sqrt[]{x} 的次方根、\overbrace{a}^{} 的標籤）：那一格從 cut 拿掉，
+  // 它的原文就算在格子之間（g 少一段）。格子照樣留著可以打字；空著的話寫回去還是原文，打了字才換成編輯器的寫法（見 toLatex）
+  const blankSlot = (cut: number[], mark: number): void => { if (!s.slice(cut[mark], cut[mark + 1]).trim()) cut.length = mark; };
   // 從 pos 的指令 c 讀一個有格子的結構（分數、根號、\vec{…} 這類、上下括號）；不是這些就回傳 null，pos 不動
   const structure = (c: string): MathItem | null => {
-    if (FRACS.includes(c)) { pos += c.length; const a = group(); const b = group(); return { t: 'frac', cmd: c, a, b }; }
+    const start = pos;
+    const cut: number[] = [];
+    if (FRACS.includes(c)) { pos += c.length; const a = group(cut); const b = group(cut); return { t: 'frac', cmd: c, a, b, g: glue(start, cut) }; }
     if (c === '\\sqrt') {
       pos += c.length; skipSpace();
       let n: MathRow | null = null;
-      if (s[pos] === '[') { const r = parseRow(s, pos + 1, [']']); n = r.row; pos = r.pos + 1; }
-      return { t: 'sqrt', a: group(), n };
+      if (s[pos] === '[') {
+        const r = parseRow(s, pos + 1, [']']);
+        n = r.row;
+        cut.push(pos + 1, r.pos);
+        blankSlot(cut, 0);
+        pos = r.pos + 1;
+      }
+      const a = group(cut);
+      return { t: 'sqrt', a, n, g: glue(start, cut) };
     }
     // \tag*{…}（編號不加括號）、\operatorname*{…}：指令名稱只抓到字母的部分，星號要一起算進去
     const cmd = s[pos + c.length] === '*' && GROUP_CMDS.includes(c + '*') ? c + '*' : c;
-    const save = pos;
     if (GROUP_CMDS.includes(cmd)) {
       pos += cmd.length; skipSpace();
-      if (s[pos] === '{') return { t: 'group', cmd, a: PLAIN_GROUPS.has(cmd) ? verbatim() : group() };
-      pos = save;
+      if (s[pos] === '{') { const a = PLAIN_GROUPS.has(cmd) ? verbatim(cut) : group(cut); return { t: 'group', cmd, a, g: glue(start, cut) }; }
+      pos = start;
     }
     if (H_BRACES[c]) {
       pos += c.length; skipSpace();
       if (s[pos] === '{') {
-        const a = group();
+        const a = group(cut);
         // 後面緊接 ^（上括號）或 _（下括號）就是標籤；沒有標籤時標籤格是空的，空白留給後面的文字
         const afterBody = pos;
         skipSpace();
         let b: MathRow = [];
-        if (s[pos] === H_BRACES[c]) { pos++; b = scriptArg(); } else pos = afterBody;
-        return { t: 'brace', cmd: c, a, b };
+        if (s[pos] === H_BRACES[c]) { pos++; b = scriptArg(cut); blankSlot(cut, 2); } else pos = afterBody;
+        return { t: 'brace', cmd: c, a, b, g: glue(start, cut) };
       }
-      pos = save;
+      pos = start;
     }
     return null;
   };
-  // ^ 或 _ 後面的內容：{…}、一個指令（x^\alpha）或一個字（x^2）
-  const scriptArg = (): MathRow => {
+  // ^ 或 _ 後面的內容：{…}、一個指令（x^\alpha）或一個字（x^2）。cut 記下內容在原文的範圍（沒有大括號時就是那一個單位）
+  const scriptArg = (cut: number[]): MathRow => {
     skipSpace();
-    if (s[pos] === '{') return group();
+    if (s[pos] === '{') return group(cut);
     if (isStop()) throw new ParseError('^');
+    const start = pos;
+    const one = (r: MathRow): MathRow => { cut.push(start, pos); return r; };
     const c = command();
     if (c) {
       const mb = /^\\mathbb\{[RNZQC]\}/.exec(s.slice(pos));
-      if (mb) { pos += mb[0].length; return [{ t: 'text', v: mb[0] }]; }
+      if (mb) { pos += mb[0].length; return one([{ t: 'text', v: mb[0] }]); }
       // A^\mathrm{T}、e^\frac{1}{2}：指令連同它的參數才是上標。以前只拿指令名稱，
       // 寫回去變成 A^{\mathrm}{T}、e^{\frac}{1}{2}（指令跟參數被拆開，是壞掉的 LaTeX）
       const it = structure(c);
-      if (it) return [it];
+      if (it) return one([it]);
       pos += c.length;
       // 要參數卻沒有大括號的指令（x^\frac12）、不認得又緊接著 { 的指令（不知道它要不要參數，x^\foo{a}）：
       // 猜錯會把內容搬進或搬出上標，所以整段當成看不懂的寫法，原樣保留
       const known = CMD_TO_CHAR.has(c) || FUNC_SET.has(c.slice(1)) || NO_ARG.has(c);
-      if (NEEDS_MORE.has(c) || (!known && /^ *[{[]/.test(s.slice(pos)))) throw new ParseError('^');
-      return [{ t: 'text', v: c }];
+      if (NEEDS_MORE.has(c) || (!known && /^\s*[{[]/.test(s.slice(pos)))) throw new ParseError('^');
+      return one([{ t: 'text', v: c }]);
     }
-    // \, \{ \| 這類：反斜線加一個字是一個單位（以前只拿走反斜線，x^\,y 寫回去變成 x^{\},y）
-    if (s[pos] === '\\' && pos + 1 < s.length && s[pos + 1] !== '\\') { pos += 2; return [{ t: 'text', v: s.slice(pos - 2, pos) }]; }
-    if (pos < s.length && !'^_}&\\'.includes(s[pos])) return [{ t: 'text', v: s[pos++] }];
+    // 一個字，或反斜線加一個字（\, \{ \|）：以前只拿走反斜線，x^\,y 寫回去變成 x^{\},y。
+    // 補充平面的字（𝔹）在字串裡是兩個單位，要整個拿：以前只拿前半個，寫回去變成拆開的亂碼
+    const esc = s[pos] === '\\' ? 1 : 0;
+    if (esc && (pos + 1 >= s.length || s[pos + 1] === '\\')) throw new ParseError('^');
+    if (pos < s.length && (esc || !'^_}&\\'.includes(s[pos]))) {
+      pos += esc + String.fromCodePoint(s.codePointAt(pos + esc)!).length;
+      return one([{ t: 'text', v: s.slice(start, pos) }]);
+    }
     throw new ParseError('^');
   };
   while (pos < s.length) {
@@ -204,8 +347,10 @@ function parseRow(s: string, pos: number, stops: string[]): RowResult {
     if (ch === '{') { flush(); const r = parseRow(s, pos + 1, ['}']); pos = r.pos + 1; row.push({ t: 'braces', a: r.row }); continue; }
     if (ch === '^' || ch === '_') {
       flush();
-      pos++;
-      row.push({ t: ch === '^' ? 'sup' : 'sub', a: scriptArg() });
+      const start = pos++;
+      const cut: number[] = [];
+      const a = scriptArg(cut);
+      row.push({ t: ch === '^' ? 'sup' : 'sub', a, g: glue(start, cut) });
       continue;
     }
     if (ch === '\\') {
@@ -216,17 +361,20 @@ function parseRow(s: string, pos: number, stops: string[]): RowResult {
       const it = structure(c);
       if (it) { flush(); row.push(it); continue; }
       if (c === '\\left') {
-        flush(); pos += c.length; skipSpace();
+        flush();
+        const start = pos;
+        pos += c.length; skipSpace();
         const dl = /^(\\[A-Za-z]+|\\.|.)/.exec(s.slice(pos));
         if (!dl) throw new ParseError('left');
         pos += dl[0].length;
         const r = parseRow(s, pos, ['\\right']);
         if (!s.startsWith('\\right', r.pos)) throw new ParseError('right');
+        const cut = [pos, r.pos];
         pos = r.pos + 6; skipSpace();
         const dr = /^(\\[A-Za-z]+|\\.|.)/.exec(s.slice(pos));
         if (!dr) throw new ParseError('right');
         pos += dr[0].length;
-        row.push({ t: 'paren', l: dl[0], r: dr[0], a: r.row });
+        row.push({ t: 'paren', l: dl[0], r: dr[0], a: r.row, g: glue(start, cut) });
         continue;
       }
       if (c === '\\begin') {
@@ -235,11 +383,14 @@ function parseRow(s: string, pos: number, stops: string[]): RowResult {
         flush(); pos += m[0].length;
         const end = '\\end{' + m[1] + '}';
         const rows: MathRow[][] = [[]];
+        // 格子之間只有 & 與 \\（格子裡的空白、換行都算在格子裡），所以 g 只記開頭與結尾；cellAt 是最後一格的開頭
+        let cellAt = pos;
         for (;;) {
+          cellAt = pos;
           const r = parseRow(s, pos, ['&', '\\\\', end]);
           rows[rows.length - 1].push(r.row);
           pos = r.pos;
-          if (s.startsWith(end, pos)) { pos += end.length; break; }
+          if (s.startsWith(end, pos)) break;
           if (s[pos] === '&') { pos++; continue; }
           if (s.startsWith('\\\\', pos)) {
             pos += 2;
@@ -251,10 +402,13 @@ function parseRow(s: string, pos: number, stops: string[]): RowResult {
           }
           throw new ParseError('end');
         }
-        // 最後一列如果只有一個空白格（結尾多寫了 \\）就拿掉
+        const endAt = pos;
+        pos += end.length;
+        // 最後一列如果只有一個空白格（結尾多寫了 \\）就拿掉；那段原文（\\ 與空白）算在結尾，寫回去還在
         const last = rows[rows.length - 1];
-        if (rows.length > 1 && last.length === 1 && !toLatex(last[0]).trim()) rows.pop();
-        row.push({ t: 'env', name: m[1], rows });
+        let tail = end;
+        if (rows.length > 1 && last.length === 1 && !s.slice(cellAt, endAt).trim()) { rows.pop(); tail = '\\\\' + s.slice(cellAt, endAt) + end; }
+        row.push({ t: 'env', name: m[1], rows, g: [m[0], tail], w: rows.map(r => r.length) });
         continue;
       }
       if (c === '\\right' || c === '\\end') throw new ParseError(c);
@@ -285,21 +439,119 @@ const trimRow = (row: MathRow): string => {
   const v = toLatex(row).trim();
   return /(^|[^\\])(\\\\)*\\$/.test(v) ? v + ' ' : v;
 };
-export function toLatex(row: MathRow): string {
+const rowEmpty = (row: MathRow): boolean => !toLatex(row).trim();
+
+// 字串結尾是什麼：'word' 是指令名稱（\alpha、\rangle），'bs' 是單獨一個反斜線，'' 是其他（\\ 是換行，不算）
+function ending(s: string): 'word' | 'bs' | '' {
+  let i = s.length;
+  while (i > 0 && isLetter(s[i - 1])) i--;
+  let n = 0;
+  while (i - n > 0 && s[i - n - 1] === '\\') n++;
+  if (n % 2 === 0) return '';
+  return i === s.length ? 'bs' : 'word';
+}
+// 把幾段 LaTeX 接起來。前一段以指令名稱結尾、下一段以字母開頭時隔一個空白，不然會接成另一個指令
+// （\left\langle 後面那一格改成字母開頭變成 \langlea、\right\rangle 後面打 x 變成 \ranglex）；
+// 前一段以單獨的反斜線結尾（格子裡打了 \ 還沒打完）也隔一個空白，不然會跟後面的 } 合成 \}，大括號就不成對了。
+// 讀進來的原文不會有這兩種接法，所以沒改到的地方不受影響
+function cat(parts: string[]): string {
   let out = '';
-  for (const it of row) {
-    if (it.t === 'text') out += it.v;
-    else if (it.t === 'frac') out += (it.cmd || '\\frac') + '{' + trimRow(it.a) + '}{' + trimRow(it.b) + '}';
-    else if (it.t === 'sqrt') out += '\\sqrt' + (it.n && trimRow(it.n) ? '[' + trimRow(it.n) + ']' : '') + '{' + trimRow(it.a) + '}';
-    else if (it.t === 'sup') out += '^{' + trimRow(it.a) + '}';
-    else if (it.t === 'sub') out += '_{' + trimRow(it.a) + '}';
-    else if (it.t === 'group') out += it.cmd + '{' + (PLAIN_GROUPS.has(it.cmd) ? toLatex(it.a) : trimRow(it.a)) + '}';
-    else if (it.t === 'brace') { const label = trimRow(it.b); out += it.cmd + '{' + trimRow(it.a) + '}' + (label ? H_BRACES[it.cmd] + '{' + label + '}' : ''); }
-    else if (it.t === 'paren') out += '\\left' + it.l + ' ' + trimRow(it.a) + ' \\right' + it.r;
-    else if (it.t === 'braces') out += '{' + toLatex(it.a) + '}';
-    else if (it.t === 'env') out += '\\begin{' + it.name + '} ' + it.rows.map(r => r.map(trimRow).join(' & ')).join(' \\\\ ') + ' \\end{' + it.name + '}';
+  for (const p of parts) {
+    if (!p) continue;
+    const e = ending(out);
+    if (e === 'bs' || (e === 'word' && isLetter(p[0]))) out += ' ';
+    out += p;
   }
   return out;
+}
+// 原文的格子之間（g）依序接上每一格的內容；段數對不上時回傳 null，改用編輯器自己的寫法
+function glued(g: string[] | undefined, slots: string[]): string | null {
+  if (!g || g.length !== slots.length + 1) return null;
+  const parts = [g[0]];
+  slots.forEach((x, i) => parts.push(x, g[i + 1]));
+  return cat(parts);
+}
+// 不加大括號也還是同一個上標的內容（一個字、一個指令、\mathrm{T} 這樣一個結構）：回傳那段 LaTeX，否則回傳 null。
+// 直接讀讀看：讀出來的上標剛好是這段內容才算
+function bareArg(row: MathRow): string | null {
+  const v = toLatex(row);
+  if (!v || v.trim() !== v) return null;
+  const back = parseLatex('^' + v);
+  const sup = back[1];
+  return back.length === 3 && sup.t === 'sup' && toLatex(sup.a) === v && !(back[2] as TextItem).v ? v : null;
+}
+// 原文寫的上下標（x^2、x^{2}、上下括號的標籤）：pre 是 ^ 加上原文的空白與 {，post 是 }（原文沒有大括號時都沒有）。
+// 沒有大括號的寫法，改過之後內容還是一個單位（2 改成 3、\alpha 改成 \beta）就照樣不加；變成好幾個字才加上
+function scriptLatex(pre: string, post: string, row: MathRow): string {
+  if (pre.endsWith('{')) return cat([pre, toLatex(row), post]);
+  const bare = bareArg(row);
+  return bare != null ? cat([pre, bare]) : cat([pre, '{', toLatex(row), '}']);
+}
+// 打字打出來、不成對的大括號與註解符號 %：照樣寫出去整個方程式就壞了（後面的 } 被配走、後面整行變成註解），
+// 改寫成看得到的字 \{、\}、\%（格子裡看到的就是這個字）。成對的照樣寫出去：打完 { 再打 } 就是一組大括號。
+// 從原文讀進來的格子一定成對、也沒有 %（有 % 的整段不拆成格子），不會被改到
+function safeText(v: string): string {
+  if (!/[{}%]/.test(v)) return v;
+  const open: number[] = [];
+  const bad = new Set<number>();
+  for (let i = 0; i < v.length; i++) {
+    if (v[i] === '\\') i++;
+    else if (v[i] === '%') bad.add(i);
+    else if (v[i] === '{') open.push(i);
+    else if (v[i] === '}') { if (open.length) open.pop(); else bad.add(i); }
+  }
+  for (const i of open) bad.add(i);
+  if (!bad.size) return v;
+  let out = '';
+  for (let i = 0; i < v.length; i++) out += (bad.has(i) ? '\\' : '') + v[i];
+  return out;
+}
+
+// 寫回 LaTeX。從原文讀進來的結構用記著的原文（g）接上格子的內容，格子裡的空白照原文；
+// 新插入的結構（沒有 g）用編輯器自己的寫法：格子去掉前後的空白、上下標一律加大括號、\left( … \right) 裡外各空一格
+export function toLatex(row: MathRow): string { return cat(row.map(itemLatex)); }
+function itemLatex(it: MathItem): string {
+  const L = toLatex;
+  const g = it.t === 'text' ? undefined : it.g;
+  switch (it.t) {
+    case 'text': return it.raw ? it.v : safeText(it.v);
+    case 'frac': return glued(g, [L(it.a), L(it.b)]) ?? cat([it.cmd || '\\frac', '{', trimRow(it.a), '}{', trimRow(it.b), '}']);
+    case 'sqrt': {
+      const n = it.n && !rowEmpty(it.n) ? it.n : null;
+      // 原文有次方根：清空了就拿掉 [ ]；原文沒有（或是空的）：打了次方根才加上 [ ]
+      if (g && g.length === 3) return n ? glued(g, [L(n), L(it.a)])! : cat(['\\sqrt', g[1].slice(1), L(it.a), g[2]]);
+      if (g && g.length === 2) return n ? cat(['\\sqrt[', trimRow(n), ']{', L(it.a), g[1]]) : glued(g, [L(it.a)])!;
+      return cat(['\\sqrt', n ? '[' + trimRow(n) + ']' : '', '{', trimRow(it.a), '}']);
+    }
+    case 'sup': case 'sub':
+      return g && g.length === 2 ? scriptLatex(g[0], g[1], it.a) : cat([it.t === 'sup' ? '^{' : '_{', trimRow(it.a), '}']);
+    case 'group': return glued(g, [L(it.a)]) ?? cat([it.cmd, '{', PLAIN_GROUPS.has(it.cmd) ? L(it.a) : trimRow(it.a), '}']);
+    case 'brace': {
+      const mark = H_BRACES[it.cmd];
+      const label = rowEmpty(it.b) ? null : it.b;
+      // 原文有標籤：清空了就拿掉 ^{…}；原文沒有（或是空的）：打了標籤才加上
+      if (g && g.length === 3) return label ? cat([g[0], L(it.a), scriptLatex(g[1], g[2], label)]) : cat([g[0], L(it.a), '}']);
+      if (g && g.length === 2) return label ? cat([g[0], L(it.a), '}' + mark + '{', trimRow(label), '}']) : glued(g, [L(it.a)])!;
+      return cat([it.cmd, '{', trimRow(it.a), '}', label ? mark + '{' + trimRow(label) + '}' : '']);
+    }
+    case 'paren': return glued(g, [L(it.a)]) ?? cat(['\\left' + it.l, ' ', trimRow(it.a), ' ', '\\right' + it.r]);
+    case 'braces': return cat(['{', L(it.a), '}']);
+    case 'env': {
+      // 原文的格子照原文（裡面的空白、換行都在）；按「＋列」「＋欄」加的格子照編輯器的寫法前後各空一格
+      const w = it.w || [];
+      const src = g && g.length === 2 ? g : null;
+      const parts = [src ? src[0] : '\\begin{' + it.name + '}'];
+      it.rows.forEach((r, i) => {
+        if (i) parts.push(src ? '\\\\' : ' \\\\');
+        r.forEach((cell, j) => {
+          if (j) parts.push(src ? '&' : ' &');
+          parts.push(src && i < w.length && j < w[i] ? L(cell) : ' ' + trimRow(cell) + (src ? ' ' : ''));
+        });
+      });
+      parts.push(src ? src[1] : ' \\end{' + it.name + '}');
+      return cat(parts);
+    }
+  }
 }
 
 // 整理：相鄰的文字合併；結構的前後與中間一定有文字格（才點得進去打字）
@@ -309,8 +561,9 @@ export function normalize(row: MathRow): MathRow {
     const last = out[out.length - 1];
     if (it.t === 'text') {
       if (!last || last.t !== 'text') out.push(it);
-      // 原文照樣顯示的文字（raw）跟旁邊的文字合併後，整格都照原文顯示
-      else { last.v += it.v; if (it.raw) last.raw = true; }
+      // 原文照樣顯示的文字（raw）跟旁邊的文字合併後，整格都照原文顯示。
+      // 其他的接起來時，\alpha 後面接字母要隔一個空白（見 cat）：拿掉兩者之間的結構、在 α 與 x 之間貼上字母時
+      else { last.v = last.raw || it.raw ? last.v + it.v : cat([last.v, it.v]); if (it.raw) last.raw = true; }
       continue;
     }
     if (!last || last.t !== 'text') out.push({ t: 'text', v: '' });
@@ -320,6 +573,29 @@ export function normalize(row: MathRow): MathRow {
   }
   if (!out.length || out[out.length - 1].t !== 'text') out.push({ t: 'text', v: '' });
   return out;
+}
+
+// 新插入的結構（功能區的按鈕、打 \frac 再按空白）照編輯器自己的寫法寫出去：拿掉讀範本時記下的原文（g）。
+// 不拿掉的話，範本「\left( \right)」打了字會寫成 \left(x\right)，「^\circ」不會加上大括號
+export function forgetSource(row: MathRow): MathRow {
+  for (const it of row) {
+    if (it.t === 'text') continue;
+    delete it.g;
+    if (it.t === 'env') delete it.w;
+    for (const k of ['a', 'b', 'n'] as const) if (Array.isArray(it[k])) forgetSource(it[k]);
+    if (it.rows) it.rows.forEach(r => r.forEach(forgetSource));
+  }
+  return row;
+}
+
+// 不認得的指令後面緊接的 {…}（\color{tan}、\mathsf{max}）多半是那個指令的參數（顏色的名稱、換字型的字）：
+// 裡面打的 sin、tan、max 不自動換成 \sin、\tan、\max（\color{\tan} 是壞掉的 LaTeX）。
+// 認得的指令（\alpha、\sin…）不接參數，後面的 {…} 是一般的群組，照樣轉換
+export function isCommandArg(row: MathRow, it: MathItem): boolean {
+  const prev = row[row.indexOf(it) - 1];
+  if (it.t !== 'braces' || !prev || prev.t !== 'text') return false;
+  const m = /(?:^|[^\\])(?:\\\\)*(\\[A-Za-z]+)\s*$/.exec(prev.v);
+  return !!m && !CMD_TO_CHAR.has(m[1]) && !FUNC_SET.has(m[1].slice(1)) && !NO_ARG.has(m[1]);
 }
 
 // ---------------------------------------------------------------- 編輯元件
@@ -355,6 +631,9 @@ interface Owner { item: MathItem; row: MathRow; }
 interface Snapshot { model: string; span: number; offset: number; src: string | null; }
 // 改動的種類：type 是打字（連續打字合併成一步），struct 是插入或刪除結構
 type ChangeKind = 'type' | 'struct';
+// 一個文字格記著的段落（見 displaySegs）：base 是剛畫出來時的樣子，segs 隨打字更新；
+// auto 為 false 時打的字不自動轉換函數名稱（不認得的指令的參數，見 isCommandArg）
+interface Cell { segs: Seg[]; base: Seg[]; auto: boolean; }
 
 // 一個結構項目的所有格子，依畫面上的順序
 function slotsOf(it: MathItem): MathRow[] {
@@ -364,7 +643,6 @@ function slotsOf(it: MathItem): MathRow[] {
   if (it.t === 'env') return it.rows.flat();
   return [it.a];
 }
-const rowEmpty = (row: MathRow): boolean => !toLatex(row).trim();
 
 // 根號的符號。不用「√」字元：字的大小固定，裡面放分數、矩陣這類較高的內容時，
 // 上方那條線（被開方數的上框線）會被頂到內容頂端，跟縮在中間的「√」接不起來。
@@ -514,6 +792,9 @@ export class MathField {
   declare active: MathSlot | null;
   declare byItem: Map<MathItem, HTMLElement>;
   declare owner: Map<MathRow, Owner>;
+  // 每個文字格（DOM）記著的段落；literal 是裡面不自動轉換函數名稱的列。每次重畫重新建立
+  declare cells: Map<HTMLElement, Cell>;
+  declare literal: Set<MathRow>;
   declare undoStack: Snapshot[];
   declare redoStack: Snapshot[];
   declare current: Snapshot;
@@ -661,6 +942,8 @@ export class MathField {
     this.dom.replaceChildren();
     this.byItem = new Map();
     this.owner = new Map();
+    this.cells = new Map();
+    this.literal = new Set();
     this.dom.appendChild(this.renderRow(this.model));
     if (focusItem && this.byItem.get(focusItem)) this.place(this.byItem.get(focusItem)!, 0);
   }
@@ -712,7 +995,10 @@ export class MathField {
     span.contentEditable = 'true';
     span.spellcheck = false;
     if (plain) span.dataset.plain = '1';
-    span.textContent = plain ? it.v : toDisplay(it.v);
+    // 照原文顯示的格子不用段落：畫面上的字就是原文
+    const segs = plain ? [] : displaySegs(it.v);
+    this.cells.set(span, { segs, base: segs, auto: !this.literal.has(row) });
+    span.textContent = plain ? it.v : segShown(segs);
     // 整列只有這一格而且是空的：顯示成虛線方框，提示可以輸入
     if (row.length === 1 && !it.v) span.classList.add('is-slot');
     this.byItem.set(it, span);
@@ -726,7 +1012,8 @@ export class MathField {
       // 換行是指令與後面文字之間唯一的分隔時（\implies⏎b），拿掉就接成不存在的指令 \impliesb
       const raw = it.v.includes('\n') ? span.textContent : span.textContent.replace(/\n/g, '');
       if (!plain && (this.typedCommand(row, index, span, raw) || this.typedScript(row, index, span, raw))) return;
-      it.v = plain ? raw : fromDisplay(raw);
+      // 只有改到的地方從畫面上的字轉換，其他地方照原文（\leq 還是 \leq、原本的 max 不會變成 \max）
+      it.v = plain ? raw : this.retype(span, raw);
       span.classList.toggle('is-slot', row.length === 1 && !it.v);
       // 在向量、~ 這類符號下面打字：打字不會重畫，這裡重新判斷符號要不要放低
       const accent = span.closest('.wm-mv-group.has-accent');
@@ -736,8 +1023,11 @@ export class MathField {
     });
     span.addEventListener('paste', e => {
       e.preventDefault();
-      const tx = (e.clipboardData && e.clipboardData.getData('text/plain')) || '';
-      this.insert(tx.replace(/\r?\n/g, ' '));
+      const tx = ((e.clipboardData && e.clipboardData.getData('text/plain')) || '').replace(/\r?\n/g, ' ');
+      // 貼上的是使用者自己的寫法，照原文保留（x^2 不加大括號，不像功能區的按鈕）；
+      // 照原文顯示的格子（\text{…}、看不懂的 LaTeX）貼上的就是文字，不拆成結構
+      const items = plain ? [{ t: 'text', v: tx } as TextItem] : parseLatex(tx).filter(x => !(x.t === 'text' && !x.v));
+      if (tx) this.insertItems(items, row, index, span);
     });
     span.addEventListener('keydown', e => this.onKey(e, row, index, span));
     return span;
@@ -824,7 +1114,10 @@ export class MathField {
       drawDelim(this.host.ownerDocument, f, it.r);
       return f;
     }
-    if (it.t === 'braces') return slot('wm-mv-braces', it.a, null);
+    if (it.t === 'braces') {
+      if (isCommandArg(row, it)) this.literal.add(it.a);
+      return slot('wm-mv-braces', it.a, null);
+    }
     if (it.t === 'env') {
       const f = el('span', 'wm-mv-env');
       f.dataset.env = it.name;
@@ -865,21 +1158,23 @@ export class MathField {
     if (!m) return false;
     const cmd = '\\' + m[1];
     const it = row[index] as TextItem;
-    const before = raw.slice(0, c.start - m[0].length); const after = raw.slice(c.start);
+    const from = c.start - m[0].length;
+    const before = raw.slice(0, from);
     if (TYPED_STRUCTS[cmd]) {
-      it.v = fromDisplay(before + after);
-      span.textContent = before + after;
+      it.v = this.swapTyped(span, raw, from, c.start, []);
       this.place(span, before.length);
-      this.insertItems(parseLatex(TYPED_STRUCTS[cmd]).filter(x => !(x.t === 'text' && !x.v)), row, index, span);
+      this.insertItems(forgetSource(parseLatex(TYPED_STRUCTS[cmd])).filter(x => !(x.t === 'text' && !x.v)), row, index, span);
       return true;
     }
     if (CMD_TO_CHAR.has(cmd) || FUNC_SET.has(m[1])) {
-      // 符號顯示成符號；函數名稱拿掉反斜線、後面留一個空白。函數名稱前面緊接字母時照原文顯示（n\log，見 toDisplay）
-      const shown = CMD_TO_CHAR.get(cmd) || (/[A-Za-z\\]$/.test(before) ? cmd : m[1]) + ' ';
-      it.v = fromDisplay(before + shown + after);
-      span.textContent = before + shown + after;
+      // 符號顯示成符號；函數名稱拿掉反斜線、後面留一個空白。函數名稱前面緊接字母時照原文顯示（n\log，見 displaySegs）。
+      // 記著打的寫法：打 \leq 就是 \leq，不會因為 ≤ 預設寫成 \le 而被換掉
+      const symbol = CMD_TO_CHAR.get(cmd);
+      const put: Seg[] = symbol ? [{ src: cmd, shown: symbol }]
+        : [{ src: cmd, shown: /[A-Za-z\\]$/.test(before) ? cmd : m[1] }, { src: ' ', shown: ' ' }];
+      it.v = this.swapTyped(span, raw, from, c.start, put);
       span.classList.remove('is-slot');
-      this.place(span, (before + shown).length);
+      this.place(span, before.length + segShown(put).length);
       this.changed('type');
       return true;
     }
@@ -894,12 +1189,29 @@ export class MathField {
     const ch = raw[c.start - 1];
     if (ch !== '^' && ch !== '_') return false;
     const it = row[index] as TextItem;
-    const before = raw.slice(0, c.start - 1); const after = raw.slice(c.start);
-    it.v = fromDisplay(before + after);
-    span.textContent = before + after;
-    this.place(span, before.length);
+    it.v = this.swapTyped(span, raw, c.start - 1, c.start, []);
+    this.place(span, c.start - 1);
     this.insertItems([{ t: ch === '^' ? 'sup' : 'sub', a: [{ t: 'text', v: '' }] }], row, index, span);
     return true;
+  }
+
+  // 格子裡的字變成 text 之後：更新這一格記著的段落，回傳新的原文（見 editSegs）
+  retype(span: HTMLElement, text: string): string {
+    const cell = this.cells.get(span);
+    if (!cell) return fromDisplay(text);
+    cell.segs = editSegs(cell.segs, text, cell.auto, cell.base, this.caret(span).end);
+    return segSrc(cell.segs);
+  }
+
+  // 剛打進來的字（raw）先照打的樣子記進段落、不轉換，再把畫面上第 from 到第 to 個字換成 put；
+  // 畫面上的字也一起換好，回傳這一格新的原文
+  swapTyped(span: HTMLElement, raw: string, from: number, to: number, put: Seg[]): string {
+    const cell = this.cells.get(span);
+    const typed = cell ? editSegs(cell.segs, raw, false, cell.segs, this.caret(span).end) : displaySegs(raw);
+    const segs = spliceSegs(typed, from, to, put);
+    if (cell) cell.segs = segs;
+    span.textContent = segShown(segs);
+    return segSrc(segs);
   }
 
   // 目前游標所在的格子（按按鈕之前最後停留的那一格）；還沒點過任何格子時是 null
@@ -1053,7 +1365,12 @@ export class MathField {
     const walk = (r: MathRow): void => r.forEach(x => {
       if (x.t === 'text') {
         const i = x.v.indexOf(MARK);
-        if (i >= 0) { target = x; offset = i; x.v = x.v.replace(MARK, ''); }
+        if (i >= 0) {
+          // 拿掉記號後前後接起來（\alpha 與 x 之間要隔一個空白，見 cat）；照原文顯示的格子照原樣接
+          const head = x.v.slice(0, i), rest = x.v.slice(i + MARK.length);
+          x.v = x.raw ? head + rest : cat([head, rest]);
+          target = x; offset = x.v.length - rest.length;
+        }
         return;
       }
       for (const k of ['a', 'b', 'n'] as const) if (Array.isArray(x[k])) walk(x[k]);
@@ -1070,13 +1387,27 @@ export class MathField {
     this.changed();
   }
 
-  // 在目前的游標處插入一段 LaTeX（按上方的結構或符號按鈕）
+  // 在目前的游標處插入一段 LaTeX（按上方的結構或符號按鈕）。插入的結構照編輯器自己的寫法（x^{…}，見 forgetSource）
   insert(latex: string): void {
-    const items = parseLatex(latex).filter(it => !(it.t === 'text' && !it.v));
+    const items = forgetSource(parseLatex(latex)).filter(it => !(it.t === 'text' && !it.v));
     if (!items.length) return;
     let a = this.active;
     if (!a || !this.dom.contains(a.span)) { const spans = this.spans(); const span = spans[spans.length - 1]; a = this.active = this.findActive(span); }
     if (!a) return;
+    // 游標在文字的格子裡（\text{…}、\tag{…}）：裡面是一般的文字，放進去的 \frac、\alpha 不會畫成數學
+    // （以前變成 \text{a\frac{}{}b}），所以插在那個文字結構的後面；游標在最前面時插在前面
+    const own = this.owner.get(a.row);
+    if (a.span.dataset.plain && own && own.item.t === 'group' && PLAIN_GROUPS.has(own.item.cmd)) {
+      const at = own.row.indexOf(own.item);
+      const front = this.caret(a.span).end === 0 && !!a.span.textContent;
+      const next = own.row[front ? at - 1 : at + 1]; // normalize 之後結構前後一定是文字格
+      const sp = next && this.byItem.get(next);
+      if (sp) {
+        this.place(sp, front ? sp.textContent.length : 0);
+        this.insertItems(items, own.row, own.row.indexOf(next), sp);
+        return;
+      }
+    }
     this.insertItems(items, a.row, a.index, a.span);
   }
 
@@ -1096,10 +1427,14 @@ export class MathField {
   insertItems(items: MathRow, row: MathRow, index: number, span: HTMLElement): void {
     const c = this.caret(span);
     const shown = span.textContent;
-    const conv = span.dataset.plain ? (x: string) => x : fromDisplay;
-    const before = conv(shown.slice(0, c.start));
-    const selected = conv(shown.slice(c.start, c.end));
-    const after = conv(shown.slice(c.end));
+    // 格子在游標處切成前後兩段：每一段用記著的段落取原文（\leq 還是 \leq、原本的 max 還是 max）。
+    // 照原文顯示的格子，畫面上的字就是原文
+    const cell = span.dataset.plain ? undefined : this.cells.get(span);
+    if (cell && segShown(cell.segs) !== shown) cell.segs = editSegs(cell.segs, shown, cell.auto, cell.base);
+    const part = (a: number, b: number): string => (cell ? segSrc(sliceSegs(cell.segs, a, b)) : shown.slice(a, b));
+    const before = part(0, c.start);
+    const selected = part(c.start, c.end);
+    const after = part(c.end, shown.length);
     // 第一個空的格子：有選取文字就放進去；沒有的話游標停在那一格
     let firstSlot = null as MathRow | null; // 在 findSlot 裡指定
     const findSlot = (r: MathRow): void => {
