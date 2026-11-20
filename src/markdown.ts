@@ -708,6 +708,8 @@ function splitLines(text: string): string[] {
 }
 const isBlank = (l: string): boolean => /^[ \t]*(\r\n|\n|\r)?$/.test(l);
 const stripEol = (l: string): string => l.replace(/(\r\n|\n|\r)$/, '');
+// 文字的最後是不是一個空行（只看結尾的一小段；先把 \r\n 換成 \n，免得 \r\n 被當成兩個換行）
+const endsWithBlankLine = (s: string): boolean => /\n[ \t]*\n$/.test(s.slice(-200).replace(/\r\n?/g, '\n'));
 
 const CALLOUT_RE = /^\[!([^\]\s]+)\]([+-]?)[ \t]*/;
 
@@ -969,6 +971,24 @@ export class MarkdownConverter {
     return { doc: schema.topNodeType.create(null, nodes), meta };
   }
 
+  // 兩個區塊的文字緊接著寫（中間沒有空行）會不會讀成別的東西，而且補一個空行就能分開。
+  // 比的是「各自單獨讀」的結果：緊接著寫讀出來一樣就不用空行（筆記原本寫得很緊的地方不會被重排）；
+  // 補了空行也不一樣的（例如參照式連結的定義在別處）就維持緊接著寫，不多加空行
+  private needsBlankLine(before: string, after: string, atStart: boolean, eol: string): boolean {
+    // 文件屬性只認檔案的第一行：前一個區塊不在檔案開頭時，前面墊一段文字，免得 --- 被當成文件屬性
+    const blocks = (text: string, first: boolean): PMNode[] => {
+      const out: PMNode[] = [];
+      this.parse(first ? text : 'x' + eol + eol + text).doc.forEach(n => out.push(withBid(n, 0)));
+      return first ? out : out.slice(1);
+    };
+    const same = (a: PMNode[], b: PMNode[]): boolean => a.length === b.length && a.every((n, i) => n.eq(b[i]));
+    try {
+      const apart = blocks(before, atStart).concat(blocks(after, false));
+      if (same(blocks(before + after, atStart), apart)) return false;
+      return same(blocks(before + eol + after, atStart), apart);
+    } catch { return true; }
+  }
+
   // 序列化：未修改的區塊輸出原文
   serialize(doc: PMNode, meta: DocMeta): string {
     const eol = meta.eol || '\n';
@@ -988,6 +1008,13 @@ export class MarkdownConverter {
     let pending: string | null = null; // 已修改區塊原本尾端的空行，只在後面接回原本的下一段時使用
     const toEol = (s: string): string => s.replace(/\r\n|\r|\n/g, eol);
     const defaultSep = (): string => (out === '' ? '' : eol);
+    // 檔案最後一個區塊的原文可能沒有行尾：後面還要再接東西時先補上，否則兩段會黏成同一行或同一段
+    const endLine = (): void => { if (out !== '' && !/[\r\n]$/.test(out)) out += eol; };
+    // 目前這一串「中間沒有空行」的區塊各自寫出的文字。檢查時帶上前面幾個：緊接在有空行的註解、數學式後面的
+    // 文字，怎麼讀要看更前面的內容（markdown-it 把它們看成同一段）
+    let chain: string[] = [];
+    let chainAtStart = false; // 這一串是不是從檔案的第一行開始（第一行才可能是文件屬性）
+    const CONTEXT = 3;
     for (const run of runs) {
       const ser = this.serializeNodes(run.nodes);
       const seg = run.bid != null && !used.has(run.bid) ? meta.segments[run.bid] : null;
@@ -998,16 +1025,23 @@ export class MarkdownConverter {
         continue;
       }
       const follows = seg && run.bid === prevSeg + 1;
-      const sep = follows ? (pending != null ? pending : '') + seg.gapBefore : defaultSep();
+      endLine();
+      let sep = follows ? (pending != null ? pending : '') + seg.gapBefore : defaultSep();
       pending = null;
       if (seg) {
         used.add(run.bid);
-        if (ser === seg.canon) { out += sep + seg.text; lastModified = false; }
-        else {
-          out += sep + toEol(ser) + eol;
-          lastModified = true;
-          if (seg.trailing) pending = seg.trailing;
-        }
+        const same = ser === seg.canon;
+        const text = same ? seg.text : toEol(ser) + eol;
+        // 原文裡這兩段是緊接著寫的（# 標題的下一行就是內文）。其中一段重新產生之後，緊接著寫可能會被讀成
+        // 同一段，或讓後面的內容被吃進 HTML 區塊：這時才補一個空行。兩段都沒改過就照原文，不必檢查
+        const tight = sep === '' && out !== '' && !endsWithBlankLine(out);
+        if (tight && !(same && !lastModified)
+          && this.needsBlankLine(chain.slice(-CONTEXT).join(''), text, chainAtStart && chain.length <= CONTEXT, eol)) sep = eol;
+        if (!tight || sep !== '') { chain = []; chainAtStart = out === '' && sep === ''; }
+        chain.push(text);
+        out += sep + text;
+        lastModified = !same;
+        if (!same && seg.trailing) pending = seg.trailing;
         prevSeg = run.bid!; // 有 seg 就表示 bid 不是 null
       } else {
         if (run.nodes.length === 1 && run.nodes[0].type.name === 'paragraph' && run.nodes[0].childCount === 0

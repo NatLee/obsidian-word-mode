@@ -2,9 +2,11 @@
 // 1. 沒有修改時，輸出要跟原文一字不差
 // 2. 每個區塊重新輸出後再讀回來，文件結構要相同（不會遺失或改變內容）
 // 3. 個別案例另外檢查「編輯後」的輸出
-import { EditorState } from 'prosemirror-state';
+import { EditorState, TextSelection } from 'prosemirror-state';
+import { splitBlock } from 'prosemirror-commands';
 import { MarkdownConverter } from '../src/markdown.js';
 import { schema } from '../src/schema.js';
+import { moveBlock, setAlign, setBlockStyle } from '../src/commands.js';
 
 const c = new MarkdownConverter();
 let fails = 0;
@@ -128,6 +130,56 @@ ok('儲存格裡 `x|y` 沒跳脫：保留原文', kinds(CASES.tableCodePipe) ===
   ok('新增但沒有內容的文件屬性不會寫進檔案', c.serialize(st.doc, meta) === '內文\n', JSON.stringify(c.serialize(st.doc, meta)));
   st = st.apply(st.tr.setNodeMarkup(0, null, { src: '---\ntags:\n  - a\n---', bid: null }));
   ok('有內容的文件屬性寫在最前面', c.serialize(st.doc, meta) === '---\ntags:\n  - a\n---\n\n內文\n', JSON.stringify(c.serialize(st.doc, meta)));
+}
+
+// ---- 存檔後再讀回來要是同一份文件：重新產生的區塊不能跟前後的區塊黏在一起
+// 開一份文件、做一個修改（edit 收到目前的狀態、dispatch、取得最新狀態的函式），回傳存檔結果與讀回的文件
+const save = (src, edit) => {
+  const { doc, meta } = c.parse(src);
+  let state = EditorState.create({ doc, schema });
+  edit(state, tr => { state = state.apply(tr); }, () => state);
+  const out = c.serialize(state.doc, meta);
+  return { out, doc: state.doc, back: c.parse(out).doc };
+};
+const json = doc => JSON.stringify(doc.toJSON(), strip);
+const sameDoc = r => json(r.back) === json(r.doc);
+const posOf = (doc, text) => { let p = -1; doc.descendants((n, pos) => { if (p < 0 && n.isText && n.text.includes(text)) p = pos + n.text.indexOf(text); }); return p; };
+const caretAt = (state, text) => state.tr.setSelection(TextSelection.create(state.doc, posOf(state.doc, text)));
+const P = text => schema.nodes.paragraph.create(null, schema.text(text));
+
+{
+  let r = save('A', (s, d) => d(s.tr.insert(s.doc.content.size, P('B'))));
+  ok('結尾沒有換行，在最後加一段：是兩段', r.out === 'A\n\nB' && sameDoc(r), JSON.stringify(r.out));
+  r = save('A', (s, d, cur) => { d(s.tr.setSelection(TextSelection.create(s.doc, 2))); splitBlock(cur(), d); d(cur().tr.insertText('B')); });
+  ok('結尾沒有換行，按 Enter 再打字：是兩段', r.out === 'A\n\nB' && sameDoc(r), JSON.stringify(r.out));
+  r = save('A\r\n\r\nB', (s, d) => d(s.tr.insert(s.doc.content.size, P('C'))));
+  ok('結尾沒有換行（CRLF），在最後加一段', r.out === 'A\r\n\r\nB\r\n\r\nC' && sameDoc(r), JSON.stringify(r.out));
+  r = save('A\n\nB', (s, d, cur) => { d(caretAt(s, 'B')); moveBlock(-1)(cur(), d); });
+  ok('結尾沒有換行，把最後一段往上移：仍是兩段', r.out === 'B\n\nA\n' && sameDoc(r), JSON.stringify(r.out));
+  r = save('A\n\nB', (s, d) => d(s.tr.delete(0, s.doc.firstChild.nodeSize)));
+  ok('結尾沒有換行，刪掉前面的段落：最後一段照原文', r.out === 'B', JSON.stringify(r.out));
+
+  r = save('# H\ntext\n', (s, d, cur) => { d(caretAt(s, 'H')); setBlockStyle('p')(cur(), d); });
+  ok('標題緊接內文，標題改成內文：不會併成一段', r.out === 'H\n\ntext\n' && sameDoc(r), JSON.stringify(r.out));
+  r = save('# H\r\ntext\r\n', (s, d, cur) => { d(caretAt(s, 'H')); setBlockStyle('p')(cur(), d); });
+  ok('標題緊接內文（CRLF），標題改成內文', r.out === 'H\r\n\r\ntext\r\n' && sameDoc(r), JSON.stringify(r.out));
+  r = save('intro\n# H\ntext\n', (s, d, cur) => { d(caretAt(s, 'H')); setBlockStyle('p')(cur(), d); });
+  ok('內文、標題、內文都緊接：標題改成內文後仍是三段', r.out === 'intro\n\nH\n\ntext\n' && sameDoc(r), JSON.stringify(r.out));
+  r = save('Intro line\n- item 1\n- item 2\n', (s, d, cur) => { d(caretAt(s, 'Intro')); setAlign('center')(cur(), d); });
+  ok('內文緊接清單，內文置中：清單不會被吃進 HTML 區塊', r.out === '<p style="text-align: center">Intro line</p>\n\n- item 1\n- item 2\n' && sameDoc(r), JSON.stringify(r.out));
+  r = save('- a\n# H\n', (s, d, cur) => { d(caretAt(s, 'H')); setBlockStyle('p')(cur(), d); });
+  ok('清單緊接標題，標題改成內文：不會變成清單項目的延續', r.out === '- a\n\nH\n' && sameDoc(r), JSON.stringify(r.out));
+  r = save('---\na: 1\n---\n# H\ntext\n', (s, d, cur) => { d(caretAt(s, 'H')); setBlockStyle('p')(cur(), d); });
+  ok('文件屬性、標題、內文都緊接：只在會併段的地方加空行', r.out === '---\na: 1\n---\nH\n\ntext\n' && sameDoc(r), JSON.stringify(r.out));
+
+  // 筆記原本寫得很緊（中間沒有空行）：只改幾個字不會重排
+  const tight = '---\na: 1\n---\n# H\ntext\n- item 1\n- item 2\n## H2\n| a | b |\n| --- | --- |\n| 1 | 2 |\n```\ncode\n```\nSee [foo] here\n\n[foo]: https://x.com\n';
+  // [要改的字, 原本那一行, 改完那一行]
+  for (const [find, line, want] of [['H', '# H\n', '# 新H\n'], ['text', 'text\n', '新text\n'], ['item 2', '- item 2', '- 新item 2'], ['H2', '## H2', '## 新H2'],
+    ['a', '| a | b |', '| 新a | b |'], ['code', 'code\n', '新code\n'], ['See', 'See [foo] here', '新See [foo](https://x.com) here']]) {
+    const o2 = edited(tight, find);
+    ok('寫得很緊的筆記，只改「' + find + '」：其他地方一字不差', o2 === tight.replace(line, want), JSON.stringify(o2));
+  }
 }
 
 if (fails) process.exitCode = 1;
