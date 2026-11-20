@@ -56,6 +56,7 @@ const CASES = {
   headingTrail: '## 標題 ##\n',
   htmlInlineUnknown: '文字 <span class="x">a</span> <abbr title="t">b</abbr>\n',
   imgSize: '![alt|100x200](a.png) ![[b.png|說明|300]]\n',
+  imgAltMarks: '圖 ![**粗** 說明 `碼`|200](a.png) 與 ![R\\&D *chart*](b.png)\n',
   mathBlockInline: '$$x^2$$ 同一行\n',
   dataview: '```dataview\nTABLE a\n```\n',
   mermaid: '```mermaid\nflowchart TD\n  A[開始] --> B{判斷}\n  B -->|是| C[結束]\n```\n',
@@ -117,6 +118,14 @@ ok('[x](網址) 與 [^1] 不是任務', c.parse(CASES.taskNotLink).doc.firstChil
   const plain = c.parse('- [1]\n- [a] \n- [ ]\n  下一行\n').doc.firstChild;
   ok('「- [1]」後面連空白都沒有：不是任務', plain.child(0).attrs.checked == null && plain.child(0).textContent === '[1]');
   ok('「- [a] 」後面有空白：是自訂狀態的任務', plain.child(1).attrs.checked === true && plain.child(1).attrs.status === 'a');
+}
+
+{
+  // 圖片的說明文字裡有格式：說明文字是全部的純文字，編輯同一段後不會變成空的
+  const alts = []; c.parse(CASES.imgAltMarks).doc.descendants(n => { if (n.type.name === 'image') alts.push(n.attrs.alt, n.attrs.width); });
+  ok('圖片說明文字裡有格式：取全部的文字', JSON.stringify(alts) === '["粗 說明 碼","200","R&D chart",null]', JSON.stringify(alts));
+  o = edited(CASES.imgAltMarks, '圖');
+  ok('圖片說明文字裡有格式：編輯後說明還在', o === '新圖 ![粗 說明 碼|200](a.png) 與 ![R&D chart](b.png)\n', JSON.stringify(o));
 }
 
 ok('有空行的 %% 註解是一整個原文區塊', kinds(CASES.blockComment) === 'raw_block:comment', kinds(CASES.blockComment));

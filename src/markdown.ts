@@ -272,6 +272,18 @@ const alignAttr = (tok: ParseToken): { align: string | null } => {
   return { align: m ? m[1] : null };
 };
 
+// 圖片說明文字的純文字：格式符號不算，[[連結]]、行內數學式等照原文
+function altText(children: ParseToken[] | null): string {
+  let out = '';
+  for (const c of children || []) {
+    if (c.type === 'image') out += altText(c.children);
+    else if (c.type === 'softbreak' || c.type === 'hardbreak') out += ' ';
+    else if (c.type === 'wikilink') { const a = c.meta as WikilinkAttrs; out += (a.embed ? '!' : '') + '[[' + a.target + (a.alias != null ? '|' + a.alias : '') + ']]'; }
+    else out += c.content;
+  }
+  return out;
+}
+
 function createParser(tokenizer: MarkdownItInstance): MarkdownParser {
   return new MarkdownParser(schema, tokenizer, {
     blockquote: { block: 'blockquote' },
@@ -285,8 +297,9 @@ function createParser(tokenizer: MarkdownItInstance): MarkdownParser {
     fence: { block: 'code_block', getAttrs: tok => ({ params: tok.info || '' }), noCloseToken: true },
     hr: { node: 'horizontal_rule', getAttrs: tok => ({ markup: tok.markup || '---' }) },
     image: { node: 'image', getAttrs: tok => {
-      // ![說明|300](圖.png)：Obsidian 的寬度寫在說明文字後面
-      let alt = (tok.children && tok.children[0] && tok.children[0].content) || null;
+      // ![說明|300](圖.png)：Obsidian 的寬度寫在說明文字後面。
+      // 說明文字裡有格式（![**粗** 字](圖.png)）時會切成好幾個 token，要全部接起來，只看第一個會整段不見
+      let alt = altText(tok.children) || null;
       let width: string | null = null;
       const m = alt ? alt.match(/^(.*?)\|(\d+(?:x\d+)?)$/) : null;
       if (m) { alt = m[1] || null; width = m[2]; }
