@@ -93,7 +93,88 @@ await fresh('原本\n');
 type(view, '我打的字');
 view.setViewData('別的裝置改的\n', false);
 assert(view.status === 'conflict' && view.pm.state.doc.textContent.includes('我打的字'), '有未存檔修改時收到新版本：顯示衝突，不會蓋掉我的修改');
-view.hideConflict(); view.changed = false; view.pending = false;
+view.clear();
+
+// ======== 同步衝突：照 Obsidian 真正的順序 ========
+// 檔案在外面被改時，Obsidian 的 TextFileView 會先呼叫 getViewData() 拿目前的內容去合併，再把結果交給
+// setViewData()。所以「有沒有還沒存檔的修改」不能靠 getViewData() 有沒有被呼叫來判斷
+{
+  const PATH = '筆記/測試.md';
+  const BASE = '第一段\n\n第二段\n', THEIRS = '第一段\n\n第二段（別台電腦改的）\n';
+  const disk = () => env.files.get(PATH);
+  const text = () => view.pm.state.doc.textContent;
+  const copies = () => [...env.files.keys()].filter(k => k.includes('我的版本'));
+  const banner = label => [...view.bannerHost.querySelectorAll('button')].find(b => b.textContent === label);
+  // 打字（還沒到自動存檔的時間），這時檔案被同步改掉
+  const editThenSync = async () => {
+    await fresh(BASE); type(view, '我打的字');
+    env.files.set(PATH, THEIRS);
+    await view.onModify(view.file); await sleep(5);
+  };
+
+  await editThenSync();
+  assert(view.conflict && banner('載入新版本') && view.status === 'conflict' && text().includes('我打的字'), '打字後檔案被同步改掉：跳出衝突選擇，我的修改還在畫面上');
+  await view.save();
+  assert(disk() === THEIRS, '衝突還沒解決：自動存檔不會蓋掉同步進來的版本');
+  banner('載入新版本').click(); await sleep(10);
+  assert(!view.conflict && view.getViewData() === THEIRS && !text().includes('我打的字') && disk() === THEIRS, '選「載入新版本」：畫面是磁碟上的版本（不是合併過的）：' + JSON.stringify(view.getViewData()));
+  assert(view.status === 'saved', '載入新版本之後狀態是已儲存：' + view.status);
+
+  await editThenSync();
+  banner('保留我的版本').click(); await sleep(10);
+  assert(!view.conflict && disk().includes('我打的字') && !disk().includes('別台電腦改的') && view.status === 'saved', '選「保留我的版本」：用我的版本存檔：' + JSON.stringify(disk()));
+
+  // 橫幅還在就關掉分頁：原檔要留給同步進來的版本，我的版本另存
+  await editThenSync();
+  let before = copies().length;
+  await view.onUnloadFile(view.file);
+  assert(disk() === THEIRS, '衝突沒解決就關閉：原檔還是同步進來的版本：' + JSON.stringify(disk()));
+  assert(copies().length === before + 1 && env.files.get(copies().pop()).includes('我打的字'), '衝突沒解決就關閉：我的版本另存成副本');
+  assert(!plugin.history.has(PATH), '衝突沒解決就關閉：不記住編輯狀態（下次開啟要看到磁碟上的版本）');
+
+  // 連按兩下「兩份都保留」只另存一份
+  await editThenSync();
+  before = copies().length;
+  const both = banner('兩份都保留'); both.click(); both.click(); await sleep(20);
+  assert(copies().length === before + 1 && !view.conflict && view.getViewData() === THEIRS, '連按兩下「兩份都保留」：只另存一份，畫面是新版本');
+
+  // 設定為「自動兩份都保留」
+  plugin.settings.conflict = 'both';
+  await editThenSync(); await sleep(20);
+  assert(!view.conflict && view.getViewData() === THEIRS && disk() === THEIRS, '自動兩份都保留：畫面與原檔都是新版本');
+  assert(env.files.get(copies().pop()).includes('我打的字'), '自動兩份都保留：我的版本另存成副本');
+  plugin.settings.conflict = 'ask';
+
+  // 存檔失敗（檔案被鎖）：狀態不能停在「儲存中」，之後檔案被改也不能悄悄蓋掉沒存到的修改
+  await fresh(BASE); type(view, '我打的字');
+  const modify = app.vault.modify;
+  app.vault.modify = async () => { throw new Error('EBUSY'); };
+  let threw = false;
+  try { await view.save(); } catch { threw = true; }
+  app.vault.modify = modify;
+  assert(threw && view.status === 'dirty', '存檔失敗：狀態回到編輯中（不是停在儲存中）：' + view.status);
+  env.files.set(PATH, THEIRS);
+  await view.onModify(view.file); await sleep(5);
+  assert(view.conflict && text().includes('我打的字'), '存檔失敗之後檔案被改：跳出衝突選擇，不會悄悄蓋掉');
+  view.clear();
+
+  // 已經存好之後檔案才被改：直接載入，不用問
+  await fresh(BASE); type(view, '我打的字');
+  await view.save();
+  assert(view.status === 'saved' && disk().includes('我打的字'), '存檔成功');
+  env.files.set(PATH, THEIRS);
+  await view.onModify(view.file); await sleep(5);
+  assert(!view.conflict && view.getViewData() === THEIRS, '已經存好之後檔案被改：直接載入新版本');
+
+  // 同一份文件輸出過就不再重新轉換（Obsidian 存檔與合併時會連續呼叫 getViewData()）
+  await fresh(BASE); type(view, '字');
+  const conv = plugin.converter; const serialize = conv.serialize; let calls = 0;
+  conv.serialize = (...a) => { calls++; return serialize.apply(conv, a); };
+  view.getViewData(); view.getViewData(); view.getViewData();
+  conv.serialize = serialize;
+  assert(calls === 1, '文件沒變時，連續呼叫 getViewData() 只轉換一次：' + calls);
+  await view.save();
+}
 await fresh('原本\n');
 view.setViewData('別的裝置改的\n', false);
 assert(view.pm.state.doc.textContent === '別的裝置改的' && view.status === 'saved', '沒有未存檔修改時直接載入新版本');

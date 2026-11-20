@@ -83,8 +83,8 @@ export type NewImageAttrs = { src: string; alt?: string | null; wiki: boolean };
 // 貼上純文字 Markdown 後顯示的「貼上選項」小視窗，以及貼上的範圍
 export interface PasteChip { el: HTMLDivElement; from: number; to: number; }
 
-// 同步衝突：磁碟上的新版本內容
-export interface ConflictState { data: string; }
+// 同步衝突正在等使用者選擇。busy 是已經按了其中一個選項、還在處理（另存副本、讀檔），這時再按一次不重複執行
+export interface ConflictState { busy: boolean; }
 
 // setEphemeralState() 收到的狀態：line 原文行號（大綱、反向連結）、match 搜尋結果的字元位置、subpath 是 #標題 或 #^區塊
 export interface EphemeralState {
@@ -137,7 +137,10 @@ function canSubmenu(): boolean {
 // 欄位說明（類別裡不能寫註解，寫在這裡）：
 // - pm：ProseMirror 編輯器；還沒載入筆記（第一次 setViewData 之前）與關閉後是 null
 // - meta：parse() 回傳的原文區塊資訊，存檔時交給 serialize()；還沒載入筆記時是 null
-// - lastOut：最後一次載入或輸出的 Markdown 原文
+// - lastOut：最後一次載入或輸出的 Markdown 原文；outDoc 是輸出 lastOut 時的文件，文件沒變就不用再轉換一次
+// - editRev／savedRev：每改一次文件 editRev 加一；確定寫進檔案之後，savedRev 記下寫的是第幾版。
+//   兩個不一樣就是有還沒存檔的修改（unsaved）。不能用「getViewData() 被呼叫過」來判斷：Obsidian 在存檔之外
+//   也會呼叫它（檔案在外面被改、要合併的時候），而且寫檔可能失敗
 // - toolbarHost、findHost、bannerHost、scroller、page、toolbar、findBar、bubble、fold：在 onOpen() 建立，
 //   之後一直存在，所以不標成可省略
 // - countEl、statusBox、zoomRange、zoomLabel：下方狀態列（buildBottomBar）建立的元素；
@@ -156,7 +159,9 @@ export class WordModeView extends TextFileView {
   declare meta: DocMeta | null;
   declare lastOut: string;
   declare changed: boolean;
-  declare pending: boolean;
+  declare outDoc: PMNode | null;
+  declare editRev: number;
+  declare savedRev: number;
   declare status: SaveStatus;
   declare savedAt: Date | undefined;
   declare conflict: ConflictState | null | undefined;
@@ -195,8 +200,13 @@ export class WordModeView extends TextFileView {
     this.meta = null;
     this.lastOut = '';
     this.changed = false;   // 載入後是否修改過（決定是否要重新輸出）
-    this.pending = false;   // 有尚未存檔的修改
+    this.outDoc = null;
+    this.editRev = 0;
+    this.savedRev = 0;
   }
+
+  // 有還沒寫進檔案的修改
+  get unsaved(): boolean { return this.editRev !== this.savedRev; }
 
   getViewType(): string { return VIEW_TYPE; }
   getIcon(): string { return 'file-text'; }
@@ -268,7 +278,6 @@ export class WordModeView extends TextFileView {
     reg(['Mod', 'Shift'], 'h', cmd(C.toggleHighlight), true);
     reg(['Mod', 'Shift'], 'x', cmd(C.toggleStrike), true);
     this.addAction('code-2', withKey('切換到 Markdown 編輯', 'Mod+E'), () => this.plugin.switchToMarkdown(this.leaf));
-    this.registerEvent(this.app.vault.on('modify', f => { if (f === this.file && f instanceof TFile) void this.onExternalModify(f); }));
   }
 
   // 建立（或依設定重建）上方功能區
@@ -352,18 +361,22 @@ export class WordModeView extends TextFileView {
 
   setViewData(data: string, clear: boolean): void {
     if (!clear && this.pm && data === this.lastOut) return;
-    // clear 為 false 表示同一份筆記在磁碟上被改了（同步、其他裝置、其他外掛）。
-    // 這裡還有沒存檔的修改時不能直接蓋掉，改走同步衝突的流程
-    if (!clear && this.pm && (this.pending || this.conflict)) { this.showConflict(data); return; }
+    // clear 為 false 表示同一份筆記在磁碟上被改了（同步、其他裝置、其他外掛）。Obsidian 自己監聽檔案變動，
+    // 有還沒自動存檔的修改時會先合併再交給這裡，所以 data 可能是合併過的內容，不一定是磁碟上的原文。
+    // 這裡還有沒存檔的修改時不能直接蓋掉，改走同步衝突的流程（新版本到使用者選的時候再從磁碟讀）
+    if (!clear && this.pm && (this.unsaved || this.conflict)) { this.showConflict(); return; }
     this.loadDoc(data, clear);
   }
 
   getViewData(): string {
     if (!this.pm || !this.changed) return this.lastOut;
+    const doc = this.pm.state.doc;
+    // Obsidian 存檔與合併時會連續呼叫好幾次；文件沒變就用上一次的結果
+    if (doc === this.outDoc) return this.lastOut;
     try {
-      const out = this.plugin.converter.serialize(this.pm.state.doc, this.meta!);
+      const out = this.plugin.converter.serialize(doc, this.meta!);
       this.lastOut = out;
-      this.pending = false;
+      this.outDoc = doc;
       return out;
     } catch (e) {
       console.error('[Word 模式] 輸出 Markdown 失敗', e);
@@ -374,7 +387,7 @@ export class WordModeView extends TextFileView {
 
   clear(): void {
     this.changed = false;
-    this.pending = false;
+    this.savedRev = this.editRev;
     this.hideConflict();
   }
 
@@ -786,18 +799,44 @@ export class WordModeView extends TextFileView {
 
   async save(clear?: boolean): Promise<void> {
     if (this.conflict) return; // 同步衝突時先不寫入，等使用者選擇
-    const dirty = this.changed && this.pending;
-    if (dirty) this.setStatus('saving');
-    await super.save(clear);
-    if (dirty || this.status !== 'conflict') this.setStatus('saved');
+    const rev = this.editRev;
+    // 上一次寫入還沒完成時，舊版的 Obsidian 這一次不會寫（等寫完再存一次），所以這一次不能算存好了
+    const busy = this.saving === true;
+    if (this.unsaved) this.setStatus('saving');
+    try {
+      await super.save(clear);
+    } catch (e) {
+      // 寫不進去（檔案被鎖、磁碟滿了）：Obsidian 會自己跳通知。這裡把狀態改回編輯中，修改仍然算還沒存檔，
+      // 之後檔案在外面被改時才會走同步衝突，不會被悄悄蓋掉
+      if (this.status === 'saving') this.setStatus('dirty');
+      throw e;
+    }
+    if (!busy && rev > this.savedRev) this.savedRev = rev;
+    if (this.status !== 'conflict') this.setStatus(this.unsaved ? 'dirty' : 'saved');
   }
 
   async onUnloadFile(file: TFile): Promise<void> {
-    // 關閉時還有未解決的衝突：把自己的版本另存副本，避免內容遺失
-    if (this.conflict) { try { await this.saveMyCopy(); } catch (e) { console.error(e); } this.hideConflict(); }
+    // 關閉時衝突還沒解決：把自己的版本另存副本，原檔留給同步進來的版本。
+    // 另存成功才放掉這裡的修改；另存失敗時讓下面照常存檔（我的版本只存在這裡，磁碟上的版本別的裝置還有）
+    let dropped = false;
+    if (this.conflict) {
+      try {
+        if (await this.saveMyCopy()) { this.dropEdits(await this.app.vault.read(file)); dropped = true; }
+      } catch (e) { console.error('[Word 模式] 另存我的版本失敗', e); }
+      this.hideConflict();
+    }
     const r = await super.onUnloadFile(file);
-    this.cacheHistory(file);
+    // 放掉修改之後，記住的編輯狀態會跟檔案內容對不上，下次開啟要從檔案重新讀
+    if (!dropped) this.cacheHistory(file);
     return r;
+  }
+
+  // 放掉還沒存檔的修改，之後存檔時輸出 disk（磁碟上的內容），也就是不會寫入
+  dropEdits(disk: string): void {
+    this.lastOut = disk;
+    this.changed = false;
+    this.outDoc = null;
+    this.savedRev = this.editRev;
   }
 
   // 記住這份筆記的編輯狀態（含復原紀錄），切換模式回來時可以繼續 Ctrl+Z
@@ -809,17 +848,41 @@ export class WordModeView extends TextFileView {
 
   // ---------------------------------------------------------- 同步衝突
 
-  showConflict(data: string): void {
-    this.conflict = { data };
+  showConflict(): void {
+    // 已經在等使用者選擇時，檔案又被改了：選的時候才讀磁碟，所以不用再做一次
+    if (this.conflict) return;
+    this.conflict = { busy: false };
+    this.setStatus('conflict');
     if (this.plugin.settings.conflict === 'both') {
-      // 設定為「自動兩份都保留」：不詢問，把自己的版本另存副本後載入新版本
-      this.saveMyCopy().then(f => {
-        this.hideConflict(); this.loadDoc(data, false); this.setStatus('saved');
-        if (f) new Notice(t('你的版本已另存為「') + f.basename + t('」，目前顯示新版本。'));
-      }).catch(e => console.error('[Word 模式]', e));
+      // 設定為「自動兩份都保留」：不詢問，把自己的版本另存副本後載入新版本。另存失敗就改成詢問
+      this.conflict.busy = true;
+      this.keepBoth().catch(e => {
+        console.error('[Word 模式] 另存我的版本失敗', e);
+        if (this.conflict) { this.conflict.busy = false; this.showConflictBanner(); }
+      });
       return;
     }
-    this.setStatus('conflict');
+    this.showConflictBanner();
+  }
+
+  // 把自己的版本另存副本，再載入磁碟上的版本
+  async keepBoth(): Promise<void> {
+    const f = await this.saveMyCopy();
+    await this.loadTheirs();
+    if (f) new Notice(t('你的版本已另存為「') + f.basename + t('」，目前顯示新版本。'));
+  }
+
+  // 載入磁碟上現在的內容（放掉這裡的修改）並結束衝突
+  async loadTheirs(): Promise<void> {
+    if (!this.file) return;
+    const disk = await this.app.vault.read(this.file);
+    this.hideConflict();
+    // 讓 Obsidian 記住的內容跟畫面一致（它手上可能是合併過的版本）
+    this.data = disk;
+    this.loadDoc(disk, false);
+  }
+
+  showConflictBanner(): void {
     const b = this.bannerHost;
     b.empty();
     const box = b.createDiv('wm-banner');
@@ -827,15 +890,25 @@ export class WordModeView extends TextFileView {
     setIcon(msg.createSpan('wm-banner-icon'), 'alert-triangle');
     msg.createSpan({ text: t('這份筆記剛在其他地方被修改（可能是 Synology 同步或其他裝置）。你在這裡的修改還沒存檔，要保留哪一份？') });
     const bar = box.createDiv('wm-banner-actions');
-    const btn = (text: string, cls: string, run: () => void) => { const x = bar.createEl('button', { text, cls }); x.addEventListener('click', run); return x; };
-    btn(t('載入新版本'), '', () => { const d = this.conflict!.data; this.hideConflict(); this.loadDoc(d, false); this.setStatus('saved'); new Notice(t('已載入新版本，你剛剛的修改已捨棄。')); });
-    btn(t('保留我的版本'), 'mod-cta', () => { void (async () => { this.hideConflict(); this.changed = true; this.pending = true; await this.save(); new Notice(t('已用你的版本覆蓋。')); })(); });
-    btn(t('兩份都保留'), '', () => { void (async () => {
-      const f = await this.saveMyCopy();
-      const d = this.conflict!.data;
-      this.hideConflict(); this.loadDoc(d, false); this.setStatus('saved');
-      if (f) new Notice(t('你的版本已另存為「') + f.basename + t('」，目前顯示新版本。'));
-    })(); });
+    // 每個選項都要讀檔或寫檔；處理中再按一次（或按另一個）不重複執行。失敗時留著橫幅讓使用者再選
+    const btn = (text: string, cls: string, run: () => Promise<void>) => {
+      const x = bar.createEl('button', { text, cls });
+      x.addEventListener('click', () => {
+        const c = this.conflict;
+        if (!c || c.busy) return;
+        c.busy = true;
+        run().catch(e => { console.error('[Word 模式]', e); if (this.conflict === c) c.busy = false; });
+      });
+      return x;
+    };
+    btn(t('載入新版本'), '', async () => { await this.loadTheirs(); new Notice(t('已載入新版本，你剛剛的修改已捨棄。')); });
+    btn(t('保留我的版本'), 'mod-cta', async () => {
+      this.hideConflict();
+      this.setStatus('dirty');
+      await this.save();
+      new Notice(t('已用你的版本覆蓋。'));
+    });
+    btn(t('兩份都保留'), '', () => this.keepBoth());
   }
 
   hideConflict(): void {
@@ -930,7 +1003,10 @@ export class WordModeView extends TextFileView {
     this.meta = parsed.meta;
     this.lastOut = data;
     this.changed = false;
-    this.pending = false;
+    this.outDoc = null;
+    this.savedRev = this.editRev;
+    // 貼上選項指的是舊文件裡的位置，換了文件就不能再用
+    this.hidePasteChip();
     const plugins = this.editorPlugins();
     let state: EditorState | null = null;
     // 同一份筆記剛切去 Markdown 又切回來：沿用原本的編輯狀態與復原紀錄
@@ -996,7 +1072,7 @@ export class WordModeView extends TextFileView {
     this.pm.updateState(state);
     if (tr.docChanged) {
       this.changed = true;
-      this.pending = true;
+      this.editRev++;
       if (this.status !== 'conflict') this.setStatus('dirty');
       this.requestSave();
       if (this.pasteChip && !tr.getMeta('wmPasteChip')) this.hidePasteChip();
@@ -1008,12 +1084,6 @@ export class WordModeView extends TextFileView {
     this.countTimer = window.setTimeout(() => this.updateCount(), 200);
   }
 
-  async onExternalModify(file: TFile): Promise<void> {
-    const data = await this.app.vault.read(file);
-    if (data === this.lastOut || file !== this.file) return;
-    if (this.pending || this.conflict) { this.showConflict(data); return; }
-    this.loadDoc(data, false);
-  }
 
   // ---------------------------------------------------------- Obsidian 協助函式
 

@@ -73,6 +73,11 @@ declare module 'obsidian' {
     // def 是 getSettingDefinitions() 回傳的其中一項定義
     getElementForDefinition?(def: object): HTMLElement | undefined;
   }
+  interface TextFileView {
+    // 上一次寫入還沒完成。1.5 的 Obsidian 有這個欄位（這時再呼叫 save() 不會寫，等寫完再存一次）；
+    // 後來的版本改成等上一次寫完再寫，沒有這個欄位
+    saving?: boolean;
+  }
   interface Vault {
     // 讀取 Obsidian 自己的設定（例如 'spellcheck'）
     getConfig?(key: string): unknown;
