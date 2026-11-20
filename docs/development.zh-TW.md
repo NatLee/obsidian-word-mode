@@ -137,7 +137,7 @@ Word 模式的功能區（`src/toolbar.ts`）與 Markdown、閱讀模式的功�
 | `src/mermaid.ts`、`src/diagrams.ts`、`src/flowchart.ts` | 圖表編輯器；每種圖表的描述（解析、產生、表單欄位），表單與在圖上編輯都依它運作；流程圖的解析。 |
 | `src/embeds.ts` | 內嵌的筆記、媒體、PDF。 |
 | `src/footnotes.ts` | 註腳指令。 |
-| `src/decoutil.ts`、`src/dom.ts`、`src/icons.ts`、`src/textstats.ts` | 共用的輔助函式。 |
+| `src/decoutil.ts`、`src/dom.ts`、`src/icons.ts`、`src/mathrender.ts`、`src/textstats.ts` | 共用的輔助函式。 |
 | `src/hints.ts` | 按鈕的詳細提示。 |
 | `src/i18n.ts`、`src/i18n-*.ts` | 翻譯，以繁體中文原文為鍵。 |
 | `src/obsidian-internal.d.ts` | 外掛用到的 Obsidian 非公開 API 的宣告。 |

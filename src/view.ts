@@ -1,6 +1,6 @@
 // Obsidian 檢視：以 Word 方式編輯 Markdown 筆記
 import {
-  TextFileView, Notice, Menu, MarkdownRenderer, renderMath, finishRenderMath, loadMathJax,
+  TextFileView, Notice, Menu, MarkdownRenderer,
   setIcon, normalizePath, TFile, TFolder, Vault, Platform, Scope, parseYaml, stringifyYaml,
   Component, MarkdownPreviewRenderer, loadMermaid,
 } from 'obsidian';
@@ -9,6 +9,7 @@ import { loadPrism } from 'obsidian';
 import { TextSelection, NodeSelection } from 'prosemirror-state';
 import { linkContext, isExternal, isUrl } from './links.js';
 import { iconOr } from './icons.js';
+import { renderMathInto } from './mathrender.js';
 import type { IconFn } from './icons.js';
 import { bubblePlugin } from './bubble.js';
 import { parseWidth, imageAttrsWithWidth } from './nodeviews.js';
@@ -251,7 +252,7 @@ export class WordModeView extends TextFileView {
     this.registerDomEvent(this.scroller, 'wheel', e => {
       if (!(e.ctrlKey || e.metaKey)) return;
       e.preventDefault();
-      void this.plugin.setZoom(this.plugin.settings.zoom + (e.deltaY < 0 ? 10 : -10));
+      this.plugin.setZoom(this.plugin.settings.zoom + (e.deltaY < 0 ? 10 : -10));
     }, { passive: false });
 
     // 快速鍵放在這個畫面的 scope，才不會被 Obsidian 的全域快速鍵搶走（例如 Ctrl+K、Ctrl+E）
@@ -336,7 +337,7 @@ export class WordModeView extends TextFileView {
         foldAll: fold => this.foldAll(fold),
         outline: b => { if (this.plugin.settings.outlinePlace === 'popup') this.toolbar.openOutlinePopup(b); else void this.plugin.toggleOutline(); },
         toggleFullWidth: () => { void this.plugin.setFullWidth(!this.plugin.settings.fullWidth); },
-        zoom: d => { void this.plugin.setZoom(d === 0 ? 100 : (this.plugin.settings.zoom || 100) + d); },
+        zoom: d => { this.plugin.setZoom(d === 0 ? 100 : (this.plugin.settings.zoom || 100) + d); },
         settings: () => this.plugin.openSettings(),
         properties: () => this.openProperties(),
         peekProperties: b => this.peekProperties(b),
@@ -407,7 +408,7 @@ export class WordModeView extends TextFileView {
     const parts = buildStatusBar(bar, {
       mode: 'word', inStatusBar, richHints: !!this.plugin.settings.richHints && !Platform.isMobile, modE: 'source', zoomable: true,
       zoom: () => this.plugin.settings.zoom || 100,
-      setZoom: z => { void this.plugin.setZoom(z); },
+      setZoom: z => { this.plugin.setZoom(z); },
       onCount: () => this.openWordCount(),
       onMode: m => { void this.plugin.switchToMarkdown(this.leaf, m === 'preview' ? 'preview' : undefined); },
       onProps: b => this.peekProperties(b),
@@ -720,11 +721,7 @@ export class WordModeView extends TextFileView {
 
   openEquation(existing?: MathTarget): void {
     if (!this.pm || (!existing && this.blockedInCode())) return;
-    const render: MathRenderer = (src, el, display) => {
-      el.setText(src);
-      Promise.resolve(loadMathJax()).then(() => { el.empty(); el.appendChild(renderMath(src, display)); return finishRenderMath(); })
-        .catch(() => el.setText(src));
-    };
+    const render: MathRenderer = (src, el, display) => renderMathInto(src, el, display);
     const st0 = this.pm.state;
     // 沒有指定要編輯的方程式、但有選取文字：把選取的文字當成方程式內容
     const selText = !existing && !st0.selection.empty && st0.selection.$from.sameParent(st0.selection.$to) ? st0.doc.textBetween(st0.selection.from, st0.selection.to) : '';
@@ -1152,14 +1149,7 @@ export class WordModeView extends TextFileView {
       renderMarkdown: (src, el) => {
         MarkdownRenderer.render(this.app, src, el, this.sourcePath(), this).catch(e => { el.setText(src); console.error(e); });
       },
-      renderMath: (src, el, display) => {
-        el.setText(src);
-        Promise.resolve(loadMathJax()).then(() => {
-          el.empty();
-          el.appendChild(renderMath(src, display));
-          return finishRenderMath();
-        }).catch(() => el.setText('$' + src + '$'));
-      },
+      renderMath: (src, el, display) => renderMathInto(src, el, display, '$' + src + '$'),
       editSource: (title, src, onSave) => new SourceModal(this.app, title, src, onSave).open(),
       editLinkAt: pos => { this.selectNodeAt(pos); this.openLinkDialog(); },
       prompt: (title, value, placeholder, cb) => new PromptModal(this.app, title, value, placeholder, cb).open(),

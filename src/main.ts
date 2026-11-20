@@ -1,5 +1,6 @@
 // Word 模式：把 Obsidian 筆記變成像 Office Word 一樣編輯
-import { Plugin, PluginSettingTab, Setting, WorkspaceLeaf, MarkdownView, TFile, Notice, Platform, loadMathJax, renderMath, finishRenderMath } from 'obsidian';
+import { Plugin, PluginSettingTab, Setting, WorkspaceLeaf, MarkdownView, TFile, Notice, Platform } from 'obsidian';
+import { renderMathInto } from './mathrender.js';
 import { t, withKey, key, setLanguage, getLanguage, LANGUAGES, LANGUAGE_NAMES } from './i18n.js';
 import { options as cmdOptions } from './commands.js';
 import { autoformatOptions } from './autoformat.js';
@@ -228,6 +229,7 @@ export default class WordModePlugin extends Plugin {
   declare converter: MarkdownConverter;
   declare forceMarkdown: WeakMap<WorkspaceLeaf, string>;
   declare mdActions: Map<MarkdownView, HTMLElement>;
+  declare zoomSave: number | undefined;
   declare history: Map<string, HistoryEntry>;
   declare mdBars: Map<MarkdownView, MarkdownBar>;
   declare lastDoc?: WordModeView | MarkdownView;
@@ -401,6 +403,8 @@ export default class WordModePlugin extends Plugin {
 
   onunload(): void {
     this.unloaded = true;
+    // 縮放剛調完、還沒存就停用外掛：現在存
+    if (this.zoomSave != null) { window.clearTimeout(this.zoomSave); this.zoomSave = undefined; void this.saveSettings(); }
     closePropsPeek();
     if (this.statusEl) this.statusEl.ownerDocument.body.classList.remove('wm-md-status');
     for (const b of this.mdBars.values()) b.destroy();
@@ -572,10 +576,13 @@ export default class WordModePlugin extends Plugin {
     if (reopen) window.setTimeout(() => { try { this.app.setting!.openTabById(id); } catch { /* 忽略 */ } }, 100);
   }
 
-  async setZoom(z: number): Promise<void> {
+  setZoom(z: number): void {
     this.settings.zoom = Math.max(50, Math.min(200, Math.round(z / 10) * 10));
     this.app.workspace.getLeavesOfType(VIEW_TYPE).forEach((l: LeafWithView) => { if (l.view.applyZoom) l.view.applyZoom(); });
-    await this.saveSettings();
+    // 按著 Ctrl 滾滾輪、拖縮放滑桿都會連續呼叫很多次：畫面馬上跟著變，設定等停下來再存一次，
+    // 不用每一格都寫一次 data.json
+    window.clearTimeout(this.zoomSave);
+    this.zoomSave = window.setTimeout(() => { this.zoomSave = undefined; void this.saveSettings(); }, 400);
   }
 
   updateStatus(view: WordModeView | null): void {
@@ -907,8 +914,7 @@ function settingSections(settingTab: WordModeSettings): SettingSection[] {
           empty: t('還沒有自己的公式。'),
           // 公式直接顯示成結果，比一串 LaTeX 好認
           preview: (src, el) => {
-            el.setText(src);
-            void Promise.resolve(loadMathJax()).then(() => { el.empty(); el.appendChild(renderMath(src, false)); return finishRenderMath(); }).catch(() => el.setText(src));
+            renderMathInto(src, el, false);
           },
         });
       } },
