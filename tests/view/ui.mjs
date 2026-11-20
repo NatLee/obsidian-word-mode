@@ -994,8 +994,8 @@ await fresh('第一段\n');
   assert(scroller.style.getPropertyValue('--wm-set-pad') === '20px', '重畫設定頁之後再量一次');
   scroller.remove();
 
-  // 分類是用樣式表隱藏的：main.ts 的每一類在樣式表裡都要有對應的隱藏規則，少了一條那一類就會出現在每個分類裡
-  const main = readFileSync(new URL('../../src/main.ts', import.meta.url), 'utf8');
+  // 分類是用樣式表隱藏的：settingstab.ts 的每一類在樣式表裡都要有對應的隱藏規則，少了一條那一類就會出現在每個分類裡
+  const main = readFileSync(new URL('../../src/settingstab.ts', import.meta.url), 'utf8');
   const css = readFileSync(new URL('../../styles/word-mode.css', import.meta.url), 'utf8');
   const ids = [...main.match(/type SectionId = ([^;]+);/)[1].matchAll(/'([a-z]+)'/g)].map(m => m[1]);
   const used = [...main.matchAll(/\{ id: '([a-z]+)', heading: /g)].map(m => m[1]);

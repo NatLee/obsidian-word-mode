@@ -22,7 +22,7 @@ Word Mode 是 Obsidian 外掛：用 ProseMirror 把 Markdown 筆記變成像 Wor
 - **往返不失真是核心**。`MarkdownConverter.parse()`（`src/markdown.ts`）把原文切成「原文區塊」，每個頂層節點用 `bid` 屬性指回 `meta.segments`。`serialize(doc, meta)` 只重新產生改過的區塊，沒改的區塊一字不差輸出原文。新建的節點 `bid` 是 null；貼上或複製節點要先 `stripBids`。看不懂或不適合用 Word 方式編輯的內容（HTML、數學、註腳、註解）存成 `raw_block`／`raw_inline`，`src` 屬性就是原文。
 - **`src/view.ts` 的 `WordModeView` 是中樞**：建立編輯器、功能區、尋找列，是所有對話框的進入點，也處理右鍵選單、貼上、同步衝突。功能區（`src/toolbar.ts`）只透過 `ToolbarContext.dialogs` 回呼 view，不直接碰 Obsidian。
 - **不依賴 Obsidian 的純邏輯**：`commands.ts`、`schema.ts`、`markdown.ts`、`flowchart.ts`、`diagrams.ts`、`mathvisual.ts`、`colorpicker.ts` 的色碼工具。這些可以用 `tests/run.mjs` 直接測，新的邏輯盡量寫在這一類。
-- **`src/main.ts`**：外掛進入點、`Settings` 與 `DEFAULTS`、Word ⇄ Markdown 切換（包了 `WorkspaceLeaf.setViewState`）。設定頁的內容只在 `settingSections()` 描述一次，舊版的 `display()` 與 Obsidian 1.13 的 `getSettingDefinitions()` 都用它。
+- **`src/main.ts`**：外掛進入點、Word ⇄ Markdown 切換（包了 `WorkspaceLeaf.setViewState`）。設定的型別與預設值（`Settings`、`DEFAULTS`）在 `src/settings.ts`，設定頁在 `src/settingstab.ts`：內容只在 `settingSections()` 描述一次，舊版的 `display()` 與 Obsidian 1.13 的 `getSettingDefinitions()` 都用它。
 - **兩條功能區要長得一樣**：`toolbar.ts`（Word 模式）與 `mdbar.ts`（Markdown／閱讀模式）共用 `TABS`、`GROUPS`、同樣的 DOM 結構與 CSS 類別。改其中一邊的版面，另一邊要跟著改。
 - **圖表編輯器是資料驅動的**：`src/diagrams.ts` 每種圖表一份 `DiagramKind`（怎麼讀、怎麼寫回、表單欄位）；`src/mermaid.ts` 依這份描述畫表單與「在圖上編輯」。只有「讀進來再寫出去內容不變」的圖才開表單，否則開程式碼並說明原因。
 - **介面文字以繁體中文原文為鍵**。`I18nKey = keyof typeof EN`，新字串沒加進 `src/i18n-en.ts` 型別檢查就會失敗；其他十一份翻譯（`ja`、`ko`、`nan` 台文、`yue` 粵語、`zh-cn`、`vi`、`fr`、`de`、`es`、`ar`、`he`）沒有的鍵會退回英文（台文、粵語退回中文原文），但要一併補上。
@@ -64,7 +64,7 @@ Word Mode 是 Obsidian 外掛：用 ProseMirror 把 Markdown 筆記變成像 Wor
 
 ## 讀檔的習慣（省 token）
 
-- 這些檔案很大，先用 Grep 找到位置再讀片段，不要整檔讀：`src/view.ts`、`src/commands.ts`、`src/markdown.ts`、`src/nodeviews.ts`、`src/toolbar.ts`、`src/main.ts`、`src/i18n-*.ts`、`styles/word-mode.css`、`tests/view/*.mjs`。
+- 這些檔案很大，先用 Grep 找到位置再讀片段，不要整檔讀：`src/view.ts`、`src/commands.ts`、`src/markdown.ts`、`src/nodeviews.ts`、`src/toolbar.ts`、`src/main.ts`、`src/settingstab.ts`、`src/i18n-*.ts`、`styles/word-mode.css`、`tests/view/*.mjs`。
 - `tests/view/bundle.mjs` 與 `tests/.build/` 是打包產物，不要讀。用 Grep 工具搜尋會自動略過；用 bash 的 `grep -r` 會掃到它。
 - 找缺的翻譯鍵：跑 `npm run typecheck`，錯誤訊息裡 `is not assignable` 前面的字串就是缺的鍵。
 - 介面改動要看實際版面時，照記憶 `word-mode-visual-check` 的做法用無頭 Chrome 截圖，不必部署到 vault。

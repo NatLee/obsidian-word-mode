@@ -36,7 +36,7 @@
 flowchart TB
   subgraph obs["Obsidian 這一側"]
     direction LR
-    main["main.ts<br/>外掛、設定、模式切換"] --> view["view.ts<br/>WordModeView"]
+    main["main.ts<br/>外掛、模式切換"] --> view["view.ts<br/>WordModeView"]
     view --> toolbar["toolbar.ts<br/>功能區"]
     view --> nodeviews["nodeviews.ts<br/>表格、圖片、提示框"]
     view --> editors["dialogs.ts · mermaid.ts<br/>方程式與圖表編輯器"]
@@ -106,7 +106,8 @@ Word 模式的功能區（`src/toolbar.ts`）與 Markdown、閱讀模式的功�
 
 | 路徑 | 內容 |
 | --- | --- |
-| `src/main.ts` | 外掛進入點、`Settings` 與 `DEFAULTS`、設定頁、Word 模式與 Markdown 的切換。 |
+| `src/main.ts` | 外掛進入點、Word 模式與 Markdown 的切換。 |
+| `src/settings.ts`、`src/settingstab.ts` | `Settings` 與 `DEFAULTS`；設定頁。 |
 | `src/view.ts` | Word 模式的檢視（`TextFileView`）。 |
 | `src/markdown.ts` | Markdown 與文件模型之間的轉換。 |
 | `src/schema.ts` | 文件模型（ProseMirror schema）。 |
