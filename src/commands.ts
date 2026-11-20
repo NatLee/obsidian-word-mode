@@ -331,15 +331,31 @@ export function currentHighlight(state: EditorState): string | null {
 function topBlocks(state: EditorState, types: NodeType[]): NodeAt[] {
   const out: NodeAt[] = [];
   eachRange(state, (from, to) => {
+    // 一律回傳 false（不往裡面走），所以走到的都是最上層的區塊
     state.doc.nodesBetween(from, to, (node, pos) => {
-      if (state.doc.resolve(pos).depth === 0) {
-        if (types.includes(node.type)) out.push({ node, pos });
-        return false;
-      }
+      if (types.includes(node.type)) out.push({ node, pos });
       return false;
     });
   });
   return out;
+}
+
+// 選取範圍裡最上層的段落。功能區每次更新會連續問對齊（四個）、縮排（兩個）按鈕能不能用，每個都要這份清單；
+// 同一個編輯狀態只走一次文件。全選一份長筆記時，沒有這個快取每移動一次選取要多花二十幾毫秒。
+// 回傳的陣列是共用的，呼叫的地方不能改它
+const topParagraphCache = new WeakMap<EditorState, NodeAt[]>();
+function topParagraphs(state: EditorState): NodeAt[] {
+  let out = topParagraphCache.get(state);
+  if (!out) { out = topBlocks(state, [N.paragraph]); topParagraphCache.set(state, out); }
+  return out;
+}
+
+// htmlSafeBlock 要看段落裡的每一個節點。節點不會變（改了就是新的節點），所以結果可以跟著節點記下來
+const safeBlockCache = new WeakMap<PMNode, boolean>();
+function safeBlock(node: PMNode): boolean {
+  let ok = safeBlockCache.get(node);
+  if (ok === undefined) { ok = htmlSafeBlock(node); safeBlockCache.set(node, ok); }
+  return ok;
 }
 
 // 段落對齊方式（表格內的整欄對齊不支援 justify）
@@ -350,7 +366,10 @@ export function setAlign(align: Align): Command {
   return (state, dispatch) => {
     if (isInTable(state)) return table.alignColumn(align === 'justify' ? 'left' : align)(state, dispatch);
     // 標題不能對齊（存成 HTML 後就不是 Obsidian 的標題了）；含 [[連結]]、圖片、數學式的段落也不行
-    const blocks = topBlocks(state, [N.paragraph]).filter(b => align === 'left' ? !!b.node.attrs.align : htmlSafeBlock(b.node));
+    const usable = (b: NodeAt): boolean => (align === 'left' ? !!b.node.attrs.align : safeBlock(b.node));
+    // 沒有 dispatch 是功能區在問按鈕能不能用：找到一段就夠了
+    if (!dispatch) return topParagraphs(state).some(usable);
+    const blocks = topParagraphs(state).filter(usable);
     if (!blocks.length) return false;
     if (dispatch) {
       const all = blocks.every(b => (b.node.attrs.align || 'left') === align);
@@ -399,9 +418,9 @@ export function currentAlign(state: EditorState): Align | null {
 // 整段左縮排（像 Word 的「增加縮排」）
 function blockIndent(dir: Direction): Command {
   return (state, dispatch) => {
-    let blocks = topBlocks(state, [N.paragraph]);
-    if (dir < 0) blocks = blocks.filter(b => b.node.attrs.indent > 0);
-    else blocks = blocks.filter(b => b.node.attrs.indent < 8 && htmlSafeBlock(b.node));
+    const usable = (b: NodeAt): boolean => (dir < 0 ? b.node.attrs.indent > 0 : b.node.attrs.indent < 8 && safeBlock(b.node));
+    if (!dispatch) return topParagraphs(state).some(usable);
+    const blocks = topParagraphs(state).filter(usable);
     if (!blocks.length) return false;
     if (dispatch) {
       const tr = state.tr;
@@ -457,10 +476,22 @@ export function clearFormatting(state: EditorState, dispatch?: Dispatch): boolea
   return true;
 }
 
+// 選取範圍裡出現過的格式。功能區有十來個格式按鈕，各自把選取範圍掃一遍，不如同一個編輯狀態一起掃一次
+const marksCache = new WeakMap<EditorState, Set<MarkType>>();
+function marksInSelection(state: EditorState): Set<MarkType> {
+  let set = marksCache.get(state);
+  if (!set) {
+    const found = new Set<MarkType>();
+    state.doc.nodesBetween(state.selection.from, state.selection.to, node => { for (const m of node.marks) found.add(m.type); });
+    marksCache.set(state, set = found);
+  }
+  return set;
+}
+
 export function markActive(state: EditorState, type: MarkType): boolean {
-  const { from, $from, to, empty } = state.selection;
+  const { $from, empty } = state.selection;
   if (empty) return !!type.isInSet(state.storedMarks || $from.marks());
-  return state.doc.rangeHasMark(from, to, type);
+  return marksInSelection(state).has(type);
 }
 
 // 格式刷：記住游標處的格式，套用到之後選取的文字
@@ -622,24 +653,30 @@ function inListItem($pos: ResolvedPos): boolean {
   for (let d = $pos.depth; d > 0; d--) if ($pos.node(d).type === N.list_item) return true;
   return false;
 }
+// 選取範圍裡不在清單項目內的段落。跟 topParagraphs 一樣，同一個編輯狀態只走一次文件，回傳的陣列不能改
+const paragraphCache = new WeakMap<EditorState, NodeAt[]>();
 function paragraphsInSelection(state: EditorState): NodeAt[] {
+  const hit = paragraphCache.get(state);
+  if (hit) return hit;
   const out: NodeAt[] = [];
   eachRange(state, (from, to) => {
     state.doc.nodesBetween(from, to, (node, pos) => {
-      if (node.type === N.paragraph) {
-        if (!inListItem(state.doc.resolve(pos + 1))) out.push({ node, pos });
-        return false;
-      }
+      // 清單項目裡的段落不算：整個項目不用往裡面走
+      if (node.type === N.list_item) return false;
+      if (node.type === N.paragraph) { out.push({ node, pos }); return false; }
       return true;
     });
   });
+  paragraphCache.set(state, out);
   return out;
 }
 function paragraphIndent(dir: Direction, topLevelToo?: boolean): Command {
   return (state, dispatch) => {
-    let paras = paragraphsInSelection(state);
-    if (dir > 0 && !topLevelToo) paras = paras.filter(p => state.doc.resolve(p.pos).depth > 0);
-    if (dir < 0) paras = paras.filter(p => p.node.firstChild && p.node.firstChild.isText && LEAD.test(p.node.firstChild.text!));
+    const usable = (p: NodeAt): boolean => (dir > 0
+      ? !!topLevelToo || state.doc.resolve(p.pos).depth > 0
+      : !!(p.node.firstChild && p.node.firstChild.isText && LEAD.test(p.node.firstChild.text!)));
+    if (!dispatch) return paragraphsInSelection(state).some(usable);
+    const paras = paragraphsInSelection(state).filter(usable);
     if (!paras.length) return false;
     if (dispatch) {
       const tr = state.tr;
