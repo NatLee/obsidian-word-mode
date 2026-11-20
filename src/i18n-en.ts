@@ -550,7 +550,6 @@ export default {
  "篩選標題…": "Filter headings…",
  "沒有開啟的筆記": "No note open",
  "檢視模式": "Views",
- "在這份筆記裡尋找文字，再按一次關閉。": "Find text in this note. Click again to close.",
  "用 Obsidian 原本的 Markdown 編輯這份筆記，再按一次（或在 Markdown 畫面按同樣的快速鍵）切回 Word 模式。": "Edit this note in Obsidian's Markdown editor. Click again (or press the same shortcut in Markdown) to return to Word mode.",
  "取消上一個動作。切到 Markdown 再切回來也能復原。": "Undo the last action. Works even after switching to Markdown and back.",
  "把剛剛復原的動作做回來。": "Redo the action you just undid.",

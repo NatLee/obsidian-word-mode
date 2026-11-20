@@ -8,8 +8,9 @@
 | --- | --- |
 | Markdown ⇄ 文件的轉換、哪些語法認得 | `markdown.ts`（切段、markdown-it 規則、序列化）、`schema.ts`（節點與 mark） |
 | 編輯指令（粗體、清單、表格、對齊、排序…） | `commands.ts`。表格指令在 `table` 物件；`inCode`／`codeBlocked` 判斷程式碼區塊 |
-| 功能區按鈕 | `toolbar.ts` 的 `buildHome`／`buildInsert`／`buildReview`／`buildView`；Markdown／閱讀模式的對應按鈕在 `mdbar.ts` 的 `render()` |
-| 功能區的分頁與群組（哪個群組在哪個分頁、順序、名稱） | `toolbar.ts` 的 `TABS`、`GROUPS` 是預設值；`groupLayout(settings)` 套用使用者的自訂（`groupNames`、`groupTabs`、`groupOrder`），兩條功能區與設定頁的清單（`groupsettings.ts`）都用它，不要直接讀 `GROUPS` 排版 |
+| 功能區按鈕 | 兩條功能區都有的按鈕，外觀（圖示、名稱、文字、快速鍵、說明、動畫）在 `ribbon.ts` 的 `ACTIONS`；按下去做什麼在 `toolbar.ts` 的 `buildHome`／`buildInsert`／`buildReview`／`buildView`（Word 模式）與 `mdbar.ts` 的 `render()`（Markdown／閱讀模式）。只有 Word 模式有的按鈕，外觀直接寫在 `toolbar.ts` |
+| 功能區的外殼（分頁列、收成選單的按鈕、面板、群組、按鈕的 DOM、提示） | `ribbon.ts` 的 `RibbonShell`，兩條功能區各建一個。兩邊還留著的差別（都只在 Word 模式有）：群組元素的 `data-group`、停用按鈕的 `aria-disabled`、詳細提示模式下 `.wm-sr` 文字裡的停用原因、沒有按鈕的分頁面板留著標成 `is-empty`（表格工具放在「常用」的面板） |
+| 功能區的分頁與群組（哪個群組在哪個分頁、順序、名稱） | `ribbon.ts` 的 `TABS`、`GROUPS` 是預設值；`groupLayout(settings)` 套用使用者的自訂（`groupNames`、`groupTabs`、`groupOrder`），兩條功能區與設定頁的清單（`groupsettings.ts`）都用它，不要直接讀 `GROUPS` 排版 |
 | 色彩面板 | `colorpicker.ts`（`buildColorPanel`）；由 `toolbar.ts` 的 `openColorPopup`／`openHighlightPopup` 開啟 |
 | 右鍵選單、快速鍵、貼上、拖放 | 右鍵選單在 `contextmenu.ts` 的 `openContextMenu`（`view.ts` 的 `onContextMenu` 呼叫它）；其餘在 `view.ts` 的 `onOpen`（scope 的快速鍵）、`onKeyDown`、`onPaste`、`onDrop` |
 | 連結、圖片、程式碼區塊、表格、提示框、文件屬性的畫面 | `nodeviews.ts`（每種節點一個 NodeView；需要 Obsidian 的功能由 `NodeViewContext` 傳入，在 `view.ts` 的 `nodeViewContext()`） |
@@ -26,7 +27,7 @@
 
 ## 常見修改的做法
 
-**加一個功能區按鈕**：在 `toolbar.ts` 對應的 `build*` 裡呼叫 `this.button(g, { icon, title, text, desc, cmd 或 onClick, active, enabled, why })`。`title`、`desc`、`label` 是翻譯前的中文原文。需要 Obsidian 的動作加到 `ToolbarContext.dialogs`，在 `view.ts` 的 `buildToolbar()` 實作。在程式碼區塊裡不適用的按鈕加 `...NO_CODE`。Markdown 模式也該有的話，在 `mdbar.ts` 同一個群組加對應的按鈕。
+**加一個功能區按鈕**：在 `toolbar.ts` 對應的 `build*` 裡呼叫 `this.button(g, 外觀, 做法)`。外觀是 `{ icon, title, text, label, keys, desc, demo, big }`（`title`、`desc`、`label` 是翻譯前的中文原文），做法是 `{ cmd 或 onClick, active, enabled, why }`。需要 Obsidian 的動作加到 `ToolbarContext.dialogs`，在 `view.ts` 的 `buildToolbar()` 實作。在程式碼區塊裡不適用的按鈕，做法加 `...NO_CODE`。只有 Word 模式有的按鈕，外觀直接寫在呼叫的地方；Markdown 模式也該有的話，把外觀放進 `ribbon.ts` 的 `ACTIONS`（兩邊都寫 `A.名稱`），再在 `mdbar.ts` 同一個群組呼叫 `this.button(g, A.名稱, { run, active, always })`。兩邊刻意不同的值寫在那一項的 `word`／`md`：只有 Word 模式綁的快速鍵放 `word.keys`；說明提到另一邊沒有的操作時放 `word.desc`，Markdown 功能區就不顯示那句說明。
 
 **加一個設定**：三處：`settings.ts` 的 `Settings` 介面與 `DEFAULTS`、`settingstab.ts` 的 `settingSections()` 裡的一列（`toggleRow`、`row`，或 `kind: 'grid'` 放自訂內容），放進合適的分類。要加新的分類時：`SectionId` 加一個 id、`settingSections()` 加一段，`styles/word-mode.css`「設定頁：分類列」的隱藏規則也要加一個選擇器（`tests/view/ui.mjs` 會檢查）。會影響功能區的設定，`onChange` 要呼叫 `refreshToolbars()`，並把欄位加進 `ToolbarContext.settings`。
 

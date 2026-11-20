@@ -23,7 +23,7 @@ Word Mode 是 Obsidian 外掛：用 ProseMirror 把 Markdown 筆記變成像 Wor
 - **`src/view.ts` 的 `WordModeView` 是中樞**：建立編輯器、功能區、尋找列，是所有對話框的進入點，也處理右鍵選單、貼上、同步衝突。功能區（`src/toolbar.ts`）只透過 `ToolbarContext.dialogs` 回呼 view，不直接碰 Obsidian。
 - **不依賴 Obsidian 的純邏輯**：`commands.ts`、`schema.ts`、`markdown.ts`、`flowchart.ts`、`diagrams.ts`、`mathvisual.ts`、`colorpicker.ts` 的色碼工具。這些可以用 `tests/run.mjs` 直接測，新的邏輯盡量寫在這一類。
 - **`src/main.ts`**：外掛進入點、Word ⇄ Markdown 切換（包了 `WorkspaceLeaf.setViewState`）。設定的型別與預設值（`Settings`、`DEFAULTS`）在 `src/settings.ts`，設定頁在 `src/settingstab.ts`：內容只在 `settingSections()` 描述一次，舊版的 `display()` 與 Obsidian 1.13 的 `getSettingDefinitions()` 都用它。
-- **兩條功能區要長得一樣**：`toolbar.ts`（Word 模式）與 `mdbar.ts`（Markdown／閱讀模式）共用 `TABS`、`GROUPS`、同樣的 DOM 結構與 CSS 類別。改其中一邊的版面，另一邊要跟著改。
+- **兩條功能區要長得一樣**：`toolbar.ts`（Word 模式）與 `mdbar.ts`（Markdown／閱讀模式）都用 `src/ribbon.ts` 建立。`ribbon.ts` 有 `TABS`、`GROUPS`、`groupLayout`，建立分頁列、面板、群組與按鈕的 `RibbonShell`（DOM 結構與 CSS 類別只有這一份），以及 `ACTIONS`：兩邊都有的按鈕的外觀（圖示、名稱、文字、快速鍵、說明、動畫）只寫在這裡，兩條功能區各自只寫按下去做什麼。版面與按鈕的外觀改 `ribbon.ts`，不要在其中一條功能區裡另外寫。
 - **圖表編輯器是資料驅動的**：`src/diagrams.ts` 每種圖表一份 `DiagramKind`（怎麼讀、怎麼寫回、表單欄位）；`src/mermaid.ts` 依這份描述畫表單與「在圖上編輯」。只有「讀進來再寫出去內容不變」的圖才開表單，否則開程式碼並說明原因。
 - **介面文字以繁體中文原文為鍵**。`I18nKey = keyof typeof EN`，新字串沒加進 `src/i18n-en.ts` 型別檢查就會失敗；其他十一份翻譯（`ja`、`ko`、`nan` 台文、`yue` 粵語、`zh-cn`、`vi`、`fr`、`de`、`es`、`ar`、`he`）沒有的鍵會退回英文（台文、粵語退回中文原文），但要一併補上。
 - **樣式全部在 `styles/word-mode.css`**，類別前綴 `wm-`。檔案是隨版本往後加的，後面的規則會蓋掉前面的；改既有元件前先搜尋它在檔案後段有沒有覆蓋。

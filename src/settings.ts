@@ -1,6 +1,6 @@
 // 外掛的設定：型別與預設值。設定頁的內容在 settingstab.ts
 import type { Language } from './i18n.js';
-import type { RibbonLayout, ButtonStyle, TabId, GroupId, TabStyle } from './toolbar.js';
+import type { RibbonLayout, ButtonStyle, TabId, GroupId, TabStyle } from './ribbon.js';
 import type { MdToolbarMode } from './mdbar.js';
 import type { PropsStyle } from './view.js';
 import type { EquationEditMode } from './dialogs.js';
@@ -54,7 +54,7 @@ export interface Settings {
   viewButtonLabels: boolean;
   hiddenTabs: TabId[];
   hiddenGroups: GroupId[];
-  // 自訂的按鈕群組（toolbar.ts 的 groupLayout 套用）：名稱（群組 id → 名稱）、
+  // 自訂的按鈕群組（ribbon.ts 的 groupLayout 套用）：名稱（群組 id → 名稱）、
   // 移到哪個分頁（群組 id → 分頁 id，只存有移動過的）、順序（群組 id，空的＝預設順序）
   groupNames: Partial<Record<GroupId, string>>;
   groupTabs: Partial<Record<GroupId, TabId>>;

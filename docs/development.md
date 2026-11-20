@@ -86,7 +86,7 @@ sequenceDiagram
 
 `WordModeView` in `src/view.ts` is the hub. It creates the editor, the ribbon, and the find bar, opens every dialog, and handles the right-click menu, pasting, and sync conflicts. The ribbon in `src/toolbar.ts` doesn't call Obsidian directly. It asks the view through the callbacks in `ToolbarContext.dialogs`.
 
-The ribbon in Word mode (`src/toolbar.ts`) and the one in Markdown and reading mode (`src/mdbar.ts`) share `TABS`, `GROUPS`, the DOM structure, and the CSS classes, so they look the same. A layout change to one needs the same change in the other.
+The ribbon in Word mode (`src/toolbar.ts`) and the one in Markdown and reading mode (`src/mdbar.ts`) look the same because both are built from `src/ribbon.ts`. That file holds the tab and group lists (`TABS`, `GROUPS`, `groupLayout`), the shell that creates the tab row, panels, groups, and buttons (`RibbonShell`), and `ACTIONS`, a catalogue with the icon, name, label, shortcut, description, and hint animation of every button the two ribbons share. Each ribbon only says what a button does: `toolbar.ts` gives a ProseMirror command or a click handler, `mdbar.ts` gives a function that works on the Markdown editor. Where the two deliberately differ, such as a shortcut that only Word mode binds, the difference sits next to the action in `ACTIONS` under `word` or `md`. A button that exists in only one ribbon is written in that ribbon's file.
 
 ### The diagram editor is data-driven
 
@@ -114,12 +114,13 @@ All styles are in `styles/word-mode.css`, and every class starts with `wm-`. The
 | `src/schema.ts` | Document model (ProseMirror schema). |
 | `src/editor.ts` | Editor state setup. |
 | `src/commands.ts` | Editing commands. Pure ProseMirror, no Obsidian dependency. |
-| `src/toolbar.ts` | Ribbon toolbar, and the order, tab, and name of each button group. |
+| `src/toolbar.ts` | Ribbon in Word mode: what each button does, and its dropdown panels. |
+| `src/ribbon.ts` | What both ribbons share: tabs and button groups (order, tab, name), the look of each shared button (`ACTIONS`), and the shell that builds tabs, groups, and buttons. |
 | `src/groupsettings.ts` | Settings list for customizing tabs and button groups. |
 | `src/settingsnav.ts` | Category tabs at the top of the settings, and the search box above them (suggestions as you type, jumping to the chosen setting). |
 | `src/settingsearch.ts` | Matching and ranking for the settings search: setting names, descriptions, dropdown options, the names in other languages, and synonyms. Pure functions. |
 | `src/colorpicker.ts` | Color panel for font color and highlight. |
-| `src/mdbar.ts` | Toolbar shown in Markdown and reading mode. |
+| `src/mdbar.ts` | Ribbon shown in Markdown and reading mode: what each button does to the Markdown editor. |
 | `src/statusbar.ts` | Status bar contents (word count, save status, view switch, properties, zoom), shared by Word mode and Markdown and reading mode. |
 | `src/props.ts`, `src/propview.ts` | Property values (types, conversion, reading the frontmatter), and the properties popover and the pinned properties bar. |
 | `src/bubble.ts` | Floating toolbar for links and images. |

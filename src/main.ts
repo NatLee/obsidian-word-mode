@@ -18,7 +18,7 @@ import type { EditorState } from 'prosemirror-state';
 import type { EditorView } from 'prosemirror-view';
 import type { DocMeta } from './markdown.js';
 import type { OutlineSource } from './outline.js';
-import type { TabId } from './toolbar.js';
+import type { TabId } from './ribbon.js';
 import type { CommandManager } from './obsidian-internal.js';
 
 // 1.5.7 的型別定義裡 Plugin 沒有宣告 onload（繼承 Component 的 onload(): void），

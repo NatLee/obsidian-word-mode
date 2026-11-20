@@ -550,7 +550,6 @@ export default {
  "篩選標題…": "Überschriften filtern…",
  "沒有開啟的筆記": "Keine Notiz geöffnet",
  "檢視模式": "Ansichten",
- "在這份筆記裡尋找文字，再按一次關閉。": "Text in dieser Notiz suchen. Erneut klicken zum Schließen.",
  "用 Obsidian 原本的 Markdown 編輯這份筆記，再按一次（或在 Markdown 畫面按同樣的快速鍵）切回 Word 模式。": "Diese Notiz im Markdown-Editor von Obsidian bearbeiten. Erneut klicken (oder in Markdown dasselbe Tastenkürzel drücken), um zum Word-Modus zurückzukehren.",
  "取消上一個動作。切到 Markdown 再切回來也能復原。": "Letzte Aktion rückgängig machen. Funktioniert auch nach dem Wechsel zu Markdown und zurück.",
  "把剛剛復原的動作做回來。": "Die gerade rückgängig gemachte Aktion wiederholen.",

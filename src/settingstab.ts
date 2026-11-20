@@ -4,7 +4,7 @@ import { t, withKey, key, setLanguage, getLanguage, LANGUAGES, LANGUAGE_NAMES } 
 import { DEFAULTS } from './settings.js';
 import { renderMathInto } from './mathrender.js';
 import { mdToolbarMode } from './mdbar.js';
-import { TABS } from './toolbar.js';
+import { TABS } from './ribbon.js';
 import { fillGroupSettings } from './groupsettings.js';
 import { buildSettingNav, buildSettingSearch, revealSetting, settingTerms, showSettingSection, trackSettingPadding } from './settingsnav.js';
 import { ShortcutModal } from './dialogs.js';
@@ -15,7 +15,7 @@ import type WordModePlugin from './main.js';
 import type { ConflictMode, LanguageSetting, OutlinePlace, ToggleKey, ToolbarPosition } from './settings.js';
 import type { I18nKey } from './i18n.js';
 import type { PropsStyle } from './view.js';
-import type { RibbonLayout, ButtonStyle, TabStyle } from './toolbar.js';
+import type { RibbonLayout, ButtonStyle, TabStyle } from './ribbon.js';
 import type { EquationEditMode } from './dialogs.js';
 import type { SettingNav, SettingSearchItem } from './settingsnav.js';
 import type { MermaidTab } from './mermaid.js';

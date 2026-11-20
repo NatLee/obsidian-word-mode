@@ -550,7 +550,6 @@ export default {
  "篩選標題…": "Lọc tiêu đề…",
  "沒有開啟的筆記": "Không có ghi chú nào đang mở",
  "檢視模式": "Chế độ xem",
- "在這份筆記裡尋找文字，再按一次關閉。": "Tìm văn bản trong ghi chú này. Nhấp lại để đóng.",
  "用 Obsidian 原本的 Markdown 編輯這份筆記，再按一次（或在 Markdown 畫面按同樣的快速鍵）切回 Word 模式。": "Chỉnh sửa ghi chú này trong trình soạn thảo Markdown của Obsidian. Nhấp lại (hoặc nhấn cùng phím tắt trong Markdown) để quay về chế độ Word.",
  "取消上一個動作。切到 Markdown 再切回來也能復原。": "Hoàn tác thao tác cuối. Vẫn dùng được sau khi chuyển sang Markdown rồi quay lại.",
  "把剛剛復原的動作做回來。": "Làm lại thao tác vừa hoàn tác.",

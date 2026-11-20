@@ -1541,4 +1541,93 @@ await fresh('第一段\n');
   mm.close();
 }
 
+// ======== 兩條功能區共用同一份按鈕外觀（ribbon.ts 的 ACTIONS）：圖示、名稱、文字不會各寫各的 ========
+await fresh('一段文字\n');
+{
+  const S = plugin.settings;
+  const keep = { ...S };
+  const keepTab = plugin.lastTab;
+  Object.assign(S, { ribbonLayout: 'tabs', tabStyle: 'text', buttonStyle: 'auto', richHints: false, viewButtonLabels: true, hiddenTabs: [], hiddenGroups: [], groupNames: {}, groupTabs: {}, groupOrder: [], tabLabels: {} });
+  const md = fakeMarkdown('筆記/測試.md', '一段文字\n');
+  let bar = null;
+  const rebuild = () => { view.buildToolbar(); if (bar) bar.destroy(); bar = new B.MarkdownBar(plugin, md); };
+  rebuild();
+  // 按鈕的提示（含快速鍵）、名稱（不含快速鍵）、樣子（圖示｜文字｜是不是有文字的大按鈕）
+  const tip = b => (b.getAttribute('aria-label') || b.querySelector('.wm-sr').textContent).split('\n')[0];
+  const base = b => tip(b).split(' (')[0];
+  const look = b => { const i = b.querySelector('.wm-btn-icon'); const l = b.querySelector('.wm-btn-label'); return (i ? i.dataset.icon : '') + '｜' + (l ? l.textContent : '') + '｜' + b.classList.contains('has-label'); };
+  const groupId = g => g.className.replace(/.*wm-group-(\w+).*/, '$1');
+  const groups = root => [...root.querySelectorAll('.wm-toolbar .wm-group[class*="wm-group-"]')];
+  const wordBtn = title => [...view.toolbar.dom.querySelectorAll('.wm-btn')].find(b => base(b) === title);
+  const mdBtn = title => [...bar.dom.querySelectorAll('.wm-btn')].find(b => base(b) === title);
+
+  // Markdown 功能區的每個按鈕：Word 模式同一個群組裡有同名的按鈕，而且長得一樣
+  const wordGroups = new Map(groups(view.toolbar.dom).map(g => [groupId(g), [...g.querySelectorAll('.wm-btn')]]));
+  let total = 0; const odd = [];
+  for (const g of groups(bar.dom)) for (const b of g.querySelectorAll('.wm-btn')) {
+    total++;
+    const twin = (wordGroups.get(groupId(g)) || []).find(x => base(x) === base(b));
+    if (!twin || look(twin) !== look(b)) odd.push(base(b));
+  }
+  assert(total >= 35 && odd.join() === '段落樣式,切換到 Word 模式,Markdown 編輯',
+    'Markdown 功能區的按鈕跟 Word 模式同名的按鈕長得一樣（' + total + ' 個）；刻意不同的只有段落樣式的圖示與兩個檢視模式的名稱：' + odd.join());
+  assert(look(mdBtn('查看文件屬性')) === 'clipboard-list｜查看屬性｜true' && look(mdBtn('查看文件屬性')) === look(wordBtn('查看文件屬性')), '「查看文件屬性」兩邊的按鈕文字一樣：' + look(mdBtn('查看文件屬性')));
+  const quick = root => [...root.querySelectorAll('.wm-tabs-quick .wm-btn')].map(base).join();
+  // Word 模式的尋找列也能取代；Markdown 那顆開的是 Obsidian 的尋找，所以名稱刻意不同
+  assert(quick(view.toolbar.dom) === '尋找與取代,快速鍵說明,切換到 Markdown 編輯' && quick(bar.dom) === '尋找,切換到 Word 模式', '右上角的快速按鈕：Word 模式是「尋找與取代」，Markdown 是「尋找」：' + quick(bar.dom));
+  assert(tip(wordBtn('底線')) === '底線 (Ctrl+U)' && tip(mdBtn('底線')) === '底線' && tip(mdBtn('粗體')) === '粗體 (Ctrl+B)' && tip(mdBtn('粗體')) === tip(wordBtn('粗體')),
+    '只有 Word 模式綁的快速鍵不出現在 Markdown 功能區的提示；兩邊都有的照樣顯示：' + tip(mdBtn('底線')) + '、' + tip(mdBtn('粗體')));
+  // 測試替身的 setIcon 不產生 svg，等於「這一版 Obsidian 沒有這個圖示」：兩條功能區都改顯示文字，按鈕不會空白
+  const fallback = b => b.querySelector('.wm-btn-icon').textContent;
+  assert(fallback(mdBtn('粗體')) === 'B' && fallback(mdBtn('粗體')) === fallback(wordBtn('粗體')) && fallback(mdBtn('復原')) === '復', '沒有圖示時兩條功能區顯示同樣的文字：' + fallback(mdBtn('粗體')) + fallback(mdBtn('復原')));
+
+  // 外殼：分頁列、面板、群組的結構來自同一份程式
+  const skeleton = root => [...root.children].map(c => c.className).join() + '｜' + [...root.querySelector('.wm-tabs').children].map(c => c.className.split(' ')[0] + ':' + c.textContent).join().replace(/(wm-tabs-quick):.*/, '$1');
+  assert(skeleton(view.toolbar.dom) === 'wm-tabs,wm-toolbar｜wm-tab:常用,wm-tab:插入,wm-tab:校閱,wm-tab:檢視,wm-tabs-spacer:,wm-tabs-quick' && skeleton(bar.dom) === skeleton(view.toolbar.dom), '分頁版面：兩條功能區的分頁列結構一樣：' + skeleton(bar.dom));
+  const order = root => groups(root).map(groupId);
+  assert(order(view.toolbar.dom).filter(id => order(bar.dom).includes(id)).join() === order(bar.dom).join() && order(bar.dom).length >= 14, 'Markdown 功能區的群組順序跟 Word 模式一致：' + order(bar.dom).join());
+  S.tabStyle = 'menu';
+  rebuild();
+  const menuShape = root => { const t = root.querySelector('.wm-toolbar'); return t.firstElementChild.className + ':' + t.firstElementChild.textContent.replace('▾', '') + ':' + t.lastElementChild.className + ':' + root.querySelector('.wm-tabs').className; };
+  assert(menuShape(view.toolbar.dom) === 'wm-tab-switch:常用:wm-tabs-quick:wm-tabs is-hidden' && menuShape(bar.dom) === menuShape(view.toolbar.dom), '分頁收成選單：兩條功能區的選單按鈕與快速按鈕位置一樣：' + menuShape(bar.dom));
+  click(bar.dom.querySelector('.wm-tab-switch'));
+  assert(mock.Menu.last.items.map(i => i.title).join() === '常用,插入,校閱,檢視', 'Markdown 功能區的分頁選單列出所有分頁');
+  mock.Menu.last.items[1].fn();
+  assert(!bar.panels.insert.classList.contains('is-hidden') && bar.panels.home.classList.contains('is-hidden') && plugin.lastTab === 'insert' && bar.dom.querySelector('.wm-tab-switch').textContent.includes('插入'), 'Markdown 功能區從選單切換分頁，也會記住分頁');
+  S.tabStyle = 'text'; S.ribbonLayout = 'wrap';
+  rebuild();
+  const flat = root => { const p = root.querySelectorAll('.wm-panel'); return p.length + ':' + p[0].lastElementChild.className + ':' + root.querySelector('.wm-tabs').className; };
+  assert(flat(view.toolbar.dom) === '1:wm-tabs-quick:wm-tabs is-hidden' && flat(bar.dom) === flat(view.toolbar.dom), '全部排在一起的版面：只有一塊面板，快速按鈕在最後：' + flat(bar.dom));
+  // 隱藏的分頁：Word 模式留著空的面板（表格工具放在「常用」的面板裡），Markdown 功能區沒有那塊面板
+  S.ribbonLayout = 'tabs'; S.hiddenTabs = ['home'];
+  rebuild();
+  assert(view.toolbar.panels.home.classList.contains('is-empty') && view.toolbar.panels.home.querySelector('.wm-table-tools .wm-btn') && !view.toolbar.tabBtns.home && view.toolbar.dom.querySelectorAll('.wm-panel').length === 4,
+    'Word 模式：隱藏「常用」分頁後面板還在（放表格工具），只是不顯示');
+  assert(!bar.panels.home && !bar.tabBtns.home && bar.dom.querySelectorAll('.wm-panel').length === 3 && !bar.dom.querySelector('.wm-panel.is-empty'), 'Markdown 功能區：隱藏的分頁沒有面板');
+
+  // 詳細提示的說明：兩邊做法一樣的共用同一句；只有 Word 模式做得到的那句不出現在 Markdown 功能區
+  S.hiddenTabs = []; S.richHints = true;
+  rebuild();
+  let wait = 650;
+  const desc = async b => {
+    b.dispatchEvent(new MouseEvent('mouseenter'));
+    await sleep(wait); wait = 150;
+    const c = document.querySelector('.wm-hint-card.is-shown');
+    const d = c && c.querySelector('.wm-hint-desc');
+    return c ? c.querySelector('.wm-hint-title').textContent + ':' + (d ? d.textContent : '-') : 'none';
+  };
+  const hints = [];
+  for (const b of [wordBtn('斜體'), mdBtn('斜體'), wordBtn('粗體'), mdBtn('粗體'), wordBtn('段落樣式'), mdBtn('段落樣式')]) hints.push(await desc(b));
+  assert(hints[0] === '斜體:把文字變斜體。' && hints[1] === hints[0], '做法一樣的功能，兩條功能區的說明是同一句：' + hints[1]);
+  assert(hints[2] === '粗體:把選取的文字（或游標所在的詞）變粗體。' && hints[3] === '粗體:-', '說明只適用 Word 模式時（游標所在的詞），Markdown 功能區不顯示：' + hints[3]);
+  assert(hints[4] === '段落樣式:把段落改成標題 1～6、內文或程式碼。' && hints[5] === '段落樣式:把這一行改成標題 1～6 或內文。', '做法不同的功能各有自己的說明：' + hints[5]);
+
+  bar.destroy();
+  md.containerEl.remove();
+  for (const k of Object.keys(S)) delete S[k];
+  Object.assign(S, keep);
+  plugin.lastTab = keepTab;
+  view.buildToolbar();
+}
+
 finish();
