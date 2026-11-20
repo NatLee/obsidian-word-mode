@@ -491,6 +491,11 @@ const CLASS_RELATIONS: [string, I18nKey][] = [
   ['--|>', '繼承（方向相反）'], ['--*', '組合（方向相反）'], ['--o', '聚合（方向相反）'], ['<--', '關聯（方向相反）'], ['<..', '依賴（方向相反）'], ['<|..', '實作（方向相反）'],
 ];
 const CLASS_REL = /^(\S+)\s+(?:"([^"]*)"\s+)?(<\|--|<\|\.\.|\*--|o--|-->|--\|>|\.\.\|>|--\*|--o|<--|\.\.>|<\.\.|--|\.\.)\s+(?:"([^"]*)"\s+)?(\S+)(?:\s*:\s*(.*))?$/;
+// 關係的符號緊貼著類別名稱的寫法（Animal<|--Dog）。聚合的 o-- 與 --o 不在這裡：o 緊貼著名稱時分不出是不是名稱的一部分
+const CLASS_REL_TIGHT = /^([^\s:<>|*."{}-]+)\s*(?:"([^"]*)"\s*)?(<\|--|<\|\.\.|\*--|-->|--\|>|\.\.\|>|--\*|<--|\.\.>|<\.\.|--|\.\.)\s*(?:"([^"]*)"\s*)?([^\s:<>|*."{}-]+)(?:\s*:\s*(.*))?$/;
+// 類別名稱裡不會有關係的符號、冒號、引號與大括號。以前「名稱 : 成員」的寫法什麼都收，
+// Animal<|--Dog : inherits 被讀成一個叫「Animal<|--Dog」的類別，成員是 inherits，寫回去整個關係就不見了
+const classNameOk = (name: string): boolean => /^[^\s:<>|*."{}]+$/.test(name) && !name.includes('--');
 const classDiagram: DiagramKind = {
   id: 'class', name: '類別圖', icon: 'boxes', head: /^classDiagram(-v2)?\s*$/, template: template('類別圖'),
   parse(src) {
@@ -507,15 +512,20 @@ const classDiagram: DiagramKind = {
       if (open) { if (text === '}') open = null; else member(open, text); continue; }
       if (/^%%/.test(text)) { m.extra.push(text); continue; }
       if ((x = /^direction\s+(TB|TD|BT|RL|LR)$/.exec(text))) { m.opts.dir = x[1] === 'TD' ? 'TB' : x[1]; continue; }
-      if ((x = /^class\s+(\S+?)\s*\{$/.exec(text))) { open = cls(x[1]); continue; }
-      if ((x = /^class\s+(\S+)$/.exec(text))) { cls(x[1]); continue; }
-      if ((x = CLASS_REL.exec(text))) {
+      if ((x = /^class\s+(\S+?)\s*\{$/.exec(text))) { if (!classNameOk(x[1])) return 'syntax'; open = cls(x[1]); continue; }
+      // class 名稱:::樣式 是套用樣式的寫法
+      if ((x = /^class\s+(\S+)$/.exec(text))) { if (!classNameOk(x[1])) return x[1].includes(':::') ? 'blocks' : 'syntax'; cls(x[1]); continue; }
+      const spaced = CLASS_REL.exec(text);
+      if ((x = spaced || CLASS_REL_TIGHT.exec(text))) {
+        if (!classNameOk(x[1]) || !classNameOk(x[5])) return 'syntax';
+        // 緊貼的寫法裡，-- 旁邊的名稱以 o 結尾或開頭（Zoo--Dog）：可能是聚合的 o--，分不出來就不猜
+        if (!spaced && ((x[3].startsWith('--') && x[1].endsWith('o')) || (x[3].endsWith('--') && x[5].startsWith('o')))) return 'syntax';
         cls(x[1]); cls(x[5]);
         relations.push({ a: x[1], ca: x[2] || '', type: x[3], cb: x[4] || '', b: x[5], text: x[6] || '' });
         continue;
       }
       if (/^(?:(?:class|namespace|note|click|link|callback|style|cssClass|classDef|accTitle|accDescr)(?:\s|$)|<<)/.test(text)) return 'blocks';
-      if ((x = /^(\S+)\s*:\s*(.+)$/.exec(text))) { member(cls(x[1]), x[2]); continue; }
+      if ((x = /^(\S+)\s*:\s*(.+)$/.exec(text))) { if (!classNameOk(x[1])) return 'syntax'; member(cls(x[1]), x[2]); continue; }
       return 'syntax';
     }
     if (open) return 'syntax';

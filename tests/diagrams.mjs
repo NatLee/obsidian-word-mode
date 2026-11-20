@@ -91,6 +91,19 @@ for (const k of DIAGRAM_KINDS) {
   ok('類別圖：成員的文字可以從圖上找到', findSlot(textSlots(r.kind, m), '+送出()').line === 1);
   ok('類別圖：以 class 開頭的類別名稱', edit('classDiagram\n    classA <|-- classB').model.lists.relations.length === 1);
   ok('類別圖：namespace 不能用表單', editableDiagram('classDiagram\n    namespace N {\n    class A\n    }').ok === false);
+  // 關係的符號緊貼著類別名稱：以前被讀成一個叫「Animal<|--Dog」的類別，成員是 inherits，寫回去關係就不見了
+  const lone = editableDiagram('classDiagram\n    Animal<|--Dog : inherits');
+  ok('類別圖：Animal<|--Dog : inherits 是關係，不是類別的成員', lone.ok && lone.model.lists.relations.length === 1 && lone.kind.generate(lone.model) === 'classDiagram\n    class Animal\n    class Dog\n    Animal <|-- Dog : inherits', lone.ok ? lone.kind.generate(lone.model) : lone.reason);
+  const tight = edit('classDiagram\n    Animal<|--Dog : inherits\n    客戶"1"-->"*"訂單\n    A ..|>B');
+  ok('類別圖：關係緊貼著名稱也讀得出來', tight.model.lists.classes.map(c => c.name).join(',') === 'Animal,Dog,客戶,訂單,A,B' && tight.model.lists.classes.every(c => !c.members)
+    && JSON.stringify(tight.model.lists.relations[0]) === JSON.stringify({ a: 'Animal', ca: '', type: '<|--', cb: '', b: 'Dog', text: 'inherits' })
+    && JSON.stringify(tight.model.lists.relations[1]) === JSON.stringify({ a: '客戶', ca: '1', type: '-->', cb: '*', b: '訂單', text: '' }) && tight.model.lists.relations[2].type === '..|>', JSON.stringify(tight.model.lists));
+  const tightOut = tight.kind.generate(tight.model);
+  ok('類別圖：緊貼的關係寫回去還是關係', tightOut.includes('    Animal <|-- Dog : inherits') && tightOut.includes('    客戶 "1" --> "*" 訂單') && !tightOut.includes('{'), tightOut);
+  for (const [name, src] of [
+    ['名稱裡有關係的符號', 'classDiagram\n    A<|--|>B : x'], ['分不出是不是聚合', 'classDiagram\n    Zoo--Dog'], ['名稱裡有引號', 'classDiagram\n    A"1" : +x'],
+    ['class 後面的名稱有關係的符號', 'classDiagram\n    class A<|--B'], ['套用樣式的寫法', 'classDiagram\n    class A:::warn'],
+  ]) ok('類別圖：' + name + '就改用程式碼', editableDiagram(src).ok === false, JSON.stringify(editableDiagram(src).model));
 }
 
 // ---- 心智圖
