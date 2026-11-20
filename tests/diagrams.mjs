@@ -1,5 +1,5 @@
 // 圖表 ⇄ 表單資料：九種圖表的解析、產生、不支援的寫法、圖上的文字對應到欄位（表單介面的操作測試在 tests/view/features.mjs）
-import { DIAGRAM_KINDS, editableDiagram, detectKind, textSlots, findSlot, setValue, sameModel, parseDiagram, generateDiagram, lostContent, NODE_FILLS } from '../src/diagrams.js';
+import { DIAGRAM_KINDS, editableDiagram, detectKind, textSlots, findSlot, setValue, sameModel, parseDiagram, generateDiagram, lostContent, refName, restoreName, dropRefs, NODE_FILLS } from '../src/diagrams.js';
 import { MERMAID_TEMPLATES } from '../src/flowchart.js';
 // 各語言的翻譯（範本也會翻譯）：直接匯入字典，不經過 i18n.ts（它依賴 Obsidian）
 import EN from '../src/i18n-en.js';
@@ -318,6 +318,55 @@ ok('不認得的圖表種類', editableDiagram('gitGraph\n    commit').reason ==
   ok('類別圖：classDiagram-v2 照樣寫回去', cv.kind.generate(cv.model).startsWith('classDiagram-v2\n') && edit('classDiagram\n    A <|-- B').kind.generate(edit('classDiagram\n    A <|-- B').model).startsWith('classDiagram\n'), cv.kind.generate(cv.model));
   const qd = edit('quadrantChart\n    "甲": [0.50, 1.0]');
   ok('象限圖：位置照原本的寫法（0.50、1.0）', qd.kind.generate(qd.model) === 'quadrantChart\n    "甲": [0.50, 1.0]', qd.kind.generate(qd.model));
+}
+
+// ---- 改名不能讓引用它的列消失
+// 表單的名稱欄位每打一個字就改一次（setValue 的 everywhere = true）。把名稱一個字一個字刪掉再重打，中間會經過空字串，
+// 也可能經過另一列的名稱；以前這兩種情況都會把引用它的列弄丟或混在一起
+{
+  const def = list => list.fields.find(f => f.def);
+  const type = (r, list, row, values) => { for (const v of values) setValue(r.kind, r.model, { field: def(list), list, row }, v, true); };
+  const r = edit('sequenceDiagram\n    participant Alice\n    participant Bob\n    Alice->>Bob: hi\n    Bob-->>Alice: yo');
+  const people = r.kind.lists[0];
+  const alice = r.model.lists.people[0];
+  type(r, people, alice, ['Alic', 'Ali', 'Al', 'A', '']);
+  ok('循序圖：名稱清空時訊息還在，還是用原本最後能用的名稱', r.kind.generate(r.model) === 'sequenceDiagram\n    participant Bob\n    A->>Bob: hi\n    Bob-->>A: yo' && refName(alice) === 'A', r.kind.generate(r.model));
+  ok('循序圖：名稱清空時，訊息的選單裡還找得到它', r.kind.lists[1].fields[0].options(r.model, tr).map(o => o[0]).join() === 'A,Bob');
+  type(r, people, alice, ['C', 'Ca', 'Car', 'Carl']);
+  ok('循序圖：清空再重打，訊息一則都沒少', r.kind.generate(r.model) === 'sequenceDiagram\n    participant Carl\n    participant Bob\n    Carl->>Bob: hi\n    Bob-->>Carl: yo', r.kind.generate(r.model));
+  // 改成 Bobby 會先經過 Bob（另一個參與者的名稱）
+  type(r, people, alice, ['B', 'Bo', 'Bob']);
+  ok('循序圖：暫時跟別人同名時，兩邊的訊息沒有混在一起', r.model.lists.steps.map(s => s.from + '>' + s.to).join() === 'Bo>Bob,Bob>Bo' && refName(alice) === 'Bo' && alice.name === 'Bob', JSON.stringify(r.model.lists.steps));
+  type(r, people, alice, ['Bobb', 'Bobby']);
+  ok('循序圖：經過別人的名稱再改完，只有自己的訊息跟著改', r.kind.generate(r.model) === 'sequenceDiagram\n    participant Bobby\n    participant Bob\n    Bobby->>Bob: hi\n    Bob-->>Bobby: yo', r.kind.generate(r.model));
+  // 離開輸入框時名稱還不能用：改回去
+  type(r, people, alice, ['']);
+  ok('循序圖：名稱空著就離開，改回原本的名稱', restoreName(def(people), alice) === true && alice.name === 'Bobby' && restoreName(def(people), alice) === false && editableDiagram(r.kind.generate(r.model)).ok, JSON.stringify(alice));
+  // 名稱改到一半時刪掉這一列：刪的是它自己的訊息，不是暫時同名的那一列的
+  const d = edit('sequenceDiagram\n    A->>B: 1\n    B->>C: 2\n    C->>A: 3');
+  type(d, d.kind.lists[0], d.model.lists.people[0], ['B']);
+  dropRefs(d.kind.lists[0], d.model, d.model.lists.people[0]);
+  ok('循序圖：改名到一半刪掉參與者，只刪它自己的訊息', d.model.lists.steps.map(s => s.text).join() === '2', JSON.stringify(d.model.lists.steps));
+
+  // 類別圖、ER 圖的名稱欄位是同一套做法
+  const c = edit('classDiagram\n    class Animal {\n        +name\n    }\n    Animal <|-- Dog : is');
+  type(c, c.kind.lists[0], c.model.lists.classes[0], ['Anima', '', 'P', 'Pe', 'Pet']);
+  ok('類別圖：清空再重打，關係與成員都還在', c.kind.generate(c.model) === 'classDiagram\n    class Pet {\n        +name\n    }\n    class Dog\n    Pet <|-- Dog : is', c.kind.generate(c.model));
+  type(c, c.kind.lists[0], c.model.lists.classes[0], ['Dog']);
+  ok('類別圖：跟另一個類別同名時關係不變', c.model.lists.relations[0].a === 'Pet' && c.model.lists.relations[0].b === 'Dog');
+  restoreName(def(c.kind.lists[0]), c.model.lists.classes[0]);
+  const e = edit('erDiagram\n    CUSTOMER ||--o{ ORDER : places\n    CUSTOMER {\n        string name\n    }');
+  type(e, e.kind.lists[0], e.model.lists.entities[0], ['', 'C', 'CLIENT']);
+  ok('ER 圖：清空再重打，關係與欄位都還在', e.kind.generate(e.model) === 'erDiagram\n    CLIENT ||--o{ ORDER : places\n    CLIENT {\n        string name\n    }', e.kind.generate(e.model));
+
+  // 在圖上把名稱清空（狀態圖沒有「定義」的清單，每個轉換各自寫名稱）：只清那一格，其他轉換不受影響
+  const s = edit('stateDiagram-v2\n    A --> B\n    B --> C\n    C --> B');
+  setValue(s.kind, s.model, findSlot(textSlots(s.kind, s.model), 'B'), '', true);
+  ok('狀態圖：在圖上清空名稱，其他轉換還在', s.kind.generate(s.model) === 'stateDiagram-v2\n    B --> C\n    C --> B' && s.model.lists.moves[0].from === 'A' && s.model.lists.moves[0].to === '', s.kind.generate(s.model));
+  // 區段本來就可以不填：在圖上清空，同一個區段的工作一起離開區段
+  const g = edit('gantt\n    section 規劃\n    需求 :a1, 2026-01-05, 5d\n    設計 :3d');
+  setValue(g.kind, g.model, findSlot(textSlots(g.kind, g.model), '規劃'), '', true);
+  ok('甘特圖：在圖上清空區段，工作都還在', g.kind.generate(g.model) === 'gantt\n    需求 :a1, 2026-01-05, 5d\n    設計 :3d', g.kind.generate(g.model));
 }
 
 console.log(fails ? '\n' + fails + ' 個測試失敗' : '\nALL PASS');

@@ -1512,4 +1512,33 @@ await fresh('公式 $n\\log n + \\text{learning_rate}$ 結束\n');
   eq.close();
 }
 
+// ======== 圖表編輯器：在表單把名稱清空再重打，引用它的訊息不會不見 ========
+await fresh('第一段\n');
+{
+  view.openMermaid();
+  const mm = mock.Modal.last;
+  const q = s => mm.contentEl.querySelector(s);
+  const qa = s => [...mm.contentEl.querySelectorAll(s)];
+  const setInput = (el, v) => { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); };
+  click(qa('.wm-mmd-kind').find(b => b.dataset.kind === 'sequence'));
+  const name = q('.wm-mmd-row .wm-mmd-f-name');
+  const messages = () => mm.src.split('\n').filter(l => l.includes(': ')).map(l => l.trim()).join('|');
+  assert(name.value === '使用者' && messages() === '使用者->>系統: 送出請求|系統-->>使用者: 回覆結果', '循序圖的範本：' + messages());
+  // 一個字一個字刪掉（中間會經過空的名稱），再打新的名稱
+  for (const v of ['使用', '使', '']) setInput(name, v);
+  assert(messages() === '使->>系統: 送出請求|系統-->>使: 回覆結果' && q('.wm-mmd-f-from').value === '使', '名稱清空的時候訊息還在：' + messages());
+  for (const v of ['客', '客戶']) setInput(name, v);
+  assert(messages() === '客戶->>系統: 送出請求|系統-->>客戶: 回覆結果' && mm.src.includes('participant 客戶'), '清空再重打：訊息一則都沒少，名稱都改了：' + messages());
+  // 打成跟另一個參與者一樣的名稱：訊息不會混在一起；就這樣離開輸入框，名稱改回原本的
+  setInput(name, '系統');
+  assert(messages() === '客戶->>系統: 送出請求|系統-->>客戶: 回覆結果' && [...q('.wm-mmd-f-from').options].map(o => o.value).join() === '客戶,系統', '跟另一個參與者同名時訊息不變：' + messages());
+  name.dispatchEvent(new Event('change', { bubbles: true }));
+  assert(name.value === '客戶' && mm.src.split('\n').filter(l => l.includes('participant')).map(l => l.trim()).join('|') === 'participant 客戶|participant 系統', '離開時名稱還是重複的：改回原本的名稱：' + name.value);
+  // 空著離開也一樣
+  setInput(name, '');
+  name.dispatchEvent(new Event('change', { bubbles: true }));
+  assert(name.value === '客戶' && messages() === '客戶->>系統: 送出請求|系統-->>客戶: 回覆結果', '空著離開：改回原本的名稱：' + JSON.stringify(name.value));
+  mm.close();
+}
+
 finish();

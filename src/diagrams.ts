@@ -40,8 +40,9 @@ interface FieldBase {
 }
 // 一行文字。group：這個欄位的值是某一類東西的名稱（例如參與者、狀態），在圖上改名時同一類的欄位一起改；
 // def：這一欄是那類東西的「定義」，在表單裡改名也會連帶更新其他引用它的欄位；
-// multiline：文字可以換行（表單裡用「 / 」表示換行）；suggest：輸入時的建議
-export interface TextField extends FieldBase { kind: 'text'; placeholder?: I18nKey; group?: string; def?: boolean; multiline?: boolean; suggest?: (m: DiagramModel) => string[]; }
+// multiline：文字可以換行（表單裡用「 / 」表示換行）；suggest：輸入時的建議；
+// blank：這一類名稱可以不填（區段），在圖上把它清空時同一類的欄位一起清空
+export interface TextField extends FieldBase { kind: 'text'; placeholder?: I18nKey; group?: string; def?: boolean; blank?: boolean; multiline?: boolean; suggest?: (m: DiagramModel) => string[]; }
 // 多行文字，一行一項（類別的成員、實體的欄位、時間軸的事件）；存成用換行分開的字串
 export interface LinesField extends FieldBase { kind: 'lines'; placeholder?: I18nKey; }
 export interface SelectField extends FieldBase { kind: 'select'; options: (m: DiagramModel, tr: Translate) => Choice[]; group?: string; }
@@ -98,7 +99,16 @@ const one = (s: string | undefined): string => String(s == null ? '' : s).replac
 const unquote = (s: string): string => { const v = s.trim(); return v.length >= 2 && v.startsWith('"') && v.endsWith('"') ? v.slice(1, -1) : v; };
 const emptyModel = (): DiagramModel => ({ opts: {}, lists: {}, extra: [], pre: [] });
 const fixed = (list: readonly (readonly [string, I18nKey])[]) => (_m: DiagramModel, tr: Translate): Choice[] => list.map(([v, label]) => [v, tr(label)]);
-const names = (list: string, key = 'name') => (m: DiagramModel): Choice[] => (m.lists[list] || []).map(r => [r[key], r[key]]);
+// 「定義」欄位（參與者、類別、實體的名稱）改到一半、還不能用（空的，或跟另一列同名）的列 → 引用它的欄位還在用的名稱
+// （由 setValue 記錄）。用列本身當鍵：重新讀程式碼之後列是新的物件，舊的紀錄自然就沒有了
+const heldNames = new WeakMap<Row, string>();
+// 引用這一列時用的名稱（名稱改到一半時是原本的名稱，其他時候就是欄位的值）
+export function refName(row: Row, key = 'name'): string {
+  const held = heldNames.get(row);
+  return held != null ? held : (row[key] || '');
+}
+// 選單裡列出某個清單的名稱。用 refName：名稱改到一半的列，引用它的欄位還在用原本的名稱，選單裡要找得到
+const names = (list: string, key = 'name') => (m: DiagramModel): Choice[] => (m.lists[list] || []).map(r => { const v = refName(r, key); return [v, v]; });
 const template = (name: I18nKey): I18nKey => MERMAID_TEMPLATES.find(x => x[0] === name)![1];
 
 // 把程式碼分成：種類那一行之前的行（註解）、種類那一行的比對結果、之後的每一行（去掉空行與行尾分號）
@@ -371,7 +381,7 @@ const gantt: DiagramKind = {
     key: 'tasks', title: '工作', add: '＋ 新增工作', hint: '開始可以填日期，或「after 代號」接在另一項工作後面；留白表示接在上一項後面。長度例如 5d、2w，也可以填結束日期。',
     fields: [
       { kind: 'text', key: 'name', label: '工作名稱', placeholder: '工作名稱', size: 'l' },
-      { kind: 'text', key: 'section', label: '區段', placeholder: '區段（可不填）', group: 'section', suggest: m => [...new Set(m.lists.tasks.map(r => r.section).filter(Boolean))] },
+      { kind: 'text', key: 'section', label: '區段', placeholder: '區段（可不填）', group: 'section', blank: true, suggest: m => [...new Set(m.lists.tasks.map(r => r.section).filter(Boolean))] },
       { kind: 'select', key: 'status', label: '狀態', options: fixed(GANTT_STATUS), size: 's' },
       { kind: 'text', key: 'id', label: '代號', placeholder: '代號', size: 'xs' },
       { kind: 'text', key: 'start', label: '開始', placeholder: '開始', size: 's' },
@@ -722,7 +732,7 @@ const timeline: DiagramKind = {
     fields: [
       { kind: 'text', key: 'time', label: '時間', placeholder: '時間，例如 2026', size: 's' },
       { kind: 'lines', key: 'events', label: '事件', placeholder: '事件（一行一件）' },
-      { kind: 'text', key: 'section', label: '區段', placeholder: '區段（可不填）', size: 's', group: 'section', suggest: m => [...new Set(m.lists.periods.map(r => r.section).filter(Boolean))] },
+      { kind: 'text', key: 'section', label: '區段', placeholder: '區段（可不填）', size: 's', group: 'section', blank: true, suggest: m => [...new Set(m.lists.periods.map(r => r.section).filter(Boolean))] },
     ],
     make(m, tr) {
       const last = m.lists.periods[m.lists.periods.length - 1];
@@ -860,7 +870,7 @@ const journey: DiagramKind = {
       { kind: 'text', key: 'name', label: '步驟', placeholder: '做了什麼', size: 'l' },
       { kind: 'select', key: 'score', label: '感受', options: (_m, tr) => [['1', '1 ' + tr('（最糟）')], ['2', '2'], ['3', '3'], ['4', '4'], ['5', '5 ' + tr('（最好）')]], size: 's' },
       { kind: 'text', key: 'actors', label: '參與的人', placeholder: '參與的人' },
-      { kind: 'text', key: 'section', label: '區段', placeholder: '區段（可不填）', size: 's', group: 'section', suggest: m => [...new Set(m.lists.steps.map(r => r.section).filter(Boolean))] },
+      { kind: 'text', key: 'section', label: '區段', placeholder: '區段（可不填）', size: 's', group: 'section', blank: true, suggest: m => [...new Set(m.lists.steps.map(r => r.section).filter(Boolean))] },
     ],
     make(m, tr) {
       const last = m.lists.steps[m.lists.steps.length - 1];
@@ -1060,7 +1070,7 @@ export function rowSlot(slots: TextSlot[], row: Row): TextSlot | null {
 }
 
 // 改一個欄位的值。欄位屬於某一類名稱（group）而且 everywhere 為 true 時，同一類裡原本同名的欄位一起改
-// （在圖上把「使用者」改名，所有訊息裡的「使用者」都跟著改）
+// （在圖上把「使用者」改名，所有訊息裡的「使用者」都跟著改）。改名不能讓引用它的列消失，見裡面的說明
 export function setValue(kind: DiagramKind, m: DiagramModel, slot: { field: Field; list: ListSpec | null; row: Row | null; line?: number }, value: string, everywhere: boolean): void {
   const { field, row } = slot;
   const target = row || m.opts;
@@ -1073,11 +1083,46 @@ export function setValue(kind: DiagramKind, m: DiagramModel, slot: { field: Fiel
   }
   target[field.key] = value;
   const group = (field.kind === 'text' || field.kind === 'select') ? field.group : undefined;
-  if (!group || !everywhere || !old || old === value) return;
+  if (!group || !everywhere) return;
+  // 改的是「定義」欄位（參與者、類別、實體的名稱）時，它所在的列；其他欄位是 null
+  const defRow = field.kind === 'text' && field.def ? row : null;
+  // 引用這個名稱的欄位現在用的名稱：平常就是改之前的值；名稱改到一半（見 heldNames）時是當初留下來的那個
+  const from = defRow && heldNames.has(defRow) ? heldNames.get(defRow)! : old;
+  if (defRow) heldNames.delete(defRow);
+  if (!from || from === value) return;
+  if (defRow && slot.list) {
+    // 表單裡每打一個字就會進來一次。名稱被清空、或暫時跟另一列同名（把 Alice 改成 Bobby 會經過 Bob）時，
+    // 引用它的欄位先不動，記住它們用的名稱，等名稱可以用了再一起改。
+    // 以前照樣跟著改：清空時所有訊息都指向空白，再打新名稱也對不回來，那些訊息就從圖上消失了；
+    // 經過別人的名稱時兩邊的訊息混在一起，再往下打就把別人的訊息也一起改名
+    const others = m.lists[slot.list.key] || [];
+    if (!value || others.some(r => r !== defRow && (r[field.key] === value || heldNames.get(r) === value))) { heldNames.set(defRow, from); return; }
+  } else if (!value && !(field.kind === 'text' && field.blank)) {
+    // 在圖上把名稱清空：只清這一格。其他引用同一個名稱的欄位跟著清空的話，那些列（轉換、訊息）就寫不出去了
+    return;
+  }
   for (const list of kind.lists) {
     for (const f of list.fields) {
       if ((f.kind !== 'text' && f.kind !== 'select') || f.group !== group) continue;
-      for (const r of m.lists[list.key] || []) if (r[f.key] === old) r[f.key] = value;
+      for (const r of m.lists[list.key] || []) if (r[f.key] === from) r[f.key] = value;
     }
   }
+}
+
+// 改名結束（離開輸入框）時名稱還是不能用：改回引用它的欄位還在用的名稱。回傳有沒有改回去。
+// 留著空的或重複的名稱，寫出去的程式碼會少一個宣告或多一個同名的宣告，下次就開不了表單
+export function restoreName(field: Field, row: Row): boolean {
+  const held = heldNames.get(row);
+  if (held == null) return false;
+  heldNames.delete(row);
+  row[field.key] = held;
+  return true;
+}
+
+// 刪除一列之前，連帶刪掉引用它的列（list.onDelete）。名稱改到一半時，引用它的列用的是原本的名稱，要用那個名稱去找：
+// 不然會刪到剛好跟它暫時同名的另一列的東西
+export function dropRefs(list: ListSpec, m: DiagramModel, row: Row): void {
+  if (!list.onDelete) return;
+  const def = list.fields.find(f => f.kind === 'text' && f.def);
+  list.onDelete(m, def && heldNames.has(row) ? { ...row, [def.key]: heldNames.get(row)! } : row);
 }
