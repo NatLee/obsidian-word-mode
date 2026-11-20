@@ -1,7 +1,9 @@
 // 回歸測試：貼上的內容帶著 Markdown 表達不了的屬性時，存檔再讀回要得到同樣的文件
+import { EditorState, TextSelection } from 'prosemirror-state';
 import { MarkdownConverter } from '../src/markdown.js';
 import { schema } from '../src/schema.js';
 import { normalizeCellAlign } from '../src/schema.js';
+import * as C from '../src/commands.js';
 import { propType, summarize, propLink, convertProp, renameProp, propsSummary, frontmatterOf, frontmatterBody, peekData } from '../src/props.js';
 import { countText, docText, docStats } from '../src/textstats.js';
 
@@ -60,6 +62,36 @@ check('align: 空字串 → 預設', normalizeCellAlign('') === null && normaliz
   const blankLine = roundtrip(N.doc.create(null, [para(T('a'), br(), T('  '), br(), T('b'))]));
   check('兩個換行中間只有空白：讀回還是一段、兩個換行', blankLine.childCount === 1 && strip(blankLine.firstChild) === strip(para(T('a'), br(), br(), T('b'))), strip(blankLine));
   check('一般的換行照舊寫成換行', ser(N.doc.create(null, [para(T('a'), br(), T('b'), br(), T('c'))])) === 'a\nb\nc');
+}
+
+// ---- 編輯指令：做完之後存檔、再讀回來，要是同一份文件
+// 開一份文件、做一個修改（edit 收到目前的狀態、dispatch、取得最新狀態的函式），回傳存檔結果與前後的文件
+const save = (src, edit) => {
+  const { doc, meta } = c.parse(src);
+  let state = EditorState.create({ doc, schema });
+  edit(state, tr => { state = state.apply(tr); }, () => state);
+  const out = c.serialize(state.doc, meta);
+  return { out, state, doc: state.doc, back: c.parse(out).doc };
+};
+const sameDoc = r => strip(r.back) === strip(r.doc);
+const posOf = (doc, text) => { let p = -1; doc.descendants((n, pos) => { if (p < 0 && n.isText && n.text.includes(text)) p = pos + n.text.indexOf(text); }); return p; };
+// 選取 text 的前 len 個字（len 是 0 就只放游標）
+const select = (state, text, len = text.length) => { const p = posOf(state.doc, text); return state.tr.setSelection(TextSelection.create(state.doc, p, p + len)); };
+
+// ---- 段落 ⇄ 程式碼區塊：每一行都要留著（段落裡的換行是節點，程式碼區塊裡是「\n」）
+{
+  let r = save('line1\nline2\nline3\n', (s, d, cur) => { d(select(s, 'line1', 0)); C.setBlockStyle('code')(cur(), d); });
+  check('有換行的段落 → 程式碼（段落樣式）：每一行都在', r.out === '```\nline1\nline2\nline3\n```\n' && sameDoc(r), JSON.stringify(r.out));
+  r = save('line1\nline2\n', (s, d, cur) => { d(s.tr.setSelection(TextSelection.create(s.doc, 1, s.doc.content.size - 1))); C.insertCodeBlock('js')(cur(), d); });
+  check('選取有換行的段落 → 插入程式碼區塊：每一行都在', r.out === '```js\nline1\nline2\n```\n' && sameDoc(r), JSON.stringify(r.out));
+  r = save('```\na\nb\n\nc\n```\n', (s, d, cur) => { d(select(s, 'a', 0)); C.setBlockStyle('p')(cur(), d); });
+  check('程式碼 → 內文：每一行變成段落裡的換行', r.out === 'a\nb<br>\nc\n' && sameDoc(r) && r.doc.firstChild.textContent === 'abc', JSON.stringify(r.out));
+  r = save('```\na\nb\n```\n', (s, d, cur) => { d(select(s, 'a', 0)); C.setBlockStyle('h2')(cur(), d); });
+  check('程式碼 → 標題：換行還在', r.out === '## a<br>b\n' && sameDoc(r), JSON.stringify(r.out));
+  r = save('```\na\nb\n```\n', (s, d, cur) => { d(select(s, 'a', 1)); C.clearFormatting(cur(), d); });
+  check('程式碼區塊清除格式：變成內文，每一行都在', r.out === 'a\nb\n' && sameDoc(r), JSON.stringify(r.out));
+  r = save('| a |\n| --- |\n| x<br>y |\n', (s, d, cur) => { d(select(s, 'x', 0)); C.setBlockStyle('code')(cur(), d); });
+  check('表格裡不能放程式碼區塊：內容不動', r.out === '| a |\n| --- |\n| x<br>y |\n', JSON.stringify(r.out));
 }
 
 // ---- 文件屬性的值：顯示文字、連結、類型轉換

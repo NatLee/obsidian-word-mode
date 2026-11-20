@@ -8,7 +8,7 @@ import {
   goToNextCell, setCellAttr, isInTable, CellSelection,
 } from 'prosemirror-tables';
 import type { Command, EditorState, Transaction } from 'prosemirror-state';
-import type { Node as PMNode, Mark, MarkType, NodeType, ResolvedPos } from 'prosemirror-model';
+import type { Attrs, Node as PMNode, Mark, MarkType, NodeType, ResolvedPos } from 'prosemirror-model';
 import type { I18nKey } from './i18n.js';
 import { schema } from './schema.js';
 import type { BidAttrs, BlockFormatAttrs, BulletListAttrs, HighlightAttrs, ListItemAttrs, OrderedListAttrs, TableCellAttrs } from './schema.js';
@@ -262,7 +262,8 @@ export function insertCodeBlock(lang: string): Command {
       return true;
     }
     if (!empty && $from.depth >= 1 && plainSelection(state)) {
-      const text = state.doc.textBetween($from.before(1), $to.after(1), '\n');
+      // 段落裡的換行（hard_break）不是文字，要自己換成「\n」，不然幾行會併成一行
+      const text = state.doc.textBetween($from.before(1), $to.after(1), '\n', leaf => (leaf.type === N.hard_break ? '\n' : ''));
       const node = N.code_block.create({ params: lang }, text ? schema.text(text) : null);
       if (dispatch) {
         const from = $from.before(1);
@@ -465,7 +466,8 @@ export function clearFormatting(state: EditorState, dispatch?: Dispatch): boolea
     eachRange(state, (from, to) => {
       state.doc.nodesBetween(from, to, (node, pos) => {
         if (node.type === N.heading || node.type === N.code_block) {
-          tr = tr.setNodeMarkup(pos, N.paragraph, { bid: (node.attrs as BidAttrs).bid != null ? (node.attrs as BidAttrs).bid : null });
+          // 用 retype 而不是 setNodeMarkup：程式碼區塊裡的每一行要變成段落裡的換行
+          tr = retype(tr, pos + 1, pos + 1, N.paragraph, () => ({ bid: (node.attrs as BidAttrs).bid != null ? (node.attrs as BidAttrs).bid : null }));
           return false;
         }
         return !node.isTextblock;
@@ -530,6 +532,29 @@ export const BLOCK_STYLES: BlockStyle[] = [
   { id: 'code', label: '程式碼' },
 ];
 
+// 改變文字區塊的種類（setBlockType），並保住換行：段落裡的換行是 hard_break 節點，程式碼區塊裡是文字「\n」。
+// 程式碼區塊不能放 hard_break，直接轉會被丟掉、幾行併成一行；反過來「\n」留在段落裡，讀回來才會變成換行。
+// 兩者都佔一個位置，互換之後其他位置不變
+function retype(tr: Transaction, from: number, to: number, type: NodeType, attrs: (node: PMNode) => Attrs): Transaction {
+  const toCode = !!type.spec.code;
+  const swaps: number[] = [];
+  tr.doc.nodesBetween(from, to, (node, pos) => {
+    if (!node.isTextblock) return true;
+    const $pos = tr.doc.resolve(pos);
+    // 跟 setBlockType 一樣的條件：這個位置不能換成新的種類時它不會動，這裡也不能動
+    if (!!node.type.spec.code === toCode || !$pos.parent.canReplaceWith($pos.index(), $pos.index() + 1, type)) return false;
+    node.forEach((child, offset) => {
+      if (toCode) { if (child.type === N.hard_break) swaps.push(pos + 1 + offset); }
+      else if (child.isText) for (let i = 0; i < child.text!.length; i++) if (child.text![i] === '\n') swaps.push(pos + 1 + offset + i);
+    });
+    return false;
+  });
+  if (toCode) for (const p of swaps) tr.replaceWith(p, p + 1, schema.text('\n'));
+  tr.setBlockType(from, to, type, attrs);
+  if (!toCode) for (const p of swaps) tr.replaceWith(p, p + 1, N.hard_break.create());
+  return tr;
+}
+
 function styleType(id: BlockStyleId): [NodeType, { level?: number }] {
   if (id === 'p') return [N.paragraph, {}];
   if (id === 'code') return [N.code_block, {}];
@@ -556,7 +581,7 @@ export function setBlockStyle(id: BlockStyleId): Command {
     if (dispatch) {
       let tr = state.tr;
       eachRange(state, (from, to) => {
-        tr = tr.setBlockType(from, to, type, node => Object.assign({}, attrs, { bid: (node.attrs as BidAttrs).bid != null ? (node.attrs as BidAttrs).bid : null }));
+        tr = retype(tr, from, to, type, node => Object.assign({}, attrs, { bid: (node.attrs as BidAttrs).bid != null ? (node.attrs as BidAttrs).bid : null }));
       });
       dispatch(tr.scrollIntoView());
     }
