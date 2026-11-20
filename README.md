@@ -58,6 +58,7 @@ Shown in the animation at the top. Start a paragraph with `# `, `- `, `1. `, `> 
 - **Your own formulas**: select the bookmark button next to the preview to save the current equation under a name. Saved formulas appear under **My formulas** in the palette, and one click inserts them.
 - An equation you don't change is written back exactly as it was.
 - **On phones and tablets**: buttons above the editing area move to the previous or next box and remove the structure at the cursor, because on-screen keyboards have no arrow keys. On a phone, the editing area stays at the top while you scroll the palette.
+- **Nothing lost by accident**: with changes you have not applied, Escape, a click outside or the × asks first whether to discard them. The diagram editor does the same.
 
 </details>
 

@@ -60,6 +60,7 @@ Zu sehen in der Animation oben. Beginnen Sie einen Absatz mit `# `, `- `, `1. `,
 - **Eigene Formeln**: Mit der Lesezeichen-Schaltfläche neben der Vorschau speichern Sie die aktuelle Formel unter einem Namen. Gespeicherte Formeln erscheinen in der Palette unter **Meine Formeln** und werden mit einem Klick eingefügt.
 - Eine unveränderte Formel wird genau so zurückgeschrieben, wie sie war.
 - **Auf Smartphones und Tablets**: Schaltflächen über dem Bearbeitungsbereich springen zum vorherigen oder nächsten Feld und entfernen die Struktur am Cursor, weil Bildschirmtastaturen keine Pfeiltasten haben. Auf dem Smartphone bleibt der Bearbeitungsbereich oben, während Sie in der Palette scrollen.
+- **Nichts geht versehentlich verloren**: Bei noch nicht übernommenen Änderungen fragen Esc, ein Klick außerhalb und das × zuerst, ob sie verworfen werden sollen. Der Diagramm-Editor macht es genauso.
 
 </details>
 

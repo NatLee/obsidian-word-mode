@@ -60,6 +60,7 @@ Chỉnh sửa ghi chú [Obsidian](https://obsidian.md) giống như trong Word: 
 - **Công thức của riêng bạn**: chọn nút dấu trang bên cạnh bản xem trước để lưu phương trình hiện tại với một cái tên. Các công thức đã lưu xuất hiện trong mục **Công thức của tôi** trên bảng ký hiệu, và chỉ cần nhấp một lần là chèn.
 - Phương trình bạn không thay đổi sẽ được ghi lại đúng như cũ.
 - **Trên điện thoại và máy tính bảng**: các nút phía trên vùng soạn thảo giúp chuyển sang ô trước hoặc ô sau và bỏ cấu trúc tại con trỏ, vì bàn phím ảo không có phím mũi tên. Trên điện thoại, vùng soạn thảo luôn nằm ở trên cùng khi bạn cuộn bảng ký hiệu.
+- **Không mất do vô ý**: khi còn thay đổi chưa áp dụng, nhấn Esc, bấm ra ngoài hộp thoại hoặc nhấn × sẽ hỏi trước có bỏ chúng không. Trình chỉnh sửa sơ đồ cũng vậy.
 
 </details>
 
