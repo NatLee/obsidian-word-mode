@@ -1188,5 +1188,9 @@ export default {
  "編輯{name}": "Editar {name}",
  "還沒套用的修改會不見，要關閉嗎？": "Los cambios sin aplicar se perderán. ¿Cerrar de todos modos?",
  "繼續編輯": "Seguir editando",
- "捨棄修改": "Descartar cambios"
+ "捨棄修改": "Descartar cambios",
+ "更多功能": "Más opciones",
+ "刪除圖表": "Eliminar diagrama",
+ "刪除這個區塊": "Eliminar este bloque",
+ "刪除註腳（連同文中的編號）": "Eliminar la nota al pie y sus llamadas en el texto"
 };

@@ -1782,3 +1782,21 @@ mark.wm-set-find-hl { padding: 0 1px; border-radius: 3px; background: hsla(var(-
 .wm-props .wm-chip-x:focus-visible, .wm-peek .wm-chip-x:focus-visible { opacity: 1; outline: 2px solid var(--interactive-accent); outline-offset: 1px; }
 /* 文件屬性的標題列與連結的值可以用鍵盤操作，取得焦點時要看得出來 */
 .wm-props .wm-props-title:focus-visible, .wm-props .wm-chip-text[role="link"]:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 2px; border-radius: 3px; }
+
+/* ===== 區塊右上角的小按鈕：原文區塊（方程式、HTML、註腳、註解）的編輯、更多功能或複製、刪除，圖表的刪除 =====
+   樣子跟程式碼區塊右上角的按鈕一樣：滑鼠移上去、選取整個區塊、或用 Tab 移到按鈕上時才出現。
+   手機沒有滑鼠移上去：點一下區塊（選取）就出現，第二下才按得到，不會一碰就刪掉 */
+.wm-raw-block .wm-block-tools { position: absolute; top: 4px; right: 6px; z-index: 1; display: flex; align-items: center; gap: 2px; border-radius: 4px; background: var(--background-primary); opacity: 0; pointer-events: none; transition: opacity .12s; }
+.wm-raw-block .wm-block-tools[hidden], .wm-block-tools button[hidden] { display: none; }
+.wm-raw-block:hover .wm-block-tools, .wm-raw-block.ProseMirror-selectednode .wm-block-tools, .wm-raw-block .wm-block-tools:focus-within { opacity: 1; pointer-events: auto; }
+.wm-block-tools button { height: 22px; padding: 0 6px; background: transparent; box-shadow: none; color: var(--text-muted); }
+.wm-block-tools button:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
+.wm-block-tools svg { width: 14px; height: 14px; }
+.wm-mobile .wm-block-tools button { height: 32px; }
+/* 右上角改放按鈕：「數學式（按兩下編輯）」這類標籤移到左上角，兩者才不會疊在一起 */
+.wm-raw-block .wm-raw-label { right: auto; left: 6px; }
+.wm-block-tools button.is-done { color: var(--text-success, var(--text-accent)); }
+/* 刪除鍵放在最右邊（語言選單是 order: 9），滑鼠移上去變成警示色 */
+.wm-codeblock .wm-code-head button.wm-code-delete { order: 10; }
+.wm-code-head button.wm-code-delete:hover, .wm-block-tools button.wm-block-delete:hover { color: var(--text-error); }
+.wm-block-tools button:focus-visible { box-shadow: var(--wm-focus-ring); }

@@ -1188,5 +1188,9 @@ export default {
  "編輯{name}": "{name} bearbeiten",
  "還沒套用的修改會不見，要關閉嗎？": "Nicht übernommene Änderungen gehen verloren. Trotzdem schließen?",
  "繼續編輯": "Weiter bearbeiten",
- "捨棄修改": "Änderungen verwerfen"
+ "捨棄修改": "Änderungen verwerfen",
+ "更多功能": "Weitere Optionen",
+ "刪除圖表": "Diagramm löschen",
+ "刪除這個區塊": "Diesen Block löschen",
+ "刪除註腳（連同文中的編號）": "Fußnote samt Verweisen im Text löschen"
 };

@@ -1188,5 +1188,9 @@ export default {
  "編輯{name}": "Modifier : {name}",
  "還沒套用的修改會不見，要關閉嗎？": "Les modifications non appliquées seront perdues. Fermer quand même ?",
  "繼續編輯": "Continuer la modification",
- "捨棄修改": "Abandonner les modifications"
+ "捨棄修改": "Abandonner les modifications",
+ "更多功能": "Plus d'options",
+ "刪除圖表": "Supprimer le diagramme",
+ "刪除這個區塊": "Supprimer ce bloc",
+ "刪除註腳（連同文中的編號）": "Supprimer la note de bas de page et ses appels dans le texte"
 };

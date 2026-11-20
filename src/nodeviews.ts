@@ -1,8 +1,8 @@
 import { TableView } from 'prosemirror-tables';
 import { CALLOUT_TYPES, calloutIcon, CODE_LANGUAGES } from './commands.js';
 import { t, key } from './i18n.js';
-import { FOOTNOTE_DEF, FOOTNOTE_REF, footnoteBody, footnoteText } from './footnotes.js';
-import { el, whenVisible, onPress, onKeyPress } from './dom.js';
+import { FOOTNOTE_DEF, FOOTNOTE_REF, footnoteBody, footnoteText, removeFootnote } from './footnotes.js';
+import { el, whenVisible, onPress, onKeyPress, keepFocus } from './dom.js';
 import { propType, isTagKey, summarize, propLink, convertProp, renameProp, propsSummary, PROP_ICONS as TYPE_ICON, frontmatterBody } from './props.js';
 import type { PropType } from './props.js';
 import type { Attrs, Node as PMNode } from 'prosemirror-model';
@@ -50,6 +50,8 @@ export interface NodeViewContext {
   prompt(title: string, value: string, placeholder: string, onSave: TextCallback): void;
   // pos 是 getPos() 的結果，可能是 undefined
   editMath?(pos: number | undefined, src: string, display: boolean): void;
+  // 獨立方程式右上角「更多功能」的選單（改成行內、複製 LaTeX…）；pos 是方程式節點的位置
+  mathMenu?(evt: MouseEvent, pos: number): void;
   editMermaid?(pos: number): void;
   menu(evt: MouseEvent, items: NodeViewMenuItem[]): void;
   notice?(message: string): void;
@@ -114,6 +116,35 @@ function setNodeAttrs(nv: { node: PMNode; view: EditorView; getPos: GetPos }, ch
   if (pos == null) return false;
   nv.view.dispatch(nv.view.state.tr.setNodeMarkup(pos, null, Object.assign({}, nv.node.attrs, changes)));
   return true;
+}
+
+// 整個節點刪掉（區塊右上角的刪除鍵），可以復原。節點已經不在文件裡就不做
+function deleteNode(nv: { node: PMNode; view: EditorView; getPos: GetPos }): void {
+  const pos = nv.getPos();
+  if (pos == null) return;
+  nv.view.dispatch(nv.view.state.tr.delete(pos, pos + nv.node.nodeSize).scrollIntoView());
+  nv.view.focus();
+}
+
+// 複製到剪貼簿，成功時按鈕短暫變色（.is-done）
+function copyWithFeedback(btn: HTMLElement, text: string): void {
+  if (!navigator.clipboard) return;
+  void navigator.clipboard.writeText(text).then(() => { btn.classList.add('is-done'); window.setTimeout(() => btn.classList.remove('is-done'), 900); });
+}
+
+// 獨立一行的方程式 $$…$$；第一組是方程式內容
+const MATH_BLOCK = /^\s*\$\$([\s\S]*?)\$\$\s*$/;
+
+// 區塊右上角的小按鈕（程式碼區塊、原文區塊共用）。名稱放在 aria-label，Obsidian 會顯示成提示；
+// 按下時不搶走編輯區的焦點（觸控也是，螢幕鍵盤才不會收起來）
+function cornerButton(parent: HTMLElement, ctx: Partial<NodeViewContext>, cls: string, label: string, icon: string, fallback: string, run: (e: MouseEvent) => void): HTMLButtonElement {
+  const b = el('button', cls, parent);
+  b.type = 'button';
+  b.setAttribute('aria-label', label);
+  if (ctx.icon) ctx.icon(b, icon, fallback); else b.textContent = fallback;
+  keepFocus(b);
+  b.addEventListener('click', run);
+  return b;
 }
 
 // 一次顯示借用、之後要還的東西：Obsidian 的顯示元件（內嵌的筆記、圖表、查詢結果）、還在等的「看得到才畫」。
@@ -322,12 +353,27 @@ const RAW_LABEL: Record<string, string> = {
 class RawBlockView extends SelectableAtomView<HTMLDivElement> {
   declare label: HTMLDivElement;
   declare body: HTMLDivElement;
+  // 右上角的小按鈕：編輯、更多功能（只有方程式）或複製、刪除。名稱與顯示哪幾顆在 render() 依種類決定
+  declare tools: HTMLDivElement;
+  declare editBtn: HTMLButtonElement;
+  declare moreBtn: HTMLButtonElement;
+  declare copyBtn: HTMLButtonElement;
+  declare delBtn: HTMLButtonElement;
   constructor(node: PMNode, view: EditorView, getPos: GetPos, ctx: NodeViewContext) {
     super(node, view, getPos, ctx, el('div', 'wm-raw-block'));
     this.dom.contentEditable = 'false';
     this.label = el('div', 'wm-raw-label', this.dom);
+    this.tools = el('div', 'wm-block-tools', this.dom);
+    this.editBtn = cornerButton(this.tools, ctx, 'wm-block-edit', t('編輯原文'), 'pencil', t('編輯原文'), () => this.edit());
+    this.moreBtn = cornerButton(this.tools, ctx, 'wm-block-more', t('更多功能'), 'more-horizontal', '⋯', e => {
+      const pos = this.getPos();
+      if (pos != null && ctx.mathMenu) ctx.mathMenu(menuEvent(e, this.moreBtn), pos);
+    });
+    this.copyBtn = cornerButton(this.tools, ctx, 'wm-block-copy', t('複製為 Markdown'), 'copy', t('複製為 Markdown'), () => copyWithFeedback(this.copyBtn, (this.node.attrs as RawBlockAttrs).src));
+    this.delBtn = cornerButton(this.tools, ctx, 'wm-block-delete', t('刪除這個區塊'), 'trash-2', t('刪除這個區塊'), () => this.remove());
     this.body = el('div', 'wm-raw-body', this.dom);
-    this.dom.addEventListener('dblclick', e => { e.preventDefault(); this.edit(); });
+    // 很快連按兩下右上角的按鈕不算按兩下區塊（不然按「更多功能」兩下會連編輯的對話框也打開）
+    this.dom.addEventListener('dblclick', e => { e.preventDefault(); if (!this.tools.contains(e.target as Node)) this.edit(); });
     this.dom.addEventListener('mousedown', e => {
       const a = (e.target as Element).closest && (e.target as Element).closest('a');
       if (a && isMod(e)) {
@@ -348,6 +394,12 @@ class RawBlockView extends SelectableAtomView<HTMLDivElement> {
     this.body.replaceChildren();
     this.shown.release();
     const fn = a.kind === 'footnote' && FOOTNOTE_DEF.exec(a.src);
+    // 方程式的「更多功能」有改成行內、複製 LaTeX 等好幾項；其他區塊能做的只有複製原文，直接放一顆複製鍵
+    const math = a.kind === 'math' && MATH_BLOCK.test(a.src);
+    this.editBtn.setAttribute('aria-label', math ? t('編輯方程式') : fn ? t('編輯註腳…') : t('編輯原文'));
+    this.moreBtn.hidden = !(math && this.ctx.mathMenu);
+    this.copyBtn.hidden = math;
+    this.delBtn.setAttribute('aria-label', math ? t('刪除方程式') : fn ? t('刪除註腳（連同文中的編號）') : t('刪除這個區塊'));
     if (fn) {
       // 註腳定義：顯示編號與內容（內容照 Markdown 顯示）
       this.label.textContent = t('註腳') + ' ' + fn[1] + t('（按兩下編輯）');
@@ -365,15 +417,22 @@ class RawBlockView extends SelectableAtomView<HTMLDivElement> {
     const a = this.node.attrs as RawBlockAttrs;
     const fn = a.kind === 'footnote' && FOOTNOTE_DEF.exec(a.src);
     if (fn && this.ctx.editFootnote) { this.ctx.editFootnote(fn[1]); return; }
-    const mm = a.kind === 'math' && /^\s*\$\$([\s\S]*?)\$\$\s*$/.exec(a.src);
+    const mm = a.kind === 'math' && MATH_BLOCK.exec(a.src);
     if (mm && this.ctx.editMath) { this.ctx.editMath(this.getPos(), mm[1].trim(), true); return; }
     // RAW_LABEL 的值是載入時 t() 的結果或 'HTML'，不一定是鍵；再翻一次，找不到時 t() 原樣回傳。
     // 標題用帶變數的整句（「編輯{name}」）：各語言的語序不同，直接拼起來英文還會變成「EditingHTML」
     this.ctx.editSource(t('編輯{name}', { name: t((RAW_LABEL[a.kind] || RAW_LABEL.raw) as I18nKey) }), a.src, value => { setNodeAttrs(this, { src: value.replace(/\s+$/, '') }); });
   }
+  // 右上角的刪除鍵。註腳的內容連同文中的編號一起刪：只刪內容的話，文中會留下對不到內容的 [^1]，存成 Markdown 就變成一般文字
+  remove(): void {
+    const fn = this.node.attrs.kind === 'footnote' && FOOTNOTE_DEF.exec((this.node.attrs as RawBlockAttrs).src);
+    if (fn && removeFootnote(fn[1])(this.view.state, tr => this.view.dispatch(tr.scrollIntoView()))) { this.view.focus(); return; }
+    deleteNode(this);
+  }
   // bid（原文區塊的編號）變了不用重畫
   changed(prev: PMNode): boolean { return this.node.attrs.src !== prev.attrs.src || this.node.attrs.kind !== prev.attrs.kind; }
-  stopEvent(e: Event): boolean { return e.type === 'dblclick' || (e.type === 'mousedown' && isMod(e as MouseEvent)); }
+  // 右上角按鈕上的事件（按下、鍵盤）留給按鈕自己，編輯器不要拿去選取整個區塊
+  stopEvent(e: Event): boolean { return e.type === 'dblclick' || (e.type === 'mousedown' && isMod(e as MouseEvent)) || this.tools.contains(e.target as Node); }
 }
 
 class RawInlineView extends AtomView<HTMLSpanElement> {
@@ -443,9 +502,10 @@ function focusable(target: HTMLElement, role: 'button' | 'link'): void {
   target.tabIndex = 0;
 }
 
-// ctx.menu 照滑鼠事件的位置開選單。用鍵盤開的時候沒有滑鼠位置：改給一個位置在控制項左下角的滑鼠事件
+// ctx.menu 照滑鼠事件的位置開選單。用鍵盤開的時候沒有滑鼠位置：改給一個位置在控制項左下角的滑鼠事件。
+// 用 Enter、空白鍵按 <button> 時，瀏覽器送的是 click，但沒有滑鼠位置（detail 是 0）
 function menuEvent(e: MouseEvent | KeyboardEvent, anchor: HTMLElement): MouseEvent {
-  if (e.type !== 'keydown') return e as MouseEvent;
+  if (e.type !== 'keydown' && !(e.type === 'click' && e.detail === 0)) return e as MouseEvent;
   const r = anchor.getBoundingClientRect();
   return new MouseEvent('click', { clientX: r.left, clientY: r.bottom, view: anchor.ownerDocument.defaultView });
 }
@@ -810,6 +870,7 @@ class CodeBlockView implements NodeView {
   declare editBtn: HTMLButtonElement;
   declare srcBtn: HTMLButtonElement;
   declare copy: HTMLButtonElement;
+  declare delBtn: HTMLButtonElement;
   declare body: HTMLDivElement;
   declare gutter: HTMLDivElement;
   declare lines: number | undefined;
@@ -835,21 +896,12 @@ class CodeBlockView implements NodeView {
     this.sel = el('select', 'wm-code-langsel dropdown', this.head);
     this.sel.setAttribute('aria-label', t('程式語言'));
     el('span', 'wm-code-spacer', this.head);
-    const btn = (cls: string, label: string, icon: string, fallback: string, run: () => void): HTMLButtonElement => {
-      const b = el('button', cls, this.head);
-      b.type = 'button';
-      b.setAttribute('aria-label', label);
-      if (this.ctx.icon) this.ctx.icon(b, icon, fallback); else b.textContent = fallback;
-      b.addEventListener('mousedown', e => e.preventDefault());
-      b.addEventListener('click', run);
-      return b;
-    };
+    const btn = (cls: string, label: string, icon: string, fallback: string, run: () => void): HTMLButtonElement => cornerButton(this.head, this.ctx, cls, label, icon, fallback, run);
     this.editBtn = btn('wm-code-edit', t('編輯圖表（表單或程式碼，含即時預覽）'), 'workflow', t('編輯圖表'), () => { const pos = this.getPos(); if (pos != null && this.ctx.editMermaid) this.ctx.editMermaid(pos); });
     this.srcBtn = btn('wm-code-src', t('顯示／隱藏原始碼'), 'code-2', t('原始碼'), () => this.toggleSource());
-    this.copy = btn('wm-code-copy', t('複製程式碼'), 'copy', t('複製'), () => {
-      const text = this.node.textContent;
-      if (navigator.clipboard) void navigator.clipboard.writeText(text).then(() => { this.copy.classList.add('is-done'); window.setTimeout(() => this.copy.classList.remove('is-done'), 900); });
-    });
+    this.copy = btn('wm-code-copy', t('複製程式碼'), 'copy', t('複製'), () => copyWithFeedback(this.copy, this.node.textContent));
+    // 只有顯示成結果的區塊（圖表、查詢）有：整塊是一張圖，不像程式碼可以選取文字再刪。名稱在 syncPreview 依語言換
+    this.delBtn = btn('wm-code-delete', t('刪除圖表'), 'trash-2', t('刪除圖表'), () => deleteNode(this));
     this.sel.addEventListener('change', () => {
       if (this.sel.value === '__other') {
         this.syncSelect();
@@ -954,6 +1006,8 @@ class CodeBlockView implements NodeView {
     this.dom.classList.toggle('is-empty', !text.trim());
     this.srcBtn.hidden = !on;
     this.editBtn.hidden = !(on && this.lang() === 'mermaid');
+    this.delBtn.hidden = !on;
+    this.delBtn.setAttribute('aria-label', this.lang() === 'mermaid' ? t('刪除圖表') : t('刪除這個區塊'));
     if (!on) { this.dispose(); this.preview.replaceChildren(); this.rendered = null; this.syncTall(); return; }
     const key = this.node.attrs.params + '\n' + text;
     // 先取消還沒執行的預覽：內容改了又改回來時，key 跟畫面上的一樣，但計時器裡排的是中間那一版
