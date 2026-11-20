@@ -1573,7 +1573,8 @@ await fresh('一段文字\n');
     'Markdown 功能區的按鈕跟 Word 模式同名的按鈕長得一樣（' + total + ' 個）；刻意不同的只有段落樣式的圖示與兩個檢視模式的名稱：' + odd.join());
   assert(look(mdBtn('查看文件屬性')) === 'clipboard-list｜查看屬性｜true' && look(mdBtn('查看文件屬性')) === look(wordBtn('查看文件屬性')), '「查看文件屬性」兩邊的按鈕文字一樣：' + look(mdBtn('查看文件屬性')));
   const quick = root => [...root.querySelectorAll('.wm-tabs-quick .wm-btn')].map(base).join();
-  assert(quick(view.toolbar.dom) === '尋找與取代,快速鍵說明,切換到 Markdown 編輯' && quick(bar.dom) === '尋找與取代,切換到 Word 模式', '右上角的快速按鈕：尋找的名稱兩邊一樣：' + quick(bar.dom));
+  // Word 模式的尋找列也能取代；Markdown 那顆開的是 Obsidian 的尋找，所以名稱刻意不同
+  assert(quick(view.toolbar.dom) === '尋找與取代,快速鍵說明,切換到 Markdown 編輯' && quick(bar.dom) === '尋找,切換到 Word 模式', '右上角的快速按鈕：Word 模式是「尋找與取代」，Markdown 是「尋找」：' + quick(bar.dom));
   assert(tip(wordBtn('底線')) === '底線 (Ctrl+U)' && tip(mdBtn('底線')) === '底線' && tip(mdBtn('粗體')) === '粗體 (Ctrl+B)' && tip(mdBtn('粗體')) === tip(wordBtn('粗體')),
     '只有 Word 模式綁的快速鍵不出現在 Markdown 功能區的提示；兩邊都有的照樣顯示：' + tip(mdBtn('底線')) + '、' + tip(mdBtn('粗體')));
   // 測試替身的 setIcon 不產生 svg，等於「這一版 Obsidian 沒有這個圖示」：兩條功能區都改顯示文字，按鈕不會空白

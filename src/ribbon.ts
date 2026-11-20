@@ -201,8 +201,9 @@ export const ACTIONS = {
   foldAll: { icon: 'chevrons-down-up', title: '摺疊全部標題', text: '收', label: '全部摺疊', big: true, demo: 'fold', desc: '把所有標題下的內容收起來，只看標題。' },
   unfoldAll: { icon: 'chevrons-up-down', title: '展開全部標題', text: '展', label: '全部展開', big: true, demo: 'unfold', desc: '展開所有收起來的標題。' },
   settings: { icon: 'settings', title: 'Word 模式設定', text: '設', label: '設定', big: true, demo: 'settings', desc: '開啟 Word 模式的設定。在上方的搜尋框打幾個字就能找到想要的設定，也可以打英文。' },
-  // ---- 右上角的快速按鈕：尋找列也能取代，所以名稱是「尋找與取代」
-  findQuick: { ...find, title: '尋找與取代' },
+  // ---- 右上角的快速按鈕：Word 模式的尋找列也能取代，所以名稱是「尋找與取代」。
+  // Markdown 那邊按下去開的是 Obsidian 的尋找（取代是另一個指令），名稱照實寫「尋找」
+  findQuick: { ...find, title: '尋找與取代', md: { title: '尋找' } },
 } satisfies Record<string, RibbonAction>;
 
 // ----------------------------------------------------------- 功能區的外殼

@@ -54,7 +54,7 @@ export interface Settings {
   viewButtonLabels: boolean;
   hiddenTabs: TabId[];
   hiddenGroups: GroupId[];
-  // 自訂的按鈕群組（toolbar.ts 的 groupLayout 套用）：名稱（群組 id → 名稱）、
+  // 自訂的按鈕群組（ribbon.ts 的 groupLayout 套用）：名稱（群組 id → 名稱）、
   // 移到哪個分頁（群組 id → 分頁 id，只存有移動過的）、順序（群組 id，空的＝預設順序）
   groupNames: Partial<Record<GroupId, string>>;
   groupTabs: Partial<Record<GroupId, TabId>>;
