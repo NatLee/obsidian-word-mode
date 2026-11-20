@@ -962,13 +962,16 @@ class CodeBlockView implements NodeView {
     window.clearTimeout(this.timer);
     if (key === this.rendered) return;
     const run = () => {
+      // 內容到要畫的時候才讀：開啟筆記時排的「看得到才畫」可能等很久，中間內容被改過（全部取代、復原）；
+      // 畫排隊當時那一版的話，還會順手取消排在後面的重畫，結果就一直停在舊的
+      const code = this.node.textContent;
       this.dispose();
-      this.rendered = key;
+      this.rendered = this.node.attrs.params + '\n' + code;
       this.preview.replaceChildren();
-      if (!text.trim()) return;
-      const ticks = text.match(/`{3,}/g);
+      if (!code.trim()) return;
+      const ticks = code.match(/`{3,}/g);
       const fence = ticks ? ticks.sort().slice(-1)[0] + '`' : '```';
-      const h = this.shown.embed(this.ctx.renderBlock!(fence + this.node.attrs.params + '\n' + text + '\n' + fence, this.preview));
+      const h = this.shown.embed(this.ctx.renderBlock!(fence + this.node.attrs.params + '\n' + code + '\n' + fence, this.preview));
       // 畫好之後判斷要不要收合（沒有 ResizeObserver 的環境靠這裡）；這時結果已經換掉或節點已經移除就不用了
       let current = true;
       this.shown.add(() => { current = false; });

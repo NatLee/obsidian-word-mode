@@ -1051,6 +1051,28 @@ await fresh('---\ntags:\n  - 會議\n  - 專案\ndate: 2026-11-16\ndone: false\n
   env2.view.containerEl.remove();
 }
 
+// ======== 圖表還沒捲到就先被改過：捲到時畫的是現在的內容 ========
+{
+  // jsdom 沒有 IntersectionObserver（結果一開啟就畫）；裝一個假的，才等得到「捲到看得到才畫」
+  const observers = [];
+  globalThis.IntersectionObserver = class { constructor(cb) { this.cb = cb; observers.push(this); } observe(target) { this.target = target; } disconnect() { this.off = true; } };
+  await fresh('前文\n\n```mermaid\ngraph TD; A-->B\n```\n');
+  await sleep(10);
+  const io = observers.find(o => o.target && o.target.classList.contains('wm-codeblock'));
+  const preview = () => view.pm.dom.querySelector('.wm-code-preview').textContent;
+  assert(io && preview() === '', '還沒捲到圖表：先不畫');
+  // 這時內容被改了（全部取代、復原都不用先捲過去）
+  let end = 0;
+  view.pm.state.doc.descendants((n, pos) => { if (n.type.name === 'code_block') end = pos + 1 + n.content.size; });
+  view.pm.dispatch(view.pm.state.tr.insertText('\nB-->C', end));
+  // 打字後延後重畫的時間還沒到，就捲到看得到了
+  io.cb([{ isIntersecting: true }]);
+  assert(preview().includes('A-->B') && preview().includes('B-->C'), '捲到時畫的是改過之後的內容：' + JSON.stringify(preview()));
+  await sleep(700);
+  assert(preview().includes('B-->C'), '之後也不會停在舊的內容：' + JSON.stringify(preview()));
+  delete globalThis.IntersectionObserver;
+}
+
 //@@MORE@@
 
 finish();
