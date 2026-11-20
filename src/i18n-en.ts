@@ -1193,5 +1193,6 @@ export default {
  "刪除圖表": "Delete diagram",
  "刪除這個區塊": "Delete this block",
  "刪除註腳（連同文中的編號）": "Delete footnote and its numbers in the text",
- "往下捲動時，文件屬性會固定在頁面上方": "When you scroll down, the properties stay at the top of the page"
+ "往下捲動時，文件屬性會固定在頁面上方": "When you scroll down, the properties stay at the top of the page",
+ "滑鼠停在按鈕上時顯示動畫提示": "Show animated tooltips when you hover over a button"
 };

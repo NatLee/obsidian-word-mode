@@ -1193,5 +1193,6 @@ export default {
  "刪除圖表": "Xóa sơ đồ",
  "刪除這個區塊": "Xóa khối này",
  "刪除註腳（連同文中的編號）": "Xóa chú thích cuối trang và các số chú thích trong văn bản",
- "往下捲動時，文件屬性會固定在頁面上方": "Khi cuộn xuống, thuộc tính sẽ được ghim ở đầu trang"
+ "往下捲動時，文件屬性會固定在頁面上方": "Khi cuộn xuống, thuộc tính sẽ được ghim ở đầu trang",
+ "滑鼠停在按鈕上時顯示動畫提示": "Hiện gợi ý có hoạt ảnh khi di chuột lên nút"
 };

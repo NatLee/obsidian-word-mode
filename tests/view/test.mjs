@@ -41,7 +41,7 @@ const app = {
   workspace: { opened: [], openLinkText(t, s, n) { this.opened.push(t); }, getLeaf() { return { openFile() {} }; } },
   fileManager: { generateMarkdownLink: f => `[${f.basename}](${encodeURI(f.path)})` },
 };
-const plugin = { app, statusCalls: 0, history: new Map(), storeHistory(p, e) { this.history.set(p, Object.assign({ at: Date.now() }, e)); }, takeHistory(p) { const e = this.history.get(p); this.history.delete(p); return e || null; }, setFullWidth(on) { this.settings.fullWidth = on; }, outlineChanged() {}, outlineOpen() { return !!this.outlineIsOpen; }, toggleOutline() { this.outlineIsOpen = !this.outlineIsOpen; }, saveSettings() {}, openSettings() { this.settingsOpened = true; }, updateStatus() { this.statusCalls++; }, setZoom(z) { this.settings.zoom = z; view.applyZoom(); }, settings: { fullWidth: false, zoom: 100 }, converter: new B.MarkdownConverter(), switched: 0, switchToMarkdown() { this.switched++; } };
+const plugin = { app, statusCalls: 0, history: new Map(), storeHistory(p, e) { this.history.set(p, Object.assign({ at: Date.now() }, e)); }, takeHistory(p) { const e = this.history.get(p); this.history.delete(p); return e || null; }, setFullWidth(on) { this.settings.fullWidth = on; }, setRichHints(on) { this.settings.richHints = on; this.hintsSet = (this.hintsSet || 0) + 1; return Promise.resolve(); }, outlineChanged() {}, outlineOpen() { return !!this.outlineIsOpen; }, toggleOutline() { this.outlineIsOpen = !this.outlineIsOpen; }, saveSettings() {}, openSettings() { this.settingsOpened = true; }, updateStatus() { this.statusCalls++; }, setZoom(z) { this.settings.zoom = z; view.applyZoom(); }, settings: { fullWidth: false, zoom: 100 }, converter: new B.MarkdownConverter(), switched: 0, switchToMarkdown() { this.switched++; } };
 const leaf = { app };
 
 const SAMPLE = [
@@ -907,6 +907,27 @@ assert([...sc.contentEl.querySelectorAll('.wm-sc-card')].filter(c => c.style.dis
   assert(!qa('.wm-sc-row.is-open').length && shownCards() === '檢視', '換到別的分類：展開的那一列跟著收起來');
 }
 sc.close();
+
+// 快速鍵說明底部的「動畫提示」開關：顯示目前的設定，勾選就改設定；手機上沒有滑鼠停留，不顯示
+{
+  plugin.hintsSet = 0;
+  view.toolbar.ctx.dialogs.shortcuts();
+  const cb = mock.Modal.last.contentEl.querySelector('.wm-sc-foot .wm-sc-richhints input[type=checkbox]');
+  assert(cb && !cb.checked, '快速鍵說明有動畫提示的開關，沒勾（設定是關的）');
+  cb.click();
+  await new Promise(r => setTimeout(r, 0));
+  assert(plugin.settings.richHints === true && plugin.hintsSet === 1, '勾選動畫提示：設定改成開啟');
+  mock.Modal.last.close();
+  view.toolbar.ctx.dialogs.shortcuts();
+  assert(mock.Modal.last.contentEl.querySelector('.wm-sc-richhints input').checked, '再打開快速鍵說明：開關是勾起來的');
+  mock.Modal.last.close();
+  mock.Platform.isMobile = true;
+  view.toolbar.ctx.dialogs.shortcuts();
+  assert(!mock.Modal.last.contentEl.querySelector('.wm-sc-richhints'), '手機上不顯示動畫提示的開關');
+  mock.Modal.last.close();
+  mock.Platform.isMobile = false;
+  plugin.settings.richHints = false;
+}
 
 // ======== 方程式右鍵選單、選取文字變方程式、右鍵選單設定 ========
 view.setViewData('公式 $a+b$ 結束\n', true);

@@ -254,7 +254,7 @@ export class WordModeView extends TextFileView {
     reg(['Mod'], 'f', () => this.findBar.open(false));
     reg(['Mod'], 'h', () => this.findBar.open(true));
     reg(['Mod'], 'e', () => { void this.plugin.switchToMarkdown(this.leaf); });
-    reg(['Mod'], '/', () => new ShortcutModal(this.app).open());
+    reg(['Mod'], '/', () => new ShortcutModal(this.app, this.plugin).open());
     reg(['Mod'], 's', () => { void this.save(); });
     reg(['Mod'], 'b', cmd(C.toggleBold), true);
     reg(['Mod'], 'i', cmd(C.toggleItalic), true);
@@ -309,7 +309,7 @@ export class WordModeView extends TextFileView {
         find: () => { const f = this.findBar; if (f.isOpen && !f.replacing) f.close(); else { f.open(false); f.showReplace(false); } },
         replace: () => { const f = this.findBar; if (f.isOpen && f.replacing) f.close(); else f.open(true); },
         callout: b => this.openCalloutMenu(b),
-        shortcuts: () => new ShortcutModal(this.app).open(),
+        shortcuts: () => new ShortcutModal(this.app, this.plugin).open(),
         equation: () => this.openEquation(),
         mermaid: () => this.openMermaid(),
         footnote: () => this.insertFootnoteDialog(),
@@ -1367,7 +1367,7 @@ export class WordModeView extends TextFileView {
     }
     if (mod && !e.shiftKey && k === 'f') { e.preventDefault(); this.findBar.open(false); return true; }
     if (mod && !e.shiftKey && k === 'h') { e.preventDefault(); this.findBar.open(true); return true; }
-    if (mod && !e.shiftKey && (k === '/' || e.code === 'Slash')) { e.preventDefault(); new ShortcutModal(this.app).open(); return true; }
+    if (mod && !e.shiftKey && (k === '/' || e.code === 'Slash')) { e.preventDefault(); new ShortcutModal(this.app, this.plugin).open(); return true; }
     if (mod && e.shiftKey && k === 'v') { this.plainPasteNext = true; window.setTimeout(() => { this.plainPasteNext = false; }, 1000); return false; }
     if (e.key === 'Escape') {
       // 功能區的下拉面板開著：先關它（按鈕不會搶走焦點，所以按鍵是送到編輯區這裡）

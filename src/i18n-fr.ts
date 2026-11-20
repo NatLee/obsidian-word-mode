@@ -1193,5 +1193,6 @@ export default {
  "刪除圖表": "Supprimer le diagramme",
  "刪除這個區塊": "Supprimer ce bloc",
  "刪除註腳（連同文中的編號）": "Supprimer la note de bas de page et ses appels dans le texte",
- "往下捲動時，文件屬性會固定在頁面上方": "Quand vous faites défiler vers le bas, les propriétés restent en haut de la page"
+ "往下捲動時，文件屬性會固定在頁面上方": "Quand vous faites défiler vers le bas, les propriétés restent en haut de la page",
+ "滑鼠停在按鈕上時顯示動畫提示": "Afficher des info-bulles animées au survol des boutons"
 };

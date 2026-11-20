@@ -1802,3 +1802,6 @@ mark.wm-set-find-hl { padding: 0 1px; border-radius: 3px; background: hsla(var(-
 .wm-block-tools button:focus-visible { box-shadow: var(--wm-focus-ring); }
 /* 文件屬性標題列的圖釘（固定在頁面上方）：開著的時候一直看得到並用強調色，不用滑鼠移上去也知道已經固定 */
 .wm-props button.wm-props-pin.is-active { opacity: 1; color: var(--text-accent); }
+/* 快速鍵說明底部的「動畫提示」開關：比旁邊的說明文字醒目一點，看得出是可以按的 */
+.wm-sc-richhints { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); cursor: pointer; }
+.wm-sc-richhints input { margin: 0; }

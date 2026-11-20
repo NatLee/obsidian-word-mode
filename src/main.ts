@@ -371,6 +371,13 @@ export default class WordModePlugin extends Plugin {
     await this.saveSettings();
   }
 
+  // 詳細提示（動畫提示）：快速鍵說明裡的開關用。提示是建立按鈕時掛上的，所以要重建工具列
+  async setRichHints(on: boolean): Promise<void> {
+    this.settings.richHints = !!on;
+    await this.saveSettings();
+    this.refreshToolbars();
+  }
+
   applyPropsLook(): void { for (const v of this.views()) v.applyPropsLook(); }
 
   async setPropsSticky(on: boolean): Promise<void> {
