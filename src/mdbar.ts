@@ -6,7 +6,7 @@ import { t, key } from './i18n.js';
 import { attachHint, hideHint } from './hints.js';
 import type { DemoName } from './hints.js';
 import { CODE_LANGUAGES } from './commands.js';
-import { el } from './dom.js';
+import { el, keepFocus } from './dom.js';
 import { iconOr } from './icons.js';
 import { frontmatterOf, peekData } from './props.js';
 import { openPropsPeek, closePropsPeek, propertyWidget } from './propview.js';
@@ -86,6 +86,24 @@ export function wantsMdBar(value: unknown, viewMode: string | null | undefined):
   const mode = mdToolbarMode(value);
   if (mode === 'both' || mode === 'none') return mode === 'both';
   return mode === (viewMode === 'preview' ? 'preview' : 'source');
+}
+
+// 插入水平線要放進去的文字（放在游標那一行的行尾）。line 是游標那一行，prevLine 是上一行（第一行時是 null）。
+// 水平線前面一定要有空行：直接接在文字下面的 --- 會把那一行變成標題；
+// 檔案最前面的 --- 會被當成文件屬性的開頭，所以那裡改用 ***
+export function hrText(line: string, prevLine: string | null): string {
+  if (line.trim()) return '\n\n---\n';
+  if (prevLine == null) return '***\n';
+  return prevLine.trim() ? '\n---\n' : '---\n';
+}
+
+// 插入程式碼區塊要放進去的文字（取代選取的內容）。before／after 是選取範圍那一行在選取之前、之後的文字。
+// 圍欄要自己一行；沒有選取時中間留一個空行，cursorLine 是游標要放在「插入位置往下第幾行」（-1 表示不用移動）
+export function codeBlockText(sel: string, lang: string, before: string, after: string): { text: string; cursorLine: number } {
+  const head = before.trim() ? '\n' : '';
+  const body = sel ? sel + (sel.endsWith('\n') ? '' : '\n') : '\n';
+  const tail = after.trim() ? '\n' : '';
+  return { text: head + '```' + lang + '\n' + body + '```' + tail, cursorLine: sel ? -1 : (head ? 2 : 1) };
 }
 
 export class MarkdownBar {
@@ -171,7 +189,7 @@ export class MarkdownBar {
         sw.type = 'button';
         el('span', 'wm-tab-switch-label', sw);
         iconOr(el('span', 'wm-tab-switch-arrow', sw), 'chevron-down', '▾');
-        sw.addEventListener('mousedown', e => e.preventDefault());
+        keepFocus(sw);
         sw.addEventListener('click', () => this.menu(sw, TABS.filter(([id]) => this.tabNames[id] != null)
           .map(([id]) => ({ title: this.tabNames[id]!, icon: TAB_ICONS[id], run: () => this.showTab(id) }))));
         this.tabSwitch = sw;
@@ -185,7 +203,7 @@ export class MarkdownBar {
         const b = el('button', 'wm-tab', tabsEl);
         b.type = 'button';
         fillTab(b, id, name, this.tabStyle, iconOr);
-        b.addEventListener('mousedown', e => e.preventDefault());
+        keepFocus(b);
         b.addEventListener('click', () => this.showTab(id));
         this.tabBtns[id] = b;
       }
@@ -243,7 +261,7 @@ export class MarkdownBar {
     g = G.text;
     this.button(g, { icon: 'info', title: '插入提示框', label: '提示框', big: true, demo: 'callout', run: this.cmd('editor:insert-callout') });
     this.button(g, { icon: 'message-square', title: '插入註解', label: '註解', big: true, demo: 'comment', run: this.cmd('editor:toggle-comments') });
-    this.button(g, { icon: 'minus', title: '水平線', label: '分隔線', big: true, demo: 'hr', run: E(ed => { const c = ed.getCursor(); ed.replaceRange('\n---\n', { line: c.line, ch: ed.getLine(c.line).length }); }) });
+    this.button(g, { icon: 'minus', title: '水平線', label: '分隔線', big: true, demo: 'hr', run: E(ed => { const c = ed.getCursor(); const line = ed.getLine(c.line); ed.replaceRange(hrText(line, c.line > 0 ? ed.getLine(c.line - 1) : null), { line: c.line, ch: line.length }); }) });
 
     // ---- 校閱
     g = G.proofing;
@@ -310,7 +328,7 @@ export class MarkdownBar {
     const i = el('span', 'wm-btn-icon', b);
     setIcon(i, spec.icon);
     if (showLabel && spec.label) el('span', 'wm-btn-label', b, t(spec.label));
-    b.addEventListener('mousedown', e => e.preventDefault());
+    keepFocus(b);
     b.addEventListener('click', e => { e.preventDefault(); hideHint(); if (b.classList.contains('is-disabled')) return; spec.run(e, b); window.setTimeout(() => this.update(), 50); });
     const it: MdButtonItem = { dom: b, spec, title };
     this.items.push(it);
@@ -370,9 +388,10 @@ export class MarkdownBar {
       title: lang ? label : t(label as I18nKey),
       run: () => {
         const sel = ed.getSelection();
-        const c = ed.getCursor('from');
-        ed.replaceSelection('```' + lang + '\n' + sel + (sel.endsWith('\n') || !sel ? '' : '\n') + '```\n');
-        if (!sel) ed.setCursor({ line: c.line + 1, ch: 0 });
+        const from = ed.getCursor('from'), to = ed.getCursor('to');
+        const ins = codeBlockText(sel, lang, ed.getLine(from.line).slice(0, from.ch), ed.getLine(to.line).slice(to.ch));
+        ed.replaceSelection(ins.text);
+        if (ins.cursorLine >= 0) ed.setCursor({ line: from.line + ins.cursorLine, ch: 0 });
         ed.focus();
       },
     })));
