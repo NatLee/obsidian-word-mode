@@ -1214,13 +1214,16 @@ await fresh('一段文字\n');
   md.text = text + '\n多打的字\n';
   sb.update();
   await sleep(0);
-  assert(mdEl.querySelector('.wm-bb-status').textContent === '編輯中（自動儲存）' && count(mdEl) !== count(wordBar), '改了還沒存檔：編輯中，字數跟著更新');
+  // 算字數要解析整份筆記：還在打字時不算，連續兩次定時更新看到一樣的內容才算
+  assert(mdEl.querySelector('.wm-bb-status').textContent === '編輯中（自動儲存）' && count(mdEl) === count(wordBar), '改了還沒存檔：馬上顯示編輯中，字數先不動');
+  sb.update();
+  assert(count(mdEl) !== count(wordBar), '下一次更新時內容沒再變：字數跟著更新');
   env.files.set('筆記/測試.md', md.text);
   sb.update();
   await sleep(0);
   assert(mdEl.querySelector('.wm-bb-status').textContent === '已儲存', 'Obsidian 存檔之後：已儲存');
   md.sel = '這是';
-  sb.update();
+  sb.update(); sb.update();
   assert(count(mdEl).startsWith('已選取 2／'), '選取文字時顯示選取的字數：' + count(mdEl));
   click(mdEl.querySelector('.wm-bb-count'));
   const rows = mock.Modal.last.rows;

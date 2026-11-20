@@ -152,6 +152,9 @@ export class MdStatusBar {
   declare text: string | null;
   declare all: TextStats;
   declare sel: string;
+  // 上一次定時更新看到、但還沒拿來算字數的內容與選取（見 update）
+  declare seenText: string | null;
+  declare seenSel: string;
   declare dirty: boolean;
   // 讀檔案是非同步的：只採用最後一次的結果
   declare seq: number;
@@ -161,7 +164,7 @@ export class MdStatusBar {
   constructor(plugin: WordModePlugin, el: HTMLElement, view: MarkdownView) {
     this.plugin = plugin; this.view = view; this.el = el;
     this.mode = view.getMode && view.getMode() === 'preview' ? 'preview' : 'source';
-    this.text = null; this.sel = ''; this.dirty = false; this.seq = 0; this.stamp = '';
+    this.text = null; this.sel = ''; this.seenText = null; this.seenSel = ''; this.dirty = false; this.seq = 0; this.stamp = '';
     this.all = countText('');
     const S = plugin.settings;
     el.empty();
@@ -181,9 +184,15 @@ export class MdStatusBar {
     try { text = this.view.getViewData(); } catch { /* 檢視還沒載入完成 */ }
     const sel = this.mode === 'source' && this.view.editor ? this.view.editor.getSelection() : '';
     if (text !== this.text || sel !== this.sel) {
-      if (text !== this.text) this.all = this.countMarkdown(text);
-      this.text = text; this.sel = sel;
-      renderCount(this.parts.count, this.all, sel ? this.countMarkdown(sel, true) : null);
+      // 算字數要解析整份筆記。還在打字（或拖著選取）的時候先不算，等內容停下來，
+      // 也就是連續兩次更新看到的都一樣，再算一次。第一次顯示不用等
+      const settled = this.text === null || (text === this.seenText && sel === this.seenSel);
+      this.seenText = text; this.seenSel = sel;
+      if (settled) {
+        if (text !== this.text) this.all = this.countMarkdown(text);
+        this.text = text; this.sel = sel;
+        renderCount(this.parts.count, this.all, sel ? this.countMarkdown(sel, true) : null);
+      }
     }
     this.renderStatus();
     const file = this.view.file;
