@@ -79,7 +79,8 @@ export function fromDisplay(text: string): string {
 export type MathRow = MathItem[];
 // 結構項目放子列的欄位（a、b、n、rows）：走訪整棵樹時直接用欄位名稱取值，不必先分辨是哪一種項目
 interface MathSlots { a?: MathRow; b?: MathRow; n?: MathRow | null; rows?: MathRow[][]; }
-export interface TextItem { t: 'text'; v: string; }
+// raw：整段看不懂的 LaTeX（見 parseLatex），格子裡照原文顯示、原文存回
+export interface TextItem { t: 'text'; v: string; raw?: boolean; }
 export interface FracItem extends MathSlots { t: 'frac'; cmd: string; a: MathRow; b: MathRow; }
 export interface SqrtItem extends MathSlots { t: 'sqrt'; a: MathRow; n: MathRow | null; }
 export interface ScriptItem extends MathSlots { t: 'sup' | 'sub'; a: MathRow; }
@@ -240,7 +241,14 @@ function parseRow(s: string, pos: number, stops: string[]): RowResult {
           pos = r.pos;
           if (s.startsWith(end, pos)) { pos += end.length; break; }
           if (s[pos] === '&') { pos++; continue; }
-          if (s.startsWith('\\\\', pos)) { pos += 2; rows.push([]); continue; }
+          if (s.startsWith('\\\\', pos)) {
+            pos += 2;
+            // \\[1ex]、\\*：緊接在換列後面的 [ 與 * 是換列的參數。寫回去時每一列之間會加空白，
+            // 參數就變成下一列開頭的文字（畫面上多出「[1ex]」），所以這種寫法不拆成格子
+            if (s[pos] === '[' || s[pos] === '*') throw new ParseError('\\\\');
+            rows.push([]);
+            continue;
+          }
           throw new ParseError('end');
         }
         // 最後一列如果只有一個空白格（結尾多寫了 \\）就拿掉
@@ -260,13 +268,23 @@ function parseRow(s: string, pos: number, stops: string[]): RowResult {
   return { row, pos };
 }
 
-// 解析 LaTeX；括號不成對等看不懂的情況，整段當成一格文字（不會遺失內容）
+// 解析 LaTeX；括號不成對等看不懂的情況，整段當成一格文字（不會遺失內容）。
+// 那一格標成 raw：照原文顯示、原文存回，不做符號的轉換（看不懂結構，就分不出哪裡是文字、哪裡是數學，
+// 轉換會把 \text{max value} 裡的 max 當成函數改成 \max）
 export function parseLatex(src?: string | null): MathRow {
   const s = String(src || '');
-  try { return normalize(parseRow(s, 0, []).row); } catch { return normalize([{ t: 'text', v: s }]); }
+  const whole = (): MathRow => normalize([s ? { t: 'text', v: s, raw: true } : { t: 'text', v: s }]);
+  // 有註解（沒有跳脫的 %）：格子寫回去時整段會接成一行，註解後面的內容就全部被註解掉了
+  if (/(^|[^\\])(\\\\)*%/.test(s)) return whole();
+  try { return normalize(parseRow(s, 0, []).row); } catch { return whole(); }
 }
 
-const trimRow = (row: MathRow): string => toLatex(row).trim();
+// 一格的內容，去掉前後的空白。結尾是「\ 」（反斜線加空白，強制的空白）時空白要留著：
+// 去掉之後剩下的反斜線會把後面的 } 變成 \}，大括號就不成對了
+const trimRow = (row: MathRow): string => {
+  const v = toLatex(row).trim();
+  return /(^|[^\\])(\\\\)*\\$/.test(v) ? v + ' ' : v;
+};
 export function toLatex(row: MathRow): string {
   let out = '';
   for (const it of row) {
@@ -289,7 +307,12 @@ export function normalize(row: MathRow): MathRow {
   const out: MathRow = [];
   for (const it of row) {
     const last = out[out.length - 1];
-    if (it.t === 'text') { if (last && last.t === 'text') last.v += it.v; else out.push(it); continue; }
+    if (it.t === 'text') {
+      if (!last || last.t !== 'text') out.push(it);
+      // 原文照樣顯示的文字（raw）跟旁邊的文字合併後，整格都照原文顯示
+      else { last.v += it.v; if (it.raw) last.raw = true; }
+      continue;
+    }
     if (!last || last.t !== 'text') out.push({ t: 'text', v: '' });
     for (const k of ['a', 'b', 'n'] as const) if (Array.isArray(it[k])) it[k] = normalize(it[k]);
     if (it.rows) it.rows = it.rows.map(r => r.map(normalize));
@@ -681,8 +704,10 @@ export class MathField {
     return box;
   }
 
-  renderText(row: MathRow, index: number, plain?: boolean): HTMLSpanElement {
+  renderText(row: MathRow, index: number, inPlain?: boolean): HTMLSpanElement {
     const it = row[index] as TextItem; // renderRow 只對文字項目呼叫這裡
+    // 照原文顯示、原文存回的格子：文字類指令的內容，以及整段看不懂的 LaTeX
+    const plain = inPlain || !!it.raw;
     const span = el('span', 'wm-mv-text');
     span.contentEditable = 'true';
     span.spellcheck = false;
@@ -697,7 +722,9 @@ export class MathField {
     span.addEventListener('mousedown', here);
     span.addEventListener('keyup', here);
     span.addEventListener('input', () => {
-      const raw = span.textContent.replace(/\n/g, '');
+      // 打字時混進來的換行拿掉（螢幕鍵盤的 Enter 攔不到）。原本就有換行的格子（分成好幾行寫的 LaTeX）不能拿：
+      // 換行是指令與後面文字之間唯一的分隔時（\implies⏎b），拿掉就接成不存在的指令 \impliesb
+      const raw = it.v.includes('\n') ? span.textContent : span.textContent.replace(/\n/g, '');
       if (!plain && (this.typedCommand(row, index, span, raw) || this.typedScript(row, index, span, raw))) return;
       it.v = plain ? raw : fromDisplay(raw);
       span.classList.toggle('is-slot', row.length === 1 && !it.v);
@@ -1093,7 +1120,10 @@ export class MathField {
     const tail: TextItem = { t: 'text', v: after };
     if (firstSlot && !selected) (firstSlot[0] as TextItem).v = MARK;
     else { if (firstSlot) (firstSlot[0] as TextItem).v = selected; tail.v = MARK + after; }
-    row.splice(index, 1, { t: 'text', v: before }, ...fresh, tail);
+    const head: TextItem = { t: 'text', v: before };
+    // 照原文顯示的格子（整段看不懂的 LaTeX）拆成前後兩段之後，兩段都還是照原文顯示
+    if ((row[index] as TextItem).raw) { if (before) head.raw = true; if (after) tail.raw = true; }
+    row.splice(index, 1, head, ...fresh, tail);
     this.settle(row);
   }
 }

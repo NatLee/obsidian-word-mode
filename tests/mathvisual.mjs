@@ -73,6 +73,7 @@ for (const s of ['\\alpha x', '\\sin x', 'a \\le b', '\\sum', '\\infty', 'x \\to
   ok('顯示再轉回 LaTeX 意思相同：' + s, back.replace(/ /g, '') === s.replace(/ /g, ''), back);
 }
 
+
 // ---- 沒有改到的內容要原樣回來
 // 使用者在格子裡改一個字，整格都會「顯示 → 再轉回 LaTeX」；整個方程式也會從格子重新寫出來。
 // 這兩條路只要有一條轉不回來，沒改到的地方就被改掉了。
@@ -106,6 +107,71 @@ for (const s of [
 const txt = parseLatex('\\text{learning_rate}')[1];
 ok('文字是一格，裡面沒有下標', txt.t === 'group' && txt.a.length === 1 && txt.a[0].t === 'text' && txt.a[0].v === 'learning_rate', JSON.stringify(txt));
 ok('\\operatorname*：星號算在指令裡', parseLatex('\\operatorname*{argmax}')[1].cmd === '\\operatorname*');
+
+// 寫回去會壞掉的寫法不拆成格子：註解（接成一行後，後面全部被註解掉）、換列的參數（變成下一列的文字）
+for (const s of ['a % 註解\n+ b', '\\begin{aligned} a &= b % 註解\n\\\\ c &= d \\end{aligned}', '\\begin{cases} a \\\\[1ex] b \\end{cases}', '\\begin{matrix} a \\\\* b \\end{matrix}']) {
+  ok('不拆成格子，原樣保留：' + JSON.stringify(s), rt(s) === s && kinds(s) === 'text', rt(s));
+}
+ok('\\% 不是註解', kinds('\\frac{1}{2} = 50\\%') === 'text,frac,text' && rt('\\frac{1}{2} = 50\\%') === '\\frac{1}{2} = 50\\%');
+ok('整段看不懂的 LaTeX 標成照原文顯示（不轉換符號）', parseLatex('\\frac{a}{')[0].raw === true && !parseLatex('x + 1')[0].raw && !parseLatex('')[0].raw);
+ok('格子結尾的「\\ 」不會吃掉後面的大括號', rt('\\frac{a\\ }{b}') === '\\frac{a\\ }{b}' && rt('x^{a\\ }') === 'x^{a\\ }', rt('\\frac{a\\ }{b}'));
+
+// 實際會出現的公式：讀成格子再寫出來、顯示再轉回，都要一字不差。
+// 做不到一字不差的寫法寫成 [原文, 整理後的結果]：結果的意思要跟原文一樣（簡寫補上大括號、\left 與矩陣的空白），而且再讀一次不會再變
+const REAL = [
+  'E = mc^{2}', '\\frac{-b \\pm \\sqrt{b^{2} - 4ac}}{2a}', 'e^{i\\pi} + 1 = 0', '\\frac{1}{1 + \\frac{1}{1 + \\frac{1}{x}}}',
+  '\\sum_{i=1}^{n} i^{2} = \\frac{n(n+1)(2n+1)}{6}', '\\int_{0}^{\\infty} e^{-x^{2}}\\,dx = \\frac{\\sqrt{\\pi}}{2}',
+  '\\lim_{x \\to 0} \\frac{\\sin x}{x} = 1', '\\min_{x} \\max_{y} f(x, y)', 'T(n) = 2T(n/2) + O(n\\log n)',
+  '\\hat{y} = \\bar{x} + \\vec{v} \\cdot \\tilde{w}', '\\dot{x} + \\ddot{y} = \\overline{AB} + \\overrightarrow{CD}', '\\hat{\\mathbf{n}} \\times \\boldsymbol{\\omega}',
+  '\\left( \\frac{a}{b} \\right)^{2}', '\\left. \\frac{df}{dx} \\right|_{x=0}', '\\left\\{ x \\in \\mathbb{R} \\mid x > 0 \\right\\}', '\\left\\langle \\psi \\middle| \\phi \\right\\rangle',
+  '\\left[ \\frac{1}{2}, \\left( a + \\frac{b}{c} \\right) \\right]',
+  '\\begin{bmatrix} a & b \\\\ c & d \\end{bmatrix}', '\\begin{pmatrix} 1 & 0 \\\\ 0 & 1 \\end{pmatrix} \\begin{pmatrix} x \\\\ y \\end{pmatrix}',
+  '\\begin{vmatrix} a & b \\\\ c & d \\end{vmatrix} = ad - bc', 'A = \\begin{bmatrix} \\frac{1}{2} & x^{2} \\\\ \\sqrt{y} & \\begin{pmatrix} 1 \\\\ 2 \\end{pmatrix} \\end{bmatrix}',
+  '\\begin{cases} x, & x \\ge 0 \\\\ -x, & x < 0 \\end{cases}', 'f(x) = \\begin{cases} 1 & \\text{if } x > 0 \\\\ 0 & \\text{otherwise} \\end{cases}',
+  '\\mathcal{L}(\\theta) = -\\frac{1}{N}\\sum_{i=1}^{N} y_{i} \\log \\hat{y}_{i}', '\\nabla \\cdot \\mathbf{E} = \\frac{\\rho}{\\varepsilon_{0}}',
+  '\\mathbb{E}[X] = \\sum_{x} x\\,p(x)', 'P(A \\mid B) = \\frac{P(B \\mid A)P(A)}{P(B)}', '\\binom{n}{k} = \\frac{n!}{k!(n-k)!}',
+  '\\overbrace{a+b}^{n} + \\underbrace{c}_{\\text{k items}}', '\\sqrt[3]{x^{2} + 1}', 'x\'\' + \\omega^{2} x = 0', '\\boxed{E = mc^{2}}', '\\color{red}{x} + \\textcolor{blue}{y}',
+  '\\theta_{t+1} = \\theta_{t} - \\eta \\nabla_{\\theta} \\text{loss_fn}(\\theta_{t}) \\tag{eq_1}', 'W^{\\mathrm{T}} x + b', '\\operatorname{softmax}(z)_{i} = \\frac{e^{z_{i}}}{\\sum_{j} e^{z_{j}}}',
+  'a \\le b \\ge c \\ne d \\approx e', 'A \\to B \\Rightarrow C', '\\forall x \\in A, \\exists y \\notin B', 'a\\quad b \\; c\\,d', '\\{1, 2\\} \\cup \\emptyset',
+  '\\sum\\limits_{i} a_{i}', '\\arg\\max_{x} f(x)', '\\sin^{2} x + \\cos^{2} x = 1', '\\frac{\\partial^{2} f}{\\partial x^{2}}',
+  // 做不到一字不差的寫法
+  ['x^2 + y_i', 'x^{2} + y_{i}'], ['\\int_0^\\infty f', '\\int_{0}^{\\infty} f'], ['A^\\mathrm{T} + e^\\frac{1}{2}', 'A^{\\mathrm{T}} + e^{\\frac{1}{2}}'],
+  ['\\left(\\frac{a}{b}\\right)^2', '\\left( \\frac{a}{b} \\right)^{2}'], ['\\begin{pmatrix}1&0\\\\0&1\\end{pmatrix}', '\\begin{pmatrix} 1 & 0 \\\\ 0 & 1 \\end{pmatrix}'],
+  ['\\begin{aligned}\n  a &= b + c \\\\\n    &= d\n\\end{aligned}', '\\begin{aligned} a & = b + c \\\\  & = d \\end{aligned}'],
+  ['\\begin{array}{cc} a & b \\\\ c & d \\end{array}', '\\begin{array} {cc} a & b \\\\ c & d \\end{array}'],
+  ['\\frac {a} {b} + \\sqrt {x}', '\\frac{a}{b} + \\sqrt{x}'], ['\\overbrace{a}^n', '\\overbrace{a}^{n}'],
+];
+// 去掉空白與大括號之後的指令與文字：整理前後應該一樣（沒有少掉、多出或調換任何東西）
+const flat = s => (s.match(/\\[A-Za-z]+|\\[^A-Za-z]|[^\s{}]/g) || []).join(' ');
+for (const item of REAL) {
+  const [s, want] = Array.isArray(item) ? item : [item, item];
+  const out = rt(s);
+  ok('格子往返：' + JSON.stringify(s), out === want && rt(out) === out && flat(out) === flat(s), out);
+}
+// 顯示再轉回：一字不差。例外是同一個符號的兩種寫法（\leq 與 \le、\qquad 與 \quad\quad），轉回來用其中一種，再轉一次不會再變
+for (const item of REAL) {
+  const s = Array.isArray(item) ? item[0] : item;
+  ok('顯示往返：' + JSON.stringify(s), fromDisplay(toDisplay(s)) === s, fromDisplay(toDisplay(s)));
+}
+for (const [s, want] of [['a \\leq b \\geq c \\neq d', 'a \\le b \\ge c \\ne d'], ['A \\rightarrow B', 'A \\to B'], ['a\\qquad b', 'a\\quad\\quad b']]) {
+  const back = fromDisplay(toDisplay(s));
+  ok('顯示往返（同一個符號的另一種寫法）：' + s, back === want && fromDisplay(toDisplay(back)) === back, back);
+}
+// 每一格文字各自轉換：把公式拆成格子，每一格（文字類的格子除外，它們不轉換）顯示再轉回都要一樣
+const cells = (row, plain, out = []) => {
+  for (const it of row) {
+    if (it.t === 'text') { if (!plain && !it.raw) out.push(it.v); continue; }
+    const inner = it.t === 'group' && ['\\text', '\\mathrm', '\\tag', '\\operatorname', '\\label', '\\mbox', '\\textbf', '\\mathit'].includes(it.cmd.replace('*', ''));
+    for (const k of ['a', 'b', 'n']) if (Array.isArray(it[k])) cells(it[k], inner, out);
+    if (it.rows) it.rows.forEach(r => r.forEach(c => cells(c, false, out)));
+  }
+  return out;
+};
+{
+  const bad = [];
+  for (const item of REAL) for (const v of cells(parseLatex(Array.isArray(item) ? item[0] : item))) if (fromDisplay(toDisplay(v)) !== v) bad.push(v);
+  ok('每一格文字顯示再轉回都一樣', !bad.length, JSON.stringify(bad));
+}
 
 if (fails) process.exitCode = 1;
 console.log(fails ? `\n${fails} FAILED` : '\nALL PASS');

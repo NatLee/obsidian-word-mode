@@ -1473,4 +1473,43 @@ await fresh('**粗體** 一般\n');
   assert(!view.pm.dom.classList.contains('wm-painting') && !view.toolbar.painter, '重建功能區後格式刷已經停止');
 }
 
+// ======== 方程式編輯器：在格子裡改一個字，沒改到的內容原樣保留 ========
+await fresh('公式 $n\\log n + \\text{learning_rate}$ 結束\n');
+{
+  const typeIn = (span, text) => { span.focus(); span.textContent = text; mock.Modal.last.field.place(span, text.length); span.dispatchEvent(new Event('input', { bubbles: true })); };
+  view.pm.dom.querySelector('.wm-raw-inline.is-math').dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }));
+  const eq = mock.Modal.last;
+  await sleep(25);
+  const q = s => eq.contentEl.querySelector(s);
+  const cells = () => [...eq.contentEl.querySelectorAll('.wm-mv > .wm-mv-row > .wm-mv-text')];
+  const inText = () => q('.wm-mv-group[data-cmd="text"] .wm-mv-text');
+  assert(inText() && inText().textContent === 'learning_rate' && !q('.wm-mv-sub'), '\\text{…} 裡的底線是一般的字，不是下標的格子');
+  // 在第一格的結尾多打一個字：前面的 \log 與後面的 \text{…} 都不能變
+  typeIn(cells()[0], cells()[0].textContent + '1');
+  assert(eq.ta.value === 'n\\log n + 1\\text{learning_rate}', '改一個字，其他地方一字不動：' + eq.ta.value);
+  // 打 \log 再按空白：前面緊接字母時反斜線也要留著
+  typeIn(cells()[0], 'n\\log ');
+  assert(eq.ta.value === 'n\\log \\text{learning_rate}', '緊接在字母後面打 \\log：' + eq.ta.value);
+  // 文字的格子裡打 _：就是底線，不開下標的格子
+  const ev = new KeyboardEvent('keydown', { key: '_', bubbles: true, cancelable: true });
+  inText().dispatchEvent(ev);
+  assert(!ev.defaultPrevented && !q('.wm-mv-sub'), '文字的格子裡打 _ 不會變成下標');
+
+  // 分成好幾行寫的 LaTeX：換行是 \implies 與 b 之間唯一的分隔，改別的地方時不能被拿掉
+  eq.setEdit('latex');
+  eq.ta.value = 'a \\implies\nb + c';
+  eq.setEdit('visual');
+  typeIn(cells()[0], cells()[0].textContent + 'x');
+  assert(eq.ta.value === 'a \\implies\nb + cx', '原本的換行留著：' + JSON.stringify(eq.ta.value));
+
+  // 整段看不懂的 LaTeX（大括號不成對）：照原文顯示，改一個字不會動到其他地方
+  eq.setEdit('latex');
+  eq.ta.value = '\\frac{a}{\\text{max value} \\leq b';
+  eq.setEdit('visual');
+  assert(cells().length === 1 && cells()[0].textContent === eq.ta.value, '看不懂的 LaTeX 照原文顯示：' + cells()[0].textContent);
+  typeIn(cells()[0], cells()[0].textContent + '}');
+  assert(eq.ta.value === '\\frac{a}{\\text{max value} \\leq b}', '看不懂的 LaTeX 原文存回：' + eq.ta.value);
+  eq.close();
+}
+
 finish();
