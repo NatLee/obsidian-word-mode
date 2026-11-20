@@ -65,6 +65,22 @@ check('align: 空字串 → 預設', normalizeCellAlign('') === null && normaliz
   check('一般的換行照舊寫成換行', ser(N.doc.create(null, [para(T('a'), br(), T('b'), br(), T('c'))])) === 'a\nb\nc');
 }
 
+// ---- 一行開頭的 - > # 1. 等等：在段落開頭、或換行後面，都要維持是文字（不能讀回來變成清單、引文、標題）
+{
+  const br = () => N.hard_break.create();
+  const T = s => schema.text(s);
+  const bad = [];
+  for (const line of ['- b', '+ b', '> b', '>b', '# b', '1. b', '1) b', '12) b', '---', '- - -', '-', '+', '1.', '=', '===', '* b']) {
+    for (const doc of [N.doc.create(null, [para(T(line))]), N.doc.create(null, [para(T('a'), br(), T(line))]),
+      N.doc.create(null, [N.blockquote.create(null, [para(T('a'), br(), T(line))])]), N.doc.create(null, [N.bullet_list.create(null, [N.list_item.create(null, [para(T('a'), br(), T(line))])])])]) {
+      if (strip(roundtrip(doc)) !== strip(doc)) bad.push(JSON.stringify(ser(doc)));
+    }
+  }
+  check('行首的清單、引文、標題符號：存檔再讀回還是同一段文字', !bad.length, bad.join(' '));
+  const plain = N.doc.create(null, [para(T('-5 度'), br(), T('-12.5'), br(), T('--flag'), br(), T('#標籤 +1'), br(), T('1.5 倍'))]);
+  check('不是清單的 -5、--flag、#標籤、1.5：不加反斜線', ser(plain) === '-5 度\n-12.5\n--flag\n#標籤 +1\n1.5 倍' && strip(roundtrip(plain)) === strip(plain), JSON.stringify(ser(plain)));
+}
+
 // ---- 編輯指令：做完之後存檔、再讀回來，要是同一份文件
 // 開一份文件、做一個修改（edit 收到目前的狀態、dispatch、取得最新狀態的函式），回傳存檔結果與前後的文件
 const save = (src, edit) => {

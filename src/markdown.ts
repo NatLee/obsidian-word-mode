@@ -68,6 +68,7 @@ interface SerializerState extends MarkdownSerializerState {
   delim: string;
   inTightList: boolean;
   inAutolink: boolean | undefined;
+  atBlockStart: boolean; // 接下來寫的文字在一行的開頭（esc 會跳脫行首的清單、引文、標題符號）
   flushClose(size?: number): void;
   inTable?: boolean; // 正在輸出表格儲存格（見 renderCell）
 }
@@ -349,8 +350,8 @@ const URL_SPLIT = /(https?:\/\/[^\s<>()[\]]+)/;
 // eslint-disable-next-line @typescript-eslint/unbound-method -- the original method is kept so the wrapper can call it with the right `this`
 const origEsc = MarkdownSerializerState.prototype.esc;
 MarkdownSerializerState.prototype.esc = function (this: SerializerState, str: string, startOfLine = false): string {
-  // 表格儲存格的內容前面一定有「| 」，不會在一行的開頭：-12.5、> 3、1. 這些不是清單或引文，不用跳脫
-  let s = origEsc.call(this, str, startOfLine && !this.inTable);
+  // 行首的規則用下面自己的（escLineStart），所以這裡一律當成不在行首
+  let s = origEsc.call(this, str, false);
   if (this.options.obsidianEscapes) {
     // # 與 ^ 保留（Obsidian 標籤、區塊參照）；= 與 % 只在成對（== 螢光、%% 註解）時跳脫
     s = s.replace(/[=$%<|]/g, (m: string, i: number) => {
@@ -360,8 +361,20 @@ MarkdownSerializerState.prototype.esc = function (this: SerializerState, str: st
       return n % 2 ? m : '\\' + m;
     });
   }
-  return s;
+  // 表格儲存格的內容前面一定有「| 」，不會在一行的開頭：-12.5、> 3、1. 這些不是清單或引文，不用跳脫
+  return startOfLine && !this.inTable ? escLineStart(s) : s;
 };
+
+// 一行開頭會被讀成清單、引文、標題、分隔線的寫法，加反斜線讓它維持是文字。
+// prosemirror-markdown 內建的規則只要開頭是 - 就跳脫（-12.5 會變成 \-12.5），又漏了「1) 」、單獨的「1.」「+」
+// 與換行後面單獨一行的「=」（會把上一行變成標題），所以自己寫：
+// 「- 」「+ 」與只有 - 的一行（清單、分隔線、標題的底線）、>（引文）、「# 」（標題）、「1. 」「1) 」（編號清單）
+function escLineStart(s: string): string {
+  return s
+    .replace(/^(\s*)(\+(?=[ \t]|$)|-(?=[ \t]|[- \t]*$)|>|=(?=[ \t]*$))/, '$1\\$2')
+    .replace(/^(\s*)(#{1,6})(\s|$)/, '$1\\$2$3')
+    .replace(/^(\s*\d+)([.)])(?=\s|$)/, '$1\\$2');
+}
 
 
 // ---------------------------------------------------------------------------
@@ -651,10 +664,19 @@ function createSerializer(): MarkdownSerializer {
       if ((state as SerializerState).inTable || parent.type.name === 'heading' || emptyLine) state.write('<br>');
       else state.text('\n', false);
     },
-    text(state, node) {
-      if ((state as SerializerState).inAutolink) { state.text(node.text!, false); return; }
+    text(state, node, parent, index) {
+      const s = state as SerializerState;
+      if (s.inAutolink) { state.text(node.text!, false); return; }
+      // 換行後面的文字也在一行的開頭：開頭的 - > # 1. 要跳脫，不然讀回來那一行會變成清單、引文、標題
+      // （prosemirror-markdown 只在段落的第一個字這樣做）。表格與標題裡的換行寫成 <br>，不在行首
+      let lineStart = index > 0 && parent.child(index - 1).type === schema.nodes.hard_break && !s.inTable && parent.type.name !== 'heading';
       const parts = node.text!.split(URL_SPLIT);
-      parts.forEach((p, i) => { if (p) state.text(p, i % 2 === 0); });
+      parts.forEach((p, i) => {
+        if (!p) return;
+        if (lineStart) s.atBlockStart = true;
+        state.text(p, i % 2 === 0);
+        if (lineStart) { s.atBlockStart = false; lineStart = false; }
+      });
     },
     table(state, node) {
       const rows: TableCellOut[][] = [];
