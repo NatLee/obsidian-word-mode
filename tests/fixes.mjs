@@ -4,6 +4,7 @@ import { MarkdownConverter } from '../src/markdown.js';
 import { schema } from '../src/schema.js';
 import { normalizeCellAlign } from '../src/schema.js';
 import * as C from '../src/commands.js';
+import { insertFootnote } from '../src/footnotes.js';
 import { propType, summarize, propLink, convertProp, renameProp, propsSummary, frontmatterOf, frontmatterBody, peekData } from '../src/props.js';
 import { countText, docText, docStats } from '../src/textstats.js';
 
@@ -118,6 +119,18 @@ const select = (state, text, len = text.length) => { const p = posOf(state.doc, 
   check('待辦事項 → 程式碼：方框還在', r.out.startsWith('- [ ] task\n') && r.out.includes('- [x] done') && sameDoc(r), JSON.stringify(r.out));
   r = save('> quote\n> second\n\nafter\n', code('quote', 'quote', 2));
   check('引文裡選字 → 程式碼：程式碼區塊在引文裡', r.out === '> ```\n> quote\n> second\n> ```\n\nafter\n' && sameDoc(r), JSON.stringify(r.out));
+}
+
+// ---- 插入註腳：既有的註腳定義在游標前面時，參照要插在游標的位置，不是前一個字
+{
+  const at = (text, len) => (s, d, cur) => { const p = posOf(s.doc, text) + len; d(s.tr.setSelection(TextSelection.create(s.doc, p))); insertFootnote('new')(cur(), d); };
+  let r = save('First[^1]\n\n[^1]: def\n\nSecond paragraph here\n', at('Second', 6));
+  check('註腳定義在游標前面：參照插在游標處', r.out === 'First[^1]\n\n[^1]: def\n\n[^2]: new\n\nSecond[^2] paragraph here\n' && sameDoc(r), JSON.stringify(r.out));
+  check('註腳定義在游標前面：游標在參照後面', r.state.selection.empty && r.state.selection.$from.nodeBefore.attrs.src === '[^2]');
+  r = save('First[^1] and more\n\n[^1]: def\n', at('First', 5));
+  check('註腳定義在游標後面：照舊', r.out === 'First[^2][^1] and more\n\n[^1]: def\n\n[^2]: new\n' && sameDoc(r), JSON.stringify(r.out));
+  r = save('Only text\n', at('Only', 4));
+  check('還沒有註腳：定義加在文件最後', r.out === 'Only[^1] text\n\n[^1]: new\n' && sameDoc(r), JSON.stringify(r.out));
 }
 
 // ---- 文件屬性的值：顯示文字、連結、類型轉換

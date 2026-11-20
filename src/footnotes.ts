@@ -56,8 +56,9 @@ export function insertFootnote(text?: string | null): Command {
       // 定義放在最後一個既有定義的後面；還沒有任何註腳就放在文件最後
       const last = defs.filter(d => state.doc.resolve(d.pos).depth === 0).pop();
       const at = last ? last.pos + last.node.nodeSize : state.doc.content.size;
-      const tr = state.tr.insert(at, def); // 先插後面的，前面的位置才不會跑掉
-      const pos = state.selection.to;
+      const tr = state.tr.insert(at, def);
+      // 既有的註腳定義可能在游標前面（定義不一定寫在文件最後），插入定義後游標的位置會往後移
+      const pos = tr.mapping.map(state.selection.to);
       tr.insert(pos, N.raw_inline.create({ src: '[^' + id + ']' }));
       tr.setSelection(TextSelection.create(tr.doc, pos + 1));
       dispatch(tr.scrollIntoView());
