@@ -893,20 +893,6 @@ body:not(.is-mobile) .wm-shortcuts-modal { align-self: flex-start; margin-top: 6
 .wm-codeblock.has-preview.wm-code-active .wm-code-preview, .wm-codeblock.has-preview.show-code .wm-code-preview { border-top: 1px dashed var(--background-modifier-border); }
 .wm-code-preview .mermaid { text-align: center; }
 
-/* ---------- Mermaid 圖表編輯器 ---------- */
-.wm-mmd-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
-.wm-mmd-body { display: grid; gap: 12px; }
-.wm-mmd-edit { overflow-y: auto; }
-.wm-mmd-input { width: 100%; font-family: var(--font-monospace); font-size: var(--font-ui-small); resize: vertical; tab-size: 4; }
-.wm-mmd-preview { border: 1px solid var(--background-modifier-border); border-radius: 6px; padding: 10px; min-height: 320px; max-height: 60vh; overflow: auto; text-align: center; }
-.wm-mmd-section { font-weight: 600; font-size: var(--font-ui-small); }
-.wm-mmd-row { display: flex; align-items: center; }
-.wm-mmd-row .wm-mmd-text { height: 28px; }
-.wm-mmd-row select { height: 28px; font-size: var(--font-ui-smaller); }
-.wm-mmd-iconbtn svg { width: 15px; height: 15px; }
-.wm-mmd-add { margin-top: 4px; height: 28px; font-size: var(--font-ui-small); }
-.wm-mmd-note { color: var(--text-muted); font-size: var(--font-ui-small); margin: 8px 0; }
-
 /* ---------- 內嵌（![[筆記]]、影片、錄音、PDF、YouTube） ---------- */
 .wm-editor .wm-wikilink.wm-embed, .wm-editor .wm-image.wm-embed { display: block; margin: .5em 0; padding: 6px 10px; border-left: 2px solid var(--interactive-accent); background: var(--background-secondary); border-radius: 0 6px 6px 0; cursor: default; white-space: normal; color: var(--text-normal); text-decoration: none; }
 .wm-editor .wm-image.wm-embed > img, .wm-editor .wm-image.wm-embed > .wm-image-handle, .wm-editor .wm-image.wm-embed > .wm-image-badge, .wm-editor .wm-image.wm-embed > .wm-image-missing { display: none; }
@@ -1310,7 +1296,12 @@ body:not(.is-phone) .modal.wm-eq-modal, body:not(.is-phone) .modal.wm-mmd-modal 
 .is-mobile .wm-mv-env-tools { opacity: 1; }
 .is-mobile .wm-mv-env-tools button.wm-mv-env-btn { height: 24px; padding: 0 6px; font-size: 12px; }
 
-/* ---------- 圖表編輯器（v1.5 的版面）：上面選圖表種類，左邊表單或程式碼，右邊預覽（可以直接點圖上的文字修改） ---------- */
+/* ===== 圖表編輯器 =====
+   上面選圖表種類，左邊表單或程式碼，右邊預覽（可以直接點圖上的文字修改）。
+   左右兩張卡片、標籤列、按鍵說明用的是方程式編輯器的 .wm-eq-card、.wm-eq-label、.wm-eq-hint（見上一段）。
+   權重不同的兩條規則（例如 .wm-mmd-add 與 .wm-mmd button.wm-mmd-add）沒有合成一條，理由見方程式編輯器那一段的開頭 */
+
+/* ---------- 對話框：圖表種類、表單／程式碼的切換、左右兩欄 ---------- */
 .wm-mmd-modal { width: min(1180px, 95vw); }
 .wm-mmd { display: flex; flex-direction: column; gap: 10px; }
 .wm-mmd-kinds { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -1322,82 +1313,67 @@ body:not(.is-phone) .modal.wm-eq-modal, body:not(.is-phone) .modal.wm-mmd-modal 
 .wm-mmd-confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 8px; background: rgba(var(--color-orange-rgb, 236, 117, 0), .14); border: 1px solid rgba(var(--color-orange-rgb, 236, 117, 0), .45); font-size: var(--font-ui-small); }
 .wm-mmd-confirm > span { flex: 1 1 260px; }
 .wm-mmd-confirm button { height: 28px; }
+.wm-mmd-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .wm-mmd .wm-mmd-top { margin-bottom: 0; }
 .wm-mmd .wm-mmd-top .wm-eq-hint { margin-left: auto; }
-.wm-mmd-body { min-height: 380px; align-items: stretch; }
+.wm-mmd-body { display: grid; gap: 12px; min-height: 380px; align-items: stretch; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
 .wm-mmd-body > .wm-eq-card { min-width: 0; }
-.wm-mmd-edit { max-height: 62vh; padding-right: 8px; }
+.wm-mmd-edit { overflow-y: auto; max-height: 62vh; padding-right: 8px; }
 .wm-mmd-right { display: flex; flex-direction: column; }
-.wm-mmd-tip { font-weight: 400; color: var(--text-faint); font-size: var(--font-ui-smaller); }
-.wm-mmd-stage { position: relative; flex: 1 1 auto; display: flex; min-height: 0; }
-.wm-mmd-stage .wm-mmd-preview { flex: 1 1 auto; min-width: 0; background: var(--background-primary); border-radius: 8px; }
-.wm-mmd-preview svg text, .wm-mmd-preview svg foreignObject, .wm-mmd-preview g.node { cursor: text; }
-.wm-mmd-input { min-height: 360px; border-radius: 8px; line-height: 1.5; }
-/* 表單 */
+/* 視窗窄的時候改成上下排。要寫在上面那條兩欄的規則後面，寫在前面會被它蓋掉（以前就是這樣，一直沒生效） */
+@media (max-width: 760px) {
+  .wm-mmd-body { grid-template-columns: minmax(0, 1fr); }
+  .wm-mmd-edit { max-height: none; }
+}
+.wm-mmd-note { color: var(--text-muted); font-size: var(--font-ui-small); margin: 8px 0; }
+.wm-mmd-hint { margin-top: 6px; font-size: var(--font-ui-smaller); color: var(--text-faint); line-height: 1.5; }
+
+/* ---------- 我的範本 ---------- */
+.wm-mmd-templates { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; padding: 10px 12px; border-radius: 8px; background: var(--background-secondary); border: 1px solid var(--background-modifier-border); }
+.wm-mmd-tpl-list { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.wm-mmd-templates button.wm-mmd-tpl { display: inline-flex; align-items: center; gap: 6px; height: 30px; max-width: 260px; padding: 0 11px; background: var(--background-primary); box-shadow: none; border: 1px solid var(--background-modifier-border); border-radius: 15px; color: var(--text-normal); font-size: var(--font-ui-small); cursor: pointer; }
+.wm-mmd-templates button.wm-mmd-tpl > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wm-mmd-templates button.wm-mmd-tpl:hover { border-color: var(--interactive-accent); }
+.wm-mmd-tpl-save { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.wm-mmd-tpl-save input.wm-mmd-tpl-name { flex: 1 1 180px; max-width: 320px; height: 30px; }
+.wm-mmd-tpl-save button { height: 30px; }
+.wm-mmd-templates .wm-mmd-hint { margin-top: 0; }
+
+/* ---------- 表單 ---------- */
+/* 圖表本身的設定（方向、標題…） */
 .wm-mmd-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding-bottom: 8px; border-bottom: 1px solid var(--background-modifier-border); }
 .wm-mmd-badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 12px; background: hsla(var(--wm-accent-hsl), .14); color: var(--text-accent); font-size: var(--font-ui-small); font-weight: 600; }
 .wm-mmd-opt { display: inline-flex; align-items: center; gap: 6px; font-size: var(--font-ui-small); color: var(--text-muted); }
 .wm-mmd-opt input, .wm-mmd-opt select { height: 28px; }
 .wm-mmd-opt input.is-l { width: 240px; }
+.wm-mmd-head .wm-mmd-opt input.is-s { width: 110px; }
 .wm-mmd-check { display: inline-flex; align-items: center; gap: 6px; font-size: var(--font-ui-small); color: var(--text-muted); cursor: pointer; }
-.wm-mmd-section { display: flex; align-items: center; gap: 8px; margin: 14px 0 6px; }
+/* 每一種清單：標題、列數、很長時的篩選框 */
+.wm-mmd-section { font-weight: 600; font-size: var(--font-ui-small); display: flex; align-items: center; gap: 8px; margin: 14px 0 6px; }
 .wm-mmd-count { min-width: 20px; padding: 0 6px; border-radius: 10px; background: var(--background-modifier-hover); color: var(--text-muted); font-size: var(--font-ui-smaller); font-weight: 400; text-align: center; }
+.wm-mmd-section input.wm-mmd-filter { margin-left: auto; width: 160px; max-width: 45%; height: 26px; font-size: var(--font-ui-smaller); font-weight: 400; }
 .wm-mmd-list { display: flex; flex-direction: column; gap: 2px; }
-.wm-mmd-row { flex-wrap: wrap; gap: 4px; padding: 3px 4px 3px calc(4px + var(--wm-mmd-level, 0) * 18px); border: 1px solid transparent; border-radius: 6px; }
+/* 一列：各個欄位，右邊是這一列的按鈕。欄位多的列（甘特圖的工作、類別圖的關係）盡量排在同一行 */
+.wm-mmd-row { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; padding: 3px 4px 3px calc(4px + var(--wm-mmd-level, 0) * 18px); border: 1px solid transparent; border-radius: 6px; }
 .wm-mmd-row:hover { background: var(--background-modifier-hover); }
 .wm-mmd-row.is-current { background: hsla(var(--wm-accent-hsl), .1); border-color: hsla(var(--wm-accent-hsl), .45); }
-.wm-mmd-row select { max-width: 190px; }
+.wm-mmd-row .wm-mmd-text { height: 28px; flex: 2 1 96px; min-width: 60px; }
+.wm-mmd-row .wm-mmd-text.is-l { flex: 4 1 120px; }
+.wm-mmd-row .wm-mmd-text.is-s { flex: 1 1 78px; min-width: 56px; }
+.wm-mmd-row .wm-mmd-text.is-xs { flex: 0 1 46px; min-width: 38px; padding-left: 6px; padding-right: 4px; }
+.wm-mmd-row select { height: 28px; font-size: var(--font-ui-smaller); max-width: 190px; flex: 1 1 84px; min-width: 62px; padding-right: 20px; }
+.wm-mmd-row select.is-s { flex: 0 1 92px; }
 .wm-mmd-row textarea.wm-mmd-lines { flex: 4 1 170px; min-width: 120px; min-height: 0; padding: 4px 8px; font-size: var(--font-ui-small); line-height: 1.45; resize: vertical; }
 .wm-mmd-tools { display: inline-flex; align-items: center; gap: 0; margin-left: auto; opacity: .45; transition: opacity .1s; }
 .wm-mmd-row:hover .wm-mmd-tools, .wm-mmd-row:focus-within .wm-mmd-tools, .wm-mmd-row.is-current .wm-mmd-tools, .is-mobile .wm-mmd-tools { opacity: 1; }
-.wm-mmd-tools button.wm-mmd-iconbtn { height: 26px; }
+.wm-mmd-tools button.wm-mmd-iconbtn { height: 26px; padding: 2px 3px; }
 .wm-mmd-tools button.wm-mmd-iconbtn:disabled { opacity: var(--wm-disabled-opacity); cursor: default; }
+.wm-mmd-tools button.wm-mmd-iconbtn svg { width: 14px; height: 14px; }
 .wm-mmd-level { display: inline-flex; align-items: center; }
 .wm-mmd-level button.wm-mmd-levelbtn { height: 26px; padding: 2px 3px; }
 .wm-mmd-level button.wm-mmd-levelbtn:disabled { opacity: var(--wm-disabled-opacity); cursor: default; }
 .wm-mmd-level svg { width: 14px; height: 14px; }
-.wm-mmd button.wm-mmd-add { margin-top: 6px; background: transparent; box-shadow: none; border: 1px dashed var(--background-modifier-border-hover); color: var(--text-muted); cursor: pointer; }
-.wm-mmd button.wm-mmd-add:hover { color: var(--text-accent); border-color: var(--interactive-accent); }
-.wm-mmd-hint { margin-top: 6px; font-size: var(--font-ui-smaller); color: var(--text-faint); line-height: 1.5; }
-.wm-mmd-blocked { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 36px 16px; text-align: center; }
-.wm-mmd-blocked-icon { display: inline-flex; color: var(--text-faint); }
-.wm-mmd-blocked-icon svg { width: 30px; height: 30px; }
-.wm-mmd-blocked .wm-mmd-note { margin: 0; max-width: 420px; line-height: 1.5; }
-/* 在圖上編輯：蓋在文字上的小輸入框與這一列的動作 */
-.wm-mmd-inline { position: absolute; z-index: 5; display: flex; gap: 2px; padding: 3px; background: var(--background-primary); border: 1px solid var(--interactive-accent); border-radius: var(--wm-radius-pop); box-shadow: var(--wm-shadow-float); }
-.wm-mmd-inline input.wm-mmd-inline-input { height: 28px; padding: 0 8px; border: none; box-shadow: none; background: transparent; font-size: var(--font-ui-small); }
-.wm-mmd-inline button.wm-mmd-inline-btn { height: 26px; padding: 2px 5px; }
-.wm-mmd-inline button.wm-mmd-inline-btn.is-apply { color: var(--text-accent); }
-.wm-mmd-inline button.wm-mmd-inline-btn.is-danger:hover { color: var(--text-error); }
-.wm-mmd-inline svg { width: 15px; height: 15px; }
-/* 圖表表單：欄位多的列（甘特圖的工作、類別圖的關係）盡量排在同一行 */
-.wm-mmd-body { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
-/* 視窗窄的時候改成上下排。要寫在上面那條兩欄的規則後面，寫在前面會被它蓋掉（以前就是這樣，一直沒生效） */
-@media (max-width: 760px) { .wm-mmd-body { grid-template-columns: minmax(0, 1fr); } .wm-mmd-edit { max-height: none; } }
-.wm-mmd-row .wm-mmd-text { flex: 2 1 96px; min-width: 60px; }
-.wm-mmd-row .wm-mmd-text.is-l { flex: 4 1 120px; }
-.wm-mmd-row .wm-mmd-text.is-s { flex: 1 1 78px; min-width: 56px; }
-.wm-mmd-row .wm-mmd-text.is-xs { flex: 0 1 46px; min-width: 38px; padding-left: 6px; padding-right: 4px; }
-.wm-mmd-row select { flex: 1 1 84px; min-width: 62px; padding-right: 20px; }
-.wm-mmd-row select.is-s { flex: 0 1 92px; }
-.wm-mmd-tools button.wm-mmd-iconbtn { padding: 2px 3px; }
-.wm-mmd-tools button.wm-mmd-iconbtn svg { width: 14px; height: 14px; }
-.wm-mmd-inline input.wm-mmd-inline-input:focus { outline: none; box-shadow: none; }
-/* 分頁收成選單：選單按鈕、按鈕列、右邊的快速按鈕排在同一列；按鈕太多時只有中間的按鈕列換行 */
-.wm-tabstyle-menu.wm-layout-tabs .wm-toolbar { flex-wrap: nowrap; }
-.wm-tabstyle-menu.wm-layout-tabs .wm-panel { flex: 1 1 0; flex-wrap: wrap; }
-.wm-tabstyle-menu.wm-layout-tabs .wm-tabs-quick { flex: 0 0 auto; }
-.wm-mobile .wm-tabstyle-menu.wm-layout-tabs .wm-panel, .wm-mobile.wm-tabstyle-menu.wm-layout-tabs .wm-panel { flex: 0 0 auto; flex-wrap: nowrap; }
-
-/* ---------- v1.6：方程式與圖表編輯器的新控制項 ---------- */
-/* 圖表：預覽的縮放 */
-.wm-mmd-zoom { display: inline-flex; align-items: center; gap: 0; margin-left: auto; }
-.wm-mmd-zoom button.wm-mmd-zoombtn { height: 24px; padding: 2px 5px; }
-.wm-mmd-zoom button.wm-mmd-zoombtn svg { width: 15px; height: 15px; }
-.wm-mmd-zoom button.wm-mmd-zoomlabel { min-width: 44px; height: 24px; padding: 0 4px; background: transparent; box-shadow: none; border: none; color: var(--text-muted); font-size: var(--font-ui-smaller); font-weight: 400; font-variant-numeric: tabular-nums; cursor: pointer; }
-.wm-mmd-zoom button.wm-mmd-zoomlabel:hover { color: var(--text-normal); }
-.wm-mmd-canvas { min-width: 100%; }
-/* 圖表：色彩欄位（流程圖節點的底色）。按鈕顯示目前的顏色，色塊展開在這一列下面或圖上的輸入框裡 */
+/* 色彩欄位（流程圖節點的底色）。按鈕顯示目前的顏色，色塊展開在這一列下面或圖上的輸入框裡 */
 .wm-mmd button.wm-mmd-color { flex: 0 0 auto; width: 30px; height: 28px; padding: 0; background: transparent; box-shadow: none; border: 1px solid var(--background-modifier-border); border-radius: 5px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
 .wm-mmd button.wm-mmd-color:hover { border-color: var(--interactive-accent); }
 .wm-mmd-color-dot { width: 16px; height: 16px; border-radius: 4px; background: var(--wm-mmd-fill, transparent); border: 1px solid rgba(128, 128, 128, .45); }
@@ -1406,14 +1382,58 @@ body:not(.is-phone) .modal.wm-eq-modal, body:not(.is-phone) .modal.wm-mmd-modal 
 .wm-mmd button.wm-mmd-swatch { width: 24px; height: 24px; padding: 0; background: var(--wm-mmd-fill, transparent); box-shadow: none; border: 1px solid rgba(128, 128, 128, .45); border-radius: 6px; cursor: pointer; }
 .wm-mmd button.wm-mmd-swatch:hover { box-shadow: 0 0 0 2px var(--background-primary), 0 0 0 3px var(--text-muted); }
 .wm-mmd button.wm-mmd-swatch.is-active { box-shadow: 0 0 0 2px var(--background-primary), 0 0 0 4px var(--interactive-accent); }
-.wm-mmd-inline { max-width: calc(100% - 4px); }
-.wm-mmd-inline .wm-mmd-swatches { padding: 4px 3px 2px; border-top: 1px solid var(--background-modifier-border); margin-top: 3px; }
-.wm-mmd-head .wm-mmd-opt input.is-s { width: 110px; }
+/* 很長的清單：分批顯示 */
+.wm-mmd-more:empty { display: none; }
+.wm-mmd-more { margin: 4px 0; }
+.wm-mmd-more button.wm-mmd-morebtn { width: 100%; height: 28px; background: transparent; box-shadow: none; border: 1px dashed var(--background-modifier-border); color: var(--text-muted); font-size: var(--font-ui-smaller); cursor: pointer; }
+.wm-mmd-more button.wm-mmd-morebtn:hover { color: var(--text-normal); border-color: var(--interactive-accent); }
+.wm-mmd-add { height: 28px; font-size: var(--font-ui-small); }
+.wm-mmd button.wm-mmd-add { margin-top: 6px; background: transparent; box-shadow: none; border: 1px dashed var(--background-modifier-border-hover); color: var(--text-muted); cursor: pointer; }
+.wm-mmd button.wm-mmd-add:hover { color: var(--text-accent); border-color: var(--interactive-accent); }
+/* 表單畫不出來的圖：說明原因，請使用者改用程式碼 */
+.wm-mmd-blocked { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 36px 16px; text-align: center; }
+.wm-mmd-blocked-icon { display: inline-flex; color: var(--text-faint); }
+.wm-mmd-blocked-icon svg { width: 30px; height: 30px; }
+.wm-mmd-blocked .wm-mmd-note { margin: 0; max-width: 420px; line-height: 1.5; }
 
-/* ---------- 手機與平板：方程式與圖表編輯器 ---------- */
-/* 輸入框用 16px：iOS 對小於 16px 的輸入框會自動放大整個畫面 */
-.is-mobile .wm-seg button { height: 34px; padding: 0 14px; }
+/* ---------- 程式碼 ---------- */
+.wm-mmd-input { width: 100%; font-family: var(--font-monospace); font-size: var(--font-ui-small); resize: vertical; tab-size: 4; min-height: 360px; border-radius: 8px; line-height: 1.5; }
+
+/* ---------- 預覽：標籤列的提示與縮放，下面是圖 ---------- */
+.wm-mmd-tip { font-weight: 400; color: var(--text-faint); font-size: var(--font-ui-smaller); }
+.wm-mmd-zoom { display: inline-flex; align-items: center; gap: 0; margin-left: auto; }
+.wm-mmd-zoom button.wm-mmd-zoombtn { height: 24px; padding: 2px 5px; }
+.wm-mmd-zoom button.wm-mmd-zoombtn svg { width: 15px; height: 15px; }
+.wm-mmd-zoom button.wm-mmd-zoomlabel { min-width: 44px; height: 24px; padding: 0 4px; background: transparent; box-shadow: none; border: none; color: var(--text-muted); font-size: var(--font-ui-smaller); font-weight: 400; font-variant-numeric: tabular-nums; cursor: pointer; }
+.wm-mmd-zoom button.wm-mmd-zoomlabel:hover { color: var(--text-normal); }
+.wm-mmd-stage { position: relative; flex: 1 1 auto; display: flex; min-height: 0; }
+.wm-mmd-preview { border: 1px solid var(--background-modifier-border); padding: 10px; min-height: 320px; max-height: 60vh; overflow: auto; text-align: center; }
+.wm-mmd-stage .wm-mmd-preview { flex: 1 1 auto; min-width: 0; background: var(--background-primary); border-radius: 8px; position: relative; }
+.wm-mmd-preview svg text, .wm-mmd-preview svg foreignObject, .wm-mmd-preview g.node { cursor: text; }
+.wm-mmd-canvas { min-width: 100%; }
+/* 圖以原本的大小為準，太寬就用捲的。
+   Mermaid 寫在 SVG 上的 max-width 由 mermaid.ts 的 sizeCanvas 拿掉，這裡不必用 important 去蓋 */
+.wm-mmd-canvas svg.wm-mmd-natural { max-width: none; }
+/* 預覽裡的外框（表單目前的那一列、滑鼠指到可以改的文字），以及在背後畫的那一份 */
+.wm-mmd-marker { position: absolute; z-index: 2; box-sizing: border-box; border: 2px solid var(--interactive-accent); border-radius: 6px; background: hsla(var(--wm-accent-hsl), .08); pointer-events: none; }
+.wm-mmd-marker.is-hover { border: 1px dashed var(--interactive-accent); background: transparent; }
+.wm-mmd-stage > .wm-mmd-canvas.is-pending { position: absolute; left: 0; top: 0; width: 100%; height: 0; overflow: hidden; visibility: hidden; pointer-events: none; }
+
+/* ---------- 在圖上編輯：蓋在文字上的小輸入框與這一列的動作。上面一列是輸入框與按鈕，下面一列是色塊；寬度跟著內容 ---------- */
+.wm-mmd-inline { position: absolute; z-index: 5; display: flex; gap: 2px; padding: 3px; background: var(--background-primary); border: 1px solid var(--interactive-accent); border-radius: var(--wm-radius-pop); box-shadow: var(--wm-shadow-float); max-width: calc(100% - 4px); flex-direction: column; flex-wrap: nowrap; align-items: stretch; }
+.wm-mmd-inline-row { display: flex; align-items: center; gap: 2px; }
+.wm-mmd-inline input.wm-mmd-inline-input { height: 28px; padding: 0 8px; border: none; box-shadow: none; background: transparent; font-size: var(--font-ui-small); }
+.wm-mmd-inline input.wm-mmd-inline-input:focus { outline: none; box-shadow: none; }
+.wm-mmd-inline button.wm-mmd-inline-btn { height: 26px; padding: 2px 5px; }
+.wm-mmd-inline button.wm-mmd-inline-btn.is-apply { color: var(--text-accent); }
+.wm-mmd-inline button.wm-mmd-inline-btn.is-danger:hover { color: var(--text-error); }
+.wm-mmd-inline svg { width: 15px; height: 15px; }
+.wm-mmd-inline .wm-mmd-swatches { padding: 4px 3px 2px; border-top: 1px solid var(--background-modifier-border); margin-top: 3px; gap: 4px; flex: 0 0 auto; flex-wrap: nowrap; }
+.wm-mmd-inline button.wm-mmd-swatch { width: 22px; height: 22px; }
+
+/* ---------- 手機與平板 ---------- */
 .is-mobile .wm-mmd-kinds button.wm-mmd-kind { flex: 0 0 auto; height: 36px; }
+/* 輸入框與下拉選單用 16px：iOS 對小於 16px 的輸入框會自動放大整個畫面 */
 .is-mobile .wm-mmd-row .wm-mmd-text, .is-mobile .wm-mmd-row select, .is-mobile .wm-mmd-opt input, .is-mobile .wm-mmd-opt select { height: 38px; font-size: 16px; }
 .is-mobile .wm-mmd-row textarea.wm-mmd-lines, .is-mobile .wm-mmd-input { font-size: 16px; }
 .is-mobile .wm-mmd-tools button.wm-mmd-iconbtn, .is-mobile .wm-mmd-level button.wm-mmd-levelbtn { height: 38px; padding: 6px 8px; }
@@ -1426,8 +1446,9 @@ body:not(.is-phone) .modal.wm-eq-modal, body:not(.is-phone) .modal.wm-mmd-modal 
 .is-mobile .wm-mmd-inline input.wm-mmd-inline-input { height: 38px; font-size: 16px; }
 .is-mobile .wm-mmd-inline button.wm-mmd-inline-btn { height: 38px; padding: 8px 9px; }
 .is-mobile .wm-mmd-inline svg { width: 18px; height: 18px; }
+.is-mobile .wm-mmd-inline button.wm-mmd-swatch { width: 30px; height: 30px; }
 .is-mobile .wm-mmd-tip { display: none; }
-/* 手機：編輯的東西放最上面並固定住，螢幕鍵盤開著、往下捲選按鈕時都還看得到 */
+/* 手機：預覽放最上面並固定住，螢幕鍵盤開著、往下捲填表單時都還看得到 */
 .is-phone .wm-mmd { gap: 8px; }
 .is-phone .wm-mmd-body { display: flex; flex-direction: column; min-height: 0; }
 .is-phone .wm-mmd-right { order: -1; position: sticky; top: 0; z-index: 3; box-shadow: 0 6px 10px -8px rgba(0, 0, 0, .35); }
@@ -1438,41 +1459,19 @@ body:not(.is-phone) .modal.wm-eq-modal, body:not(.is-phone) .modal.wm-mmd-modal 
 .is-phone .wm-mmd-row textarea.wm-mmd-lines { flex-basis: 100%; }
 .is-phone .wm-mmd-head .wm-mmd-opt { flex: 1 1 100%; }
 .is-phone .wm-mmd-head .wm-mmd-opt input, .is-phone .wm-mmd-head .wm-mmd-opt select { flex: 1 1 auto; width: auto; min-width: 0; }
-.is-phone .wm-mmd-input { min-height: 240px; }
-.wm-mmd-inline .wm-mmd-swatches { gap: 4px; }
-.wm-mmd-inline button.wm-mmd-swatch { width: 22px; height: 22px; }
-.is-mobile .wm-mmd-inline button.wm-mmd-swatch { width: 30px; height: 30px; }
-/* 圖上的輸入框：上面一列是輸入框與按鈕，下面一列是色塊；寬度跟著內容 */
-.wm-mmd-inline { flex-direction: column; flex-wrap: nowrap; align-items: stretch; }
-.wm-mmd-inline-row { display: flex; align-items: center; gap: 2px; }
-.wm-mmd-inline .wm-mmd-swatches { flex: 0 0 auto; flex-wrap: nowrap; }
-/* 手機：短的設定欄位（象限圖的座標軸與象限）兩個排一列，名稱放在輸入框上面。
+/* 短的設定欄位（象限圖的座標軸與象限）兩個排一列，名稱放在輸入框上面。
    is-short 是 mermaid.ts 加在欄位外框上的，不用 has 選擇器去找裡面的輸入框（Obsidian 的外掛檢查說它會拖慢整頁的樣式計算） */
 .is-phone .wm-mmd-head .wm-mmd-opt.is-short { flex: 1 1 44%; flex-direction: column; align-items: stretch; gap: 2px; }
+.is-phone .wm-mmd-input { min-height: 240px; }
 
-/* ---------- 圖表編輯器：我的範本 ---------- */
-.wm-mmd-templates { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; padding: 10px 12px; border-radius: 8px; background: var(--background-secondary); border: 1px solid var(--background-modifier-border); }
-.wm-mmd-tpl-list { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.wm-mmd-templates button.wm-mmd-tpl { display: inline-flex; align-items: center; gap: 6px; height: 30px; max-width: 260px; padding: 0 11px; background: var(--background-primary); box-shadow: none; border: 1px solid var(--background-modifier-border); border-radius: 15px; color: var(--text-normal); font-size: var(--font-ui-small); cursor: pointer; }
-.wm-mmd-templates button.wm-mmd-tpl > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.wm-mmd-templates button.wm-mmd-tpl:hover { border-color: var(--interactive-accent); }
-.wm-mmd-tpl-save { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.wm-mmd-tpl-save input.wm-mmd-tpl-name { flex: 1 1 180px; max-width: 320px; height: 30px; }
-.wm-mmd-tpl-save button { height: 30px; }
-.wm-mmd-templates .wm-mmd-hint { margin-top: 0; }
+/* 分頁收成選單：選單按鈕、按鈕列、右邊的快速按鈕排在同一列；按鈕太多時只有中間的按鈕列換行 */
+.wm-tabstyle-menu.wm-layout-tabs .wm-toolbar { flex-wrap: nowrap; }
+.wm-tabstyle-menu.wm-layout-tabs .wm-panel { flex: 1 1 0; flex-wrap: wrap; }
+.wm-tabstyle-menu.wm-layout-tabs .wm-tabs-quick { flex: 0 0 auto; }
+.wm-mobile .wm-tabstyle-menu.wm-layout-tabs .wm-panel, .wm-mobile.wm-tabstyle-menu.wm-layout-tabs .wm-panel { flex: 0 0 auto; flex-wrap: nowrap; }
 
-/* ---------- 圖表編輯器：很長的清單（篩選、分批顯示） ---------- */
-.wm-mmd-section input.wm-mmd-filter { margin-left: auto; width: 160px; max-width: 45%; height: 26px; font-size: var(--font-ui-smaller); font-weight: 400; }
-.wm-mmd-more:empty { display: none; }
-.wm-mmd-more { margin: 4px 0; }
-.wm-mmd-more button.wm-mmd-morebtn { width: 100%; height: 28px; background: transparent; box-shadow: none; border: 1px dashed var(--background-modifier-border); color: var(--text-muted); font-size: var(--font-ui-smaller); cursor: pointer; }
-.wm-mmd-more button.wm-mmd-morebtn:hover { color: var(--text-normal); border-color: var(--interactive-accent); }
-
-/* ---------- 圖表編輯器：預覽裡的外框（表單目前的那一列、滑鼠指到可以改的文字），以及在背後畫的那一份 ---------- */
-.wm-mmd-stage .wm-mmd-preview { position: relative; }
-.wm-mmd-marker { position: absolute; z-index: 2; box-sizing: border-box; border: 2px solid var(--interactive-accent); border-radius: 6px; background: hsla(var(--wm-accent-hsl), .08); pointer-events: none; }
-.wm-mmd-marker.is-hover { border: 1px dashed var(--interactive-accent); background: transparent; }
-.wm-mmd-stage > .wm-mmd-canvas.is-pending { position: absolute; left: 0; top: 0; width: 100%; height: 0; overflow: hidden; visibility: hidden; pointer-events: none; }
+/* ---------- 手機與平板：對話框的分段按鈕 ---------- */
+.is-mobile .wm-seg button { height: 34px; padding: 0 14px; }
 
 /* ---------- 設定頁：管理我的公式與圖表範本 ---------- */
 .wm-settings-groups-grid.wm-tpl-manager { display: flex; flex-direction: column; gap: 10px; }
@@ -1518,9 +1517,6 @@ body:not(.is-phone) .modal.wm-eq-modal, body:not(.is-phone) .modal.wm-mmd-modal 
 @property --wm-fade-tint { syntax: "<color>"; inherits: true; initial-value: transparent; }
 .wm-editor .callout { --wm-fade-tint: rgba(var(--callout-color), .1); }
 .wm-editor .callout > .callout-content { --wm-fade-tint: color-mix(in oklch, var(--callout-color) 10%, transparent); }
-/* 圖表編輯器的預覽：圖以原本的大小為準，太寬就用捲的。
-   Mermaid 寫在 SVG 上的 max-width 由 mermaid.ts 的 sizeCanvas 拿掉，這裡不必用 important 去蓋 */
-.wm-mmd-canvas svg.wm-mmd-natural { max-width: none; }
 
 /* ---------- 檢視模式的示意動畫：Word 模式（Markdown 符號收起來，文字直接變成格式） ---------- */
 @keyframes wm-mdhide { 0%, 25%, 100% { opacity: 1; max-width: 2em; } 40%, 85% { opacity: 0; max-width: 0; } }
