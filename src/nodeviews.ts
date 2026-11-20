@@ -2,7 +2,7 @@ import { TableView } from 'prosemirror-tables';
 import { CALLOUT_TYPES, calloutIcon, CODE_LANGUAGES } from './commands.js';
 import { t, key } from './i18n.js';
 import { FOOTNOTE_DEF, FOOTNOTE_REF, footnoteBody } from './footnotes.js';
-import { el, whenVisible } from './dom.js';
+import { el, whenVisible, onPress, onKeyPress } from './dom.js';
 import { propType, isTagKey, summarize, propLink, convertProp, renameProp, propsSummary, PROP_ICONS as TYPE_ICON, frontmatterBody } from './props.js';
 import type { PropType } from './props.js';
 import type { Attrs, Node as PMNode } from 'prosemirror-model';
@@ -103,7 +103,7 @@ type MutableAttrs = { -readonly [K in keyof Attrs]: Attrs[K] };
 
 // 特殊節點的顯示方式（ctx 由 Obsidian 端提供）
 
-const isMod = (e: MouseEvent): boolean => e.ctrlKey || e.metaKey;
+const isMod = (e: MouseEvent | KeyboardEvent): boolean => e.ctrlKey || e.metaKey;
 
 // 事件發生在內嵌的播放器、影片裡：交給它們自己處理，才能直接操作
 const inPlayer = (e: Event): boolean => !!(e.target && (e.target as Element).closest && (e.target as Element).closest('audio, video, iframe'));
@@ -436,6 +436,20 @@ class RawInlineView extends AtomView<HTMLSpanElement> {
   stopEvent(e: Event): boolean { return e.type === 'dblclick'; }
 }
 
+// 不是 <button> 的元素當按鈕或連結用：讓 Tab 走得到，也讓輔助工具知道它能按。
+// 不直接換成 <button>：Obsidian 與佈景主題給 button 的底色、陰影、高度會跑出來，樣子就變了
+function focusable(target: HTMLElement, role: 'button' | 'link'): void {
+  target.setAttribute('role', role);
+  target.tabIndex = 0;
+}
+
+// ctx.menu 照滑鼠事件的位置開選單。用鍵盤開的時候沒有滑鼠位置：改給一個位置在控制項左下角的滑鼠事件
+function menuEvent(e: MouseEvent | KeyboardEvent, anchor: HTMLElement): MouseEvent {
+  if (e.type !== 'keydown') return e as MouseEvent;
+  const r = anchor.getBoundingClientRect();
+  return new MouseEvent('click', { clientX: r.left, clientY: r.bottom, view: anchor.ownerDocument.defaultView });
+}
+
 // 文件屬性（frontmatter / metadata）：像 Word 的「摘要資訊」，以表單編輯，存回 YAML。
 // 類型的判斷與轉換在 props.ts。
 const TYPE_LABEL: Record<PropType, string> = { text: t('文字'), list: t('清單'), number: t('數字'), checkbox: t('核取方塊'), date: t('日期'), datetime: t('日期時間'), object: t('其他') };
@@ -489,15 +503,22 @@ class FrontmatterView extends SelectableAtomView<FrontmatterDom> {
     const chev = el('span', 'wm-props-chev', head); this.ctx.icon(chev, open ? 'chevron-down' : 'chevron-right', open ? '▾' : '▸');
     // 跟「查看文件屬性」小視窗、固定在上方的屬性列用同一個圖示，看得出是同一份資料
     this.ctx.icon(el('span', 'wm-props-badge', head), 'clipboard-list', '');
-    el('span', 'wm-props-title', head, t('文件屬性'));
+    const title = el('span', 'wm-props-title', head, t('文件屬性'));
     // 收合時在標題列顯示內容摘要，不用展開也看得到重點
     const count = obj ? t('{n} 個屬性', { n: Object.keys(obj).length }) : 'YAML';
     el('span', 'wm-props-count', head, obj && !open ? (propsSummary(obj) || count) : count);
-    head.addEventListener('mousedown', e => { e.preventDefault(); this.ctx.setPropsOpen(!this.ctx.propsOpen()); this.render(); });
+    const toggle = (): void => { this.ctx.setPropsOpen(!this.ctx.propsOpen()); this.render(); };
+    // 滑鼠按標題列的任何地方都能收合、展開；鍵盤則是走到標題的文字上按 Enter 或空白鍵。
+    // 不把整條標題列當成按鈕：裡面還有「原文」「移除」兩顆按鈕，按鈕裡再放按鈕，輔助工具會把裡面的當成純文字
+    head.addEventListener('mousedown', e => { e.preventDefault(); toggle(); });
+    focusable(title, 'button');
+    title.setAttribute('aria-expanded', String(open));
+    onKeyPress(title, toggle);
     const raw = el('button', 'wm-props-raw', head); raw.type = 'button'; raw.setAttribute('aria-label', t('編輯 YAML 原文')); this.ctx.icon(raw, 'code-2', t('原文'));
-    raw.addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); this.editRaw(); });
+    // stopPropagation：這兩顆在標題列裡，不能連帶收合
+    onPress(raw, e => { e.stopPropagation(); this.editRaw(); });
     const rm = el('button', 'wm-props-raw wm-props-remove', head); rm.type = 'button'; rm.setAttribute('aria-label', t('移除文件屬性')); this.ctx.icon(rm, 'trash-2', t('移除'));
-    rm.addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); this.remove(); });
+    onPress(rm, e => { e.stopPropagation(); this.remove(); });
     if (!open) return;
     const body = el('div', 'wm-props-body', d);
     if (!obj) {
@@ -517,7 +538,7 @@ class FrontmatterView extends SelectableAtomView<FrontmatterDom> {
     // 類型圖示：點一下換類型或改名
     const ic = el('button', 'wm-prop-icon', k); ic.type = 'button'; this.ctx.icon(ic, TYPE_ICON[type], '');
     ic.setAttribute('aria-label', t('變更類型或重新命名'));
-    ic.addEventListener('mousedown', e => { e.preventDefault(); this.keyMenu(e, obj, key, type); });
+    onPress(ic, e => this.keyMenu(menuEvent(e, ic), obj, key, type));
     const name = el('span', 'wm-prop-name', k, key);
     name.addEventListener('dblclick', e => { e.preventDefault(); this.rename(obj, key); });
     // TYPE_LABEL 的值是載入時 t() 的結果，不一定是鍵；再翻一次，找不到時 t() 原樣回傳
@@ -531,10 +552,11 @@ class FrontmatterView extends SelectableAtomView<FrontmatterDom> {
         const chip = el('span', 'wm-chip' + (tag ? ' wm-chip-tag' : '') + (link ? ' wm-chip-link' : ''), v);
         const text = summarize(item);
         const label = el('span', 'wm-chip-text', chip, link ? link.text : (tag && !text.startsWith('#') ? '#' : '') + text);
-        if (link) this.linkify(label, link.target);
+        if (link) { focusable(label, 'link'); this.linkify(label, link.target); }
         const x = el('span', 'wm-chip-x', chip, '×');
         x.setAttribute('aria-label', t('移除'));
-        x.addEventListener('mousedown', e => { e.preventDefault(); const a = arr.slice(); a.splice(i, 1); set(a); });
+        focusable(x, 'button');
+        onPress(x, () => { const a = arr.slice(); a.splice(i, 1); set(a); });
       });
       const inp = el('input', 'wm-prop-input wm-chip-input', v);
       inp.placeholder = t('新增…');
@@ -578,11 +600,11 @@ class FrontmatterView extends SelectableAtomView<FrontmatterDom> {
       }
     }
     const del = el('button', 'wm-prop-del', r); del.type = 'button'; del.setAttribute('aria-label', t('刪除這個屬性')); this.ctx.icon(del, 'x', '×');
-    del.addEventListener('mousedown', e => { e.preventDefault(); const o = Object.assign({}, obj); delete o[key]; this.commit(o); });
+    onPress(del, () => { const o = Object.assign({}, obj); delete o[key]; this.commit(o); });
   }
-  // 點一下開啟連結（Ctrl／Cmd 或 Shift 開在新分頁）
+  // 點一下（或按 Enter）開啟連結；按住 Ctrl／Cmd 或 Shift 開在新分頁
   linkify(target: HTMLElement, link: string): void {
-    target.addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); this.ctx.openLink(link, isMod(e) || e.shiftKey); });
+    onPress(target, e => { e.stopPropagation(); this.ctx.openLink(link, isMod(e) || e.shiftKey); });
   }
   // 巢狀資料的唯讀樹狀顯示
   tree(parent: HTMLElement, value: unknown): void {
@@ -629,7 +651,7 @@ class FrontmatterView extends SelectableAtomView<FrontmatterDom> {
     };
     k.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); go(); } });
     const b = el('button', 'wm-prop-addbtn', r, t('新增')); b.type = 'button';
-    b.addEventListener('mousedown', e => { e.preventDefault(); go(); });
+    onPress(b, go);
   }
   changed(prev: PMNode): boolean { return this.node.attrs.src !== prev.attrs.src; }
   stopEvent(): boolean { return true; }

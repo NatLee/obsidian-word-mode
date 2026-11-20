@@ -861,6 +861,83 @@ await fresh('---\ntags:\n  - 會議\nrelated:\n  - [[其他筆記]]\n  - https:/
   assert(!bad && edits > 200, `隨機改 ${edits} 次，局部更新的裝飾都跟整份重算一樣` + (bad ? '：不一樣，' + bad : ''));
 }
 
+// ======== 文件屬性：鍵盤也能操作（Enter、空白鍵） ========
+await fresh('---\ntags:\n  - 會議\n  - 專案\nrelated:\n  - [[其他筆記]]\nsite: https://example.com\ncount: 3\n---\n內文\n');
+{
+  const q = sel => [...view.pm.dom.querySelectorAll(sel)];
+  const one = sel => view.pm.dom.querySelector(sel);
+  const rowOf = name => q('.wm-prop').find(r => r.querySelector('.wm-prop-name') && r.querySelector('.wm-prop-name').textContent === name);
+  const key = (el, k, init = {}) => { const e = new KeyboardEvent('keydown', Object.assign({ key: k, bubbles: true, cancelable: true }, init)); el.dispatchEvent(e); return e; };
+  const collapsed = () => one('.wm-props').classList.contains('is-collapsed');
+
+  // 標題：收合、展開
+  const title = () => one('.wm-props-title');
+  assert(title().tagName === 'SPAN' && title().getAttribute('role') === 'button' && title().tabIndex === 0 && title().getAttribute('aria-expanded') === 'true',
+    '文件屬性的標題用 Tab 走得到，並標示目前是展開的');
+  const e1 = key(title(), 'Enter');
+  assert(collapsed() && e1.defaultPrevented && title().getAttribute('aria-expanded') === 'false', '在標題上按 Enter：收合');
+  key(title(), ' ');
+  assert(!collapsed() && q('.wm-prop').length === 5, '在標題上按空白鍵：展開');
+  key(title(), 'a'); key(title(), 'Tab'); key(title(), 'Enter', { repeat: true });
+  assert(!collapsed(), '其他按鍵、按住不放的重複按鍵不會收合');
+
+  // 標籤的 ×
+  const xs = () => [...rowOf('tags').querySelectorAll('.wm-chip-x')];
+  assert(xs().length === 2 && xs().every(x => x.tagName === 'SPAN' && x.getAttribute('role') === 'button' && x.tabIndex === 0), '標籤的 × 用 Tab 走得到');
+  key(xs()[0], 'Enter');
+  assert(/tags:\n {2}- 專案\nrelated:/.test(out()), '在標籤的 × 上按 Enter：移除那個標籤：' + JSON.stringify(out()));
+  const same = out();
+  key(rowOf('tags').querySelector('.wm-chip-input'), ' ');
+  assert(out() === same && !collapsed(), '在輸入框裡按空白鍵只是打字，不會觸發別的動作');
+
+  // 類型圖示：鍵盤沒有滑鼠位置，選單開在圖示旁邊
+  mock.Menu.last = null;
+  let shownAt = null;
+  const showAt = mock.Menu.prototype.showAtMouseEvent;
+  mock.Menu.prototype.showAtMouseEvent = function (evt) { shownAt = evt; return showAt.call(this, evt); };
+  key(rowOf('site').querySelector('.wm-prop-icon'), 'Enter');
+  mock.Menu.prototype.showAtMouseEvent = showAt;
+  assert(mock.Menu.last && mock.Menu.last.items.length === 7 && shownAt instanceof MouseEvent && shownAt.view === window && typeof shownAt.pageX === 'number',
+    '在類型圖示上按 Enter：開啟類型選單（給選單的是帶位置的滑鼠事件）');
+
+  // 連結
+  const link = rowOf('related').querySelector('.wm-chip-link .wm-chip-text');
+  assert(link.getAttribute('role') === 'link' && link.tabIndex === 0, '清單裡的連結用 Tab 走得到');
+  const before = app.workspace.opened.length;
+  key(link, 'Enter');
+  assert(app.workspace.opened.length === before + 1 && String(app.workspace.opened[before]).includes('其他筆記'), '在連結上按 Enter：開啟');
+  assert(!rowOf('site').querySelector('.wm-prop-name').hasAttribute('tabindex') && !rowOf('tags').querySelector('.wm-chip-text').hasAttribute('tabindex'), '不能按的文字不會多出停駐點');
+
+  // 原文
+  key(one('.wm-props-raw'), 'Enter');
+  const src = mock.Modal.last;
+  assert(src.contentEl.querySelector('textarea') && src.contentEl.querySelector('textarea').value.startsWith('---\n') && !collapsed(), '在「原文」按鈕上按 Enter：開啟原文編輯，不會連帶收合');
+  src.close();
+
+  // 刪除一個屬性
+  key(rowOf('site').querySelector('.wm-prop-del'), ' ');
+  assert(!out().includes('site:') && out().includes('count: 3'), '在刪除按鈕上按空白鍵：刪除這個屬性：' + JSON.stringify(out()));
+
+  // 新增
+  one('.wm-prop-add input').value = '負責人';
+  key(one('.wm-prop-addbtn'), 'Enter');
+  assert(/\n負責人:/.test(out()), '在「新增」按鈕上按 Enter：新增屬性：' + JSON.stringify(out()));
+
+  // 滑鼠照舊：按下就動作，不會把焦點從原本的地方搶走
+  const md = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
+  rowOf('count').querySelector('.wm-prop-del').dispatchEvent(md);
+  assert(md.defaultPrevented && !out().includes('count:') && !one('.wm-props').contains(document.activeElement), '滑鼠按下去照舊立刻動作，而且焦點不會跑進文件屬性');
+  const mh = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
+  title().dispatchEvent(mh);
+  assert(collapsed() && mh.defaultPrevented, '滑鼠按標題：只收合一次（不會標題與標題列各算一次）');
+  one('.wm-props-head').dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+  assert(!collapsed(), '滑鼠按標題列：展開');
+
+  // 移除整個區塊
+  key(one('.wm-props-remove'), 'Enter');
+  assert(!one('.wm-props') && out() === '內文\n', '在「移除」按鈕上按 Enter：移除文件屬性：' + JSON.stringify(out()));
+}
+
 //@@MORE@@
 
 finish();

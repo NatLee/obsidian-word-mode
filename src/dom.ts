@@ -16,6 +16,25 @@ export function keepFocus(b: HTMLElement): void {
   b.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse') e.preventDefault(); });
 }
 
+// target 自己有焦點時按 Enter 或空白鍵就執行 run，跟按鈕被按下一樣。
+// 補給只聽滑鼠的控制項，鍵盤才操作得到；不是 <button> 的元素另外要有 role 與 tabindex
+export function onKeyPress(target: HTMLElement, run: (e: KeyboardEvent) => void): void {
+  target.addEventListener('keydown', e => {
+    // 裡面的輸入框、按鈕傳出來的按鍵不算；按住不放的重複按鍵也不算（刪除這類動作不能連發）
+    if (e.target !== target || e.repeat || (e.key !== 'Enter' && e.key !== ' ')) return;
+    e.preventDefault();
+    run(e);
+  });
+}
+
+// 滑鼠一按下就執行（不等放開），而且不搶走輸入位置的焦點；鍵盤的 Enter、空白鍵也一樣執行。
+// 這裡不用 keepFocus()：它連觸控的 pointerdown 也取消，照 Pointer Events 的規範，之後瀏覽器就不再送 mousedown，
+// 靠 mousedown 動作的控制項在手機上會按不動（keepFocus 是給靠 click 動作的按鈕用的）
+export function onPress(target: HTMLElement, run: (e: MouseEvent | KeyboardEvent) => void): void {
+  target.addEventListener('mousedown', e => { e.preventDefault(); run(e); });
+  onKeyPress(target, run);
+}
+
 // 元素捲到看得到的範圍（或快要看到）才執行 run，只執行一次；回傳取消的函式。
 // 用在比較花時間的顯示（圖表、查詢結果、內嵌的筆記）：有幾十張圖的長筆記，開啟時只畫看得到的那幾張。
 // 以最近的可捲動外框為準（root 選擇器），往外多算 margin 像素，捲過去時通常已經畫好了。
