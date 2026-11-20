@@ -321,7 +321,11 @@ export default class WordModePlugin extends Plugin {
 
     // Markdown 編輯畫面右上角加一個「Word 模式」按鈕
     const addActions = () => {
-      this.app.workspace.getLeavesOfType('markdown').forEach(leaf => {
+      const leaves = this.app.workspace.getLeavesOfType('markdown');
+      // 已經關掉的檢視從紀錄裡拿掉，不然每開過一份筆記就多留一個檢視（連同它的編輯器）在記憶體裡
+      const open = new Set<unknown>(leaves.map(leaf => leaf.view));
+      for (const v of [...this.mdActions.keys()]) if (!open.has(v)) this.mdActions.delete(v);
+      leaves.forEach(leaf => {
         const v = leaf.view;
         if (!(v instanceof MarkdownView) || this.mdActions.has(v)) return;
         const btn = v.addAction('file-text', this.settings.ctrlE !== false ? withKey('切換到 Word 模式', 'Mod+E') : t('切換到 Word 模式'), () => this.switchToWord(leaf));

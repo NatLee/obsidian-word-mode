@@ -1441,4 +1441,33 @@ await fresh('<div>html</div>\n\n一段\n');
   assert(!glued.length, '示意動畫的「動詞｜受詞」之間有空格：' + (glued.join('；') || '全部正確'));
 }
 
+// ======== Markdown 功能區插入的文字不能弄壞前後的內容 ========
+{
+  const conv = new B.MarkdownConverter();
+  const kinds = md => { const a = []; conv.parse(md).doc.forEach(n => a.push(n.type.name + (n.type.name === 'heading' ? n.attrs.level : ''))); return a.join(','); };
+  // 水平線放在游標那一行的行尾
+  const hr = (lines, at) => { const l = lines.slice(); l[at] += B.hrText(lines[at], at > 0 ? lines[at - 1] : null); return l.join('\n'); };
+  assert(kinds(hr(['文字', '下一段'], 0)) === 'paragraph,horizontal_rule,paragraph', '在文字那一行插入水平線：那一行不會變成標題：' + kinds(hr(['文字', '下一段'], 0)));
+  assert(kinds(hr(['文字', '', '下一段'], 1)) === 'paragraph,horizontal_rule,paragraph', '在文字下面的空行插入水平線：上一行不會變成標題');
+  assert(kinds(hr(['文字', '', '', '下一段'], 2)) === 'paragraph,horizontal_rule,paragraph', '前面已經有空行：直接插入');
+  assert(kinds(hr(['', '內文'], 0)) === 'horizontal_rule,paragraph', '在檔案第一行插入水平線：不會變成文件屬性的開頭：' + kinds(hr(['', '內文'], 0)));
+  // 程式碼區塊取代選取的內容
+  const empty = B.codeBlockText('', 'python', '', '');
+  assert(empty.text === '```python\n\n```' && empty.cursorLine === 1, '沒有選取時插入程式碼區塊：中間留一個空行，游標放在那一行：' + JSON.stringify(empty));
+  const mid = B.codeBlockText('', '', '前面的字', '後面的字');
+  assert(mid.text === '\n```\n\n```\n' && mid.cursorLine === 2 && kinds('前面的字' + mid.text + '後面的字') === 'paragraph,code_block,paragraph', '游標在一行中間：圍欄自己一行，前後的字各自成段：' + JSON.stringify(mid));
+  const sel = B.codeBlockText('a\nb', 'js', '', '');
+  assert(sel.text === '```js\na\nb\n```' && sel.cursorLine === -1, '有選取時把選取的內容包起來：' + JSON.stringify(sel));
+}
+
+// ======== 格式刷開著的時候重建功能區：編輯區不留著刷子游標 ========
+await fresh('**粗體** 一般\n');
+{
+  select(2, 4);
+  view.toolbar.togglePainter(true);
+  assert(view.pm.dom.classList.contains('wm-painting'), '格式刷開啟');
+  view.buildToolbar();
+  assert(!view.pm.dom.classList.contains('wm-painting') && !view.toolbar.painter, '重建功能區後格式刷已經停止');
+}
+
 finish();
