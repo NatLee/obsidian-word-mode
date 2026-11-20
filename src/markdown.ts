@@ -912,6 +912,8 @@ export class MarkdownConverter {
       const src = lines.slice(r.start, r.end).map(stripEol).join('\n');
       prevEnd = r.end;
       let segNodes: PMNode[] | null = null;
+      // 這個區塊重新輸出的結果：存檔時拿來判斷區塊有沒有被改過
+      let canon: string | null = null;
       let kind: SegmentKind = r.kind;
       if (kind === 'md') {
         const first = stripEol(lines[r.start]);
@@ -942,17 +944,18 @@ export class MarkdownConverter {
           const inl = (nodes2: PMNode[]): string => this.serializeNodes([schema.nodes.paragraph.create(null, nodes2)]);
           d.forEach(n => segNodes!.push(withBid(liftCallouts(n, inl), idx)));
           if (!segNodes.length) segNodes = null;
-          else this.serializeNodes(segNodes); // 確認可序列化
+          else canon = this.serializeNodes(segNodes); // 確認可序列化；結果就是這個區塊的 canon，下面不用再算一次
         } catch {
           segNodes = null;
         }
       }
       if (!segNodes) segNodes = [schema.nodes.raw_block.create({ src, kind: kind === 'md' ? 'raw' : kind, bid: idx })];
-      let canon: string;
-      try { canon = this.serializeNodes(segNodes); }
-      catch {
-        segNodes = [schema.nodes.raw_block.create({ src, kind: 'raw', bid: idx })];
-        canon = this.serializeNodes(segNodes);
+      if (canon == null) {
+        try { canon = this.serializeNodes(segNodes); }
+        catch {
+          segNodes = [schema.nodes.raw_block.create({ src, kind: 'raw', bid: idx })];
+          canon = this.serializeNodes(segNodes);
+        }
       }
       // 區塊尾端的空行（markdown-it 有時把清單後的空行算進區塊）：修改後重新輸出時保留
       let k = r.end;
