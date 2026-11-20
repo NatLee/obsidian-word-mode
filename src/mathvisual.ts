@@ -487,6 +487,26 @@ function scriptLatex(pre: string, post: string, row: MathRow): string {
   const bare = bareArg(row);
   return bare != null ? cat([pre, bare]) : cat([pre, '{', toLatex(row), '}']);
 }
+// 打字打出來、不成對的大括號與註解符號 %：照樣寫出去整個方程式就壞了（後面的 } 被配走、後面整行變成註解），
+// 改寫成看得到的字 \{、\}、\%（格子裡看到的就是這個字）。成對的照樣寫出去：打完 { 再打 } 就是一組大括號。
+// 從原文讀進來的格子一定成對、也沒有 %（有 % 的整段不拆成格子），不會被改到
+function safeText(v: string): string {
+  if (!/[{}%]/.test(v)) return v;
+  const open: number[] = [];
+  const bad = new Set<number>();
+  for (let i = 0; i < v.length; i++) {
+    if (v[i] === '\\') i++;
+    else if (v[i] === '%') bad.add(i);
+    else if (v[i] === '{') open.push(i);
+    else if (v[i] === '}') { if (open.length) open.pop(); else bad.add(i); }
+  }
+  for (const i of open) bad.add(i);
+  if (!bad.size) return v;
+  let out = '';
+  for (let i = 0; i < v.length; i++) out += (bad.has(i) ? '\\' : '') + v[i];
+  return out;
+}
+
 // 寫回 LaTeX。從原文讀進來的結構用記著的原文（g）接上格子的內容，格子裡的空白照原文；
 // 新插入的結構（沒有 g）用編輯器自己的寫法：格子去掉前後的空白、上下標一律加大括號、\left( … \right) 裡外各空一格
 export function toLatex(row: MathRow): string { return cat(row.map(itemLatex)); }
@@ -494,7 +514,7 @@ function itemLatex(it: MathItem): string {
   const L = toLatex;
   const g = it.t === 'text' ? undefined : it.g;
   switch (it.t) {
-    case 'text': return it.v;
+    case 'text': return it.raw ? it.v : safeText(it.v);
     case 'frac': return glued(g, [L(it.a), L(it.b)]) ?? cat([it.cmd || '\\frac', '{', trimRow(it.a), '}{', trimRow(it.b), '}']);
     case 'sqrt': {
       const n = it.n && !rowEmpty(it.n) ? it.n : null;
@@ -1374,6 +1394,20 @@ export class MathField {
     let a = this.active;
     if (!a || !this.dom.contains(a.span)) { const spans = this.spans(); const span = spans[spans.length - 1]; a = this.active = this.findActive(span); }
     if (!a) return;
+    // 游標在文字的格子裡（\text{…}、\tag{…}）：裡面是一般的文字，放進去的 \frac、\alpha 不會畫成數學
+    // （以前變成 \text{a\frac{}{}b}），所以插在那個文字結構的後面；游標在最前面時插在前面
+    const own = this.owner.get(a.row);
+    if (a.span.dataset.plain && own && own.item.t === 'group' && PLAIN_GROUPS.has(own.item.cmd)) {
+      const at = own.row.indexOf(own.item);
+      const front = this.caret(a.span).end === 0 && !!a.span.textContent;
+      const next = own.row[front ? at - 1 : at + 1]; // normalize 之後結構前後一定是文字格
+      const sp = next && this.byItem.get(next);
+      if (sp) {
+        this.place(sp, front ? sp.textContent.length : 0);
+        this.insertItems(items, own.row, own.row.indexOf(next), sp);
+        return;
+      }
+    }
     this.insertItems(items, a.row, a.index, a.span);
   }
 

@@ -1779,6 +1779,27 @@ await fresh('公式 $x^2 + a_i \\leq b_{max} + \\left(y\\right)$ 結束\n');
   typeIn(qa('.wm-mv-braces .wm-mv-text').find(s => s.textContent === 'red'), 'tan');
   assert(eq.ta.value === '\\color{tan}{x} + y', '顏色的名稱打 tan 不會變成 \\tan：' + eq.ta.value);
 
+  // 打出不成對的 {：寫成看得到的 \{，方程式不會壞掉；打完 } 就是一組大括號
+  eq.setEdit('latex'); eq.ta.value = '\\frac{a}{b} + \\text{if } x'; eq.setEdit('visual');
+  const num = q('.wm-mv-num .wm-mv-text');
+  typeIn(num, 'a{');
+  assert(eq.ta.value === '\\frac{a\\{}{b} + \\text{if } x', '不成對的 { 寫成 \\{：' + eq.ta.value);
+  typeIn(num, 'a{c}');
+  assert(eq.ta.value === '\\frac{a{c}}{b} + \\text{if } x', '成對的 { } 照打的寫：' + eq.ta.value);
+  // 游標在 \text{…} 裡按功能區的結構：插在文字的後面（以前插進文字裡，變成 \text{if \sqrt{}}，畫不出來）
+  click(qa('.wm-eq-cat').find(b => b.textContent === '結構'));
+  const snippet = s => qa('.wm-eq-btn').find(b => b.getAttribute('aria-label') === s);
+  const inText = q('.wm-mv-group[data-cmd="text"] .wm-mv-text');
+  inText.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+  eq.field.place(inText, 2);
+  click(snippet('\\sqrt{}'));
+  assert(eq.ta.value === '\\frac{a{c}}{b} + \\text{if }\\sqrt{} x' && q('.wm-mv-radicand .wm-mv-text').contains(document.getSelection().anchorNode),
+    '在文字裡按根號：插在文字後面，游標在根號裡：' + eq.ta.value);
+  // 新插入的結構照編輯器的寫法（上標加大括號）
+  typeIn(q('.wm-mv-radicand .wm-mv-text'), 'z');
+  click(snippet('^{}'));
+  typeIn(q('.wm-mv-radicand .wm-mv-sup .wm-mv-text'), '2');
+  assert(eq.ta.value === '\\frac{a{c}}{b} + \\text{if }\\sqrt{z^{2}} x', '按按鈕插入的上標有大括號：' + eq.ta.value);
   eq.close();
 }
 

@@ -329,5 +329,13 @@ ok('6. 認得的指令（\\alpha）後面的 {…} 是一般的群組', !isComma
   ok('性質：多打一個字只改到那一格（' + count + ' 次）', !bad.length && count > 300, JSON.stringify(bad.slice(0, 6)));
 }
 
+// 7. 打字打出不成對的大括號或 %：寫成看得到的 \{、\%，方程式不會壞掉；打完成對的 { } 就是一組大括號
+same('7. 不成對的 {', change('\\frac{a}{b}', 1, add('{')), '\\frac{a\\{}{b}');
+same('7. 成對的 { }', change('\\frac{a}{b}', 1, add('{c}')), '\\frac{a{c}}{b}');
+same('7. 不成對的 }', change('\\frac{a}{b}', 1, add('}')), '\\frac{a\\}}{b}');
+same('7. %', change('\\frac{a}{b}', 1, add('50%')), '\\frac{a50\\%}{b}');
+same('7. 文字格裡不成對的 }', change('\\text{ab} + y', v => v === 'ab', add('}')), '\\text{ab\\}} + y');
+for (const s of ['\\frac{a\\{}{b}', '\\frac{a\\}}{b}', '\\frac{a50\\%}{b}', '\\text{ab\\}} + y', '\\frac{a\\ }{b}']) ok('7. 寫出來的 LaTeX 讀得懂：' + s, !parseLatex(s)[0].raw && rt(s) === s);
+
 if (fails) process.exitCode = 1;
 console.log(fails ? `\n${fails} FAILED` : '\nALL PASS');
