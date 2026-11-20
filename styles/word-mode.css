@@ -128,8 +128,6 @@ body {
 .wm-editor hr { border: none; border-top: 1px solid var(--hr-color, var(--background-modifier-border)); margin: 1.2em 0; }
 .wm-editor hr.ProseMirror-selectednode { border-top-color: var(--interactive-accent); }
 .wm-editor code { font-family: var(--font-monospace); background: var(--code-background); padding: .1em .3em; border-radius: 3px; font-size: .9em; }
-.wm-editor pre.wm-code { position: relative; border-radius: 4px; overflow-x: auto; }
-.wm-editor pre.wm-code code { background: none; padding: 0; white-space: pre-wrap; }
 .wm-editor mark { padding: 0 1px; border-radius: 2px; }
 .wm-editor.wm-editor.wm-editor mark { color: inherit; }
 .wm-editor.wm-editor.wm-editor mark:not(.wm-hl-color) { background-color: var(--text-highlight-bg, rgba(255, 208, 0, .4)); }
@@ -473,15 +471,7 @@ body {
 .wm-count-note { margin-top: 10px; font-size: var(--font-ui-smaller); color: var(--text-muted); }
 .wm-bb-count { cursor: pointer; }
 
-/* 程式碼區塊與語法上色 */
-.wm-editor .wm-codeblock { position: relative; margin: 1em 0; border-radius: 6px; background: var(--code-background); border: 1px solid var(--background-modifier-border); }
-.wm-code-head { display: flex; align-items: center; gap: 6px; padding: 3px 6px; border-bottom: 1px solid var(--background-modifier-border); font-size: var(--font-ui-smaller); user-select: none; }
-.wm-code-head select { height: 24px; font-size: var(--font-ui-smaller); padding: 0 20px 0 6px; }
-.wm-code-head .wm-code-spacer { flex: 1 1 auto; }
-.wm-code-head button { height: 24px; padding: 0 6px; background: transparent; box-shadow: none; color: var(--text-muted); }
-.wm-code-head button:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
-.wm-code-head svg { width: 14px; height: 14px; }
-.wm-editor pre.wm-code { margin: 0; padding: 10px 12px; background: transparent; border: none; white-space: pre-wrap; tab-size: 4; font-family: var(--font-monospace); font-size: var(--code-size, .9em); }
+/* 語法上色（程式碼區塊本身的樣式在後面「程式碼區塊」那一段） */
 .wm-editor .token.comment, .wm-editor .token.prolog, .wm-editor .token.doctype, .wm-editor .token.cdata { color: var(--code-comment); font-style: italic; }
 .wm-editor .token.punctuation { color: var(--code-punctuation); }
 .wm-editor .token.property, .wm-editor .token.tag, .wm-editor .token.constant, .wm-editor .token.symbol, .wm-editor .token.deleted { color: var(--code-tag); }
@@ -555,7 +545,6 @@ body {
 .wm-popup.is-mobile button.wm-menu-item, .wm-popup.is-mobile button.wm-style-item { padding: 10px 12px; font-size: var(--font-ui-medium); }
 .wm-popup.is-mobile .wm-symbol-grid { grid-template-columns: repeat(8, 36px); gap: 4px; }
 .wm-popup.is-mobile button.wm-symbol { width: 36px; height: 36px; font-size: 18px; }
-.wm-mobile .wm-code-head select, .wm-mobile .wm-code-head button { height: 32px; }
 .wm-mobile .wm-cleanup-row { padding: 10px 4px; }
 
 /* ===== v1.2：版面、群組、提示卡、大綱側邊欄、Markdown 工具列、快速鍵表 ===== */
@@ -882,17 +871,6 @@ body:not(.is-mobile) .wm-shortcuts-modal { align-self: flex-start; margin-top: 6
 /* ---------- 尋找列 ---------- */
 .wm-find-btn.is-disabled { opacity: var(--wm-disabled-opacity); pointer-events: none; }
 
-/* ---------- 程式碼區塊顯示成結果（mermaid、dataview 等） ---------- */
-.wm-code-head [hidden] { display: none; }
-.wm-code-head button.is-active { color: var(--text-accent); }
-.wm-code-preview { display: none; padding: 8px 12px; overflow-x: auto; cursor: default; }
-.wm-codeblock.has-preview { background: transparent; }
-.wm-codeblock.has-preview .wm-code-preview { display: block; }
-.wm-codeblock.has-preview pre.wm-code { background: var(--code-background); }
-.wm-codeblock.has-preview:not(.wm-code-active):not(.show-code):not(.is-empty) pre.wm-code { display: none; }
-.wm-codeblock.has-preview.wm-code-active .wm-code-preview, .wm-codeblock.has-preview.show-code .wm-code-preview { border-top: 1px dashed var(--background-modifier-border); }
-.wm-code-preview .mermaid { text-align: center; }
-
 /* ---------- 內嵌（![[筆記]]、影片、錄音、PDF、YouTube） ---------- */
 .wm-editor .wm-wikilink.wm-embed, .wm-editor .wm-image.wm-embed { display: block; margin: .5em 0; padding: 6px 10px; border-left: 2px solid var(--interactive-accent); background: var(--background-secondary); border-radius: 0 6px 6px 0; cursor: default; white-space: normal; color: var(--text-normal); text-decoration: none; }
 .wm-editor .wm-image.wm-embed > img, .wm-editor .wm-image.wm-embed > .wm-image-handle, .wm-editor .wm-image.wm-embed > .wm-image-badge, .wm-editor .wm-image.wm-embed > .wm-image-missing { display: none; }
@@ -945,28 +923,6 @@ audio.wm-embed-media { width: 100%; }
 .wm-prop-tree-key { color: var(--text-muted); }
 .wm-prop-tree-key::after { content: ':'; }
 .wm-props .wm-prop-add:hover, .wm-props .wm-prop-add:focus-within { opacity: 1; background: transparent; }
-
-/* ---------- 程式碼區塊：沒有標題列；語言與按鈕浮在右上角，按鈕在滑鼠移上去或游標在裡面時才出現 ---------- */
-.wm-editor .wm-codeblock { border-color: transparent; }
-.wm-codeblock .wm-code-head { position: absolute; top: 4px; right: 6px; z-index: 1; gap: 2px; padding: 0; border-bottom: none; border-radius: 4px; background: var(--code-background); }
-.wm-codeblock.has-preview .wm-code-head { background: var(--background-primary); }
-.wm-codeblock .wm-code-head .wm-code-spacer { display: none; }
-.wm-codeblock .wm-code-head select { order: 9; height: 22px; padding: 0 6px; border: none; box-shadow: none; background: transparent; background-image: none; color: var(--text-faint); text-align: right; cursor: pointer; }
-.wm-codeblock .wm-code-head select:hover, .wm-codeblock .wm-code-head select:focus { color: var(--text-normal); background-color: var(--background-modifier-hover); }
-.wm-codeblock .wm-code-head button { height: 22px; opacity: 0; pointer-events: none; transition: opacity .12s; }
-.wm-codeblock:hover .wm-code-head button, .wm-codeblock.wm-code-active .wm-code-head button, .wm-codeblock.show-code .wm-code-head button, .wm-codeblock .wm-code-head:focus-within button, .wm-mobile .wm-codeblock .wm-code-head button { opacity: 1; pointer-events: auto; }
-.wm-codeblock .wm-code-head button.is-done { color: var(--text-success, var(--text-accent)); }
-.wm-code-body { display: flex; align-items: flex-start; }
-.wm-editor .wm-codeblock pre.wm-code { flex: 1 1 auto; min-width: 0; padding: 12px 14px; line-height: 1.5; }
-.wm-editor .wm-codeblock pre.wm-code code { font-family: inherit; font-size: inherit; line-height: inherit; }
-.wm-code-gutter { display: none; }
-.wm-codeblock.has-lines .wm-code-gutter { display: block; flex: 0 0 auto; min-width: 2.4em; padding: 12px 8px 12px 10px; border-right: 1px solid var(--background-modifier-border); color: var(--text-faint); text-align: right; white-space: pre; line-height: 1.5; font-family: var(--font-monospace); font-size: var(--code-size, .9em); user-select: none; cursor: default; }
-.wm-editor .wm-codeblock.has-lines pre.wm-code, .wm-editor .wm-codeblock.has-lines pre.wm-code code { white-space: pre; }
-.wm-editor .wm-codeblock.has-lines pre.wm-code { overflow-x: auto; }
-/* 顯示成結果的區塊：平常只有結果，融入文件；看原始碼時才有底色與分隔線 */
-.wm-codeblock.has-preview:not(.wm-code-active):not(.show-code):not(.is-empty) .wm-code-body { display: none; }
-.wm-codeblock.has-preview .wm-code-body { background: var(--code-background); border-radius: 6px 6px 0 0; }
-.wm-codeblock.has-preview.wm-code-active, .wm-codeblock.has-preview.show-code { border-color: var(--background-modifier-border); }
 
 /* ---------- 狀態列的字數 ---------- */
 .wm-statusbar .wm-bb-count { color: var(--text-muted); white-space: nowrap; }
@@ -1487,7 +1443,52 @@ body:not(.is-phone) .modal.wm-eq-modal, body:not(.is-phone) .modal.wm-mmd-modal 
 .wm-tpl-manager button.wm-tpl-add { align-self: flex-start; height: 30px; }
 .is-phone .wm-tpl-head { flex-wrap: wrap; }
 
-/* ---------- 文件裡的圖表與查詢結果：還沒畫時先佔位置、很高時先收合 ---------- */
+/* ===== 程式碼區塊 =====
+   沒有標題列：語言與按鈕浮在右上角，按鈕在滑鼠移上去或游標在裡面時才出現。
+   mermaid、dataview 這類區塊平常顯示成結果（.has-preview），游標進去或按「原始碼」才看得到程式碼。語法上色（.token）在前面。
+   權重不同的兩條規則（例如 .wm-code-head 與 .wm-codeblock .wm-code-head）沒有合成一條，理由見方程式編輯器那一段的開頭 */
+.wm-editor .wm-codeblock { position: relative; margin: 1em 0; border-radius: 6px; background: var(--code-background); border: 1px solid var(--background-modifier-border); border-color: transparent; }
+/* 右上角的語言選單與按鈕 */
+.wm-code-head { display: flex; align-items: center; font-size: var(--font-ui-smaller); user-select: none; }
+.wm-codeblock .wm-code-head { position: absolute; top: 4px; right: 6px; z-index: 1; gap: 2px; padding: 0; border-bottom: none; border-radius: 4px; background: var(--code-background); }
+.wm-codeblock.has-preview .wm-code-head { background: var(--background-primary); }
+.wm-code-head [hidden] { display: none; }
+.wm-code-head .wm-code-spacer { flex: 1 1 auto; }
+.wm-codeblock .wm-code-head .wm-code-spacer { display: none; }
+.wm-code-head svg { width: 14px; height: 14px; }
+.wm-code-head select { font-size: var(--font-ui-smaller); }
+.wm-codeblock .wm-code-head select { order: 9; height: 22px; padding: 0 6px; border: none; box-shadow: none; background: transparent; background-image: none; color: var(--text-faint); text-align: right; cursor: pointer; }
+.wm-codeblock .wm-code-head select:hover, .wm-codeblock .wm-code-head select:focus { color: var(--text-normal); background-color: var(--background-modifier-hover); }
+.wm-code-head button { padding: 0 6px; background: transparent; box-shadow: none; color: var(--text-muted); }
+.wm-code-head button:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
+.wm-code-head button.is-active { color: var(--text-accent); }
+.wm-codeblock .wm-code-head button { height: 22px; opacity: 0; pointer-events: none; transition: opacity .12s; }
+.wm-codeblock:hover .wm-code-head button, .wm-codeblock.wm-code-active .wm-code-head button, .wm-codeblock.show-code .wm-code-head button, .wm-codeblock .wm-code-head:focus-within button, .wm-mobile .wm-codeblock .wm-code-head button { opacity: 1; pointer-events: auto; }
+.wm-codeblock .wm-code-head button.is-done { color: var(--text-success, var(--text-accent)); }
+/* 手機：右上角的選單與按鈕要夠大才按得到 */
+.wm-mobile .wm-codeblock .wm-code-head select, .wm-mobile .wm-codeblock .wm-code-head button { height: 32px; }
+/* 程式碼本體；行號放在左邊的欄，開啟行號時程式碼不自動換行，行號才對得上 */
+.wm-code-body { display: flex; align-items: flex-start; }
+.wm-editor pre.wm-code { position: relative; border-radius: 4px; overflow-x: auto; margin: 0; background: transparent; border: none; white-space: pre-wrap; tab-size: 4; font-family: var(--font-monospace); font-size: var(--code-size, .9em); }
+.wm-editor .wm-codeblock pre.wm-code { flex: 1 1 auto; min-width: 0; padding: 12px 14px; line-height: 1.5; }
+.wm-editor pre.wm-code code { background: none; padding: 0; white-space: pre-wrap; }
+.wm-editor .wm-codeblock pre.wm-code code { font-family: inherit; font-size: inherit; line-height: inherit; }
+.wm-code-gutter { display: none; }
+.wm-codeblock.has-lines .wm-code-gutter { display: block; flex: 0 0 auto; min-width: 2.4em; padding: 12px 8px 12px 10px; border-right: 1px solid var(--background-modifier-border); color: var(--text-faint); text-align: right; white-space: pre; line-height: 1.5; font-family: var(--font-monospace); font-size: var(--code-size, .9em); user-select: none; cursor: default; }
+.wm-editor .wm-codeblock.has-lines pre.wm-code, .wm-editor .wm-codeblock.has-lines pre.wm-code code { white-space: pre; }
+.wm-editor .wm-codeblock.has-lines pre.wm-code { overflow-x: auto; }
+/* 顯示成結果的區塊（mermaid、dataview 等）：平常只有結果，融入文件；看原始碼時才有底色與分隔線 */
+.wm-code-preview { display: none; padding: 8px 12px; overflow-x: auto; cursor: default; }
+.wm-code-preview .mermaid { text-align: center; }
+.wm-codeblock.has-preview { background: transparent; }
+.wm-codeblock.has-preview.wm-code-active, .wm-codeblock.has-preview.show-code { border-color: var(--background-modifier-border); }
+.wm-codeblock.has-preview .wm-code-preview { display: block; }
+.wm-codeblock.has-preview.wm-code-active .wm-code-preview, .wm-codeblock.has-preview.show-code .wm-code-preview { border-top: 1px dashed var(--background-modifier-border); }
+.wm-codeblock.has-preview pre.wm-code { background: var(--code-background); }
+.wm-codeblock.has-preview:not(.wm-code-active):not(.show-code):not(.is-empty) pre.wm-code { display: none; }
+.wm-codeblock.has-preview .wm-code-body { background: var(--code-background); border-radius: 6px 6px 0 0; }
+.wm-codeblock.has-preview:not(.wm-code-active):not(.show-code):not(.is-empty) .wm-code-body { display: none; }
+/* 結果還沒畫時先佔位置、很高時先收合 */
 .wm-codeblock.has-preview:not(.is-empty) .wm-code-preview:empty { min-height: 96px; }
 .wm-codeblock.is-tall:not(.wm-code-active):not(.show-code) .wm-code-preview { max-height: 460px; overflow: hidden; }
 /* 收合／展開的按鈕：整列都可以按，看得到的是置中的小膠囊「⌄ 顯示完整內容」或「⌃ 收合」（圖示與文字由 nodeviews.ts 的 syncTall 放進去）。
@@ -1512,6 +1513,7 @@ body:not(.is-phone) .modal.wm-eq-modal, body:not(.is-phone) .modal.wm-mmd-modal 
    漸層掛在按鈕上、往上蓋住結果最後的 60px；放在結果裡面的話，結果左右捲動過再收合時，漸層會跟著內容位移 */
 .wm-codeblock.is-tall:not(.wm-code-active):not(.show-code) button.wm-code-more { position: relative; }
 .wm-codeblock.is-tall:not(.wm-code-active):not(.show-code) button.wm-code-more::before { content: ""; position: absolute; left: 0; right: 0; bottom: 100%; height: 60px; background: linear-gradient(to bottom, transparent, var(--wm-fade-tint, transparent)), linear-gradient(to bottom, transparent, var(--background-primary)); pointer-events: none; }
+
 /* 漸層上層的淡色：預設沒有；提示框裡是提示框的底色。Obsidian 1.5 的 --callout-color 是三個數字（8, 109, 221）、底色是 rgba(…, .1)，
    新版改成顏色、底色是 color-mix(…)。兩種寫法各放一層：註冊成 <color> 的變數在算不出顏色時沿用上一層的值，所以哪一版都拿得到 */
 @property --wm-fade-tint { syntax: "<color>"; inherits: true; initial-value: transparent; }
@@ -1787,6 +1789,3 @@ mark.wm-set-find-hl { padding: 0 1px; border-radius: 3px; background: hsla(var(-
 .wm-mmd-templates button.wm-mmd-tpl:focus-visible,
 .wm-mmd-more button.wm-mmd-morebtn:focus-visible,
 .wm-editor .wm-codeblock button.wm-code-more:focus-visible { box-shadow: var(--wm-focus-ring); }
-
-/* 手機上程式碼區塊右上角的按鈕要夠大才按得到。前面有一條把高度設成 22px 的規則蓋掉了手機的 32px */
-.wm-mobile .wm-codeblock .wm-code-head select, .wm-mobile .wm-codeblock .wm-code-head button { height: 32px; }
