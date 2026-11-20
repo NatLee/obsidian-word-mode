@@ -29,7 +29,7 @@ export interface SearchHit<T extends SearchDoc> {
 
 // 同義詞：同一組裡的詞互相代換再找一次。使用者常用別的說法找設定（「快捷鍵」找「快速鍵」、「功能區」找「工具列」），
 // 介面文字只用其中一種說法，沒有這份清單就找不到。各語言混在同一組沒關係，換出來的詞只是多比對一次
-export const SYNONYMS: readonly (readonly string[])[] = [
+const SYNONYMS: readonly (readonly string[])[] = [
   ['快速鍵', '快捷鍵', '熱鍵', '鍵盤', 'shortcut', 'hotkey', 'keyboard'],
   ['工具列', '功能區', '工具欄', 'toolbar', 'ribbon'],
   ['資料夾', '文件夾', 'folder', 'directory'],

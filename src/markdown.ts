@@ -35,7 +35,6 @@ export interface SegmentMeta {
   canon: string; // 剛解析完時序列化的結果；存檔時結果相同就表示沒有修改
   trailing: string; // 區塊尾端的空行，修改後重新輸出時保留
   line: number; // 區塊第一行的行號（從 0 起算）
-  endsWithEol: boolean;
 }
 
 // parse() 回傳、serialize() 需要的文件資訊
@@ -235,7 +234,7 @@ function obsidianCore(state: StateCore): void {
   state.tokens = out;
 }
 
-export function createTokenizer(): MarkdownItInstance {
+function createTokenizer(): MarkdownItInstance {
   const md = new MarkdownIt({ html: true, breaks: true, linkify: false, typographer: false });
   md.use(markPlugin);
   md.normalizeLink = s => s;
@@ -266,7 +265,7 @@ const alignAttr = (tok: ParseToken): { align: string | null } => {
   return { align: m ? m[1] : null };
 };
 
-export function createParser(tokenizer: MarkdownItInstance): MarkdownParser {
+function createParser(tokenizer: MarkdownItInstance): MarkdownParser {
   return new MarkdownParser(schema, tokenizer, {
     blockquote: { block: 'blockquote' },
     paragraph: { block: 'paragraph' },
@@ -358,7 +357,7 @@ function lastChar(s: string): string { const a = Array.from(s); return a[a.lengt
 function firstChar(s: string): string { return Array.from(s)[0] || ''; }
 
 // mark 從 parent 的 index 開始（open）或在 index 之前結束（close）：判斷用 Markdown 符號是否能正確解析
-export function delimiterOk(parent: PMNode, index: number, mark: Mark, open: boolean): boolean {
+function delimiterOk(parent: PMNode, index: number, mark: Mark, open: boolean): boolean {
   let start = open ? index : index - 1;
   if (start < 0 || start >= parent.childCount || !mark.isInSet(parent.child(start).marks)) return true;
   let end = start + 1;
@@ -432,7 +431,7 @@ const MARK_HTML: Record<string, (m: Mark) => [string, string]> = {
   link: m => [`<a href="${escHtml(m.attrs.href)}">`, '</a>'],
 };
 
-export function inlineToHtml(node: PMNode): string {
+function inlineToHtml(node: PMNode): string {
   let out = '';
   node.forEach(child => {
     let inner: string;
@@ -462,7 +461,7 @@ function blockHtml(node: PMNode): string {
 }
 
 // 解析我們自己寫出的對齊段落 HTML（只認得上面那幾種標籤，其餘一律當作原文保留）
-export function parseFormattedBlock(src: string): PMNode | null {
+function parseFormattedBlock(src: string): PMNode | null {
   const m = src.trim().match(/^<(p|h[1-6])\s+style="([^"]*)">([\s\S]*)<\/\1>$/);
   if (!m || /\n\s*\n/.test(m[3])) return null;
   const style = m[2];
@@ -543,7 +542,7 @@ function renderCell(state: SerializerState, cell: PMNode): string {
 }
 
 // 節點與 mark 的序列化函式收到的 state 其實是 SerializerState（多了內部成員與 inTable 等旗標），用到時轉型
-export function createSerializer(): MarkdownSerializer {
+function createSerializer(): MarkdownSerializer {
   return new MarkdownSerializer({
     blockquote(state, node) { state.wrapBlock('> ', null, node, () => state.renderContent(node)); },
     callout(state, node) {
@@ -821,7 +820,7 @@ function tableHasExtraCells(src: string): boolean {
 }
 
 // 文件屬性裡沒有任何內容（只有 --- 與 ---）
-export function emptyFrontmatter(src: string): boolean {
+function emptyFrontmatter(src: string): boolean {
   return !String(src).replace(/^---[^\n]*\r?\n?/, '').replace(/\r?\n?(---|\.\.\.)\s*$/, '').trim();
 }
 
@@ -960,7 +959,7 @@ export class MarkdownConverter {
       let k = r.end;
       while (k > r.start + 1 && isBlank(lines[k - 1])) k--;
       const trailing = lines.slice(k, r.end).join('');
-      meta.segments.push({ text: segText, gapBefore, canon, trailing, line: r.start, endsWithEol: /(\r\n|\n|\r)$/.test(segText) });
+      meta.segments.push({ text: segText, gapBefore, canon, trailing, line: r.start });
       nodes.push(...segNodes);
     });
     meta.trailingGap = lines.slice(prevEnd).join('');

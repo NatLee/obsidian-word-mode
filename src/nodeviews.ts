@@ -671,7 +671,7 @@ class FrontmatterView implements NodeView {
 }
 
 // 任務的狀態（- [/]、- [-] 等是 Tasks 外掛與許多佈景主題通用的寫法）
-export const TASK_STATUSES: TaskStatus[] = [[' ', '待辦', 'square'], ['x', '完成', 'check-square'], ['/', '進行中', 'loader'], ['-', '已取消', 'minus-square'], ['>', '已延後', 'arrow-right-square'], ['!', '重要', 'alert-circle'], ['?', '有疑問', 'help-circle']];
+const TASK_STATUSES: TaskStatus[] = [[' ', '待辦', 'square'], ['x', '完成', 'check-square'], ['/', '進行中', 'loader'], ['-', '已取消', 'minus-square'], ['>', '已延後', 'arrow-right-square'], ['!', '重要', 'alert-circle'], ['?', '有疑問', 'help-circle']];
 
 class ListItemView implements NodeView {
   declare node: PMNode;

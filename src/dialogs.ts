@@ -265,7 +265,7 @@ export class FilePicker extends FuzzySuggestModal<TFile> {
 }
 
 // 快速鍵說明：Mod 顯示成 Ctrl 或 Cmd，文字在顯示時才翻譯；多個組合用「／」分開
-export const SHORTCUTS: readonly ShortcutGroup[] = [
+const SHORTCUTS: readonly ShortcutGroup[] = [
   ['檢視', 'eye', [['Mod+E', 'Word 模式 ⇄ Markdown 編輯（在 Markdown 畫面再按一次切回）', 'markdown'], ['Mod+滑鼠滾輪', '放大／縮小頁面', 'zoom'], ['Mod+/', '快速鍵說明']]],
   ['文字格式', 'bold', [['Mod+B', '粗體', 'bold'], ['Mod+I', '斜體', 'italic'], ['Mod+U', '底線', 'underline'], ['Mod+Shift+X', '刪除線', 'strike'], ['Mod+Shift+H', '醒目提示（螢光筆）', 'highlight'], ['Mod+`', '行內程式碼', 'code'], ['（沒有選取時）', '格式套用到游標所在的詞']]],
   ['段落', 'pilcrow', [['Mod+Alt+1～6', '標題 1～6', 'style'], ['Mod+Alt+0', '內文'], ['Mod+L／Mod+J', '靠左／左右對齊（置中、靠右在工具列）', 'justify'], ['Tab', '段落開頭：首行縮排兩個字'], ['Alt+↑／Alt+↓', '上下移動段落、清單項目或表格列', 'sort'], ['Shift+Enter', '同一段落內換行']]],
@@ -275,7 +275,7 @@ export const SHORTCUTS: readonly ShortcutGroup[] = [
   ['格式刷', 'paintbrush', [['按一下', '刷一次', 'painter'], ['按兩下', '連續刷，按 Esc 或再按一次結束']]],
 ];
 
-export const KEY_NAMES: Partial<Record<string, () => string>> = { Mod: () => key('Mod'), Alt: () => key('Alt'), Shift: () => 'Shift', Enter: () => 'Enter', Esc: () => 'Esc', Tab: () => 'Tab' };
+const KEY_NAMES: Partial<Record<string, () => string>> = { Mod: () => key('Mod'), Alt: () => key('Alt'), Shift: () => 'Shift', Enter: () => 'Enter', Esc: () => 'Esc', Tab: () => 'Tab' };
 
 // 'Mod+Shift+V' → [Ctrl] + [Shift] + [V]；沒有 + 的說明文字（例如「按一下」）照樣顯示
 function renderKeys(parent: HTMLElement, combo: string): void {
@@ -295,7 +295,7 @@ function renderKeys(parent: HTMLElement, combo: string): void {
   });
 }
 
-export const MATH_SNIPPETS: readonly MathSnippetGroup[] = [
+const MATH_SNIPPETS: readonly MathSnippetGroup[] = [
   ['結構', [['分數', '\\frac{}{}'], ['根號', '\\sqrt{}'], ['n 次方根', '\\sqrt[n]{}'], ['上標', '^{}'], ['下標', '_{}'], ['上下標', '_{}^{}'], ['括號', '\\left( \\right)'], ['中括號', '\\left[ \\right]'], ['大括號', '\\left\\{ \\right\\}'], ['絕對值', '\\left| \\right|'], ['矩陣', '\\begin{bmatrix} a & b \\\\ c & d \\end{bmatrix}'], ['分段函數', '\\begin{cases} x, & x \\ge 0 \\\\ -x, & x < 0 \\end{cases}'], ['多行對齊', '\\begin{aligned} a &= b \\\\ c &= d \\end{aligned}'], ['編號', '\\tag{1}'], ['文字', '\\text{}']]],
   ['運算', [['總和', '\\sum_{i=1}^{n}'], ['積分', '\\int_{a}^{b}'], ['重積分', '\\iint_{D}'], ['極限', '\\lim_{x \\to \\infty}'], ['乘積', '\\prod_{i=1}^{n}'], ['微分', '\\frac{d}{dx}'], ['偏微分', '\\frac{\\partial }{\\partial x}'], ['組合', '\\binom{n}{k}'], ['最大', '\\max'], ['最小', '\\min'], ['對數', '\\log'], ['自然對數', '\\ln'], ['指數', 'e^{}'], ['sin', '\\sin'], ['cos', '\\cos'], ['tan', '\\tan']]],
   ['標記', [['向量', '\\vec{}'], ['平均', '\\bar{}'], ['估計', '\\hat{}'], ['波浪', '\\tilde{}'], ['一階導數', '\\dot{}'], ['二階導數', '\\ddot{}'], ['上括號', '\\overbrace{}^{}'], ['下括號', '\\underbrace{}_{}'], ['粗體', '\\mathbf{}'], ['空心字', '\\mathbb{}'], ['正體', '\\mathrm{}'], ['花體', '\\mathcal{}']]],
@@ -306,7 +306,7 @@ export const MATH_SNIPPETS: readonly MathSnippetGroup[] = [
 ];
 
 // 常用公式：[名稱, LaTeX]。整條插入後再改裡面的內容，在手機上比一格一格組出來快
-export const MATH_FORMULAS: readonly (readonly [name: I18nKey, latex: string])[] = [
+const MATH_FORMULAS: readonly (readonly [name: I18nKey, latex: string])[] = [
   ['一元二次方程式的解', 'x = \\frac{-b \\pm \\sqrt{b^{2} - 4ac}}{2a}'],
   ['畢氏定理', 'a^{2} + b^{2} = c^{2}'],
   ['平均數', '\\bar{x} = \\frac{1}{n} \\sum_{i=1}^{n} x_{i}'],

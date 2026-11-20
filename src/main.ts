@@ -1171,5 +1171,3 @@ class WordModeSettings extends PluginSettingTab {
     })];
   }
 }
-
-export { Notice };

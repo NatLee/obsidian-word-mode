@@ -23,7 +23,7 @@ const placeholder = new Plugin({
   },
 });
 
-export function buildPlugins(extraPlugins: Plugin[] = []): Plugin[] {
+function buildPlugins(extraPlugins: Plugin[] = []): Plugin[] {
   // spec.priority 的外掛（自動完成選單）要排在快速鍵之前，才攔得到 Enter 與方向鍵
   const first = extraPlugins.filter(p => p.spec.priority);
   const rest = extraPlugins.filter(p => !p.spec.priority);

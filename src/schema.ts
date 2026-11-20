@@ -33,7 +33,6 @@ export interface RawInlineAttrs { readonly src: string; }
 export interface LinkAttrs { readonly href: string; readonly title: string | null; }
 // 螢光：color 為 null 是預設黃色
 export interface HighlightAttrs { readonly color: string | null; }
-export interface ColorAttrs { readonly color: string; }
 
 // 每個頂層區塊都帶 bid（原文區塊編號），用來判斷存檔時能否原樣輸出原文
 const bid: Record<string, AttributeSpec> = { bid: { default: null } };
@@ -226,6 +225,3 @@ export const schema = new Schema({
     code: { parseDOM: [{ tag: 'code' }], toDOM: () => ['code', 0] },
   },
 });
-
-export const TOP_LEVEL_WITH_BID = new Set(
-  Object.keys(schema.nodes).filter(n => schema.nodes[n].spec.attrs && 'bid' in schema.nodes[n].spec.attrs));

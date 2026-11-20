@@ -139,7 +139,7 @@ function canSubmenu(): boolean {
 // - lastOut：最後一次載入或輸出的 Markdown 原文
 // - toolbarHost、findHost、bannerHost、scroller、page、toolbar、findBar、bubble、fold：在 onOpen() 建立，
 //   之後一直存在，所以不標成可省略
-// - bottomBar、countEl、statusBox、zoomRange、zoomLabel：下方狀態列（buildBottomBar）建立的元素；
+// - countEl、statusBox、zoomRange、zoomLabel：下方狀態列（buildBottomBar）建立的元素；
 //   還沒建立狀態列時都不存在
 // - marks、code、suggest：第一次 editorPlugins() 時才建立
 // - prism：Obsidian 的 Prism（非同步載入，載入前不存在）
@@ -174,7 +174,6 @@ export class WordModeView extends TextFileView {
   declare bubble: Plugin;
   declare fold: Plugin<FoldState>;
   declare prism: PrismLike | undefined;
-  declare bottomBar: HTMLElement | undefined;
   declare countEl: HTMLDivElement | undefined;
   declare statusBox: HTMLDivElement | undefined;
   declare zoomRange: HTMLInputElement | undefined;
@@ -391,7 +390,6 @@ export class WordModeView extends TextFileView {
   // ---------------------------------------------------------- 下方狀態列（像 Word：字數、存檔、檢視、縮放）
 
   buildBottomBar(bar: HTMLElement, inStatusBar: boolean): void {
-    this.bottomBar = bar;
     // 字數：手機在筆記下方的列，桌機在 Obsidian 的狀態列（Obsidian 內建的字數只算 Markdown 編輯器）
     const parts = buildStatusBar(bar, {
       mode: 'word', inStatusBar, richHints: !!this.plugin.settings.richHints && !Platform.isMobile, modE: 'source', zoomable: true,
@@ -1969,5 +1967,3 @@ export class WordModeView extends TextFileView {
     }
   }
 }
-
-export { Platform };

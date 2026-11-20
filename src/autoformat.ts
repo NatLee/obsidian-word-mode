@@ -26,7 +26,7 @@ const LEAF = '\ufffc'; // 代表圖片、連結等非文字節點（長度與節
 const IMAGE_EXT = /\.(png|jpe?g|gif|bmp|svg|webp|avif|heic|tiff?)$/i;
 
 export const autoformatOptions = { enabled: true };
-export const autoKey = new PluginKey<boolean>('wmAutoformat');
+const autoKey = new PluginKey<boolean>('wmAutoformat');
 
 function textBefore($pos: ResolvedPos): string {
   return $pos.parent.textBetween(Math.max(0, $pos.parentOffset - 1000), $pos.parentOffset, null, LEAF);

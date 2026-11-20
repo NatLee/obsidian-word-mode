@@ -33,7 +33,7 @@ export function mediaKind(view: WordModeView, src: string): MediaKind {
 }
 
 // 取出要內嵌的那一段 Markdown：整份筆記（去掉文件屬性）、某個標題底下、或某個區塊
-export async function embedSource(view: WordModeView, file: TFile, subpath: string): Promise<string | null> {
+async function embedSource(view: WordModeView, file: TFile, subpath: string): Promise<string | null> {
   const app = view.app;
   const data = await app.vault.cachedRead(file);
   const cache = app.metadataCache.getFileCache(file);

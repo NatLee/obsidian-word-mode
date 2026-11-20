@@ -42,11 +42,6 @@ export const WEIRD_KINDS: readonly WeirdKind[] = [
   { id: 'space', label: '多餘的空白（連續空白、段落結尾空白）', fix: 'collapse', def: false, always: false },
 ];
 
-export function weirdLabel(kind: string): string {
-  const k = WEIRD_KINDS.find(x => x.id === kind);
-  return k ? t(k.label) : kind;
-}
-
 // 掃描一段文字，回傳 [{from, to, kind}]（位置是文件位置）
 function scanText(text: string, base: number, inCode: boolean): WeirdFound[] {
   const out: WeirdFound[] = [];
@@ -82,7 +77,7 @@ function scanText(text: string, base: number, inCode: boolean): WeirdFound[] {
 }
 
 // 掃描一個文字區塊（段落、標題…）
-export function scanBlock(node: PMNode, pos: number): WeirdFound[] {
+function scanBlock(node: PMNode, pos: number): WeirdFound[] {
   let text = '';
   node.forEach(c => {
     // 有程式碼格式的文字只檢查看不見的字元

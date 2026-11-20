@@ -44,8 +44,6 @@ export function closePropsPeek(): void {
   peek = null; peekOwner = null;
 }
 
-export function propsPeekOpen(): boolean { return !!peek; }
-
 // 在 owner 按鈕旁打開；同一個按鈕再按一次就關閉。回傳小視窗（關閉時是 null）
 export function openPropsPeek(owner: HTMLElement, data: PropsPeekData, o: PropsPeekOptions): HTMLDivElement | null {
   if (peek && peekOwner === owner) { closePropsPeek(); return null; }
@@ -157,7 +155,7 @@ function row(list: HTMLElement, key: string, value: unknown, o: PropsPeekOptions
 
 // 固定在上方的精簡屬性列：每個屬性一小段「名稱 值」排成一行，清單顯示成小標籤（最多 3 個，其餘寫 +N），
 // 放不下的部分由樣式表淡出；完整內容要點開屬性列看
-export const PIN_LIST_MAX = 3;
+const PIN_LIST_MAX = 3;
 export function fillPinSummary(box: HTMLElement, data: PropsPeekData, o: Pick<PropsPeekOptions, 'icon' | 'typeHint'>): void {
   box.replaceChildren();
   if (data.kind === 'none') return;

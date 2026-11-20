@@ -26,7 +26,7 @@ export function stripSliceBids(slice: Slice): Slice {
 }
 
 // 解析 Tab 分隔文字（Excel 會把含換行的儲存格用雙引號包起來）
-export function parseTSV(text: string): string[][] {
+function parseTSV(text: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
   let cell = '';

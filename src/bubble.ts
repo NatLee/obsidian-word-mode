@@ -38,7 +38,7 @@ type MaybeElement = Node & Partial<Pick<Element, 'getBoundingClientRect'>>;
 // wikilink 節點的屬性（見 schema.ts）；這裡只讀 target（連到的筆記）
 interface WikilinkAttrs { readonly target: string; }
 
-export const IMAGE_SIZES = [
+const IMAGE_SIZES = [
   { label: t('小'), pct: 0.25 }, { label: t('中'), pct: 0.5 }, { label: t('大'), pct: 0.75 }, { label: t('滿版'), pct: 1 },
 ];
 

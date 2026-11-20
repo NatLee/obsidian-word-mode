@@ -379,8 +379,6 @@ export class MarkdownBar {
   }
 }
 
-export function isMarkdownView(v: unknown): v is MarkdownView { return v instanceof MarkdownView; }
-
 // 「查看文件屬性」小視窗（功能區與狀態列的按鈕）：讀這份筆記的原文，所以還沒存檔的修改也看得到
 export function openMarkdownPeek(plugin: WordModePlugin, view: MarkdownView, btn: HTMLElement): void {
   let text = '';

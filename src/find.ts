@@ -31,13 +31,13 @@ export interface FindState {
 // 交易的 meta：要改的欄位
 export type FindMeta = Partial<FindState>;
 
-export const findKey = new PluginKey<FindState>('wmFind');
+const findKey = new PluginKey<FindState>('wmFind');
 
 const OBJ = '￼'; // 代表圖片、連結等非文字節點
 const WORD = '\\p{L}\\p{N}_';
 
 // 把搜尋字串變成正規表示式；opts: { caseSensitive, regex, wholeWord }。寫錯的正規表示式回傳 { error }
-export function buildMatcher(query: string, opts: FindOptions = {}): Matcher | MatcherError | null {
+function buildMatcher(query: string, opts: FindOptions = {}): Matcher | MatcherError | null {
   if (!query) return null;
   let src = opts.regex ? query : query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   // 全字相符：前後不能是字母或數字（不用 lookbehind，前一個字元放在第 1 組）
@@ -51,7 +51,7 @@ export function buildMatcher(query: string, opts: FindOptions = {}): Matcher | M
 }
 
 // opts 可以是布林值（是否區分大小寫，舊的呼叫方式）或 { caseSensitive, regex, wholeWord }
-export function findMatches(doc: PMNode, query: string, opts?: FindOptions | boolean | null): FindMatch[] {
+function findMatches(doc: PMNode, query: string, opts?: FindOptions | boolean | null): FindMatch[] {
   const out: FindMatch[] = [];
   const o = typeof opts === 'object' && opts ? opts : { caseSensitive: !!opts };
   const mt = buildMatcher(query, o);
@@ -77,7 +77,7 @@ export function findMatches(doc: PMNode, query: string, opts?: FindOptions | boo
 }
 
 // 取代的文字：正規表示式模式可以用 $1、$2 代表括號裡找到的內容
-export function replacementFor(matched: string, query: string, opts: FindOptions, replacement: string): string {
+function replacementFor(matched: string, query: string, opts: FindOptions, replacement: string): string {
   if (!opts.regex) return replacement;
   const mt = buildMatcher(query, opts);
   if (!mt || mt.error) return replacement;

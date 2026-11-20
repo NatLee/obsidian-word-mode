@@ -11,10 +11,9 @@ import type { Node as PMNode } from 'prosemirror-model';
 // 行內裝飾的 spec（inlineDecos 產生）：網址有 href、標籤有 tag、區塊參照有 blockId，每個裝飾只有其中一個
 export interface InlineSpec { href?: string; tag?: string; blockId?: string; }
 
-// bareUrlAt／tagAt 找到的一段網址或標籤
+// bareUrlAt 找到的一段網址
 export interface InlineHit { from: number; to: number; }
 export interface BareUrlHit extends InlineHit { href: string; }
-export interface TagHit extends InlineHit { tag: string; }
 
 // linkContext 的結果：圖片與 Wiki 連結是被選取的節點（pos、node）；
 // 連結格式（link）與沒加連結格式的網址（url）是一段文字（from、to、href、text）。
@@ -27,12 +26,12 @@ export type LinkContext = ImageContext | WikilinkContext | TextLinkContext;
 // link 格式的屬性（見 schema.ts）
 interface LinkAttrs { readonly href: string; readonly title: string | null; }
 
-export const URL_RE = /https?:\/\/[^\s<>()[\]]+[^\s<>()[\].,;:!?'"，。、；：！？」』）]/g;
+const URL_RE = /https?:\/\/[^\s<>()[\]]+[^\s<>()[\].,;:!?'"，。、；：！？」』）]/g;
 export const isUrl = (s: string): boolean => /^https?:\/\/\S+$/i.test(s.trim());
 export const isExternal = (href: string): boolean => /^[a-z][a-z0-9+.-]*:/i.test(href);
 
 // Obsidian 的 #標籤：前面是行首或空白，可以有 / 分層，不能全是數字
-export const TAG_RE = /(^|\s)#([^\s#!@$%^&*(),.?":;{}|<>[\]\\`'~=+]+)/g;
+const TAG_RE = /(^|\s)#([^\s#!@$%^&*(),.?":;{}|<>[\]\\`'~=+]+)/g;
 // 區塊參照 ^id：寫在段落結尾
 const BLOCK_ID_RE = /(^|\s)\^([A-Za-z0-9-]+)$/;
 
@@ -72,7 +71,7 @@ function inlineDecos(node: PMNode, pos: number): Decoration[] {
 }
 
 // 文件改動時只重算有變的段落（見 decoutil.js）
-export const inlineKey = new PluginKey<DecorationSet>('wmInline');
+const inlineKey = new PluginKey<DecorationSet>('wmInline');
 export const bareUrlPlugin = new Plugin<DecorationSet>({
   key: inlineKey,
   state: {
@@ -91,8 +90,7 @@ function inlineAt<F extends 'href' | 'tag'>(state: EditorState, field: F): (Inli
   // 屬性名是泛型 F 時 TypeScript 推不出 Record<F, string>，所以這一欄單獨轉型後再展開
   return d ? { from: d.from, to: d.to, ...({ [field]: (d.spec as Record<F, string>)[field] } as Record<F, string>) } : null;
 }
-export function bareUrlAt(state: EditorState): BareUrlHit | null { return inlineAt(state, 'href'); }
-export function tagAt(state: EditorState): TagHit | null { return inlineAt(state, 'tag'); }
+function bareUrlAt(state: EditorState): BareUrlHit | null { return inlineAt(state, 'href'); }
 
 // 文件裡用到的所有 #標籤（不重複）
 export function tagsInDoc(state: EditorState): string[] {

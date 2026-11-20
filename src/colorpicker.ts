@@ -29,16 +29,16 @@ export interface ColorPanelOptions {
 }
 
 // 字型的標準色彩（像 Word 的「標準色彩」）
-export const TEXT_COLORS: readonly (readonly [color: string, name: I18nKey])[] = [
+const TEXT_COLORS: readonly (readonly [color: string, name: I18nKey])[] = [
   ['#000000', '黑色'], ['#7f7f7f', '灰色'], ['#c00000', '深紅'], ['#ff0000', '紅色'], ['#ff8c00', '橙色'],
   ['#bf9000', '金色'], ['#00b050', '綠色'], ['#00b0f0', '淺藍'], ['#0070c0', '藍色'], ['#7030a0', '紫色'],
 ];
 
 // 醒目提示：色碼最後兩碼是不透明度，深色與淺色佈景主題都看得清楚文字。null 是預設黃色（存成 ==文字==）；
 // 灰色是「字元網底」按鈕用的，不放進色盤
-export const HIGHLIGHT_SOFT: readonly HighlightColor[] = HIGHLIGHT_COLORS.filter(c => c[0] !== SHADING);
+const HIGHLIGHT_SOFT: readonly HighlightColor[] = HIGHLIGHT_COLORS.filter(c => c[0] !== SHADING);
 // 較深的一排：同樣的顏色，不透明度較高
-export const HIGHLIGHT_VIVID: readonly Swatch[] = [
+const HIGHLIGHT_VIVID: readonly Swatch[] = [
   ['#ffd000b3', '黃色'], ['#4caf50b3', '綠色'], ['#00bcd4b3', '青色'], ['#ff80abb3', '粉紅'], ['#448affb3', '藍色'],
   ['#ff5252b3', '紅色'], ['#ff9800b3', '橘色'], ['#b388ffb3', '紫色'],
 ];
@@ -63,12 +63,6 @@ export function toHex(c: Rgba): string {
   return '#' + hex2(c[0]) + hex2(c[1]) + hex2(c[2]) + (c[3] < 1 ? hex2(c[3] * 255) : '');
 }
 
-// 使用者輸入的色碼整理成 '#rrggbb' 或 '#rrggbbaa'（小寫）；看不懂時回傳 null
-export function normalizeColor(input: string): string | null {
-  const c = parseHex(input);
-  return c ? toHex(c) : null;
-}
-
 // 往白色（amount > 0）或黑色（amount < 0）調：amount 是 -1～1
 export function shade(color: string, amount: number): string {
   const c = parseHex(color);
@@ -78,7 +72,7 @@ export function shade(color: string, amount: number): string {
 }
 
 // 標準色彩的深淺變化：每個顏色四階（較淺兩階、較深兩階）；黑色那一欄是灰階
-export function shadeRows(base: readonly string[]): string[][] {
+function shadeRows(base: readonly string[]): string[][] {
   const steps = [0.6, 0.3, -0.25, -0.5];
   const gray = [0.85, 0.65, 0.45, 0.25];
   return steps.map((s, row) => base.map(c => (parseHex(c)!.slice(0, 3).every(v => v === 0) ? shade(c, gray[row]) : shade(c, s))));

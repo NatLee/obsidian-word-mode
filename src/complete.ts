@@ -37,7 +37,7 @@ export function searchFiles(view: WordModeView, query: string): SuggestFileItem[
 }
 
 // 保管庫與這份筆記用過的標籤
-export function searchTags(view: WordModeView, query: string): string[] {
+function searchTags(view: WordModeView, query: string): string[] {
   const app = view.app;
   const all = new Set<string>(view.pm ? tagsInDoc(view.pm.state) : []);
   const mc = app.metadataCache;
@@ -55,7 +55,7 @@ export function searchTags(view: WordModeView, query: string): string[] {
 }
 
 // 筆記裡的標題；file 為 null 表示目前這份筆記
-export function headingsOf(view: WordModeView, file: TFile | null): string[] {
+function headingsOf(view: WordModeView, file: TFile | null): string[] {
   if (!file) {
     const out: string[] = [];
     // 自動完成選單只在編輯器裡出現，這時 view.pm 一定已經建立
