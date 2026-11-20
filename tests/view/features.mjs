@@ -768,6 +768,23 @@ await fresh('---\ntags:\n  - 會議\nrelated:\n  - [[其他筆記]]\n  - https:/
   assert(first.firstChild.type.name === 'table_header' && first.textContent === '甲乙丙', '標題列還是標題列');
 }
 
+// ======== 複製之後的通知只顯示開頭，不把整份內容貼出來 ========
+{
+  const written = [];
+  const had = Object.getOwnPropertyDescriptor(globalThis.navigator, 'clipboard');
+  Object.defineProperty(globalThis.navigator, 'clipboard', { value: { writeText: async s => { written.push(s); } }, configurable: true });
+  const long = '第一行程式碼\n' + 'x = 1\n'.repeat(80);
+  view.copyText(long);
+  await sleep(5);
+  const notice = mock.log.filter(x => x[0] === 'notice').pop()[1];
+  assert(written[0] === long, '剪貼簿拿到完整的內容');
+  assert(notice.startsWith('已複製：第一行程式碼 x = 1') && notice.endsWith('…') && notice.length < 80, '通知只顯示開頭一小段：' + notice.length + ' 個字');
+  view.copyText('短的');
+  await sleep(5);
+  assert(mock.log.filter(x => x[0] === 'notice').pop()[1] === '已複製：短的', '短的內容照樣完整顯示');
+  if (had) Object.defineProperty(globalThis.navigator, 'clipboard', had); else delete globalThis.navigator.clipboard;
+}
+
 // ======== 跳到指定的行（大綱、反向連結、搜尋結果）：文件改過之後行號還是對得上 ========
 {
   await fresh('# 一\n\n段落一\n\n# 二\n\n段落二\n\n# 三\n\n段落三\n');

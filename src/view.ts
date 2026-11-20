@@ -1510,7 +1510,10 @@ export class WordModeView extends TextFileView {
   // ---------------------------------------------------------- 插入連結與圖片
 
   copyText(tv: string): void {
-    navigator.clipboard.writeText(tv).then(() => new Notice(t('已複製：') + tv), () => new Notice(t('無法複製')));
+    // 通知只顯示開頭一小段：複製一整段程式碼或一大段 Markdown 時，整份內容貼在通知裡會蓋住半個畫面
+    const flat = tv.replace(/\s+/g, ' ').trim();
+    const shown = flat.length > 60 ? flat.slice(0, 57) + '…' : flat;
+    navigator.clipboard.writeText(tv).then(() => new Notice(t('已複製：') + shown), () => new Notice(t('無法複製')));
   }
 
   selectNodeAt(pos: number | null | undefined): void {
