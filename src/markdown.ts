@@ -68,6 +68,7 @@ interface SerializerState extends MarkdownSerializerState {
   delim: string;
   inTightList: boolean;
   inAutolink: boolean | undefined;
+  atBlockStart: boolean; // 接下來寫的文字在一行的開頭（esc 會跳脫行首的清單、引文、標題符號）
   flushClose(size?: number): void;
   inTable?: boolean; // 正在輸出表格儲存格（見 renderCell）
 }
@@ -178,11 +179,14 @@ function htmlToMarks(children: Token[]): void {
     for (const p of HTML_PAIRS) {
       const om = t.content.match(p.open);
       if (!om) continue;
+      // 找對應的結尾標籤：中間同一種標籤的開頭都要算一層，不管它是哪一種格式。
+      // 框線裡包顏色都是 <span>，只數「框線的開頭」會把裡面那個 </span> 當成框線的結尾
+      const sameTag = new RegExp('^<' + /^<([a-z]+)/i.exec(t.content)![1] + '(?:\\s[^>]*)?>$', 'i');
       let depth = 0;
       for (let j = i + 1; j < children.length; j++) {
         const c = children[j];
         if (c.type !== 'html_inline') continue;
-        if (p.open.test(c.content)) depth++;
+        if (sameTag.test(c.content)) depth++;
         else if (p.close.test(c.content)) {
           if (depth === 0) {
             const kind = p.name === 'colorfont' ? 'colorspan' : (p.kind || p.name);
@@ -202,6 +206,8 @@ function htmlToMarks(children: Token[]): void {
 function obsidianCore(state: StateCore): void {
   const tokens = state.tokens;
   const out: Token[] = [];
+  let lines: string[] | null = null; // 原文的每一行：用到才切
+  const lineOf = (n: number): string => { if (!lines) lines = state.src.split('\n'); return lines[n] || ''; };
   for (let i = 0; i < tokens.length; i++) {
     const t = tokens[i];
     // 任務清單 - [ ] / - [x]
@@ -209,7 +215,13 @@ function obsidianCore(state: StateCore): void {
       && tokens[i + 2] && tokens[i + 2].type === 'inline') {
       const inl = tokens[i + 2];
       // 任何單一字元都算任務狀態（- [/]、- [-]、- [>] 等自訂狀態，Tasks 外掛與佈景主題會用）
-      const m = inl.content.match(/^\[([^[\]\n])\][ \t]/);
+      let m = inl.content.match(/^\[([^[\]\n])\][ \t]/);
+      if (!m) {
+        // 方框後面什麼都沒有（剛加、還沒打字的待辦事項「- [ ] 」）也是任務：markdown-it 會去掉行尾的空白，
+        // 所以回頭看原文那一行。原文連空白都沒有時只認 [ ] 與 [x]，免得「- [1]」這種項目變成任務
+        const bare = inl.content.match(/^\[([^[\]\n])\]$/);
+        if (bare && (/[ xX]/.test(bare[1]) || (inl.map && /\][ \t]+$/.test(lineOf(inl.map[0]))))) m = bare;
+      }
       const first = inl.children && inl.children[0];
       if (m && first && first.type === 'text' && first.content.startsWith(m[0])) {
         t.meta = Object.assign({}, t.meta, { checked: m[1] !== ' ', status: m[1] === ' ' || m[1] === 'x' ? null : m[1] });
@@ -264,6 +276,18 @@ const alignAttr = (tok: ParseToken): { align: string | null } => {
   return { align: m ? m[1] : null };
 };
 
+// 圖片說明文字的純文字：格式符號不算，[[連結]]、行內數學式等照原文
+function altText(children: ParseToken[] | null): string {
+  let out = '';
+  for (const c of children || []) {
+    if (c.type === 'image') out += altText(c.children);
+    else if (c.type === 'softbreak' || c.type === 'hardbreak') out += ' ';
+    else if (c.type === 'wikilink') { const a = c.meta as WikilinkAttrs; out += (a.embed ? '!' : '') + '[[' + a.target + (a.alias != null ? '|' + a.alias : '') + ']]'; }
+    else out += c.content;
+  }
+  return out;
+}
+
 function createParser(tokenizer: MarkdownItInstance): MarkdownParser {
   return new MarkdownParser(schema, tokenizer, {
     blockquote: { block: 'blockquote' },
@@ -277,8 +301,9 @@ function createParser(tokenizer: MarkdownItInstance): MarkdownParser {
     fence: { block: 'code_block', getAttrs: tok => ({ params: tok.info || '' }), noCloseToken: true },
     hr: { node: 'horizontal_rule', getAttrs: tok => ({ markup: tok.markup || '---' }) },
     image: { node: 'image', getAttrs: tok => {
-      // ![說明|300](圖.png)：Obsidian 的寬度寫在說明文字後面
-      let alt = (tok.children && tok.children[0] && tok.children[0].content) || null;
+      // ![說明|300](圖.png)：Obsidian 的寬度寫在說明文字後面。
+      // 說明文字裡有格式（![**粗** 字](圖.png)）時會切成好幾個 token，要全部接起來，只看第一個會整段不見
+      let alt = altText(tok.children) || null;
       let width: string | null = null;
       const m = alt ? alt.match(/^(.*?)\|(\d+(?:x\d+)?)$/) : null;
       if (m) { alt = m[1] || null; width = m[2]; }
@@ -325,7 +350,8 @@ const URL_SPLIT = /(https?:\/\/[^\s<>()[\]]+)/;
 // eslint-disable-next-line @typescript-eslint/unbound-method -- the original method is kept so the wrapper can call it with the right `this`
 const origEsc = MarkdownSerializerState.prototype.esc;
 MarkdownSerializerState.prototype.esc = function (this: SerializerState, str: string, startOfLine = false): string {
-  let s = origEsc.call(this, str, startOfLine);
+  // 行首的規則用下面自己的（escLineStart），所以這裡一律當成不在行首
+  let s = origEsc.call(this, str, false);
   if (this.options.obsidianEscapes) {
     // # 與 ^ 保留（Obsidian 標籤、區塊參照）；= 與 % 只在成對（== 螢光、%% 註解）時跳脫
     s = s.replace(/[=$%<|]/g, (m: string, i: number) => {
@@ -335,8 +361,20 @@ MarkdownSerializerState.prototype.esc = function (this: SerializerState, str: st
       return n % 2 ? m : '\\' + m;
     });
   }
-  return s;
+  // 表格儲存格的內容前面一定有「| 」，不會在一行的開頭：-12.5、> 3、1. 這些不是清單或引文，不用跳脫
+  return startOfLine && !this.inTable ? escLineStart(s) : s;
 };
+
+// 一行開頭會被讀成清單、引文、標題、分隔線的寫法，加反斜線讓它維持是文字。
+// prosemirror-markdown 內建的規則只要開頭是 - 就跳脫（-12.5 會變成 \-12.5），又漏了「1) 」、單獨的「1.」「+」
+// 與換行後面單獨一行的「=」（會把上一行變成標題），所以自己寫：
+// 「- 」「+ 」與只有 - 的一行（清單、分隔線、標題的底線）、>（引文）、「# 」（標題）、「1. 」「1) 」（編號清單）
+function escLineStart(s: string): string {
+  return s
+    .replace(/^(\s*)(\+(?=[ \t]|$)|-(?=[ \t]|[- \t]*$)|>|=(?=[ \t]*$))/, '$1\\$2')
+    .replace(/^(\s*)(#{1,6})(\s|$)/, '$1\\$2$3')
+    .replace(/^(\s*\d+)([.)])(?=\s|$)/, '$1\\$2');
+}
 
 
 // ---------------------------------------------------------------------------
@@ -610,18 +648,35 @@ function createSerializer(): MarkdownSerializer {
     raw_block(state, node) { state.text((node.attrs as RawBlockAttrs).src, false); state.closeBlock(node); },
     frontmatter(state, node) { state.text((node.attrs as FrontmatterAttrs).src, false); state.closeBlock(node); },
     hard_break(state, node, parent, index) {
-      for (let i = index + 1; i < parent.childCount; i++) {
-        if (parent.child(i).type !== node.type) {
-          if ((state as SerializerState).inTable || parent.type.name === 'heading') state.write('<br>');
-          else state.text('\n', false);
-          return;
-        }
-      }
+      const isBreak = (i: number): boolean => parent.child(i).type === node.type;
+      // from 到 to 之間只有空白（或什麼都沒有）
+      const blank = (from: number, to: number): boolean => {
+        for (let i = from; i < to; i++) { const c = parent.child(i); if (!isBreak(i) && !(c.isText && !c.text!.trim())) return false; }
+        return true;
+      };
+      // 段落結尾的換行（後面沒有內容了）不寫
+      if (blank(index + 1, parent.childCount)) return;
+      let next = index + 1;
+      while (next < parent.childCount && !isBreak(next)) next++;
+      // 真的換行會讓檔案裡多出一行空白行，讀回來就變成分段、或這個換行不見：
+      // 下一行是空的（連按兩次換行）、或前面整段都還是空的（段落一開頭就換行）時改寫 <br>
+      const emptyLine = (next < parent.childCount && blank(index + 1, next)) || blank(0, index);
+      if ((state as SerializerState).inTable || parent.type.name === 'heading' || emptyLine) state.write('<br>');
+      else state.text('\n', false);
     },
-    text(state, node) {
-      if ((state as SerializerState).inAutolink) { state.text(node.text!, false); return; }
+    text(state, node, parent, index) {
+      const s = state as SerializerState;
+      if (s.inAutolink) { state.text(node.text!, false); return; }
+      // 換行後面的文字也在一行的開頭：開頭的 - > # 1. 要跳脫，不然讀回來那一行會變成清單、引文、標題
+      // （prosemirror-markdown 只在段落的第一個字這樣做）。表格與標題裡的換行寫成 <br>，不在行首
+      let lineStart = index > 0 && parent.child(index - 1).type === schema.nodes.hard_break && !s.inTable && parent.type.name !== 'heading';
       const parts = node.text!.split(URL_SPLIT);
-      parts.forEach((p, i) => { if (p) state.text(p, i % 2 === 0); });
+      parts.forEach((p, i) => {
+        if (!p) return;
+        if (lineStart) s.atBlockStart = true;
+        state.text(p, i % 2 === 0);
+        if (lineStart) { s.atBlockStart = false; lineStart = false; }
+      });
     },
     table(state, node) {
       const rows: TableCellOut[][] = [];
@@ -708,6 +763,8 @@ function splitLines(text: string): string[] {
 }
 const isBlank = (l: string): boolean => /^[ \t]*(\r\n|\n|\r)?$/.test(l);
 const stripEol = (l: string): string => l.replace(/(\r\n|\n|\r)$/, '');
+// 文字的最後是不是一個空行（只看結尾的一小段；先把 \r\n 換成 \n，免得 \r\n 被當成兩個換行）
+const endsWithBlankLine = (s: string): boolean => /\n[ \t]*\n$/.test(s.slice(-200).replace(/\r\n?/g, '\n'));
 
 const CALLOUT_RE = /^\[!([^\]\s]+)\]([+-]?)[ \t]*/;
 
@@ -969,6 +1026,24 @@ export class MarkdownConverter {
     return { doc: schema.topNodeType.create(null, nodes), meta };
   }
 
+  // 兩個區塊的文字緊接著寫（中間沒有空行）會不會讀成別的東西，而且補一個空行就能分開。
+  // 比的是「各自單獨讀」的結果：緊接著寫讀出來一樣就不用空行（筆記原本寫得很緊的地方不會被重排）；
+  // 補了空行也不一樣的（例如參照式連結的定義在別處）就維持緊接著寫，不多加空行
+  private needsBlankLine(before: string, after: string, atStart: boolean, eol: string): boolean {
+    // 文件屬性只認檔案的第一行：前一個區塊不在檔案開頭時，前面墊一段文字，免得 --- 被當成文件屬性
+    const blocks = (text: string, first: boolean): PMNode[] => {
+      const out: PMNode[] = [];
+      this.parse(first ? text : 'x' + eol + eol + text).doc.forEach(n => out.push(withBid(n, 0)));
+      return first ? out : out.slice(1);
+    };
+    const same = (a: PMNode[], b: PMNode[]): boolean => a.length === b.length && a.every((n, i) => n.eq(b[i]));
+    try {
+      const apart = blocks(before, atStart).concat(blocks(after, false));
+      if (same(blocks(before + after, atStart), apart)) return false;
+      return same(blocks(before + eol + after, atStart), apart);
+    } catch { return true; }
+  }
+
   // 序列化：未修改的區塊輸出原文
   serialize(doc: PMNode, meta: DocMeta): string {
     const eol = meta.eol || '\n';
@@ -988,6 +1063,13 @@ export class MarkdownConverter {
     let pending: string | null = null; // 已修改區塊原本尾端的空行，只在後面接回原本的下一段時使用
     const toEol = (s: string): string => s.replace(/\r\n|\r|\n/g, eol);
     const defaultSep = (): string => (out === '' ? '' : eol);
+    // 檔案最後一個區塊的原文可能沒有行尾：後面還要再接東西時先補上，否則兩段會黏成同一行或同一段
+    const endLine = (): void => { if (out !== '' && !/[\r\n]$/.test(out)) out += eol; };
+    // 目前這一串「中間沒有空行」的區塊各自寫出的文字。檢查時帶上前面幾個：緊接在有空行的註解、數學式後面的
+    // 文字，怎麼讀要看更前面的內容（markdown-it 把它們看成同一段）
+    let chain: string[] = [];
+    let chainAtStart = false; // 這一串是不是從檔案的第一行開始（第一行才可能是文件屬性）
+    const CONTEXT = 3;
     for (const run of runs) {
       const ser = this.serializeNodes(run.nodes);
       const seg = run.bid != null && !used.has(run.bid) ? meta.segments[run.bid] : null;
@@ -998,16 +1080,23 @@ export class MarkdownConverter {
         continue;
       }
       const follows = seg && run.bid === prevSeg + 1;
-      const sep = follows ? (pending != null ? pending : '') + seg.gapBefore : defaultSep();
+      endLine();
+      let sep = follows ? (pending != null ? pending : '') + seg.gapBefore : defaultSep();
       pending = null;
       if (seg) {
         used.add(run.bid);
-        if (ser === seg.canon) { out += sep + seg.text; lastModified = false; }
-        else {
-          out += sep + toEol(ser) + eol;
-          lastModified = true;
-          if (seg.trailing) pending = seg.trailing;
-        }
+        const same = ser === seg.canon;
+        const text = same ? seg.text : toEol(ser) + eol;
+        // 原文裡這兩段是緊接著寫的（# 標題的下一行就是內文）。其中一段重新產生之後，緊接著寫可能會被讀成
+        // 同一段，或讓後面的內容被吃進 HTML 區塊：這時才補一個空行。兩段都沒改過就照原文，不必檢查
+        const tight = sep === '' && out !== '' && !endsWithBlankLine(out);
+        if (tight && !(same && !lastModified)
+          && this.needsBlankLine(chain.slice(-CONTEXT).join(''), text, chainAtStart && chain.length <= CONTEXT, eol)) sep = eol;
+        if (!tight || sep !== '') { chain = []; chainAtStart = out === '' && sep === ''; }
+        chain.push(text);
+        out += sep + text;
+        lastModified = !same;
+        if (!same && seg.trailing) pending = seg.trailing;
         prevSeg = run.bid!; // 有 seg 就表示 bid 不是 null
       } else {
         if (run.nodes.length === 1 && run.nodes[0].type.name === 'paragraph' && run.nodes[0].childCount === 0
