@@ -456,9 +456,60 @@ const TYPE_LABEL: Record<PropType, string> = { text: t('文字'), list: t('清�
 // 可以從選單換成的類型（巢狀資料只能用原文編輯）
 const EDITABLE_TYPES: Exclude<PropType, 'object'>[] = ['text', 'list', 'number', 'checkbox', 'date', 'datetime'];
 
+// 重畫時把元素整批換新的區塊，用這個留住焦點（不然改一個值、按一顆按鈕，焦點就掉到整個視窗上，鍵盤接不下去）。
+// 畫的時候替每個能取得焦點的控制項取一個重畫前後不變的名稱（keep），重畫之後焦點回到同名的控制項
+class FocusKeeper {
+  // 這一次畫出來的控制項，依畫面上的順序
+  declare now: Map<string, HTMLElement>;
+  // 每個登記過的元素叫什麼；已經被換掉的舊元素也要認得（follow 用）
+  declare names: WeakMap<EventTarget, string>;
+  constructor() { this.now = new Map(); this.names = new WeakMap(); }
+  keep<T extends HTMLElement>(name: string, target: T): T {
+    this.now.set(name, target);
+    this.names.set(target, name);
+    return target;
+  }
+  // 執行 draw（把 root 裡的元素換新，並用 keep 登記新的控制項）；焦點原本在 root 的某個控制項上就接回去
+  redraw(root: HTMLElement, draw: () => void): void {
+    const active = root.ownerDocument.activeElement;
+    const name = active ? this.names.get(active) : undefined;
+    const order = [...this.now.keys()];
+    const had = name != null && this.now.get(name) === active;
+    // 文字欄位才有游標位置（數字、日期欄位讀不到）
+    const field = had && (active as HTMLInputElement).type === 'text' ? active as HTMLInputElement : null;
+    const caret = field ? { value: field.value, start: field.selectionStart, end: field.selectionEnd } : null;
+    this.now = new Map();
+    draw();
+    if (!had) return;
+    // 原本的控制項不在了（刪掉的那一列、最後一個標籤的 ×）：給畫面上接在它後面的那一個，後面沒有就往前找
+    const at = order.indexOf(name);
+    const next = [name, ...order.slice(at + 1), ...order.slice(0, at).reverse()].find(n => this.now.has(n));
+    const target = next != null ? this.now.get(next) : undefined;
+    if (!target) return;
+    target.focus({ preventScroll: true });
+    // 同一個欄位、內容也沒變：游標放回原來的位置
+    if (next === name && caret && (target as HTMLInputElement).value === caret.value) (target as HTMLInputElement).setSelectionRange(caret.start, caret.end);
+  }
+  // 焦點正要移過去的元素（blur 事件的 relatedTarget）已經在重畫時被換掉了：接到新畫出來的同名控制項。
+  // 離開輸入框時才存檔、重畫的欄位會這樣：重畫發生在焦點移過去之前，使用者按 Tab 或用滑鼠點的那個控制項就不在了
+  follow(next: EventTarget | null): void {
+    const name = next ? this.names.get(next) : undefined;
+    const target = name != null ? this.now.get(name) : undefined;
+    if (target && target !== next) target.focus({ preventScroll: true });
+  }
+}
+
 class FrontmatterView extends SelectableAtomView<FrontmatterDom> {
+  declare keeper: FocusKeeper;
+  // 畫了幾次。每一列記著自己是第幾次畫的，整塊重畫之後那一列就作廢（見 row 的 set）
+  declare drawn: number;
+  // 這次存檔先不重畫（人可能還在欄位裡，見 row 的 save）
+  declare quiet: boolean;
   constructor(node: PMNode, view: EditorView, getPos: GetPos, ctx: NodeViewContext) {
     super(node, view, getPos, ctx, el('div', 'wm-props'));
+    this.keeper = new FocusKeeper();
+    this.drawn = 0;
+    this.quiet = false;
     this.dom.contentEditable = 'false';
     this.dom.wmOpen = () => { this.ctx.setPropsOpen(true); this.render(); };
     this.render();
@@ -493,7 +544,12 @@ class FrontmatterView extends SelectableAtomView<FrontmatterDom> {
       setNodeAttrs(this, { src: v });
     });
   }
+  // 每次都整塊重畫（元素全部換新），焦點由 keeper 接回去
   render(): void {
+    this.drawn++;
+    this.keeper.redraw(this.dom, () => this.draw());
+  }
+  draw(): void {
     const open = this.ctx.propsOpen();
     const d = this.dom;
     d.replaceChildren();
@@ -503,7 +559,7 @@ class FrontmatterView extends SelectableAtomView<FrontmatterDom> {
     const chev = el('span', 'wm-props-chev', head); this.ctx.icon(chev, open ? 'chevron-down' : 'chevron-right', open ? '▾' : '▸');
     // 跟「查看文件屬性」小視窗、固定在上方的屬性列用同一個圖示，看得出是同一份資料
     this.ctx.icon(el('span', 'wm-props-badge', head), 'clipboard-list', '');
-    const title = el('span', 'wm-props-title', head, t('文件屬性'));
+    const title = this.keeper.keep('title', el('span', 'wm-props-title', head, t('文件屬性')));
     // 收合時在標題列顯示內容摘要，不用展開也看得到重點
     const count = obj ? t('{n} 個屬性', { n: Object.keys(obj).length }) : 'YAML';
     el('span', 'wm-props-count', head, obj && !open ? (propsSummary(obj) || count) : count);
@@ -514,10 +570,10 @@ class FrontmatterView extends SelectableAtomView<FrontmatterDom> {
     focusable(title, 'button');
     title.setAttribute('aria-expanded', String(open));
     onKeyPress(title, toggle);
-    const raw = el('button', 'wm-props-raw', head); raw.type = 'button'; raw.setAttribute('aria-label', t('編輯 YAML 原文')); this.ctx.icon(raw, 'code-2', t('原文'));
+    const raw = this.keeper.keep('raw', el('button', 'wm-props-raw', head)); raw.type = 'button'; raw.setAttribute('aria-label', t('編輯 YAML 原文')); this.ctx.icon(raw, 'code-2', t('原文'));
     // stopPropagation：這兩顆在標題列裡，不能連帶收合
     onPress(raw, e => { e.stopPropagation(); this.editRaw(); });
-    const rm = el('button', 'wm-props-raw wm-props-remove', head); rm.type = 'button'; rm.setAttribute('aria-label', t('移除文件屬性')); this.ctx.icon(rm, 'trash-2', t('移除'));
+    const rm = this.keeper.keep('remove', el('button', 'wm-props-raw wm-props-remove', head)); rm.type = 'button'; rm.setAttribute('aria-label', t('移除文件屬性')); this.ctx.icon(rm, 'trash-2', t('移除'));
     onPress(rm, e => { e.stopPropagation(); this.remove(); });
     if (!open) return;
     const body = el('div', 'wm-props-body', d);
@@ -534,9 +590,18 @@ class FrontmatterView extends SelectableAtomView<FrontmatterDom> {
     const type = propType(key, value, this.ctx.propertyType && this.ctx.propertyType(key));
     const r = el('div', 'wm-prop wm-prop-' + type, body);
     const k = el('div', 'wm-prop-key', r);
-    const set = (nv: unknown): void => { const o = Object.assign({}, obj); o[key] = nv; this.commit(o); };
+    // 整塊重畫之後，這一列的元素已經不在畫面上，手上的 obj 也是舊的：不能再存。
+    // 被換掉的輸入框還會收到 change、blur（瀏覽器拿掉有焦點的元素時送出）；放著不管，打到一半的內容會連同那份舊資料
+    // 一起存回去，把文件裡新的內容蓋掉（例如筆記剛被同步改過）
+    const drawn = this.drawn;
+    const set = (nv: unknown): void => {
+      if (drawn !== this.drawn) return;
+      const o = Object.assign({}, obj); o[key] = nv; this.commit(o);
+    };
+    // 這一列的控制項在重畫前後的名稱：種類＋屬性名稱（清單裡的再加第幾個）
+    const keep = <T extends HTMLElement>(kind: string, target: T, i?: number): T => this.keeper.keep(kind + '\n' + key + (i == null ? '' : '\n' + i), target);
     // 類型圖示：點一下換類型或改名
-    const ic = el('button', 'wm-prop-icon', k); ic.type = 'button'; this.ctx.icon(ic, TYPE_ICON[type], '');
+    const ic = keep('type', el('button', 'wm-prop-icon', k)); ic.type = 'button'; this.ctx.icon(ic, TYPE_ICON[type], '');
     ic.setAttribute('aria-label', t('變更類型或重新命名'));
     onPress(ic, e => this.keyMenu(menuEvent(e, ic), obj, key, type));
     const name = el('span', 'wm-prop-name', k, key);
@@ -552,13 +617,13 @@ class FrontmatterView extends SelectableAtomView<FrontmatterDom> {
         const chip = el('span', 'wm-chip' + (tag ? ' wm-chip-tag' : '') + (link ? ' wm-chip-link' : ''), v);
         const text = summarize(item);
         const label = el('span', 'wm-chip-text', chip, link ? link.text : (tag && !text.startsWith('#') ? '#' : '') + text);
-        if (link) { focusable(label, 'link'); this.linkify(label, link.target); }
-        const x = el('span', 'wm-chip-x', chip, '×');
+        if (link) { focusable(keep('link', label, i), 'link'); this.linkify(label, link.target); }
+        const x = keep('unlist', el('span', 'wm-chip-x', chip, '×'), i);
         x.setAttribute('aria-label', t('移除'));
         focusable(x, 'button');
         onPress(x, () => { const a = arr.slice(); a.splice(i, 1); set(a); });
       });
-      const inp = el('input', 'wm-prop-input wm-chip-input', v);
+      const inp = keep('value', el('input', 'wm-prop-input wm-chip-input', v));
       inp.placeholder = t('新增…');
       const add = () => {
         const tv = inp.value.trim().replace(/^#/, '');
@@ -567,39 +632,52 @@ class FrontmatterView extends SelectableAtomView<FrontmatterDom> {
         set(arr.concat(/^\[\[.*\]\]$/.test(tv) ? [tv] : tv.split(/[,，]\s*/).filter(Boolean)));
       };
       inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); add(); } });
-      inp.addEventListener('blur', add);
+      inp.addEventListener('blur', e => { add(); this.keeper.follow(e.relatedTarget); });
     } else if (type === 'checkbox') {
-      const cb = el('input', 'wm-prop-check', v); cb.type = 'checkbox'; cb.checked = !!value;
+      const cb = keep('value', el('input', 'wm-prop-check', v)); cb.type = 'checkbox'; cb.checked = !!value;
       cb.addEventListener('change', () => set(cb.checked));
     } else if (type === 'object') {
       // 巢狀資料：照結構一層一層列出來（唯讀），要改請用「原文」
       this.tree(v, value);
       v.setAttribute('aria-label', t('巢狀資料請用「原文」編輯'));
     } else {
-      const inp = el('input', 'wm-prop-input', v);
+      const inp = keep('value', el('input', 'wm-prop-input', v));
       inp.type = type === 'number' ? 'number' : type === 'date' ? 'date' : type === 'datetime' ? 'datetime-local' : 'text';
       // 文字、數字、日期欄位的值是 YAML 的純量（文字、數字或布林）
       const scalar = value as string | number | boolean | null | undefined;
       inp.value = scalar == null ? '' : String(scalar).slice(0, type === 'datetime' ? 16 : undefined);
       inp.placeholder = t('（空白）');
+      // 這個欄位目前存在文件裡的值
+      let saved = value;
       const save = () => {
         let nv: string | number | null = inp.value;
         if (type === 'number') nv = nv === '' ? null : Number(nv);
         else if (nv === '') nv = null;
-        if (nv === value || (nv === null && value == null)) return;
-        set(nv);
+        if (nv === saved || (nv === null && saved == null)) return;
+        saved = nv;
+        // 先存檔、不重畫，離開欄位（blur）時才畫。日期欄位每改完一段（年、月、日）、數字欄位每按一次上下鍵，
+        // 瀏覽器就送出 change，人還在欄位裡；這時重畫會把欄位換成新的，打到一半就斷了。
+        // 沒重畫，其他列手上的 obj（同一個物件）就要跟著改，否則它們下次存檔會把這個值蓋回去
+        obj[key] = nv;
+        this.quiet = true;
+        try { set(nv); } finally { this.quiet = false; }
       };
       inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); inp.blur(); } });
       inp.addEventListener('change', save);
+      inp.addEventListener('blur', e => {
+        // 改過才重畫（值變了，類型、旁邊的開啟按鈕可能跟著變）；這一列已經作廢（整塊重畫過）就不用
+        if (saved !== value && drawn === this.drawn) this.render();
+        this.keeper.follow(e.relatedTarget);
+      });
       // 值是 [[筆記]] 或網址：旁邊放一個開啟的按鈕
       const link = type === 'text' ? propLink(value) : null;
       if (link) {
-        const open = el('button', 'wm-prop-open', v); open.type = 'button'; this.ctx.icon(open, 'external-link', '↗');
+        const open = keep('open', el('button', 'wm-prop-open', v)); open.type = 'button'; this.ctx.icon(open, 'external-link', '↗');
         open.setAttribute('aria-label', t('開啟連結'));
         this.linkify(open, link.target);
       }
     }
-    const del = el('button', 'wm-prop-del', r); del.type = 'button'; del.setAttribute('aria-label', t('刪除這個屬性')); this.ctx.icon(del, 'x', '×');
+    const del = keep('delete', el('button', 'wm-prop-del', r)); del.type = 'button'; del.setAttribute('aria-label', t('刪除這個屬性')); this.ctx.icon(del, 'x', '×');
     onPress(del, () => { const o = Object.assign({}, obj); delete o[key]; this.commit(o); });
   }
   // 點一下（或按 Enter）開啟連結；按住 Ctrl／Cmd 或 Shift 開在新分頁
@@ -637,8 +715,9 @@ class FrontmatterView extends SelectableAtomView<FrontmatterDom> {
   }
   addRow(body: HTMLElement, obj: PropValues): void {
     const r = el('div', 'wm-prop wm-prop-add', body);
-    const k = el('input', 'wm-prop-input', r); k.placeholder = t('＋ 新增屬性名稱');
-    const tv = el('select', 'wm-prop-type dropdown', r);
+    // 名稱不跟各列的（種類＋換行＋屬性名稱）撞在一起：這三個沒有換行
+    const k = this.keeper.keep('new-name', el('input', 'wm-prop-input', r)); k.placeholder = t('＋ 新增屬性名稱');
+    const tv = this.keeper.keep('new-type', el('select', 'wm-prop-type dropdown', r));
     // TYPE_LABEL 的值是載入時 t() 的結果，不一定是鍵；再翻一次，找不到時 t() 原樣回傳
     for (const [val, label] of Object.entries(TYPE_LABEL)) { if (val === 'object') continue; const o = el('option', null, tv, t(label as I18nKey)); o.value = val; }
     const go = () => {
@@ -650,10 +729,10 @@ class FrontmatterView extends SelectableAtomView<FrontmatterDom> {
       this.commit(o);
     };
     k.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); go(); } });
-    const b = el('button', 'wm-prop-addbtn', r, t('新增')); b.type = 'button';
+    const b = this.keeper.keep('new-add', el('button', 'wm-prop-addbtn', r, t('新增'))); b.type = 'button';
     onPress(b, go);
   }
-  changed(prev: PMNode): boolean { return this.node.attrs.src !== prev.attrs.src; }
+  changed(prev: PMNode): boolean { return !this.quiet && this.node.attrs.src !== prev.attrs.src; }
   stopEvent(): boolean { return true; }
 }
 
