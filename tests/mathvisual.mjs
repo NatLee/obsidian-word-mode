@@ -1,5 +1,5 @@
 // 方程式視覺化編輯：LaTeX ⇄ 結構的轉換測試（編輯元件的操作測試在 tests/view/features.mjs）
-import { parseLatex, toLatex, toDisplay, fromDisplay } from '../src/mathvisual.js';
+import { parseLatex, toLatex, toDisplay, fromDisplay, displaySegs, editSegs, segSrc, isCommandArg } from '../src/mathvisual.js';
 
 let fails = 0;
 const ok = (label, cond, extra = '') => { if (!cond) { fails++; console.log('FAIL ' + label + '  ' + extra); } else console.log('PASS ' + label); };
@@ -141,14 +141,18 @@ const REAL = [
   ['\\begin{array}{cc} a & b \\\\ c & d \\end{array}', '\\begin{array} {cc} a & b \\\\ c & d \\end{array}'],
   ['\\frac {a} {b} + \\sqrt {x}', '\\frac{a}{b} + \\sqrt{x}'], ['\\overbrace{a}^n', '\\overbrace{a}^{n}'],
 ];
+// 畫面上看不出差別、只靠格子記著原文才留得住的寫法：同一個符號的另一種寫法、直接打的符號、
+// 剛好是函數名稱的字、不認得的指令的參數。整段當成新打的字轉換（fromDisplay）會換成編輯器偏好的寫法，所以不在 REAL 裡
+const SPELLING = ['a \\leq b \\geq c \\neq d \\qquad e', 'A \\rightarrow B', 'α ≤ β + \\alpha', 'x_{max} + sin x', '\\color{tan}{x} + \\mathsf{max}'];
 // 去掉空白與大括號之後的指令與文字：整理前後應該一樣（沒有少掉、多出或調換任何東西）
 const flat = s => (s.match(/\\[A-Za-z]+|\\[^A-Za-z]|[^\s{}]/g) || []).join(' ');
-for (const item of REAL) {
+for (const item of [...REAL, ...SPELLING]) {
   const [s, want] = Array.isArray(item) ? item : [item, item];
   const out = rt(s);
   ok('格子往返：' + JSON.stringify(s), out === want && rt(out) === out && flat(out) === flat(s), out);
 }
-// 顯示再轉回：一字不差。例外是同一個符號的兩種寫法（\leq 與 \le、\qquad 與 \quad\quad），轉回來用其中一種，再轉一次不會再變
+// 整段顯示再當成新打的字轉回（fromDisplay）：一字不差。例外是同一個符號的兩種寫法（\leq 與 \le、\qquad 與 \quad\quad），
+// 新打的字轉成其中一種，再轉一次不會再變。編輯器改格子時不走這條路：沒改到的地方照記著的原文（見後面「改一格」的測試）
 for (const item of REAL) {
   const s = Array.isArray(item) ? item[0] : item;
   ok('顯示往返：' + JSON.stringify(s), fromDisplay(toDisplay(s)) === s, fromDisplay(toDisplay(s)));
@@ -172,6 +176,68 @@ const cells = (row, plain, out = []) => {
   for (const item of REAL) for (const v of cells(parseLatex(Array.isArray(item) ? item[0] : item))) if (fromDisplay(toDisplay(v)) !== v) bad.push(v);
   ok('每一格文字顯示再轉回都一樣', !bad.length, JSON.stringify(bad));
 }
+
+// ---- 改一格，其他地方一字不動
+// 以前在格子裡改一個字，整格都從畫面上的字轉回去：\leq → \le、α → \alpha、max → \max。現在改到的格子裡也只有改到的地方會變。
+
+// 照介面的做法改一格：從那一格記著的段落改（MathField 的 retype），游標停在改過的地方的結尾
+const typeInCell = (v, text, caret = text.length, auto = true) => segSrc(editSegs(displaySegs(v), text, auto, undefined, caret));
+const PLAIN = ['\\text', '\\textrm', '\\textbf', '\\textit', '\\texttt', '\\textsf', '\\textnormal', '\\mbox', '\\mathrm', '\\mathit', '\\operatorname', '\\operatorname*', '\\tag', '\\tag*', '\\label'];
+// 所有的文字格，依畫面上的順序。plain：照原文顯示的格子（文字類指令的內容、看不懂的整段），打的字就是原文；
+// auto：會不會自動把 sin 換成 \sin（不認得的指令的參數不會，見 isCommandArg）；
+const textCells = (row, plain = false, auto = true, out = []) => {
+  for (const it of row) {
+    if (it.t === 'text') { out.push({ it, plain: plain || !!it.raw, auto }); continue; }
+    const inPlain = it.t === 'group' && PLAIN.includes(it.cmd);
+    const inAuto = !(it.t === 'braces' && isCommandArg(row, it));
+    for (const k of ['n', 'a', 'b']) if (Array.isArray(it[k])) textCells(it[k], inPlain, inAuto, out);
+    if (it.rows) it.rows.forEach(r => r.forEach(c => textCells(c, false, true, out)));
+  }
+  return out;
+};
+// 讀進來、照介面的做法改其中一格，再寫回去。pick：第幾格（負的從後面數）或挑格子的條件；
+// fn 把畫面上的字改成新的字（可以回傳 [新的字, 游標位置]）
+const change = (src, pick, fn) => {
+  const m = parseLatex(src);
+  const all = textCells(m);
+  const c = typeof pick === 'number' ? all[pick < 0 ? all.length + pick : pick] : all.find(x => pick(x.it.v));
+  if (!c) return 'NO CELL';
+  const r = fn(c.plain ? c.it.v : toDisplay(c.it.v));
+  const [text, caret] = Array.isArray(r) ? r : [r, r.length];
+  c.it.v = c.plain ? text : typeInCell(c.it.v, text, caret, c.auto);
+  return toLatex(m);
+};
+const add = ch => d => d + ch;
+const same = (label, got, want) => ok(label, got === want, JSON.stringify(got) + ' 應該是 ' + JSON.stringify(want));
+
+// ---- 格子裡：沒改到的字照原文的寫法（每一格記著的段落，見 displaySegs）
+// 2. 同一個符號的另一種寫法：改同一格的別的地方，\leq 不會變成 \le、\qquad 不會變成 \quad\quad
+same('2. \\leq \\geq \\neq \\qquad 照原文', change('a \\leq b \\geq c \\neq d\\qquad e', 0, add('1')), 'a \\leq b \\geq c \\neq d\\qquad e1');
+same('2. \\rightarrow 不會變成 \\to', change('A \\rightarrow B', 0, add('1')), 'A \\rightarrow B1');
+// 同樣的符號連在一起時，打在中間的那一個是新的，原本的兩個照原文
+same('2. 在 \\le\\leq 中間打一個 ≤', typeInCell('\\le\\leq', '≤≤≤', 2), '\\le\\le\\leq');
+{
+  // 刪掉一個符號再打回來：回到原本的寫法（跟這一格剛畫出來時比，見 editSegs 的 base）
+  const base = displaySegs('a \\leq b');
+  const removed = editSegs(base, 'a  b', true, base, 2);
+  same('2. 刪掉 ≤ 再打回來還是 \\leq', segSrc(editSegs(removed, 'a ≤ b', true, base, 3)), 'a \\leq b');
+}
+
+// 3. 直接打的符號（α、≤）不會換成指令
+same('3. α ≤ β 照原文', change('α ≤ β + \\alpha', 0, add('1')), 'α ≤ β + \\alpha1');
+same('3. 新打的符號才換成指令', change('α', 0, add('+β')), 'α+\\beta');
+
+// 4. 剛好是函數名稱的字：原文的 max、sin 不會變成 \max、\sin；新打的才會
+same('4. x_{max} 後面多打一個字', change('x_{max} + y', v => v === 'max', add('1')), 'x_{max1} + y');
+same('4. 原文的 sin 照原文', change('sin x', 0, add('1')), 'sin x1');
+same('4. 新打的 sin 換成 \\sin', change('a', 0, add(' + sin x')), 'a + \\sin x');
+same('4. 自己打 \\sin 也可以', change('a', 0, add(' + \\sin x')), 'a + \\sin x');
+same('4. \\sin 後面多打 e 是 sine', change('\\sin x', 0, () => ['sine x', 4]), 'sine x');
+
+// 6. 不認得的指令的參數：裡面打的字不自動換成函數
+same('6. \\color{red} 改成 tan 不會變成 \\tan', change('\\color{red}{x} + y', v => v === 'red', () => 'tan'), '\\color{tan}{x} + y');
+same('6. \\mathsf{max} 後面多打一個字', change('\\mathsf{max} + y', v => v === 'max', add('1')), '\\mathsf{max1} + y');
+ok('6. 認得的指令（\\alpha）後面的 {…} 是一般的群組', !isCommandArg(parseLatex('\\alpha{x}'), parseLatex('\\alpha{x}')[1]) && (m => isCommandArg(m, m[1]))(parseLatex('\\color{red}')));
 
 if (fails) process.exitCode = 1;
 console.log(fails ? `\n${fails} FAILED` : '\nALL PASS');
