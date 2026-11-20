@@ -1,7 +1,7 @@
 import { TableView } from 'prosemirror-tables';
 import { CALLOUT_TYPES, calloutIcon, CODE_LANGUAGES } from './commands.js';
 import { t, key } from './i18n.js';
-import { FOOTNOTE_DEF, FOOTNOTE_REF, footnoteBody } from './footnotes.js';
+import { FOOTNOTE_DEF, FOOTNOTE_REF, footnoteBody, footnoteText } from './footnotes.js';
 import { el, whenVisible, onPress, onKeyPress } from './dom.js';
 import { propType, isTagKey, summarize, propLink, convertProp, renameProp, propsSummary, PROP_ICONS as TYPE_ICON, frontmatterBody } from './props.js';
 import type { PropType } from './props.js';
@@ -54,7 +54,8 @@ export interface NodeViewContext {
   menu(evt: MouseEvent, items: NodeViewMenuItem[]): void;
   notice?(message: string): void;
   // ---- 註腳
-  // 註腳的內容；找不到定義時是 null
+  // 註腳的內容；找不到定義時是 null。
+  // 顯示元件已經不用它了（建立編輯器的過程中呼叫會出錯，見 RawInlineView.footnoteTip），留著是因為 view.ts 還有提供
   footnoteText?(id: string): string | null;
   gotoFootnote?(id: string): void;
   editFootnote?(id: string): void;
@@ -392,8 +393,10 @@ class RawInlineView extends AtomView<HTMLSpanElement> {
   }
   footnoteTip(): void {
     const m = FOOTNOTE_REF.exec((this.node.attrs as RawInlineAttrs).src);
-    if (!m || !this.ctx.footnoteText) return;
-    const text = this.ctx.footnoteText(m[1]);
+    if (!m) return;
+    // 直接從自己所在的編輯器讀，不經過 ctx.footnoteText：第一份筆記是在建立編輯器的過程中畫出來的，
+    // 那時 view.ts 還拿不到編輯器，ctx.footnoteText 會出錯，有註腳的筆記就整份開不起來
+    const text = footnoteText(this.view.state.doc, m[1]);
     this.dom.classList.toggle('is-missing', text == null);
     this.dom.setAttribute('aria-label', text == null ? t('找不到這個註腳的內容（按兩下新增）') : t('註腳') + ' ' + m[1] + '\n' + text);
   }

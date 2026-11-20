@@ -1038,6 +1038,19 @@ await fresh('---\ntags:\n  - 會議\n  - 專案\ndate: 2026-11-16\ndone: false\n
   assert(!out().includes('負責人') && !one('.wm-props').contains(focused()), '焦點在別處時，文件屬性重畫不會搶焦點');
 }
 
+// ======== 第一份開啟的筆記就有註腳 ========
+{
+  // 編輯器是在載入第一份筆記時建立的，註腳記號在這個過程中就要讀得到註腳的內容
+  const env2 = await makeEnv({});
+  let err = null;
+  try { await env2.open('筆記/註腳.md', '內文[^1] 與[^沒有]\n\n[^1]: 註腳的內容\n'); } catch (e) { err = e; }
+  const refs = env2.view.pm ? [...env2.view.pm.dom.querySelectorAll('.wm-raw-inline.is-footnote')] : [];
+  assert(!err && refs.length === 2, '第一份開啟的筆記有註腳也開得起來' + (err ? '：' + err.message : ''));
+  assert(refs.length === 2 && refs[0].getAttribute('aria-label').includes('註腳的內容') && !refs[0].classList.contains('is-missing') && refs[1].classList.contains('is-missing'),
+    '註腳記號的提示是註腳的內容；找不到定義的另外標示');
+  env2.view.containerEl.remove();
+}
+
 //@@MORE@@
 
 finish();
