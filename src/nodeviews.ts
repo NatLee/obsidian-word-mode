@@ -63,6 +63,9 @@ export interface NodeViewContext {
   stringifyYaml(obj: PropValues): string;
   propsOpen(): boolean;
   setPropsOpen(open: boolean): void;
+  // 設定「文件屬性固定在頁面上方」：標題列的圖釘按鈕讀取、切換它
+  propsSticky?(): boolean;
+  setPropsSticky?(on: boolean): void;
   // Obsidian 為這個屬性設定的類型（text、multitext、number、checkbox、date、datetime…）
   propertyType?(key: string): string | null | undefined;
   // ---- 提示框
@@ -70,8 +73,8 @@ export interface NodeViewContext {
   unwrapCallout(pos: number | undefined): void;
 }
 
-// 文件屬性區塊的 DOM：view.js 的 openProperties() 呼叫 wmOpen() 展開它
-export interface FrontmatterDom extends HTMLDivElement { wmOpen?: () => void; }
+// 文件屬性區塊的 DOM：view.js 的 openProperties() 呼叫 wmOpen() 展開它；設定改了（例如固定在上方）呼叫 wmRefresh() 重畫
+export interface FrontmatterDom extends HTMLDivElement { wmOpen?: () => void; wmRefresh?: () => void; }
 
 // 文件屬性的內容（YAML 解析後的物件）
 export type PropValues = Record<string, unknown>;
@@ -572,6 +575,7 @@ class FrontmatterView extends SelectableAtomView<FrontmatterDom> {
     this.quiet = false;
     this.dom.contentEditable = 'false';
     this.dom.wmOpen = () => { this.ctx.setPropsOpen(true); this.render(); };
+    this.dom.wmRefresh = () => this.render();
     this.render();
   }
   inner(): string { return frontmatterBody((this.node.attrs as FrontmatterAttrs).src); }
@@ -630,8 +634,19 @@ class FrontmatterView extends SelectableAtomView<FrontmatterDom> {
     focusable(title, 'button');
     title.setAttribute('aria-expanded', String(open));
     onKeyPress(title, toggle);
+    // 圖釘：切換「文件屬性固定在頁面上方」（往下捲動時上方浮出精簡的屬性列）。開著的時候一直顯示並用強調色
+    const ctx = this.ctx;
+    if (ctx.propsSticky && ctx.setPropsSticky) {
+      const on = ctx.propsSticky();
+      const pin = this.keeper.keep('pin', el('button', 'wm-props-raw wm-props-pin', head)); pin.type = 'button';
+      pin.setAttribute('aria-label', t('文件屬性固定在頁面上方'));
+      pin.setAttribute('aria-pressed', String(on));
+      pin.classList.toggle('is-active', on);
+      this.ctx.icon(pin, 'pin', t('文件屬性固定在頁面上方'));
+      onPress(pin, e => { e.stopPropagation(); if (ctx.setPropsSticky && ctx.propsSticky) ctx.setPropsSticky(!ctx.propsSticky()); });
+    }
     const raw = this.keeper.keep('raw', el('button', 'wm-props-raw', head)); raw.type = 'button'; raw.setAttribute('aria-label', t('編輯 YAML 原文')); this.ctx.icon(raw, 'code-2', t('原文'));
-    // stopPropagation：這兩顆在標題列裡，不能連帶收合
+    // stopPropagation：這幾顆在標題列裡，不能連帶收合
     onPress(raw, e => { e.stopPropagation(); this.editRaw(); });
     const rm = this.keeper.keep('remove', el('button', 'wm-props-raw wm-props-remove', head)); rm.type = 'button'; rm.setAttribute('aria-label', t('移除文件屬性')); this.ctx.icon(rm, 'trash-2', t('移除'));
     onPress(rm, e => { e.stopPropagation(); this.remove(); });

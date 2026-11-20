@@ -1192,5 +1192,6 @@ export default {
  "更多功能": "More options",
  "刪除圖表": "Delete diagram",
  "刪除這個區塊": "Delete this block",
- "刪除註腳（連同文中的編號）": "Delete footnote and its numbers in the text"
+ "刪除註腳（連同文中的編號）": "Delete footnote and its numbers in the text",
+ "往下捲動時，文件屬性會固定在頁面上方": "When you scroll down, the properties stay at the top of the page"
 };

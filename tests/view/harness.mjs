@@ -61,6 +61,8 @@ export async function makeEnv(initialFiles = {}, settings = {}) {
     takeHistory(p) { const e = this.history.get(p); this.history.delete(p); return e || null; },
     setFullWidth(on) { this.settings.fullWidth = on; }, outlineChanged() {}, outlineOpen() { return false; }, toggleOutline() {}, syncMdBars() {},
     saveSettings() {}, openSettings() {}, updateStatus() {}, setZoom(z) { this.settings.zoom = z; },
+    // 跟 main.ts 一樣：改設定，再讓（每個）編輯器套用
+    setPropsSticky(on) { this.settings.propsSticky = !!on; view.applyPropsSticky(); },
     settings: Object.assign({ fullWidth: false, zoom: 100 }, settings),
     converter: new B.MarkdownConverter(), switched: 0, switchToMarkdown() { this.switched++; },
   };

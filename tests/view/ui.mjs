@@ -1712,4 +1712,28 @@ await fresh('前面[^1]，再一次[^1]。\n\n<div>HTML</div>\n\n%%\n區塊註�
   assert(out() === '前面，再一次。\n\n<div>HTML</div>\n\n後面\n', '刪除註腳：內容與文中的編號一起刪掉，不留下對不到內容的 [^1]：' + JSON.stringify(out()));
 }
 
+// ======== 文件屬性標題列的圖釘：切換「固定在頁面上方」 ========
+await fresh('---\ntags: [會議]\n---\n內文\n');
+{
+  const pinBtn = () => view.pm.dom.querySelector('.wm-props-head .wm-props-pin');
+  const press1 = b => b.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+  plugin.settings.propsSticky = false;
+  view.applyPropsSticky();
+  assert(pinBtn() && pinBtn().getAttribute('aria-label') === '文件屬性固定在頁面上方' && pinBtn().getAttribute('aria-pressed') === 'false' && !pinBtn().classList.contains('is-active'),
+    '文件屬性標題列有圖釘按鈕，設定關閉時沒有按下');
+  const open0 = view.propsOpen;
+  const notices = mock.log.length;
+  press1(pinBtn());
+  assert(plugin.settings.propsSticky === true && pinBtn().getAttribute('aria-pressed') === 'true' && pinBtn().classList.contains('is-active'), '按圖釘：開啟「文件屬性固定在頁面上方」，按鈕顯示成按下');
+  assert(view.propsOpen === open0, '按圖釘不會連帶收合文件屬性');
+  assert(mock.log.slice(notices).some(x => x[0] === 'notice' && x[1] === '往下捲動時，文件屬性會固定在頁面上方'), '開啟時說明要往下捲才看得到');
+  press1(pinBtn());
+  assert(plugin.settings.propsSticky === false && pinBtn().getAttribute('aria-pressed') === 'false', '再按一次：關閉');
+  plugin.settings.propsSticky = true;
+  view.applyPropsSticky();
+  assert(pinBtn().getAttribute('aria-pressed') === 'true', '從設定頁改：圖釘跟著變');
+  plugin.settings.propsSticky = false;
+  view.applyPropsSticky();
+}
+
 finish();

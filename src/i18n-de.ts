@@ -1192,5 +1192,6 @@ export default {
  "更多功能": "Weitere Optionen",
  "刪除圖表": "Diagramm löschen",
  "刪除這個區塊": "Diesen Block löschen",
- "刪除註腳（連同文中的編號）": "Fußnote samt Verweisen im Text löschen"
+ "刪除註腳（連同文中的編號）": "Fußnote samt Verweisen im Text löschen",
+ "往下捲動時，文件屬性會固定在頁面上方": "Beim Scrollen nach unten bleiben die Eigenschaften oben auf der Seite"
 };

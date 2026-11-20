@@ -46,6 +46,8 @@ export async function makeEnv({ lang = 'en', files: initial = {}, settings = {},
     takeHistory(p) { const e = this.history.get(p); this.history.delete(p); return e || null; },
     setFullWidth(on) { this.settings.fullWidth = on; }, outlineChanged() {}, outlineOpen() { return false; }, toggleOutline() {}, syncMdBars() {},
     saveSettings() {}, openSettings() {}, updateStatus() {}, setZoom(z) { this.settings.zoom = z; },
+    // 跟 main.ts 一樣：改設定，再讓編輯器套用（文件屬性標題列的圖釘會呼叫）
+    setPropsSticky(on) { this.settings.propsSticky = !!on; view.applyPropsSticky(); },
     settings: Object.assign(JSON.parse(JSON.stringify(DEFAULTS)), { language: lang }, settings),
     converter: new MarkdownConverter(),
     // 「切換到 Markdown」：錄製時改成顯示這份筆記存成的 Markdown（見 stage.js 的 showSource）

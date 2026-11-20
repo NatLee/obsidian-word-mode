@@ -1192,5 +1192,6 @@ export default {
  "更多功能": "Tùy chọn khác",
  "刪除圖表": "Xóa sơ đồ",
  "刪除這個區塊": "Xóa khối này",
- "刪除註腳（連同文中的編號）": "Xóa chú thích cuối trang và các số chú thích trong văn bản"
+ "刪除註腳（連同文中的編號）": "Xóa chú thích cuối trang và các số chú thích trong văn bản",
+ "往下捲動時，文件屬性會固定在頁面上方": "Khi cuộn xuống, thuộc tính sẽ được ghim ở đầu trang"
 };

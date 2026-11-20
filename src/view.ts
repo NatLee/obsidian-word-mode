@@ -423,6 +423,10 @@ export class WordModeView extends TextFileView {
   applyPropsSticky(): void {
     if (!this.plugin.settings.propsSticky) this.hidePin();
     this.updatePin();
+    // 文件屬性標題列的圖釘按鈕跟著設定變（設定頁、另一個分頁的圖釘改的也一樣）
+    const fm = this.propsNode();
+    const dom = fm && fm.dom as FrontmatterDom;
+    if (dom && dom.wmRefresh) dom.wmRefresh();
   }
 
   // 文件最前面的文件屬性節點與它的畫面；沒有時是 null
@@ -1178,6 +1182,12 @@ export class WordModeView extends TextFileView {
       stringifyYaml: o => stringifyYaml(o),
       propsOpen: () => this.propsOpen !== false,
       setPropsOpen: v => { this.propsOpen = v; },
+      propsSticky: () => !!this.plugin.settings.propsSticky,
+      setPropsSticky: on => {
+        void this.plugin.setPropsSticky(on);
+        // 打開時畫面不會馬上變（要往下捲才出現），說一聲
+        if (on) new Notice(t('往下捲動時，文件屬性會固定在頁面上方'));
+      },
       propertyType: key => propertyWidget(this.app, key),
       unwrapCallout: pos => this.unwrapCallout(pos),
       imageMenu: (evt, pos) => this.imageMenu(evt, pos),
