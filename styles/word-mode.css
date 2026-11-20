@@ -214,11 +214,7 @@ body {
 .wm-raw-inline { border-radius: 3px; }
 .wm-raw-inline.is-source { font-family: var(--font-monospace); font-size: .85em; color: var(--text-muted); background: var(--background-modifier-hover); padding: 0 3px; }
 .wm-raw-inline.is-comment { opacity: .6; }
-.wm-raw-inline.is-footnote { vertical-align: super; font-size: .75em; color: var(--link-color); }
 .wm-raw-inline.ProseMirror-selectednode { outline: 2px solid var(--interactive-accent); }
-
-.wm-frontmatter { margin: 0 0 1em; font-size: var(--font-ui-small); color: var(--text-muted); border-bottom: 1px solid var(--background-modifier-border); padding-bottom: 4px; cursor: default; }
-.wm-frontmatter.ProseMirror-selectednode { outline: 2px solid var(--interactive-accent); }
 
 /* 表格（像 Word 的格線） */
 .wm-editor .tableWrapper { margin: .8em 0; overflow-x: auto; }
