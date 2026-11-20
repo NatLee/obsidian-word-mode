@@ -295,7 +295,7 @@ function createParser(tokenizer: MarkdownItInstance): MarkdownParser {
     // tok.meta 是 obsidianCore 為任務項目記下的 { checked, status }；一般項目是 null
     list_item: { block: 'list_item', getAttrs: tok => { const meta = tok.meta as ListItemAttrs | null; return { checked: meta && meta.checked != null ? meta.checked : null, status: (meta && meta.status) || null }; } },
     bullet_list: { block: 'bullet_list', getAttrs: (tok, tokens, i) => ({ tight: listIsTight(tokens, i), bullet: tok.markup || '-' }) },
-    ordered_list: { block: 'ordered_list', getAttrs: (tok, tokens, i) => ({ order: +tok.attrGet('start')! || 1, tight: listIsTight(tokens, i) }) },
+    ordered_list: { block: 'ordered_list', getAttrs: (tok, tokens, i) => ({ order: +tok.attrGet('start')! || 1, tight: listIsTight(tokens, i), delim: tok.markup === ')' ? ')' : '.' }) },
     heading: { block: 'heading', getAttrs: tok => ({ level: +tok.tag.slice(1) }) },
     code_block: { block: 'code_block', noCloseToken: true },
     fence: { block: 'code_block', getAttrs: tok => ({ params: tok.info || '' }), noCloseToken: true },
@@ -614,7 +614,7 @@ function createSerializer(): MarkdownSerializer {
       const space = state.repeat(' ', maxW + 2);
       state.renderList(node, space, i => {
         const n = String(start + i);
-        return state.repeat(' ', maxW - n.length) + n + '. ';
+        return state.repeat(' ', maxW - n.length) + n + (a.delim === ')' ? ')' : '.') + ' ';
       });
     },
     list_item(state, node) {
@@ -763,6 +763,35 @@ function splitLines(text: string): string[] {
 }
 const isBlank = (l: string): boolean => /^[ \t]*(\r\n|\n|\r)?$/.test(l);
 const stripEol = (l: string): string => l.replace(/(\r\n|\n|\r)$/, '');
+// 相鄰的兩個同類清單要用不同的符號。Markdown 裡同一種符號的清單就算隔了空行也是同一個清單，
+// 所以把一份清單複製貼在後面、或刪掉兩個清單中間的段落之後，存檔再開啟會併成一個。
+// 換一種符號（- 與 *，1. 與 1)）才是兩個清單。回傳調整過的節點；沒有需要調整的地方時回傳原本那一個
+// （同一個物件，沒改過的區塊才能照原文輸出）
+function separateLists(node: PMNode): PMNode {
+  if (node.isTextblock || node.isLeaf || !node.childCount) return node;
+  const kids: PMNode[] = [];
+  let changed = false;
+  let prev: PMNode | null = null; // 前一個清單（已經調整過）；中間隔了別的內容就不算相鄰
+  node.forEach(child => {
+    let c = separateLists(child);
+    const key = c.type === schema.nodes.bullet_list ? 'bullet' : c.type === schema.nodes.ordered_list ? 'delim' : null;
+    if (key) {
+      if (prev && prev.type === c.type && prev.attrs[key] === c.attrs[key]) {
+        const used = prev.attrs[key] as string;
+        const next = key === 'bullet' ? (used === '-' ? '*' : '-') : (used === '.' ? ')' : '.');
+        c = c.type.create(Object.assign({}, c.attrs, { [key]: next }), c.content, c.marks);
+      }
+      prev = c;
+    } else if (!(c.type === schema.nodes.paragraph && c.childCount === 0)) {
+      // 空白段落存檔時只是一個空行，隔不開兩個清單，所以不算
+      prev = null;
+    }
+    if (c !== child) changed = true;
+    kids.push(c);
+  });
+  return changed ? node.copy(Fragment.from(kids)) : node;
+}
+
 // 文字的最後是不是一個空行（只看結尾的一小段；先把 \r\n 換成 \n，免得 \r\n 被當成兩個換行）
 const endsWithBlankLine = (s: string): boolean => /\n[ \t]*\n$/.test(s.slice(-200).replace(/\r\n?/g, '\n'));
 
@@ -906,7 +935,7 @@ export class MarkdownConverter {
   }
 
   serializeNodes(nodes: readonly PMNode[]): string {
-    return this.serializer.serialize(schema.topNodeType.create(null, nodes));
+    return this.serializer.serialize(separateLists(schema.topNodeType.create(null, nodes)));
   }
 
   // 解析：回傳 { doc, meta }
@@ -1048,6 +1077,8 @@ export class MarkdownConverter {
   serialize(doc: PMNode, meta: DocMeta): string {
     const eol = meta.eol || '\n';
     const runs: { bid: number | null; nodes: PMNode[] }[] = [];
+    // 先讓相鄰的同類清單用不同的符號。換過符號的清單內容跟原文不同，下面會當成改過的區塊重新輸出
+    doc = separateLists(doc);
     doc.forEach(node => {
       // 頂層節點都有 bid 屬性（見 schema.ts）；沒有時與 null 相同
       const a = node.attrs as Partial<BidAttrs>;

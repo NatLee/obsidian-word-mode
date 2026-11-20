@@ -26,7 +26,8 @@ export interface CodeBlockAttrs extends BidAttrs { readonly params: string; }
 // bullet：項目符號（-、*、+）
 export interface BulletListAttrs extends BidAttrs { readonly tight: boolean; readonly bullet: string; }
 // order：起始編號
-export interface OrderedListAttrs extends BidAttrs { readonly order: number; readonly tight: boolean; }
+// delim：數字後面的符號，「1.」的「.」或「1)」的「)」
+export interface OrderedListAttrs extends BidAttrs { readonly order: number; readonly tight: boolean; readonly delim: string; }
 // checked：null＝一般項目、false／true＝任務；status：自訂任務狀態的字元，一般的 x 為 null
 export interface ListItemAttrs { readonly checked: boolean | null; readonly status: string | null; }
 // kind：raw、html、math、comment、footnote 等
@@ -135,7 +136,7 @@ export const schema = new Schema({
 
     ordered_list: {
       content: 'list_item+', group: 'block',
-      attrs: { order: { default: 1 }, tight: { default: true }, ...bid },
+      attrs: { order: { default: 1 }, tight: { default: true }, delim: { default: '.' }, ...bid },
       parseDOM: [{ tag: 'ol', getAttrs: d => ({ order: +d.getAttribute('start')! || 1 }) }],
       toDOM: n => ['ol', n.attrs.order === 1 ? {} : { start: (n.attrs as OrderedListAttrs).order }, 0],
     },

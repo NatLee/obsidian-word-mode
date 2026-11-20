@@ -220,5 +220,34 @@ const P = text => schema.nodes.paragraph.create(null, schema.text(text));
   }
 }
 
+// ---- 相鄰的兩個同類清單：Markdown 裡同一種符號的清單隔一個空行還是同一個清單，
+// 存檔時後面那個要換一種符號（- 換 *、1. 換 1)），重開才不會併成一個
+{
+  const shape = doc => { const a = []; doc.forEach(n => a.push(n.type.name.replace('_list', '') + '×' + n.childCount)); return a.join(' '); };
+  const firstPara = s => { let pos = -1; s.doc.forEach((n, p) => { if (pos < 0 && n.type.name === 'paragraph') pos = p; }); return [pos, pos + s.doc.nodeAt(pos).nodeSize]; };
+  // 複製一份清單貼在後面
+  let r = save('- a\n- b\n', (s, d) => d(s.tr.insert(s.doc.content.size, s.doc.firstChild.type.create({ tight: true, bullet: '-' }, s.doc.firstChild.content))));
+  ok('清單後面再貼一份同樣的清單：存成兩個清單', r.out === '- a\n- b\n\n* a\n* b\n' && shape(r.back) === 'bullet×2 bullet×2', JSON.stringify(r.out) + ' → ' + shape(r.back));
+  // 刪掉兩個清單中間的段落
+  r = save('- a\n\n段落\n\n- b\n', (s, d) => d(s.tr.delete(...firstPara(s))));
+  ok('刪掉兩個清單中間的段落：還是兩個清單', /^- a\n+\* b\n$/.test(r.out) && shape(r.back) === 'bullet×1 bullet×1', JSON.stringify(r.out) + ' → ' + shape(r.back));
+  r = save('1. a\n2. b\n\n段落\n\n1. c\n', (s, d) => d(s.tr.delete(...firstPara(s))));
+  ok('編號清單也一樣：後面那個改用 1)', /^1\. a\n2\. b\n+1\) c\n$/.test(r.out) && shape(r.back) === 'ordered×2 ordered×1' && r.back.child(1).attrs.order === 1, JSON.stringify(r.out) + ' → ' + shape(r.back));
+  r = save('- a\n\n段落一\n\n- b\n\n段落二\n\n- c\n', (s, d, cur) => { d(s.tr.delete(...firstPara(s))); d(cur().tr.delete(...firstPara(cur()))); });
+  ok('連續三個清單：符號輪流換', /^- a\n+\* b\n+- c\n$/.test(r.out) && shape(r.back) === 'bullet×1 bullet×1 bullet×1', JSON.stringify(r.out) + ' → ' + shape(r.back));
+  // 中間隔的是空白段落（存檔時只是一個空行）
+  r = save('- a\n\n段落\n\n- b\n', (s, d) => { const [from, to] = firstPara(s); d(s.tr.delete(from + 1, to - 1)); });
+  ok('兩個清單中間只剩空白段落：也要分開', shape(r.back).startsWith('bullet×1') && shape(r.back).endsWith('bullet×1') && r.back.childCount >= 2, JSON.stringify(r.out) + ' → ' + shape(r.back));
+  // 引文裡的清單（整塊引文是同一個原文區塊）
+  r = save('> - a\n>\n> 段落\n>\n> - b\n', (s, d) => { let pos = -1; s.doc.descendants((n, p) => { if (pos < 0 && n.type.name === 'paragraph' && n.textContent === '段落') pos = p; }); d(s.tr.delete(pos, pos + s.doc.nodeAt(pos).nodeSize)); });
+  ok('引文裡相鄰的清單也分開', r.back.firstChild.childCount === 2 && r.out.includes('> * b'), JSON.stringify(r.out));
+  // 原本就用不同符號分開的兩個清單：改其中一個，另一個一字不動
+  r = save('- a\n\n* b\n', (s, d) => d(s.tr.insertText('!', 4)));
+  ok('原本就是兩種符號：照原樣', r.out === '- a!\n\n* b\n' && sameDoc(r), JSON.stringify(r.out));
+  // 用 1) 寫的編號清單改過之後還是 1)
+  r = save('1) a\n2) b\n', (s, d) => d(s.tr.insertText('!', 4)));
+  ok('1) 的編號清單改過之後還是 1)', r.out === '1) a!\n2) b\n' && sameDoc(r), JSON.stringify(r.out));
+}
+
 if (fails) process.exitCode = 1;
 console.log(fails ? `\n${fails} FAILED` : '\nALL PASS');
