@@ -2,9 +2,9 @@
 // 從 main.ts 獨立出來是為了能在介面測試裡實際操作（main.ts 整個外掛進入點沒辦法放進測試）
 import { setIcon } from 'obsidian';
 import { t } from './i18n.js';
-import { TABS, tabName, groupLayout, moveGroup, moveGroupToTab } from './toolbar.js';
+import { TABS, tabName, groupLayout, moveGroup, moveGroupToTab } from './ribbon.js';
 import type { I18nKey } from './i18n.js';
-import type { TabId, GroupId } from './toolbar.js';
+import type { TabId, GroupId } from './ribbon.js';
 
 // 這一塊會讀寫的設定欄位（main.ts 的 Settings 的一部分）
 export interface GroupSettings {

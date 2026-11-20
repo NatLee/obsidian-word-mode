@@ -13,7 +13,7 @@ export { MarkdownBar, mdToolbarMode, wantsMdBar, hrText, codeBlockText } from '.
 export * as COLOR from '../../src/colorpicker.js';
 export { buildTemplateManager } from '../../src/templateui.js';
 export * as TEMPLATES from '../../src/templates.js';
-export * as TB from '../../src/toolbar.js';
+export * as TB from '../../src/ribbon.js';
 export { fillGroupSettings } from '../../src/groupsettings.js';
 export * as SETNAV from '../../src/settingsnav.js';
 export { MdStatusBar, buildStatusBar, VIEW_BUTTONS } from '../../src/statusbar.js';

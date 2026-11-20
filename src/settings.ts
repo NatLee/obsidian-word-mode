@@ -1,6 +1,6 @@
 // 外掛的設定：型別與預設值。設定頁的內容在 settingstab.ts
 import type { Language } from './i18n.js';
-import type { RibbonLayout, ButtonStyle, TabId, GroupId, TabStyle } from './toolbar.js';
+import type { RibbonLayout, ButtonStyle, TabId, GroupId, TabStyle } from './ribbon.js';
 import type { MdToolbarMode } from './mdbar.js';
 import type { PropsStyle } from './view.js';
 import type { EquationEditMode } from './dialogs.js';
