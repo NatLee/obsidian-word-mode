@@ -1097,6 +1097,51 @@ const backspaceLift: Command = (state, dispatch) => {
   return liftListItem(N.list_item)(state, dispatch);
 };
 
+// 用 Backspace（dir = -1，游標在區塊開頭）或 Delete（dir = 1，游標在區塊結尾）把兩個區塊併在一起，
+// 而其中一個是程式碼區塊、另一個不是：先把要併過去的那一塊的換行換成對方的寫法，再合併。
+// 段落裡的換行是一個節點（hard_break），程式碼區塊裡是文字「\n」；ProseMirror 內建的合併遇到對方不收的東西
+// 是直接丟掉，「程式碼」加「x⏎y」會變成「程式碼xy」。不是這種情況就回傳 false，交給內建的合併
+function joinKeepingBreaks(dir: Direction): Command {
+  return (state, dispatch) => {
+    const sel = state.selection;
+    if (!(sel instanceof TextSelection) || !sel.empty) return false;
+    const $c = sel.$from;
+    if ($c.depth < 1 || !$c.parent.isTextblock) return false;
+    if (dir < 0 ? $c.parentOffset > 0 : $c.parentOffset < $c.parent.content.size) return false;
+    // 兩個區塊的交界；前面那一塊留下來，後面那一塊的內容併進去
+    const cut = dir < 0 ? $c.before() : $c.after();
+    const $cut = state.doc.resolve(cut);
+    const before = $cut.nodeBefore; const after = $cut.nodeAfter;
+    if (!before || !after || !before.isTextblock || !after.isTextblock) return false;
+    const toCode = !!before.type.spec.code;
+    if (toCode === !!after.type.spec.code) return false;
+    const swaps: number[] = [];
+    after.forEach((child, offset) => {
+      if (toCode) { if (child.type === N.hard_break) swaps.push(cut + 1 + offset); }
+      else if (child.isText) for (let i = 0; i < child.text!.length; i++) if (child.text![i] === '\n') swaps.push(cut + 1 + offset + i);
+    });
+    if (!swaps.length) return false;
+    if (dispatch) {
+      const tr = state.tr;
+      // 換行的節點與「\n」都佔一個位置，逐一換掉不會動到其他位置
+      if (toCode) {
+        // 併進程式碼區塊：先在段落裡把換行換成「\n」，再跟內建的合併一樣拿掉程式碼區塊不收的東西（粗體這類格式）
+        for (const p of swaps) tr.replaceWith(p, p + 1, schema.text('\n'));
+        tr.clearIncompatible(cut, before.type, before.contentMatchAt(before.childCount));
+        tr.join(cut);
+      } else {
+        // 程式碼區塊併進段落：程式碼區塊裡放不了換行的節點，所以先合併、再把「\n」換掉。
+        // 這裡不能呼叫 clearIncompatible：它會把不是程式碼的區塊裡的「\n」換成空白。
+        // 合併拿掉交界的兩個位置，後面的內容往前移 2
+        tr.join(cut);
+        for (const p of swaps) tr.replaceWith(p - 2, p - 1, N.hard_break.create());
+      }
+      dispatch(tr.scrollIntoView());
+    }
+    return true;
+  };
+}
+
 // 段落開頭按 Backspace、前面是文件屬性或原文區塊（方程式、HTML、註解…）：先選取它，再按一次才刪除。
 // 避免一個按鍵就把整個屬性區塊或方程式刪掉而沒發現
 const selectAtomBefore: Command = (state, dispatch) => {
@@ -1151,7 +1196,8 @@ export function buildKeymap(): Record<string, Command> {
     ),
     Tab: chainCommands(tabInTable, sinkListItem(N.list_item), (s) => !!currentList(s), tabInText),
     'Shift-Tab': chainCommands(goToNextCell(-1), liftListItem(N.list_item), paragraphIndent(-1), () => true),
-    Backspace: chainCommands(undoAutoformat, backspaceLift, selectAtomBefore),
+    Backspace: chainCommands(undoAutoformat, backspaceLift, selectAtomBefore, joinKeepingBreaks(-1)),
+    Delete: joinKeepingBreaks(1),
     'Alt-ArrowUp': moveBlock(-1),
     'Alt-ArrowDown': moveBlock(1),
   };
