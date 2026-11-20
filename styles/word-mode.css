@@ -1,3 +1,18 @@
+/* ===== 共用的設計變數 =====
+   這份樣式表是一版一版往後加的，同一種東西（強調色的淡底、停用、鍵盤焦點框、浮起來的面板）曾經各處各寫各的數字。
+   這幾種一律用這裡的變數；值都從 Obsidian 的主題變數來，換佈景主題、深色模式、強調色都會跟著變 */
+body {
+  /* 強調色的色相、飽和度、亮度。Obsidian 沒有 --interactive-accent-rgb，只有 hsl 這一組 */
+  --wm-accent-hsl: var(--interactive-accent-hsl, 258, 88%, 66%);
+  --wm-disabled-opacity: .4;
+  /* 鍵盤焦點框：跟 Obsidian 的按鈕用同一個顏色 */
+  --wm-focus-ring: 0 0 0 2px var(--background-modifier-border-focus);
+  /* 浮在內容上面的面板（下拉面板、小工具列、提示卡）：小的用 pop，大的、離得遠的用 float */
+  --wm-radius-pop: var(--radius-m, 8px);
+  --wm-shadow-pop: var(--shadow-s);
+  --wm-shadow-float: var(--shadow-l, 0 8px 24px rgba(0, 0, 0, .2));
+}
+
 /* ===== Word 模式 ===== */
 .wm-view {
   display: flex;
@@ -32,8 +47,10 @@
   border-bottom: 1px solid var(--background-modifier-border);
   user-select: none;
 }
-.wm-group { display: flex; gap: 1px; padding-right: 6px; border-right: 1px solid var(--background-modifier-border); }
-.wm-group:last-child { border-right: none; }
+.wm-group { display: flex; gap: 1px; }
+/* 分隔線畫在後一個群組的左邊。畫在右邊、最後一個不畫的話，「表格工具」這種平常隱藏的群組排在最後時，
+   它前面那一組後面會多一條線 */
+.wm-group + .wm-group { padding-left: 6px; border-left: 1px solid var(--background-modifier-border); }
 .wm-group.is-hidden { display: none; }
 .wm-table-tools { background: var(--background-modifier-hover); border-radius: 4px; padding: 0 4px; }
 .wm-group-label { font-size: var(--font-ui-smaller); color: var(--text-muted); padding: 0 4px; }
@@ -53,8 +70,12 @@
   justify-content: center;
 }
 .wm-toolbar button.wm-btn:hover { background: var(--background-modifier-hover); }
-.wm-toolbar button.wm-btn.is-active { background: var(--background-modifier-active-hover, var(--background-modifier-hover)); border-color: var(--interactive-accent); color: var(--text-accent); }
-.wm-toolbar button.wm-btn:disabled, .wm-toolbar button.wm-btn.is-disabled { opacity: .35; cursor: default; }
+/* 作用中：淡色底加強調色的字，不加框（一排都作用中時，一格一格的框很吵） */
+.wm-toolbar button.wm-btn.is-active { background: hsla(var(--wm-accent-hsl), .16); color: var(--text-accent); }
+.wm-toolbar button.wm-btn.is-active:hover { background: hsla(var(--wm-accent-hsl), .24); }
+/* 按下去的瞬間有回饋 */
+.wm-toolbar button.wm-btn:active { background: var(--background-modifier-active-hover, var(--background-modifier-hover)); }
+.wm-toolbar button.wm-btn:disabled, .wm-toolbar button.wm-btn.is-disabled { opacity: var(--wm-disabled-opacity); cursor: default; }
 .wm-toolbar button.wm-btn.is-disabled:hover { background: transparent; }
 .wm-toolbar button.wm-btn svg { width: 16px; height: 16px; }
 .wm-color-btn.wm-color-btn.wm-color-btn { border-bottom: 3px solid var(--wm-current-color, currentColor); }
@@ -65,8 +86,8 @@
   z-index: var(--layer-menu, 60);
   background: var(--background-primary);
   border: 1px solid var(--background-modifier-border);
-  box-shadow: var(--shadow-s);
-  border-radius: 6px;
+  box-shadow: var(--wm-shadow-pop);
+  border-radius: var(--wm-radius-pop);
   padding: 8px;
 }
 .wm-table-label { font-size: var(--font-ui-smaller); margin-bottom: 6px; color: var(--text-muted); }
@@ -145,8 +166,8 @@
   padding: 4px 6px;
   background: var(--background-primary);
   border: 1px solid var(--background-modifier-border);
-  border-radius: 8px;
-  box-shadow: var(--shadow-s);
+  border-radius: var(--wm-radius-pop);
+  box-shadow: var(--wm-shadow-pop);
   font-size: var(--font-ui-small);
   white-space: nowrap;
   cursor: default;
@@ -272,7 +293,7 @@
 .wm-banner-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 
 /* 貼上選項 */
-.wm-paste-chip { position: absolute; z-index: 25; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 6px 8px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); border-radius: 8px; box-shadow: var(--shadow-s); font-size: var(--font-ui-small); }
+.wm-paste-chip { position: absolute; z-index: 25; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 6px 8px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); border-radius: var(--wm-radius-pop); box-shadow: var(--wm-shadow-pop); font-size: var(--font-ui-small); }
 .wm-paste-head { display: inline-flex; align-items: center; color: var(--text-muted); margin-right: 4px; }
 .wm-paste-chip button { height: 28px; font-size: var(--font-ui-small); }
 
@@ -303,7 +324,7 @@
 .wm-outline-item:hover { background: var(--background-modifier-hover); }
 .wm-outline-empty { padding: 6px 8px; color: var(--text-muted); }
 .wm-editor .wm-flash { animation: wm-flash 1.2s ease-out; }
-@keyframes wm-flash { 0% { background: rgba(var(--interactive-accent-rgb, 120, 82, 238), .3); } 100% { background: transparent; } }
+@keyframes wm-flash { 0% { background: hsla(var(--wm-accent-hsl), .3); } 100% { background: transparent; } }
 .wm-toolbar button.wm-btn.is-sticky { box-shadow: inset 0 -3px 0 var(--interactive-accent); }
 
 /* 手機：尋找列與提示 */
@@ -548,7 +569,7 @@
 .wm-tabs.wm-tabs.wm-tabs.is-hidden, .wm-panel.wm-panel.wm-panel.is-empty { display: none; }
 .wm-group { flex-direction: column; align-items: stretch; justify-content: center; }
 .wm-group-body { display: flex; align-items: center; gap: 1px; flex-wrap: nowrap; }
-.wm-group-name { display: none; text-align: center; font-size: 10px; line-height: 1.2; color: var(--text-faint); margin-top: 2px; white-space: nowrap; }
+.wm-group-name { display: none; text-align: center; font-size: 10px; line-height: 1.2; color: var(--text-muted); margin-top: 2px; white-space: nowrap; }
 .wm-group-labels .wm-group-name { display: block; }
 .wm-layout-single .wm-toolbar { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; }
 .wm-layout-single .wm-toolbar::-webkit-scrollbar { height: 6px; }
@@ -557,13 +578,13 @@
 .wm-layout-wrap .wm-toolbar { flex-wrap: wrap; }
 .wm-layout-single .wm-tabs-quick, .wm-layout-wrap .wm-tabs-quick { margin-left: auto; border-left: 1px solid var(--background-modifier-border); padding-left: 6px; }
 .wm-layout-single .wm-tabs-quick button.wm-btn, .wm-layout-wrap .wm-tabs-quick button.wm-btn { height: 28px; }
-.wm-tabs-quick button.wm-btn.is-active { color: var(--text-accent); border-color: var(--interactive-accent); }
-.wm-style-popup button.wm-style-item.is-disabled { opacity: .4; cursor: default; }
+.wm-tabs-quick button.wm-btn.is-active { color: var(--text-accent); background: hsla(var(--wm-accent-hsl), .16); }
+.wm-style-popup button.wm-style-item.is-disabled { opacity: var(--wm-disabled-opacity); cursor: default; }
 .wm-btnstyle-label .wm-btn.has-label { min-height: 40px; }
 .wm-btnstyle-label.wm-btnstyle-label.wm-btnstyle-label .wm-btn.has-label svg { width: 16px; height: 16px; }
 
 /* 詳細提示卡 */
-.wm-hint-card { position: fixed; z-index: calc(var(--layer-tooltip, 70) + 1); width: 260px; padding: 10px 12px; border-radius: 8px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); box-shadow: var(--shadow-l, 0 8px 24px rgba(0,0,0,.25)); font-size: var(--font-ui-small); color: var(--text-normal); opacity: 0; transform: translateY(-4px); transition: opacity .15s, transform .15s; pointer-events: none; }
+.wm-hint-card { position: fixed; z-index: calc(var(--layer-tooltip, 70) + 1); width: 260px; padding: 10px 12px; border-radius: var(--wm-radius-pop); background: var(--background-primary); border: 1px solid var(--background-modifier-border); box-shadow: var(--wm-shadow-float); font-size: var(--font-ui-small); color: var(--text-normal); opacity: 0; transform: translateY(-4px); transition: opacity .15s, transform .15s; pointer-events: none; }
 .wm-hint-card.is-shown { opacity: 1; transform: none; }
 .wm-hint-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-weight: 600; margin-bottom: 4px; }
 .wm-hint-keys { display: inline-flex; align-items: center; gap: 2px; font-weight: 400; }
@@ -646,7 +667,7 @@
 .wm-list-task .wm-demo-bar::before { content: '☐'; }
 @keyframes wm-quote { 0%, 25%, 100% { border-left-color: transparent; padding-left: 0; } 40%, 85% { border-left-color: var(--interactive-accent); padding-left: 10px; } }
 .wm-anim-quote { border-left: 3px solid transparent; animation: wm-quote 2.8s infinite; }
-.wm-demo-callout { border-left: 3px solid var(--interactive-accent); background: rgba(var(--interactive-accent-rgb, 72, 54, 153), .12); border-radius: 4px; padding: 4px 8px; }
+.wm-demo-callout { border-left: 3px solid var(--interactive-accent); background: hsla(var(--wm-accent-hsl), .12); border-radius: 4px; padding: 4px 8px; }
 .wm-demo-callout-title { font-weight: 600; font-size: 12px; margin-bottom: 4px; color: var(--text-accent); }
 .wm-demo-sort { display: flex; flex-direction: column; gap: 2px; position: relative; height: 60px; }
 .wm-demo-sortrow { position: absolute; left: 0; font-size: 12px; animation: 2.8s infinite ease-in-out; }
@@ -678,7 +699,7 @@
 .wm-step-3 { animation: wm-step-3 2.8s infinite; } .wm-step-4 { animation: wm-step-4 2.8s infinite; }
 /* 插入圖表：流程圖的方塊與箭頭由左到右依序出現 */
 .wm-demo-flow { display: flex; align-items: center; gap: 5px; font-size: 11px; white-space: nowrap; }
-.wm-demo-node { padding: 2px 8px; border: 1px solid var(--interactive-accent); border-radius: 3px; background: rgba(var(--interactive-accent-rgb, 72, 54, 153), .12); }
+.wm-demo-node { padding: 2px 8px; border: 1px solid var(--interactive-accent); border-radius: 3px; background: hsla(var(--wm-accent-hsl), .12); }
 .wm-demo-node.is-round { border-radius: 10px; }
 .wm-demo-arrow { color: var(--text-muted); }
 /* 插入註腳：內文後面的編號先出現，接著是下面的註腳內容 */
@@ -855,6 +876,8 @@ body:not(.is-mobile) .wm-shortcuts-modal { align-self: flex-start; margin-top: 6
 .wm-eq-preview { font-size: 1.15em; }
 .wm-raw-inline.is-math { cursor: pointer; border-radius: 3px; }
 .wm-raw-inline.is-math:hover { background: var(--background-modifier-hover); }
+/* 獨立一行的方程式平常不畫框（它已經是算好的式子，不是原文）；滑鼠移上去才出現虛線，表示可以點 */
+.wm-raw-block[data-kind="math"] { border-color: transparent; }
 .wm-raw-block[data-kind="math"]:hover { outline: 1px dashed var(--interactive-accent); }
 .wm-settings-ctx-item { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--background-modifier-border); border-radius: 6px; }
 .wm-settings-ctx-item input { margin-top: 3px; }
@@ -868,7 +891,7 @@ body:not(.is-mobile) .wm-shortcuts-modal { align-self: flex-start; margin-top: 6
 .wm-editor li.wm-task.is-checked:not([data-task="x"]):not([data-task="X"]) > .wm-li-content { color: inherit; text-decoration: none; }
 
 /* ---------- #標籤、^區塊參照 ---------- */
-.wm-editor .wm-tag { color: var(--tag-color, var(--text-accent)); background: var(--tag-background, hsla(var(--interactive-accent-hsl), .1)); border-radius: var(--tag-radius, 2em); padding: var(--tag-padding-y, .15em) var(--tag-padding-x, .55em); font-size: var(--tag-size, .875em); }
+.wm-editor .wm-tag { color: var(--tag-color, var(--text-accent)); background: var(--tag-background, hsla(var(--wm-accent-hsl), .1)); border-radius: var(--tag-radius, 2em); padding: var(--tag-padding-y, .15em) var(--tag-padding-x, .55em); font-size: var(--tag-size, .875em); }
 .wm-editor .wm-block-id { color: var(--text-faint); font-size: .85em; }
 
 /* ---------- 自動完成選單（[[ 筆記、# 標籤） ---------- */
@@ -882,7 +905,7 @@ body:not(.is-mobile) .wm-shortcuts-modal { align-self: flex-start; margin-top: 6
 .wm-suggest-hint { padding: 4px 8px 2px; color: var(--text-faint); font-size: var(--font-ui-smaller); border-top: 1px solid var(--background-modifier-border); margin-top: 4px; }
 
 /* ---------- 尋找列 ---------- */
-.wm-find-btn.is-disabled { opacity: .4; pointer-events: none; }
+.wm-find-btn.is-disabled { opacity: var(--wm-disabled-opacity); pointer-events: none; }
 
 /* ---------- 程式碼區塊顯示成結果（mermaid、dataview 等） ---------- */
 .wm-code-head [hidden] { display: none; }
@@ -908,7 +931,6 @@ body:not(.is-mobile) .wm-shortcuts-modal { align-self: flex-start; margin-top: 6
 .wm-mmd-iconbtn svg { width: 15px; height: 15px; }
 .wm-mmd-add { margin-top: 4px; height: 28px; font-size: var(--font-ui-small); }
 .wm-mmd-note { color: var(--text-muted); font-size: var(--font-ui-small); margin: 8px 0; }
-@media (max-width: 700px) { .wm-mmd-body { grid-template-columns: minmax(0, 1fr); } }
 
 /* ---------- 內嵌（![[筆記]]、影片、錄音、PDF、YouTube） ---------- */
 .wm-editor .wm-wikilink.wm-embed, .wm-editor .wm-image.wm-embed { display: block; margin: .5em 0; padding: 6px 10px; border-left: 2px solid var(--interactive-accent); background: var(--background-secondary); border-radius: 0 6px 6px 0; cursor: default; white-space: normal; color: var(--text-normal); text-decoration: none; }
@@ -1001,7 +1023,7 @@ audio.wm-embed-media { width: 100%; }
 .wm-mv-tag { align-self: flex-start; margin-right: 1px; font-size: .5em; color: var(--text-faint); user-select: none; }
 /* 空心字（\mathbb）、花體（\mathcal）：格子裡的字跟一般的字長得一樣，只能靠標記分辨；以前標記只有半個字大、顏色很淡，
    空格子時跟粗體的格子看起來一模一樣。改成整個結構有框線與淡淡的底色，左上角的標記放大、用強調色 */
-.wm-mv-group[data-cmd="mathbb"], .wm-mv-group[data-cmd="mathcal"] { padding: 1px 3px 1px 2px; border: 1px solid rgba(var(--interactive-accent-rgb, 120, 82, 238), .45); border-radius: 4px; background: rgba(var(--interactive-accent-rgb, 120, 82, 238), .06); }
+.wm-mv-group[data-cmd="mathbb"], .wm-mv-group[data-cmd="mathcal"] { padding: 1px 3px 1px 2px; border: 1px solid hsla(var(--wm-accent-hsl), .45); border-radius: 4px; background: hsla(var(--wm-accent-hsl), .06); }
 .wm-mv-group[data-cmd="mathbb"] > .wm-mv-tag, .wm-mv-group[data-cmd="mathcal"] > .wm-mv-tag { margin-right: 2px; font-size: .72em; line-height: 1; color: var(--text-accent); }
 /* 上括號、下括號（mathvisual.ts 的 horizontalBrace）：括號跟內容在同一格（括號的寬度才會跟內容一樣），標籤在外面一格。
    四列是 1fr auto auto 1fr：上括號依序是「標籤、內容與括號、跟括號一樣高的空白（::after）、空的」，下括號上下顛倒。
@@ -1161,7 +1183,7 @@ audio.wm-embed-media { width: 100%; }
 .wm-settings-grow select.wm-settings-gtab { flex: 0 1 auto; min-width: 0; max-width: 96px; height: 28px; font-size: var(--font-ui-small); }
 .wm-settings-grow button.wm-settings-gmove { flex: 0 0 auto; width: 26px; height: 26px; padding: 0; background: transparent; box-shadow: none; border: none; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-muted); }
 .wm-settings-grow button.wm-settings-gmove:hover:not(:disabled) { background: var(--background-modifier-hover); color: var(--text-normal); }
-.wm-settings-grow button.wm-settings-gmove:disabled { opacity: .3; cursor: default; }
+.wm-settings-grow button.wm-settings-gmove:disabled { opacity: var(--wm-disabled-opacity); cursor: default; }
 .wm-settings-grow button.wm-settings-gmove svg { width: 14px; height: 14px; }
 .wm-settings-gempty { padding: 4px 0; font-size: var(--font-ui-small); color: var(--text-faint); }
 .wm-settings-greset { grid-column: 1 / -1; justify-self: start; }
@@ -1174,7 +1196,7 @@ audio.wm-embed-media { width: 100%; }
 .wm-mobile .wm-layout-tabs.wm-btnstyle-auto .wm-toolbar, .wm-mobile.wm-layout-tabs.wm-btnstyle-auto .wm-toolbar { min-height: 59px; }
 
 /* ---------- 色彩面板（字型色彩、醒目提示） ---------- */
-.wm-popup.wm-cp { width: 276px; padding: 12px; border-radius: 10px; box-shadow: var(--shadow-l, var(--shadow-s)); }
+.wm-popup.wm-cp { width: 276px; padding: 12px; box-shadow: var(--wm-shadow-float); }
 .wm-cp-title { font-size: var(--font-ui-small); font-weight: 600; margin-bottom: 8px; }
 .wm-cp-label { font-size: var(--font-ui-smaller); color: var(--text-muted); margin: 10px 0 5px; }
 .wm-popup button.wm-cp-clear { display: flex; align-items: center; justify-content: flex-start; gap: 8px; width: 100%; height: 30px; margin: 0; padding: 0 8px; background: transparent; box-shadow: none; border: 1px solid var(--background-modifier-border); border-radius: 6px; color: var(--text-normal); font-size: var(--font-ui-small); cursor: pointer; }
@@ -1233,10 +1255,10 @@ body:not(.is-phone) .modal.wm-eq-modal, body:not(.is-phone) .modal.wm-mmd-modal 
 .wm-eq button.wm-eq-btn.is-recent { min-height: 30px; padding: 3px 10px; font-size: var(--font-ui-smaller); }
 .wm-eq-tools { display: inline-flex; align-items: center; gap: 2px; margin-left: auto; }
 .wm-eq-tools button.wm-eq-tool { height: 24px; padding: 2px 6px; }
-.wm-eq-tools button.wm-eq-tool:disabled { opacity: .3; cursor: default; }
+.wm-eq-tools button.wm-eq-tool:disabled { opacity: var(--wm-disabled-opacity); cursor: default; }
 .wm-eq-tools button.wm-eq-tool svg { width: 15px; height: 15px; }
 .wm-eq-editor .wm-eq-visual { min-height: 84px; display: flex; align-items: center; padding: 14px 16px; font-size: 1.4em; border-radius: 8px; transition: border-color .1s, box-shadow .1s; }
-.wm-eq-editor .wm-eq-visual:focus-within { border-color: var(--interactive-accent); box-shadow: 0 0 0 2px rgba(var(--interactive-accent-rgb, 120, 82, 238), .2); }
+.wm-eq-editor .wm-eq-visual:focus-within { border-color: var(--interactive-accent); box-shadow: 0 0 0 2px hsla(var(--wm-accent-hsl), .2); }
 .wm-eq-editor .wm-eq-input { min-height: 84px; border-radius: 8px; }
 .wm-eq-editor .wm-eq-visual-hint { margin-top: 6px; line-height: 1.5; }
 .wm-eq-card .wm-eq-preview { min-height: 56px; background: var(--background-primary); border-radius: 8px; }
@@ -1244,10 +1266,10 @@ body:not(.is-phone) .modal.wm-eq-modal, body:not(.is-phone) .modal.wm-mmd-modal 
 /* 格子：空的格子是虛線方框，游標所在的格子與它外面的結構用淡淡的底色標出來 */
 .wm-mv { flex: 1 1 auto; min-height: 48px; }
 .wm-mv-text { min-width: 5px; padding: 1px 2px; border-radius: 3px; }
-.wm-mv-text:focus { background: rgba(var(--interactive-accent-rgb, 120, 82, 238), .12); }
+.wm-mv-text:focus { background: hsla(var(--wm-accent-hsl), .12); }
 .wm-mv-text.is-slot { min-width: 1em; min-height: 1.15em; border: 1px dashed var(--text-faint); border-radius: 4px; }
 .wm-mv-text.is-slot:focus { border-color: var(--interactive-accent); border-style: solid; }
-.wm-mv-frac:focus-within, .wm-mv-sqrt:focus-within, .wm-mv-paren:focus-within, .wm-mv-group:focus-within, .wm-mv-hbrace:focus-within, .wm-mv-env:focus-within { background: rgba(var(--interactive-accent-rgb, 120, 82, 238), .06); border-radius: 4px; }
+.wm-mv-frac:focus-within, .wm-mv-sqrt:focus-within, .wm-mv-paren:focus-within, .wm-mv-group:focus-within, .wm-mv-hbrace:focus-within, .wm-mv-env:focus-within { background: hsla(var(--wm-accent-hsl), .06); border-radius: 4px; }
 /* 空心字、花體本來就有底色與框線（見前面 .wm-mv-group[data-cmd="mathbb"]）：游標在裡面時框線改成實心的強調色 */
 .wm-mv-group[data-cmd="mathbb"]:focus-within, .wm-mv-group[data-cmd="mathcal"]:focus-within { border-color: var(--interactive-accent); }
 .wm-mv-num, .wm-mv-den { min-width: 1.2em; }
@@ -1278,7 +1300,7 @@ body:not(.is-phone) .modal.wm-eq-modal, body:not(.is-phone) .modal.wm-mmd-modal 
 .wm-mmd-input { min-height: 360px; border-radius: 8px; line-height: 1.5; }
 /* 表單 */
 .wm-mmd-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding-bottom: 8px; border-bottom: 1px solid var(--background-modifier-border); }
-.wm-mmd-badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 12px; background: rgba(var(--interactive-accent-rgb, 120, 82, 238), .14); color: var(--text-accent); font-size: var(--font-ui-small); font-weight: 600; }
+.wm-mmd-badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 12px; background: hsla(var(--wm-accent-hsl), .14); color: var(--text-accent); font-size: var(--font-ui-small); font-weight: 600; }
 .wm-mmd-opt { display: inline-flex; align-items: center; gap: 6px; font-size: var(--font-ui-small); color: var(--text-muted); }
 .wm-mmd-opt input, .wm-mmd-opt select { height: 28px; }
 .wm-mmd-opt input.is-l { width: 240px; }
@@ -1288,16 +1310,16 @@ body:not(.is-phone) .modal.wm-eq-modal, body:not(.is-phone) .modal.wm-mmd-modal 
 .wm-mmd-list { display: flex; flex-direction: column; gap: 2px; }
 .wm-mmd-row { flex-wrap: wrap; gap: 4px; padding: 3px 4px 3px calc(4px + var(--wm-mmd-level, 0) * 18px); border: 1px solid transparent; border-radius: 6px; }
 .wm-mmd-row:hover { background: var(--background-modifier-hover); }
-.wm-mmd-row.is-current { background: rgba(var(--interactive-accent-rgb, 120, 82, 238), .1); border-color: rgba(var(--interactive-accent-rgb, 120, 82, 238), .45); }
+.wm-mmd-row.is-current { background: hsla(var(--wm-accent-hsl), .1); border-color: hsla(var(--wm-accent-hsl), .45); }
 .wm-mmd-row select { max-width: 190px; }
 .wm-mmd-row textarea.wm-mmd-lines { flex: 4 1 170px; min-width: 120px; min-height: 0; padding: 4px 8px; font-size: var(--font-ui-small); line-height: 1.45; resize: vertical; }
 .wm-mmd-tools { display: inline-flex; align-items: center; gap: 0; margin-left: auto; opacity: .45; transition: opacity .1s; }
 .wm-mmd-row:hover .wm-mmd-tools, .wm-mmd-row:focus-within .wm-mmd-tools, .wm-mmd-row.is-current .wm-mmd-tools, .is-mobile .wm-mmd-tools { opacity: 1; }
 .wm-mmd-tools button.wm-mmd-iconbtn { height: 26px; }
-.wm-mmd-tools button.wm-mmd-iconbtn:disabled { opacity: .25; cursor: default; }
+.wm-mmd-tools button.wm-mmd-iconbtn:disabled { opacity: var(--wm-disabled-opacity); cursor: default; }
 .wm-mmd-level { display: inline-flex; align-items: center; }
 .wm-mmd-level button.wm-mmd-levelbtn { height: 26px; padding: 2px 3px; }
-.wm-mmd-level button.wm-mmd-levelbtn:disabled { opacity: .25; cursor: default; }
+.wm-mmd-level button.wm-mmd-levelbtn:disabled { opacity: var(--wm-disabled-opacity); cursor: default; }
 .wm-mmd-level svg { width: 14px; height: 14px; }
 .wm-mmd button.wm-mmd-add { margin-top: 6px; background: transparent; box-shadow: none; border: 1px dashed var(--background-modifier-border-hover); color: var(--text-muted); cursor: pointer; }
 .wm-mmd button.wm-mmd-add:hover { color: var(--text-accent); border-color: var(--interactive-accent); }
@@ -1307,17 +1329,18 @@ body:not(.is-phone) .modal.wm-eq-modal, body:not(.is-phone) .modal.wm-mmd-modal 
 .wm-mmd-blocked-icon svg { width: 30px; height: 30px; }
 .wm-mmd-blocked .wm-mmd-note { margin: 0; max-width: 420px; line-height: 1.5; }
 /* 在圖上編輯：蓋在文字上的小輸入框與這一列的動作 */
-.wm-mmd-inline { position: absolute; z-index: 5; display: flex; gap: 2px; padding: 3px; background: var(--background-primary); border: 1px solid var(--interactive-accent); border-radius: 8px; box-shadow: var(--shadow-l, var(--shadow-s)); }
+.wm-mmd-inline { position: absolute; z-index: 5; display: flex; gap: 2px; padding: 3px; background: var(--background-primary); border: 1px solid var(--interactive-accent); border-radius: var(--wm-radius-pop); box-shadow: var(--wm-shadow-float); }
 .wm-mmd-inline input.wm-mmd-inline-input { height: 28px; padding: 0 8px; border: none; box-shadow: none; background: transparent; font-size: var(--font-ui-small); }
 .wm-mmd-inline button.wm-mmd-inline-btn { height: 26px; padding: 2px 5px; }
 .wm-mmd-inline button.wm-mmd-inline-btn.is-apply { color: var(--text-accent); }
 .wm-mmd-inline button.wm-mmd-inline-btn.is-danger:hover { color: var(--text-error); }
 .wm-mmd-inline svg { width: 15px; height: 15px; }
-@media (max-width: 760px) { .wm-mmd-body { grid-template-columns: minmax(0, 1fr); } .wm-mmd-edit { max-height: none; } }
 .wm-eq button.wm-eq-btn.is-recent { max-width: 240px; overflow: hidden; }
 .wm-eq button.wm-eq-btn.is-recent .wm-eq-btn-math { font-size: 13px; white-space: nowrap; }
 /* 圖表表單：欄位多的列（甘特圖的工作、類別圖的關係）盡量排在同一行 */
 .wm-mmd-body { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
+/* 視窗窄的時候改成上下排。要寫在上面那條兩欄的規則後面，寫在前面會被它蓋掉（以前就是這樣，一直沒生效） */
+@media (max-width: 760px) { .wm-mmd-body { grid-template-columns: minmax(0, 1fr); } .wm-mmd-edit { max-height: none; } }
 .wm-mmd-row .wm-mmd-text { flex: 2 1 96px; min-width: 60px; }
 .wm-mmd-row .wm-mmd-text.is-l { flex: 4 1 120px; }
 .wm-mmd-row .wm-mmd-text.is-s { flex: 1 1 78px; min-width: 56px; }
@@ -1437,7 +1460,7 @@ body:not(.is-phone) .modal.wm-eq-modal, body:not(.is-phone) .modal.wm-mmd-modal 
 
 /* ---------- 圖表編輯器：預覽裡的外框（表單目前的那一列、滑鼠指到可以改的文字），以及在背後畫的那一份 ---------- */
 .wm-mmd-stage .wm-mmd-preview { position: relative; }
-.wm-mmd-marker { position: absolute; z-index: 2; box-sizing: border-box; border: 2px solid var(--interactive-accent); border-radius: 6px; background: rgba(var(--interactive-accent-rgb, 120, 82, 238), .08); pointer-events: none; }
+.wm-mmd-marker { position: absolute; z-index: 2; box-sizing: border-box; border: 2px solid var(--interactive-accent); border-radius: 6px; background: hsla(var(--wm-accent-hsl), .08); pointer-events: none; }
 .wm-mmd-marker.is-hover { border: 1px dashed var(--interactive-accent); background: transparent; }
 .wm-mmd-stage > .wm-mmd-canvas.is-pending { position: absolute; left: 0; top: 0; width: 100%; height: 0; overflow: hidden; visibility: hidden; pointer-events: none; }
 
@@ -1505,18 +1528,18 @@ body:not(.is-phone) .modal.wm-eq-modal, body:not(.is-phone) .modal.wm-mmd-modal 
 /* ---------- 狀態列：Markdown／閱讀模式也是同樣的內容 ---------- */
 :is(.wm-bottombar, .wm-statusbar) .wm-bb-btn-icon { display: inline-flex; }
 /* 縮放只用在 Word 模式：其他模式仍然顯示（版面不跳動），但停用 */
-.wm-bb-zoom.is-disabled { opacity: .45; }
+.wm-bb-zoom.is-disabled { opacity: var(--wm-disabled-opacity); }
 :is(.wm-bottombar, .wm-statusbar) .wm-bb-zoom.is-disabled button { cursor: default; }
 :is(.wm-bottombar, .wm-statusbar) .wm-bb-zoom.is-disabled button:hover { background: transparent; color: var(--text-muted); }
 /* Markdown 編輯時 Obsidian 內建的字數跟狀態列的字數重複，藏起來（關掉「保留狀態列」就恢復） */
 body.wm-md-status .status-bar-item.plugin-word-count { display: none; }
 
 /* ---------- 查看文件屬性（小視窗）：名稱與值一列一列排，沒有格線，滑鼠移上去整列淡淡變色（參考 Linear 與 Obsidian 的屬性清單） ---------- */
-.wm-popup.wm-peek { width: 340px; max-width: calc(100vw - 8px); display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 12px; box-shadow: var(--shadow-l, 0 10px 30px rgba(0, 0, 0, .18)); font-size: var(--font-ui-small); }
+.wm-popup.wm-peek { width: 340px; max-width: calc(100vw - 8px); display: flex; flex-direction: column; gap: 8px; padding: 10px; box-shadow: var(--wm-shadow-float); font-size: var(--font-ui-small); }
 /* 篩選時藏起來的列：.wm-peek [hidden] 比 .wm-peek-row 的 display: flex 具體，不需要 important */
 .wm-peek [hidden] { display: none; }
 .wm-peek-head { display: flex; align-items: center; gap: 8px; padding: 0 2px; }
-.wm-peek-badge { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 24px; height: 24px; border-radius: 7px; background: rgba(var(--interactive-accent-rgb, 120, 82, 238), .12); color: var(--text-accent); }
+.wm-peek-badge { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 24px; height: 24px; border-radius: 7px; background: hsla(var(--wm-accent-hsl), .12); color: var(--text-accent); }
 .wm-peek-badge svg { width: 14px; height: 14px; }
 .wm-peek-title { font-weight: 600; color: var(--text-normal); }
 .wm-peek-count { margin-left: auto; padding: 1px 8px; border-radius: 10px; background: var(--background-secondary); color: var(--text-muted); font-size: var(--font-ui-smaller); }
@@ -1569,8 +1592,8 @@ body.wm-md-status .status-bar-item.plugin-word-count { display: none; }
 .wm-pin-bar { display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 6px 0 7px; border-radius: 13px; cursor: pointer; user-select: none; }
 .wm-pin-bar:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: -2px; }
 .wm-pin.is-open .wm-pin-bar { border-radius: 13px 13px 0 0; }
-.wm-pin-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 26px; height: 26px; border-radius: 8px; background: rgba(var(--interactive-accent-rgb, 120, 82, 238), .12); color: var(--text-accent); transition: background .15s; }
-.wm-pin-bar:hover .wm-pin-icon { background: rgba(var(--interactive-accent-rgb, 120, 82, 238), .2); }
+.wm-pin-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 26px; height: 26px; border-radius: 8px; background: hsla(var(--wm-accent-hsl), .12); color: var(--text-accent); transition: background .15s; }
+.wm-pin-bar:hover .wm-pin-icon { background: hsla(var(--wm-accent-hsl), .2); }
 .wm-pin-icon svg { width: 15px; height: 15px; }
 /* 屬性之間用很淡的直線分開；一行放不下的往右淡出，完整內容點開屬性列看。
    淡出是右端 48px 蓋一層漸層（不用 mask-image，理由見收合的圖表）：屬性列墊在 .wm-pin::before 那條實色的帶子上，
@@ -1609,7 +1632,7 @@ body.wm-md-status .status-bar-item.plugin-word-count { display: none; }
 .wm-props .wm-props-head { gap: 8px; min-height: 38px; padding: 4px 8px 4px 6px; border-radius: calc(var(--metadata-border-radius, 10px) - 1px); }
 .wm-props:not(.is-collapsed) .wm-props-head { border-bottom: 1px solid var(--background-modifier-border); border-radius: calc(var(--metadata-border-radius, 10px) - 1px) calc(var(--metadata-border-radius, 10px) - 1px) 0 0; }
 .wm-props .wm-props-chev { color: var(--text-faint); }
-.wm-props-badge { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 24px; height: 24px; border-radius: 7px; background: rgba(var(--interactive-accent-rgb, 120, 82, 238), .12); color: var(--text-accent); }
+.wm-props-badge { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 24px; height: 24px; border-radius: 7px; background: hsla(var(--wm-accent-hsl), .12); color: var(--text-accent); }
 .wm-props-badge svg { width: 14px; height: 14px; }
 .wm-props .wm-props-title { font-size: var(--font-ui-small); font-weight: 600; color: var(--text-normal); }
 .wm-props .wm-props-count { font-size: var(--font-ui-smaller); }
@@ -1661,7 +1684,7 @@ body.wm-md-status .status-bar-item.plugin-word-count { display: none; }
 /* 設定頁：搜尋框（在分類列上方，跟著分類列固定在上緣）。打字時下面浮出符合的設定，選一個就切到那一類、捲過去並閃一下（settingsnav.ts 的 buildSettingSearch） */
 .wm-set-find { position: relative; margin-bottom: 8px; }
 .wm-set-find-box { display: flex; align-items: center; gap: 6px; padding: 0 4px 0 10px; border: 1px solid var(--background-modifier-border); border-radius: 10px; background: var(--background-primary); transition: border-color .15s ease, box-shadow .15s ease; }
-.wm-set-find-box:focus-within { border-color: var(--interactive-accent); box-shadow: 0 0 0 2px hsla(var(--interactive-accent-hsl), .2); }
+.wm-set-find-box:focus-within { border-color: var(--interactive-accent); box-shadow: 0 0 0 2px hsla(var(--wm-accent-hsl), .2); }
 .wm-set-find-icon { display: inline-flex; flex: 0 0 auto; color: var(--text-faint); }
 .wm-set-find-icon svg { width: 16px; height: 16px; }
 /* 外框已經有框線與焦點效果，輸入框本身不要再有 */
@@ -1674,7 +1697,7 @@ body.wm-md-status .status-bar-item.plugin-word-count { display: none; }
 /* 手機上輸入框的字要 16px 以上，iOS 取得焦點時才不會放大畫面 */
 .is-phone .wm-set-find input.wm-set-find-input { height: 40px; font-size: 16px; }
 
-.wm-set-find-pop { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 20; display: flex; flex-direction: column; max-height: min(60vh, 480px); border: 1px solid var(--background-modifier-border); border-radius: 10px; background: var(--background-primary); box-shadow: var(--shadow-l); overflow: hidden; animation: wm-set-find-in .12s ease-out; }
+.wm-set-find-pop { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 20; display: flex; flex-direction: column; max-height: min(60vh, 480px); border: 1px solid var(--background-modifier-border); border-radius: var(--wm-radius-pop); background: var(--background-primary); box-shadow: var(--wm-shadow-float); overflow: hidden; animation: wm-set-find-in .12s ease-out; }
 .wm-set-find-pop[hidden] { display: none; }
 @keyframes wm-set-find-in { from { opacity: 0; transform: translateY(-4px); } }
 .wm-set-find-head { flex: 0 0 auto; padding: 8px 12px 4px; color: var(--text-muted); font-size: var(--font-ui-smaller); }
@@ -1691,7 +1714,7 @@ body.wm-md-status .status-bar-item.plugin-word-count { display: none; }
 .wm-set-find-via { color: var(--text-faint); }
 .wm-set-find-lang { display: inline-flex; vertical-align: -2px; margin-inline-end: 4px; }
 .wm-set-find-lang svg { width: 12px; height: 12px; }
-mark.wm-set-find-hl { padding: 0 1px; border-radius: 3px; background: hsla(var(--interactive-accent-hsl), .2); color: inherit; font-weight: 600; }
+mark.wm-set-find-hl { padding: 0 1px; border-radius: 3px; background: hsla(var(--wm-accent-hsl), .2); color: inherit; font-weight: 600; }
 .wm-set-find-more { flex: 0 0 auto; padding: 2px 12px 6px; color: var(--text-faint); font-size: var(--font-ui-smaller); }
 .wm-set-find-more[hidden] { display: none; }
 .wm-set-find-foot { flex: 0 0 auto; display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 6px 12px; border-top: 1px solid var(--background-modifier-border); color: var(--text-faint); font-size: var(--font-ui-smaller); }
@@ -1704,7 +1727,7 @@ mark.wm-set-find-hl { padding: 0 1px; border-radius: 3px; background: hsla(var(-
 /* 選了搜尋結果之後，那一列閃一下 */
 .wm-set-flash { border-radius: 8px; animation: wm-set-flash 2s ease-out; }
 @keyframes wm-set-flash {
-  0%, 35% { background-color: hsla(var(--interactive-accent-hsl), .16); box-shadow: 0 0 0 2px hsla(var(--interactive-accent-hsl), .6); }
+  0%, 35% { background-color: hsla(var(--wm-accent-hsl), .16); box-shadow: 0 0 0 2px hsla(var(--wm-accent-hsl), .6); }
   100% { background-color: transparent; box-shadow: 0 0 0 2px transparent; }
 }
 @media (prefers-reduced-motion: reduce) { .wm-set-find-pop { animation: none; } }
@@ -1724,7 +1747,46 @@ mark.wm-set-find-hl { padding: 0 1px; border-radius: 3px; background: hsla(var(-
 .wm-demo-slider { flex: 0 0 40%; height: 4px; border-radius: 2px; background: linear-gradient(90deg, var(--interactive-accent) 55%, var(--background-modifier-border) 55%); }
 @keyframes wm-set-type { 0%, 6% { max-width: 0; } 30%, 92% { max-width: 6em; } 100% { max-width: 0; } }
 @keyframes wm-set-hit { 0%, 32% { opacity: 0; transform: translateY(-3px); } 38%, 56% { opacity: 1; transform: none; } 62%, 100% { opacity: 0; } }
-@keyframes wm-set-row { 0%, 60% { background: transparent; box-shadow: 0 0 0 2px transparent; color: var(--text-muted); } 66%, 88% { background: hsla(var(--interactive-accent-hsl), .16); box-shadow: 0 0 0 2px hsla(var(--interactive-accent-hsl), .6); color: var(--text-normal); } 100% { background: transparent; box-shadow: 0 0 0 2px transparent; } }
+@keyframes wm-set-row { 0%, 60% { background: transparent; box-shadow: 0 0 0 2px transparent; color: var(--text-muted); } 66%, 88% { background: hsla(var(--wm-accent-hsl), .16); box-shadow: 0 0 0 2px hsla(var(--wm-accent-hsl), .6); color: var(--text-normal); } 100% { background: transparent; box-shadow: 0 0 0 2px transparent; } }
 
 /* 提示卡收起來只是變透明，裡面的示意動畫還在；不暫停的話會一直跑到下一次顯示 */
 .wm-hint-card:not(.is-shown) .wm-hint-demo, .wm-hint-card:not(.is-shown) .wm-hint-demo *, .wm-hint-card:not(.is-shown) .wm-hint-demo *::before, .wm-hint-card:not(.is-shown) .wm-hint-demo *::after { animation-play-state: paused; }
+
+/* 鍵盤焦點框。上面每一種自訂按鈕都用 box-shadow: none 拿掉 Obsidian 按鈕的陰影，連帶把它的焦點框也拿掉了，
+   用 Tab 鍵移動時看不出目前在哪一顆。這裡一顆一顆補回來（選擇器跟拿掉陰影的那一條相同，才蓋得過去） */
+.wm-toolbar button.wm-btn:focus-visible,
+.wm-bubble button.wm-bubble-btn:focus-visible,
+.wm-bubble button.wm-bubble-size:focus-visible,
+.wm-findbar button.wm-find-btn:focus-visible,
+.wm-statusbar) button.wm-bb-btn:focus-visible,
+.wm-statusbar) button.wm-bb-zoomlabel:focus-visible,
+.wm-props button.wm-props-raw:focus-visible,
+.wm-props button.wm-prop-del:focus-visible,
+.wm-tabs button.wm-tab:focus-visible,
+.wm-tabs-quick button.wm-btn:focus-visible,
+.wm-menu-popup button.wm-menu-item:focus-visible,
+.wm-style-popup button.wm-style-item:focus-visible,
+.wm-symbol-grid button.wm-symbol:focus-visible,
+.wm-code-head button:focus-visible,
+.wm-pills button.wm-pill:focus-visible,
+.wm-eq-cats button.wm-eq-cat:focus-visible,
+.wm-mv-env-tools button.wm-mv-env-btn:focus-visible,
+.wm-props button.wm-prop-icon:focus-visible,
+.wm-props button.wm-prop-open:focus-visible,
+.wm-toolbar button.wm-tab-switch:focus-visible,
+.wm-settings-grow button.wm-settings-gmove:focus-visible,
+.wm-popup button.wm-cp-clear:focus-visible,
+.wm-popup button.wm-cp-swatch:focus-visible,
+.wm-seg button:focus-visible,
+.wm-eq button.wm-eq-btn:focus-visible,
+.wm-mmd-kinds button.wm-mmd-kind:focus-visible,
+.wm-mmd button.wm-mmd-add:focus-visible,
+.wm-mmd-zoom button.wm-mmd-zoomlabel:focus-visible,
+.wm-mmd button.wm-mmd-color:focus-visible,
+.wm-mmd button.wm-mmd-swatch:focus-visible,
+.wm-mmd-templates button.wm-mmd-tpl:focus-visible,
+.wm-mmd-more button.wm-mmd-morebtn:focus-visible,
+.wm-editor .wm-codeblock button.wm-code-more:focus-visible { box-shadow: var(--wm-focus-ring); }
+
+/* 手機上程式碼區塊右上角的按鈕要夠大才按得到。前面有一條把高度設成 22px 的規則蓋掉了手機的 32px */
+.wm-mobile .wm-codeblock .wm-code-head select, .wm-mobile .wm-codeblock .wm-code-head button { height: 32px; }

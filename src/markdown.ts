@@ -1112,7 +1112,10 @@ export class MarkdownConverter {
       }
     }
     if (prevSeg === meta.segments.length - 1) out += (pending || '') + meta.trailingGap;
-    else if (lastModified && !meta.endsWithNewline) out = out.replace(/(\r\n|\n|\r)$/, '');
+    // 原本的檔案結尾沒有換行，就維持沒有。最後一個區塊照原文輸出時本來就沒有行尾（這一行不會動到什麼）；
+    // 它被改過、是新加的、或是從中間搬過來的時候，尾巴會帶著一個行尾，要拿掉。
+    // 不然只是改最後一段的一個字，檔案結尾就多出一行，同步與版本紀錄會多一筆跟內容無關的變動
+    if (!meta.endsWithNewline) out = out.replace(/(\r\n|\n|\r)$/, '');
     return out;
   }
 }

@@ -4,7 +4,7 @@ import { MarkdownConverter } from '../../src/markdown.ts';
 import { setLanguage, t } from '../../src/i18n.ts';
 import { TextSelection } from 'prosemirror-state';
 import * as mock from 'obsidian';
-// 外掛的預設設定，由 record.mjs 從 src/main.ts 的 DEFAULTS 取出，不會跟外掛不同步
+// 外掛的預設設定，由 record.mjs 從 src/settings.ts 的 DEFAULTS 取出，不會跟外掛不同步
 import DEFAULTS from './.cache/defaults.json';
 
 export { TextSelection, mock, t };

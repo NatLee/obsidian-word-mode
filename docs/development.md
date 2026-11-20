@@ -36,7 +36,7 @@ Don't keep this folder or `node_modules` inside a folder that a sync client watc
 flowchart TB
   subgraph obs["Obsidian side"]
     direction LR
-    main["main.ts<br/>plugin, settings, mode switch"] --> view["view.ts<br/>WordModeView"]
+    main["main.ts<br/>plugin, mode switch"] --> view["view.ts<br/>WordModeView"]
     view --> toolbar["toolbar.ts<br/>ribbon"]
     view --> nodeviews["nodeviews.ts<br/>tables, images, callouts"]
     view --> editors["dialogs.ts · mermaid.ts<br/>equation and diagram editors"]
@@ -106,8 +106,10 @@ All styles are in `styles/word-mode.css`, and every class starts with `wm-`. The
 
 | Path | Contents |
 | --- | --- |
-| `src/main.ts` | Plugin entry point, `Settings` and `DEFAULTS`, the settings tab, and switching between Word mode and Markdown. |
+| `src/main.ts` | Plugin entry point, and switching between Word mode and Markdown. |
+| `src/settings.ts`, `src/settingstab.ts` | `Settings` and `DEFAULTS`; the settings tab. |
 | `src/view.ts` | The Word mode view (`TextFileView`). |
+| `src/contextmenu.ts` | The right-click menu of the Word mode view. |
 | `src/markdown.ts` | Conversion between Markdown and the document model. |
 | `src/schema.ts` | Document model (ProseMirror schema). |
 | `src/editor.ts` | Editor state setup. |

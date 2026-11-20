@@ -241,6 +241,12 @@ await fresh('cat concat cat2 Cat\n\n2026-11-17 與 2025-01-02\n');
   const find = q => { fb.input.value = q; fb.input.dispatchEvent(new Event('input')); return fb.count.textContent; };
   fb.open(false);
   assert(find('cat') === '1/4', '一般尋找：包含就算（4 處）：' + fb.count.textContent);
+  // 輸入法選字時按的 Enter 是「確定選這個字」，不能當成「找下一個」
+  fb.input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', isComposing: true, bubbles: true, cancelable: true }));
+  assert(fb.count.textContent === '1/4', '輸入法選字中的 Enter 不會跳到下一個：' + fb.count.textContent);
+  fb.input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+  assert(fb.count.textContent === '2/4', '一般的 Enter 跳到下一個：' + fb.count.textContent);
+  fb.input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', shiftKey: true, bubbles: true, cancelable: true }));
   fb.wordBtn.click();
   assert(fb.count.textContent === '1/2', '全字相符：只剩獨立的 cat 與 Cat（2 處）：' + fb.count.textContent);
   fb.wordBtn.click();
@@ -760,6 +766,42 @@ await fresh('---\ntags:\n  - 會議\nrelated:\n  - [[其他筆記]]\n  - https:/
   assert(!run(B.C.moveBlock(1)), '標題列不能往下搬');
   const first = view.pm.state.doc.firstChild.firstChild;
   assert(first.firstChild.type.name === 'table_header' && first.textContent === '甲乙丙', '標題列還是標題列');
+}
+
+// ======== 複製之後的通知只顯示開頭，不把整份內容貼出來 ========
+{
+  const written = [];
+  const had = Object.getOwnPropertyDescriptor(globalThis.navigator, 'clipboard');
+  Object.defineProperty(globalThis.navigator, 'clipboard', { value: { writeText: async s => { written.push(s); } }, configurable: true });
+  const long = '第一行程式碼\n' + 'x = 1\n'.repeat(80);
+  view.copyText(long);
+  await sleep(5);
+  const notice = mock.log.filter(x => x[0] === 'notice').pop()[1];
+  assert(written[0] === long, '剪貼簿拿到完整的內容');
+  assert(notice.startsWith('已複製：第一行程式碼 x = 1') && notice.endsWith('…') && notice.length < 80, '通知只顯示開頭一小段：' + notice.length + ' 個字');
+  view.copyText('短的');
+  await sleep(5);
+  assert(mock.log.filter(x => x[0] === 'notice').pop()[1] === '已複製：短的', '短的內容照樣完整顯示');
+  if (had) Object.defineProperty(globalThis.navigator, 'clipboard', had); else delete globalThis.navigator.clipboard;
+}
+
+// ======== 跳到指定的行（大綱、反向連結、搜尋結果）：文件改過之後行號還是對得上 ========
+{
+  await fresh('# 一\n\n段落一\n\n# 二\n\n段落二\n\n# 三\n\n段落三\n');
+  const at = () => view.pm.state.selection.$from.parent.textContent;
+  const lineOf = text => view.getViewData().split('\n').indexOf(text);
+  view.setEphemeralState({ line: lineOf('# 二') });
+  assert(at() === '二', '沒改過：跳到第二個標題：' + at());
+  // 在最前面加兩段、把第一個標題整個刪掉：後面每一段的行號都變了
+  const P = B.schema.nodes.paragraph;
+  view.pm.dispatch(view.pm.state.tr.insert(0, [P.create(null, B.schema.text('新的第一段')), P.create(null, B.schema.text('新的第二段'))]));
+  view.setEphemeralState({ line: lineOf('# 二') });
+  assert(at() === '二', '前面加了兩段之後：還是跳到第二個標題：' + at());
+  view.setEphemeralState({ line: lineOf('新的第二段') });
+  assert(at() === '新的第二段', '新加的段落也跳得到：' + at());
+  view.setEphemeralState({ line: lineOf('段落三') });
+  assert(at() === '段落三', '最後一段：' + at());
+  await view.save();
 }
 
 // ======== 裝飾的局部更新：改動之後，跟整份重算的結果一樣 ========

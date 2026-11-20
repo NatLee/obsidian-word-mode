@@ -34,9 +34,9 @@ for (const l of langs) if (!LANGS.includes(l)) { console.error(`不支援的語�
 
 // ---- 打包：外掛的檢視 + Obsidian 替身 → .cache/bundle.js；外掛的樣式 → .cache/plugin.css
 fs.mkdirSync(cache, { recursive: true });
-const main = fs.readFileSync(path.join(repo, 'src/main.ts'), 'utf8');
+const main = fs.readFileSync(path.join(repo, 'src/settings.ts'), 'utf8');
 const m = /const DEFAULTS: Settings = (\{[\s\S]*?\n\});/.exec(main);
-if (!m) throw new Error('src/main.ts 裡找不到 DEFAULTS');
+if (!m) throw new Error('src/settings.ts 裡找不到 DEFAULTS');
 // DEFAULTS 是一般的物件常值（含註解），直接當 JavaScript 求值
 fs.writeFileSync(path.join(cache, 'defaults.json'), JSON.stringify(new Function('return ' + m[1])()));
 const esbuild = createRequire(path.join(repo, 'package.json'))('esbuild');

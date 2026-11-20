@@ -187,7 +187,13 @@ const P = text => schema.nodes.paragraph.create(null, schema.text(text));
   r = save('A\r\n\r\nB', (s, d) => d(s.tr.insert(s.doc.content.size, P('C'))));
   ok('結尾沒有換行（CRLF），在最後加一段', r.out === 'A\r\n\r\nB\r\n\r\nC' && sameDoc(r), JSON.stringify(r.out));
   r = save('A\n\nB', (s, d, cur) => { d(caretAt(s, 'B')); moveBlock(-1)(cur(), d); });
-  ok('結尾沒有換行，把最後一段往上移：仍是兩段', r.out === 'B\n\nA\n' && sameDoc(r), JSON.stringify(r.out));
+  ok('結尾沒有換行，把最後一段往上移：仍是兩段，結尾一樣沒有換行', r.out === 'B\n\nA' && sameDoc(r), JSON.stringify(r.out));
+  r = save('A\n\nB', (s, d) => d(s.tr.insertText('!', s.doc.content.size - 1)));
+  ok('結尾沒有換行，只改最後一段的字：檔案結尾不會多一行', r.out === 'A\n\nB!' && sameDoc(r), JSON.stringify(r.out));
+  r = save('A\r\n\r\nB', (s, d) => d(s.tr.insertText('!', s.doc.content.size - 1)));
+  ok('結尾沒有換行（CRLF），只改最後一段的字', r.out === 'A\r\n\r\nB!' && sameDoc(r), JSON.stringify(r.out));
+  r = save('A\n\nB\n', (s, d) => d(s.tr.insertText('!', s.doc.content.size - 1)));
+  ok('結尾有換行的檔案照舊保留結尾的換行', r.out === 'A\n\nB!\n' && sameDoc(r), JSON.stringify(r.out));
   r = save('A\n\nB', (s, d) => d(s.tr.delete(0, s.doc.firstChild.nodeSize)));
   ok('結尾沒有換行，刪掉前面的段落：最後一段照原文', r.out === 'B', JSON.stringify(r.out));
 

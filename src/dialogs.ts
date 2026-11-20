@@ -105,7 +105,8 @@ export class PromptModal extends Modal {
     bar.createEl('button', { text: t('取消') }).addEventListener('click', () => this.close());
     const ok = bar.createEl('button', { text: t('確定'), cls: 'mod-cta' });
     ok.addEventListener('click', () => { this.close(); this.onSave(i.value); });
-    i.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); ok.click(); } });
+    // 輸入法選字中的 Enter 是確定選字，不是送出
+    i.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); ok.click(); } });
     window.setTimeout(() => { i.focus(); i.select(); }, 10);
   }
   onClose(): void { this.contentEl.empty(); }
@@ -179,6 +180,8 @@ export class LinkDialog extends Modal {
     this.ok.addEventListener('click', () => this.submit());
 
     const keys = (e: KeyboardEvent) => {
+      // 輸入法還在選字：這時的 Enter 是「確定選這個字」、Esc 是「取消選字」，不是給這裡的
+      if (e.isComposing) return;
       if (this.mode === 'file' && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
         e.preventDefault();
         this.active = Math.max(0, Math.min(this.results.length - 1, this.active + (e.key === 'ArrowDown' ? 1 : -1)));
@@ -498,6 +501,7 @@ export class EquationModal extends Modal {
         saveRow.createEl('button', { text: t('存成我的公式'), cls: 'mod-cta' }).addEventListener('click', run);
         saveRow.createEl('button', { text: t('取消') }).addEventListener('click', close);
         name.addEventListener('keydown', e => {
+          if (e.isComposing) return; // 輸入法選字中
           if (e.key === 'Enter' && !(e.ctrlKey || e.metaKey)) { e.preventDefault(); e.stopPropagation(); run(); }
           else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); }
         });
