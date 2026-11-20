@@ -55,6 +55,7 @@ const CASES = {
   starBullets: '* a\n* b\n',
   headingTrail: '## 標題 ##\n',
   htmlInlineUnknown: '文字 <span class="x">a</span> <abbr title="t">b</abbr>\n',
+  nestedSpan: '前 <span style="border: 1px solid; padding: 0 2px">框<span style="color: red">紅</span>線</span> 與 <span style="color: blue">藍<span class="x">未知</span>字</span>\n',
   imgSize: '![alt|100x200](a.png) ![[b.png|說明|300]]\n',
   imgAltMarks: '圖 ![**粗** 說明 `碼`|200](a.png) 與 ![R\\&D *chart*](b.png)\n',
   mathBlockInline: '$$x^2$$ 同一行\n',
@@ -126,6 +127,14 @@ ok('[x](網址) 與 [^1] 不是任務', c.parse(CASES.taskNotLink).doc.firstChil
   ok('圖片說明文字裡有格式：取全部的文字', JSON.stringify(alts) === '["粗 說明 碼","200","R&D chart",null]', JSON.stringify(alts));
   o = edited(CASES.imgAltMarks, '圖');
   ok('圖片說明文字裡有格式：編輯後說明還在', o === '新圖 ![粗 說明 碼|200](a.png) 與 ![R&D chart](b.png)\n', JSON.stringify(o));
+}
+
+{
+  // <span> 裡面再包 <span>：結尾標籤要配到對的那一個（框線包顏色時，顏色不能跑到後面的字上）
+  const got = []; c.parse(CASES.nestedSpan).doc.descendants(n => { if (n.isText && n.marks.length) got.push(n.text + '=' + n.marks.map(m => m.type.name).join('+')); });
+  ok('巢狀的 <span>：格式套在對的字上', got.join(' ') === '框=border 紅=border+color 線=border 藍=color 未知=color 字=color', got.join(' '));
+  o = edited(CASES.nestedSpan, '前');
+  ok('巢狀的 <span>：編輯後寫回同樣的標籤', o === '新' + CASES.nestedSpan, JSON.stringify(o));
 }
 
 ok('有空行的 %% 註解是一整個原文區塊', kinds(CASES.blockComment) === 'raw_block:comment', kinds(CASES.blockComment));

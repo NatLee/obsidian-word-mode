@@ -178,11 +178,14 @@ function htmlToMarks(children: Token[]): void {
     for (const p of HTML_PAIRS) {
       const om = t.content.match(p.open);
       if (!om) continue;
+      // 找對應的結尾標籤：中間同一種標籤的開頭都要算一層，不管它是哪一種格式。
+      // 框線裡包顏色都是 <span>，只數「框線的開頭」會把裡面那個 </span> 當成框線的結尾
+      const sameTag = new RegExp('^<' + /^<([a-z]+)/i.exec(t.content)![1] + '(?:\\s[^>]*)?>$', 'i');
       let depth = 0;
       for (let j = i + 1; j < children.length; j++) {
         const c = children[j];
         if (c.type !== 'html_inline') continue;
-        if (p.open.test(c.content)) depth++;
+        if (sameTag.test(c.content)) depth++;
         else if (p.close.test(c.content)) {
           if (depth === 0) {
             const kind = p.name === 'colorfont' ? 'colorspan' : (p.kind || p.name);
