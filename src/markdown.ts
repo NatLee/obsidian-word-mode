@@ -9,7 +9,7 @@ import type { Mark, Node as PMNode } from 'prosemirror-model';
 // markdown-it 15 自帶型別定義；預設匯出是建構函式（值），實例的型別另外以具名的型別匯出
 import type { MarkdownIt as MarkdownItInstance, StateCore, StateInline, Token } from 'markdown-it';
 import type { ParseSpec } from 'prosemirror-markdown';
-import { schema } from './schema.js';
+import { schema, IMAGE_PATH } from './schema.js';
 import type {
   BidAttrs, CalloutAttrs, FrontmatterAttrs, HeadingAttrs, HorizontalRuleAttrs, ImageAttrs, LinkAttrs, ListItemAttrs,
   OrderedListAttrs, RawBlockAttrs, RawInlineAttrs, TableCellAttrs, WikilinkAttrs,
@@ -88,7 +88,6 @@ interface TableCellOut {
   align: string | null;
 }
 
-const IMAGE_EXT = /\.(png|jpe?g|gif|bmp|svg|webp|avif|heic|tiff?)$/i;
 
 // ---------------------------------------------------------------------------
 // markdown-it 設定與 Obsidian 語法擴充
@@ -110,7 +109,7 @@ function wikilinkRule(state: StateInline, silent: boolean): boolean {
     let alias: string | null = null;
     const m = inner.match(/^(.*?)\\?\|(.*)$/);
     if (m) { target = m[1]; alias = m[2]; }
-    if (embed && IMAGE_EXT.test(target.split('#')[0])) {
+    if (embed && IMAGE_PATH.test(target.split('#')[0])) {
       // ![[圖.png|300]]、![[圖.png|說明]]、![[圖.png|說明|300]]
       let alt = alias;
       let width: string | null = null;

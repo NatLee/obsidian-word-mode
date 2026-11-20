@@ -9,7 +9,7 @@ import { findWrapping, canJoin } from 'prosemirror-transform';
 import { closeHistory, undo } from 'prosemirror-history';
 import type { EditorState, Transaction } from 'prosemirror-state';
 import type { Node as PMNode, NodeType, MarkType, ResolvedPos, Attrs } from 'prosemirror-model';
-import { schema } from './schema.js';
+import { schema, IMAGE_PATH } from './schema.js';
 
 // 規則比對的結果；lead 是開頭不屬於格式的字元數（見 lead()）
 type RuleMatch = RegExpExecArray & { lead?: number };
@@ -23,7 +23,6 @@ interface BidAttrs { readonly bid: number | null; }
 const N = schema.nodes;
 const M = schema.marks;
 const LEAF = '\ufffc'; // 代表圖片、連結等非文字節點（長度與節點大小都是 1，位置才對得上）
-const IMAGE_EXT = /\.(png|jpe?g|gif|bmp|svg|webp|avif|heic|tiff?)$/i;
 
 export const autoformatOptions = { enabled: true };
 const autoKey = new PluginKey<boolean>('wmAutoformat');
@@ -123,7 +122,7 @@ const INLINE_RULES: Rule[] = [
     const target = (bar < 0 ? m[2] : m[2].slice(0, bar)).trim();
     const alias = bar < 0 ? null : m[2].slice(bar + 1);
     if (!target) return null;
-    if (m[1] && IMAGE_EXT.test(target.split('#')[0])) {
+    if (m[1] && IMAGE_PATH.test(target.split('#')[0])) {
       const w = alias != null && /^\d+(x\d+)?$/.test(alias) ? alias : null;
       return N.image.create({ src: target, wiki: true, alt: w ? null : alias, width: w });
     }

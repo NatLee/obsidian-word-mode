@@ -3,6 +3,14 @@ import { Schema } from 'prosemirror-model';
 import type { Attrs, AttributeSpec, Node as PMNode } from 'prosemirror-model';
 import { tableNodes } from 'prosemirror-tables';
 
+// 當成圖片的檔案類型。內嵌 ![[檔案]] 是不是圖片、檔案清單的圖示、拖進來或挑選的檔案都看這一份，
+// 各處各寫一份的時候曾經不一致（有的少了 heic、tiff）
+const IMAGE_TYPES = 'png|jpe?g|gif|bmp|svg|webp|avif|heic|tiff?';
+// 副檔名（不含點），例如 TFile.extension
+export const IMAGE_EXT = new RegExp('^(' + IMAGE_TYPES + ')$', 'i');
+// 路徑或檔名（結尾是 .副檔名）
+export const IMAGE_PATH = new RegExp('\\.(' + IMAGE_TYPES + ')$', 'i');
+
 // 各種節點與 mark 的屬性（對應下面 schema 裡各 attrs 的設定）。node.attrs／mark.attrs 的值是 any，讀取時先轉成這些型別。
 // bid 是原文區塊編號，新建立的區塊是 null
 export interface BidAttrs { readonly bid: number | null; }

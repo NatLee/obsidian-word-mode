@@ -16,7 +16,7 @@ import { findPlugin, FindBar } from './find.js';
 import { foldPlugin } from './fold.js';
 import { stripSliceBids, stripBids, clipboardTable, tableFromRows, fillTable, looksLikeMarkdown } from './paste.js';
 import { Slice, Fragment } from 'prosemirror-model';
-import { schema } from './schema.js';
+import { schema, IMAGE_EXT } from './schema.js';
 import { createEditorState, restoreEditorState } from './editor.js';
 import { createNodeViews } from './nodeviews.js';
 import { Toolbar } from './toolbar.js';
@@ -60,7 +60,6 @@ import type { TextRange } from './commands.js';
 import type { TemplatesInstance } from './obsidian-internal.js';
 
 export const VIEW_TYPE = 'natlee-word-mode';
-const IMAGE_EXT = /^(png|jpe?g|gif|bmp|svg|webp|avif)$/i;
 
 // 存檔狀態（下方狀態列顯示）：saved 已儲存、dirty 編輯中、saving 儲存中、conflict 同步衝突
 export type { SaveStatus } from './statusbar.js';

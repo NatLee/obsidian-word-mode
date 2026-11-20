@@ -1,12 +1,11 @@
 // 自動完成選單（suggest.js）需要的保管庫資料：筆記清單、標題、標籤，以及依保管庫設定產生連結
 import { prepareFuzzySearch, getAllTags, TFile } from 'obsidian';
-import { schema } from './schema.js';
+import { schema, IMAGE_EXT } from './schema.js';
 import { tagsInDoc } from './links.js';
 import type { Node as PMNode } from 'prosemirror-model';
 import type { WordModeView } from './view.js';
 import type { SuggestContext, SuggestFileItem } from './suggest.js';
 
-const IMAGE_EXT = /^(png|jpe?g|gif|bmp|svg|webp|avif)$/i;
 
 // 依名稱搜尋保管庫裡的檔案（筆記優先）；沒有輸入時列出最近修改的筆記
 export function searchFiles(view: WordModeView, query: string): SuggestFileItem[] {
