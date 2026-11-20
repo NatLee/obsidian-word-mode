@@ -283,7 +283,7 @@ function settingSections(settingTab: WordModeSettings): SettingSection[] {
     // ------------------------------------------------ 進階
     { id: 'advanced', heading: '進階', icon: 'wrench', rows: [
       common(row(t('快速鍵說明'), t('查看 Word 模式所有的快速鍵。'),
-        s => s.addButton(b => b.setButtonText(t('開啟')).onClick(() => { new ShortcutModal(p.app).open(); })))),
+        s => s.addButton(b => b.setButtonText(t('開啟')).onClick(() => { new ShortcutModal(p.app, p, () => refreshSettingTab(settingTab)).open(); })))),
       row(t('還原預設設定'), t('把以上所有設定改回預設值（不會修改任何筆記）。'),
         s => s.addButton(b => b.setButtonText(t('還原')).setWarning().onClick(async () => {
           const lang = S.language;

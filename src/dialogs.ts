@@ -602,6 +602,14 @@ function markText(el: HTMLElement, text: string, q: string): void {
 }
 
 export class ShortcutModal extends Modal {
+  // 有給 plugin 時，底部顯示「動畫提示」的開關（就是設定裡的詳細提示）；onHints 在切換之後呼叫（設定頁用來重畫那一列）
+  declare plugin: WordModePlugin | null;
+  declare onHints: (() => void) | null;
+  constructor(app: App, plugin: WordModePlugin | null = null, onHints: (() => void) | null = null) {
+    super(app);
+    this.plugin = plugin;
+    this.onHints = onHints;
+  }
   onOpen(): void {
     this.titleEl.setText(t('Word 模式快速鍵'));
     this.modalEl.addClass('wm-shortcuts-modal');
@@ -691,6 +699,19 @@ export class ShortcutModal extends Modal {
     const hint = foot.createDiv('wm-sc-hint');
     setIcon(hint.createSpan('wm-sc-play'), 'play');
     hint.createSpan({ text: t('有這個記號的項目，按一下可以看動畫示範。') });
+    // 看了這裡的動畫示範，想在工具列的按鈕上也看到時，不必再去設定頁找。
+    // 手機沒有滑鼠停留，詳細提示不會出現，所以不放
+    const plugin = this.plugin;
+    if (plugin && !Platform.isMobile) {
+      const sw = foot.createEl('label', { cls: 'wm-sc-richhints' });
+      sw.setAttribute('title', t('滑鼠停在按鈕上時，顯示功能說明、快速鍵，以及一段動畫示範這個按鈕會做什麼。適合剛開始使用的人。'));
+      const cb = sw.createEl('input', { type: 'checkbox' });
+      cb.checked = !!plugin.settings.richHints;
+      sw.createSpan({ text: t('滑鼠停在按鈕上時顯示動畫提示') });
+      cb.addEventListener('change', () => {
+        void plugin.setRichHints(cb.checked).then(() => { if (this.onHints) this.onHints(); });
+      });
+    }
     const platform = foot.createDiv('wm-sc-platform');
     setIcon(platform.createSpan('wm-sc-platform-icon'), 'keyboard');
     platform.createSpan({ text: isMac ? t('Mac：Cmd 與 Option') : t('Windows：Ctrl 與 Alt') });

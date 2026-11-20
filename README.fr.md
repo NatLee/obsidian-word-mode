@@ -31,7 +31,7 @@ C'est ce que montre l'animation du haut. Commencez un paragraphe par `# `, `- `,
 - **Couleur de police et surlignage** : couleurs standard avec leurs nuances, couleurs récentes, ou n'importe quelle couleur choisie ou saisie en code hexadécimal. Le surlignage accepte n'importe quelle couleur et opacité.
 - **À votre goût** : affichez les onglets en texte, en icônes ou les deux, regroupez-les dans un seul bouton de menu et renommez-les. Renommez, réordonnez, masquez ou déplacez les groupes de boutons vers un autre onglet.
 - **La même barre d'outils en mode Markdown et lecture**, avec la même disposition, pour que rien ne saute quand vous changez de mode. Vous pouvez l'afficher dans les deux, dans un seul ou dans aucun.
-- **Info-bulles détaillées** : une fois activées, survoler un bouton l'explique avec une courte animation, y compris pour les boutons de vue et ceux de la barre d'état.
+- **Info-bulles détaillées** : survoler un bouton l'explique avec une courte animation, y compris pour les boutons de vue et ceux de la barre d'état. Elles sont activées par défaut ; vous pouvez les désactiver dans les paramètres ou dans la liste des raccourcis.
 - **Barre d'état** avec le nombre de mots, l'état de l'enregistrement, des boutons pour passer du mode Word au Markdown ou au mode lecture, l'affichage des propriétés et le zoom. Les modes Markdown et lecture gardent les mêmes boutons et comptent les mots de la même façon. Vous pouvez désactiver cela dans les paramètres.
 
 ### Tableaux
@@ -103,7 +103,7 @@ C'est ce que montre l'animation du haut. Commencez un paragraphe par `# `, `- `,
 - **Marques de mise en forme** comme `¶`, et un outil de nettoyage des caractères invisibles ou parasites.
 - **Collez du texte Markdown** et convertissez-le en texte mis en forme en une étape.
 - **Gestion des conflits de synchronisation** : si une note change sur le disque alors que vous avez des modifications non enregistrées, vous choisissez la version à garder.
-- **Liste des raccourcis** : faites une recherche ou choisissez une catégorie, et sélectionnez un raccourci pour voir une courte animation de ce qu'il fait.
+- **Liste des raccourcis** : faites une recherche ou choisissez une catégorie, et sélectionnez un raccourci pour voir une courte animation de ce qu'il fait. Une case à cocher en bas active ou désactive les info-bulles détaillées.
 - Interface en chinois traditionnel, taïwanais (caractères Han), cantonais, chinois simplifié, anglais, japonais, coréen, vietnamien, français, allemand, espagnol, arabe et hébreu.
 
 Tout ce que Word Mode ne peut pas modifier visuellement, comme un bloc HTML, s'affiche sous forme de bloc brut et est enregistré sans modification. Survolez-le, ou un bloc de note de bas de page ou de commentaire, pour afficher dans son coin supérieur droit des boutons pour le modifier, le copier ou le supprimer. Supprimer une note de bas de page retire aussi ses appels dans le texte.

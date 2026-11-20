@@ -29,7 +29,7 @@ Shown in the animation at the top. Start a paragraph with `# `, `- `, `1. `, `> 
 - **Font color and highlight**: standard colors with tints and shades, your recent colors, or any color you pick or type as a hex code. Highlights can use any color and opacity.
 - **Make it yours**: show the tabs as text, icons, or both, collapse them into one menu button, and rename them. Rename, reorder, hide, or move button groups to another tab.
 - **The same toolbar in Markdown and reading mode**, with the same layout, so nothing jumps when you switch. You can show it in both, in one of them, or in neither.
-- **Detailed tooltips**: turn them on and hovering a button explains it with a short animation, including the view mode buttons and the status bar buttons.
+- **Detailed tooltips**: hovering a button explains it with a short animation, including the view mode buttons and the status bar buttons. They are on by default; turn them off in settings or in the shortcut list.
 - **Status bar** with the word count, save status, buttons to switch between Word mode, Markdown and reading view, view properties, and zoom. Markdown and reading view keep the same buttons and count words the same way. You can turn this off in settings.
 
 ### Tables
@@ -101,7 +101,7 @@ Shown in the animation at the top. Start a paragraph with `# `, `- `, `1. `, `> 
 - **Formatting marks** such as `¶`, and a cleanup tool for invisible or stray characters.
 - **Paste Markdown text** and convert it to formatted text in one step.
 - **Sync conflict handling**: if a note changes on disk while you have unsaved edits, you choose which version to keep.
-- **Shortcut list**: search it or pick a category, and select a shortcut to watch a short animation of what it does.
+- **Shortcut list**: search it or pick a category, and select a shortcut to watch a short animation of what it does. A checkbox at the bottom turns detailed tooltips on or off.
 - Interface in Traditional Chinese, Taiwanese (Han characters), Cantonese, Simplified Chinese, English, Japanese, Korean, Vietnamese, French, German, Spanish, Arabic, and Hebrew.
 
 Anything Word Mode can't edit visually, such as an HTML block, is shown as a raw block and saved unchanged. Point at one, or at a footnote or comment block, to show buttons in its top-right corner to edit, copy, or delete it. Deleting a footnote also removes its numbers in the text.

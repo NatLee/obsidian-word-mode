@@ -48,7 +48,9 @@ export async function makeEnv({ lang = 'en', files: initial = {}, settings = {},
     saveSettings() {}, openSettings() {}, updateStatus() {}, setZoom(z) { this.settings.zoom = z; },
     // 跟 main.ts 一樣：改設定，再讓編輯器套用（文件屬性標題列的圖釘會呼叫）
     setPropsSticky(on) { this.settings.propsSticky = !!on; view.applyPropsSticky(); },
-    settings: Object.assign(JSON.parse(JSON.stringify(DEFAULTS)), { language: lang }, settings),
+    // 全寬與詳細提示固定關閉，不跟著預設值：動畫是照 A4 頁面錄的，詳細提示開著的話，游標經過按鈕就會跳出提示卡。
+    // 場景要的話可以在 settings 裡打開
+    settings: Object.assign(JSON.parse(JSON.stringify(DEFAULTS)), { language: lang, fullWidth: false, richHints: false }, settings),
     converter: new MarkdownConverter(),
     // 「切換到 Markdown」：錄製時改成顯示這份筆記存成的 Markdown（見 stage.js 的 showSource）
     switchToMarkdown() { if (window.stage) window.stage.showSource(true); },

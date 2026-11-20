@@ -31,7 +31,7 @@ Zu sehen in der Animation oben. Beginnen Sie einen Absatz mit `# `, `- `, `1. `,
 - **Schriftfarbe und Hervorhebung**: Standardfarben mit Hell- und Dunkeltönen, zuletzt verwendete Farben oder jede beliebige Farbe, die Sie auswählen oder als Hex-Code eingeben. Hervorhebungen können jede Farbe und Deckkraft haben.
 - **Ganz nach Ihren Wünschen**: Registerkarten als Text, Symbole oder beides anzeigen, in eine einzige Menüschaltfläche zusammenfassen und umbenennen. Schaltflächengruppen umbenennen, umsortieren, ausblenden oder auf eine andere Registerkarte verschieben.
 - **Dieselbe Symbolleiste in der Markdown- und Leseansicht**, mit demselben Layout, sodass beim Wechseln nichts springt. Sie lässt sich in beiden, in einer davon oder in keiner anzeigen.
-- **Ausführliche Tooltips**: Wenn eingeschaltet, erklärt das Überfahren einer Schaltfläche sie mit einer kurzen Animation, auch bei den Schaltflächen für die Ansichtsmodi und in der Statusleiste.
+- **Ausführliche Tooltips**: Das Überfahren einer Schaltfläche erklärt sie mit einer kurzen Animation, auch bei den Schaltflächen für die Ansichtsmodi und in der Statusleiste. Sie sind standardmäßig eingeschaltet und lassen sich in den Einstellungen oder in der Liste der Tastenkürzel ausschalten.
 - **Statusleiste** mit Wortanzahl, Speicherstatus, Schaltflächen zum Wechseln zwischen Word-Modus, Markdown und Leseansicht, „Eigenschaften anzeigen“ und Zoom. Markdown- und Leseansicht behalten dieselben Schaltflächen und zählen Wörter auf dieselbe Weise. Das lässt sich in den Einstellungen abschalten.
 
 ### Tabellen
@@ -103,7 +103,7 @@ Zu sehen in der Animation oben. Beginnen Sie einen Absatz mit `# `, `- `, `1. `,
 - **Formatierungszeichen** wie `¶` und ein Werkzeug zum Bereinigen unsichtbarer oder verirrter Zeichen.
 - **Markdown-Text einfügen** und in einem Schritt in formatierten Text umwandeln.
 - **Umgang mit Synchronisierungskonflikten**: Ändert sich eine Notiz auf der Festplatte, während Sie ungespeicherte Änderungen haben, entscheiden Sie, welche Version behalten wird.
-- **Liste der Tastenkürzel**: Durchsuchen Sie sie oder wählen Sie eine Kategorie, und wählen Sie ein Tastenkürzel aus, um eine kurze Animation seiner Wirkung zu sehen.
+- **Liste der Tastenkürzel**: Durchsuchen Sie sie oder wählen Sie eine Kategorie, und wählen Sie ein Tastenkürzel aus, um eine kurze Animation seiner Wirkung zu sehen. Mit dem Kontrollkästchen unten schalten Sie die ausführlichen Tooltips ein oder aus.
 - Oberfläche in Chinesisch (traditionell), Taiwanisch (Han-Schriftzeichen), Kantonesisch, Chinesisch (vereinfacht), Englisch, Japanisch, Koreanisch, Vietnamesisch, Französisch, Deutsch, Spanisch, Arabisch und Hebräisch.
 
 Alles, was Word Mode nicht visuell bearbeiten kann, etwa ein HTML-Block, wird als Rohblock angezeigt und unverändert gespeichert. Zeigen Sie mit der Maus darauf, auf eine Fußnote oder einen Kommentarblock, erscheinen oben rechts Schaltflächen zum Bearbeiten, Kopieren und Löschen. Wird eine Fußnote gelöscht, verschwinden auch ihre Verweise im Text.

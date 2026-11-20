@@ -59,7 +59,7 @@ export async function makeEnv(initialFiles = {}, settings = {}) {
     app, statusCalls: 0, history: new Map(),
     storeHistory(p, e) { this.history.set(p, Object.assign({ at: Date.now() }, e)); },
     takeHistory(p) { const e = this.history.get(p); this.history.delete(p); return e || null; },
-    setFullWidth(on) { this.settings.fullWidth = on; }, outlineChanged() {}, outlineOpen() { return false; }, toggleOutline() {}, syncMdBars() {},
+    setFullWidth(on) { this.settings.fullWidth = on; }, setRichHints(on) { this.settings.richHints = on; return Promise.resolve(); }, outlineChanged() {}, outlineOpen() { return false; }, toggleOutline() {}, syncMdBars() {},
     saveSettings() {}, openSettings() {}, updateStatus() {}, setZoom(z) { this.settings.zoom = z; },
     // 跟 main.ts 一樣：改設定，再讓（每個）編輯器套用
     setPropsSticky(on) { this.settings.propsSticky = !!on; view.applyPropsSticky(); },

@@ -31,7 +31,7 @@ Chỉnh sửa ghi chú [Obsidian](https://obsidian.md) giống như trong Word: 
 - **Màu chữ và tô sáng**: các màu chuẩn cùng sắc độ đậm nhạt, các màu bạn dùng gần đây, hoặc bất kỳ màu nào bạn chọn hay nhập bằng mã hex. Tô sáng có thể dùng bất kỳ màu và độ đục nào.
 - **Tùy chỉnh theo ý bạn**: hiện các tab dưới dạng chữ, biểu tượng hoặc cả hai, gộp chúng vào một nút menu, và đổi tên chúng. Đổi tên, sắp xếp lại, ẩn hoặc chuyển các nhóm nút sang tab khác.
 - **Cùng một thanh công cụ trong chế độ Markdown và chế độ đọc**, với cùng bố cục, nên không có gì bị nhảy khi bạn chuyển chế độ. Bạn có thể hiện nó ở cả hai, ở một trong hai, hoặc không hiện ở đâu cả.
-- **Gợi ý chi tiết**: khi bật, di chuột lên một nút sẽ thấy lời giải thích kèm một hoạt ảnh ngắn, kể cả các nút chế độ xem và các nút trên thanh trạng thái.
+- **Gợi ý chi tiết**: di chuột lên một nút sẽ thấy lời giải thích kèm một hoạt ảnh ngắn, kể cả các nút chế độ xem và các nút trên thanh trạng thái. Gợi ý được bật sẵn; bạn có thể tắt trong phần cài đặt hoặc trong danh sách phím tắt.
 - **Thanh trạng thái** với số từ, trạng thái lưu, các nút chuyển giữa chế độ Word, Markdown và chế độ đọc, xem thuộc tính và thu phóng. Chế độ Markdown và chế độ đọc giữ nguyên các nút này và đếm từ theo cùng một cách. Bạn có thể tắt tính năng này trong cài đặt.
 
 ### Bảng
@@ -103,7 +103,7 @@ Chỉnh sửa ghi chú [Obsidian](https://obsidian.md) giống như trong Word: 
 - **Dấu định dạng** như `¶`, cùng công cụ dọn các ký tự vô hình hoặc ký tự lạc chỗ.
 - **Dán văn bản Markdown** và chuyển nó thành văn bản có định dạng chỉ trong một bước.
 - **Xử lý xung đột đồng bộ**: nếu ghi chú thay đổi trên ổ đĩa trong khi bạn có chỉnh sửa chưa lưu, bạn sẽ chọn giữ phiên bản nào.
-- **Phím tắt**: tìm kiếm hoặc chọn một danh mục, rồi chọn một phím tắt để xem hoạt ảnh ngắn về tác dụng của nó.
+- **Phím tắt**: tìm kiếm hoặc chọn một danh mục, rồi chọn một phím tắt để xem hoạt ảnh ngắn về tác dụng của nó. Ô đánh dấu ở cuối danh sách dùng để bật hoặc tắt gợi ý chi tiết.
 - Giao diện bằng tiếng Trung phồn thể, tiếng Đài Loan (chữ Hán), tiếng Quảng Đông, tiếng Trung giản thể, tiếng Anh, tiếng Nhật, tiếng Hàn, tiếng Việt, tiếng Pháp, tiếng Đức, tiếng Tây Ban Nha, tiếng Ả Rập và tiếng Do Thái.
 
 Những nội dung Word Mode không sửa trực quan được, như khối HTML, sẽ được hiển thị dưới dạng khối thô và được lưu nguyên vẹn. Trỏ chuột vào khối đó (hoặc khối chú thích cuối trang, khối bình luận) để hiện các nút sửa, sao chép và xóa ở góc trên bên phải. Xóa một chú thích cuối trang cũng xóa các số của nó trong văn bản.
