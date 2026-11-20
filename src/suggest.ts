@@ -3,7 +3,7 @@
 //        tags(query) → ['#標籤'], linkNode(file|null, heading|null, embed) → 節點, icon(el, name, fallback) }
 import { Plugin, PluginKey } from 'prosemirror-state';
 import { t } from './i18n.js';
-import { el } from './dom.js';
+import { el, isRtl, popupLeft } from './dom.js';
 import type { EditorState } from 'prosemirror-state';
 import type { EditorView } from 'prosemirror-view';
 import type { Node as PMNode } from 'prosemirror-model';
@@ -125,12 +125,12 @@ export function suggestPlugin(ctx: SuggestContext): Plugin<SuggestTrigger | null
       row.addEventListener('click', () => pick(view, it));
     });
     el('div', 'wm-suggest-hint', box, active.kind === 'tag' ? t('↑↓ 選擇・Enter 插入標籤・Esc 關閉') : t('↑↓ 選擇・Enter 插入連結・打 # 選標題・Esc 關閉'));
-    // 放在游標下方；超出畫面時往上或往左移
+    // 放在游標下方；超出畫面時往上或往旁邊移。介面由右到左時選單的右緣對齊游標、往左展開（跟 Obsidian 自己的自動完成一樣）
     try {
       const c = view.coordsAtPos(active.from);
       const w = box.offsetWidth || 260; const h = box.offsetHeight || 200;
       const vw = window.innerWidth || 1024; const vh = window.innerHeight || 768;
-      box.style.left = Math.max(4, Math.min(c.left, vw - w - 4)) + 'px';
+      box.style.left = popupLeft(c, w, vw, isRtl(view.dom)) + 'px';
       box.style.top = (c.bottom + 4 + h > vh && c.top - h - 4 > 0 ? c.top - h - 4 : c.bottom + 4) + 'px';
     } catch { /* 測試環境沒有版面資訊 */ }
   };

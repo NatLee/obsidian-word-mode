@@ -2,7 +2,7 @@
 // Word 模式讀編輯中的文件，Markdown／閱讀模式讀原文（mdbar.ts 的 openMarkdownPeek），畫面相同。
 // 屬性很多時：上方有篩選框、清單在框內捲動；很長的值先顯示三行，點一下看全部
 import { t } from './i18n.js';
-import { el } from './dom.js';
+import { el, isRtl, popupLeft } from './dom.js';
 import { hideHint } from './hints.js';
 import { propType, summarize, isTagKey, PROP_ICONS } from './props.js';
 import type { PropsPeekData } from './props.js';
@@ -66,12 +66,12 @@ export function openPropsPeek(owner: HTMLElement, data: PropsPeekData, o: PropsP
   return p;
 }
 
-// 放在按鈕下方；下面放不下時放上方（狀態列在畫面最下面），左右不超出畫面
+// 放在按鈕下方；下面放不下時放上方（狀態列在畫面最下面），左右不超出畫面。介面由右到左時對齊按鈕的右緣
 function place(p: HTMLElement, owner: HTMLElement): void {
   const r = owner.getBoundingClientRect();
   const vw = window.innerWidth; const vh = window.innerHeight;
   const w = p.offsetWidth || 300; const h = p.offsetHeight || 200;
-  p.style.left = Math.max(4, Math.min(r.left, vw - w - 4)) + 'px';
+  p.style.left = popupLeft(r, w, vw, isRtl(owner)) + 'px';
   p.style.top = Math.max(4, r.bottom + 4 + h > vh && r.top - h - 4 > 0 ? r.top - h - 4 : r.bottom + 4) + 'px';
 }
 

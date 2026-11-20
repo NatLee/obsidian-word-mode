@@ -133,7 +133,8 @@ export class OutlineView extends ItemView {
       const match = !this.filter || h.text.toLowerCase().includes(this.filter);
       if (!match || (!this.filter && this.hidden(h))) continue;
       const row = list.createDiv('wm-ov-item wm-ov-h' + h.level);
-      row.style.paddingLeft = (6 + (this.filter ? 0 : h.depth) * 14) + 'px';
+      // 縮排在開頭那一邊：介面由右到左時縮在右邊
+      row.style.paddingInlineStart = (6 + (this.filter ? 0 : h.depth) * 14) + 'px';
       const tog = row.createSpan('wm-ov-toggle');
       if (h.hasChildren && !this.filter) {
         setIcon(tog, this.collapsed.has(h.key) ? 'chevron-right' : 'chevron-down');

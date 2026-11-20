@@ -7,7 +7,7 @@ import { schema } from './schema.js';
 import { t, key } from './i18n.js';
 import { marksOn } from './marks.js';
 import { hideHint } from './hints.js';
-import { el, keepFocus } from './dom.js';
+import { el, isRtl, keepFocus, popupLeft } from './dom.js';
 import { closePropsPeek } from './propview.js';
 import { buildColorPanel, SHADING } from './colorpicker.js';
 import { ACTIONS as A, RibbonShell, ribbonClass } from './ribbon.js';
@@ -515,13 +515,13 @@ export class Toolbar {
       const v = this.view;
       if (v) v.focus();
     });
-    // 放在按鈕下方；超出畫面時改放上方或往左移（手機的工具列在畫面下方）。
+    // 放在按鈕下方；超出畫面時改放上方或往旁邊移（手機的工具列在畫面下方）。介面由右到左時對齊按鈕的右緣、往左展開。
     // 視窗大小看按鈕所在的那個視窗：筆記拉到獨立視窗之後，全域的 window 還是主視窗
     const r = owner.getBoundingClientRect();
     const win = owner.ownerDocument.defaultView || window;
     const vw = win.innerWidth; const vh = win.innerHeight;
     const w = p.offsetWidth || 200; const h = p.offsetHeight || 200;
-    p.style.left = Math.max(4, Math.min(r.left, vw - w - 4)) + 'px';
+    p.style.left = popupLeft(r, w, vw, isRtl(owner)) + 'px';
     p.style.top = Math.max(4, r.bottom + 4 + h > vh && r.top - h - 4 > 0 ? r.top - h - 4 : r.bottom + 4) + 'px';
   }
 
@@ -577,7 +577,8 @@ export class Toolbar {
       const min = Math.min(...heads.map(h => h.level));
       for (const h of heads) {
         const item = el('div', 'wm-outline-item', p, h.text);
-        item.style.paddingLeft = (8 + (h.level - min) * 14) + 'px';
+        // 縮排在開頭那一邊：介面由右到左時縮在右邊
+        item.style.paddingInlineStart = (8 + (h.level - min) * 14) + 'px';
         item.addEventListener('mousedown', e => e.preventDefault());
         item.addEventListener('click', () => { this.closePopup(); this.d.scrollTo(h.pos); });
       }
