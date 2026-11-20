@@ -2,9 +2,11 @@
 // 1. 沒有修改時，輸出要跟原文一字不差
 // 2. 每個區塊重新輸出後再讀回來，文件結構要相同（不會遺失或改變內容）
 // 3. 個別案例另外檢查「編輯後」的輸出
-import { EditorState } from 'prosemirror-state';
+import { EditorState, TextSelection } from 'prosemirror-state';
+import { splitBlock } from 'prosemirror-commands';
 import { MarkdownConverter } from '../src/markdown.js';
 import { schema } from '../src/schema.js';
+import { moveBlock, setAlign, setBlockStyle } from '../src/commands.js';
 
 const c = new MarkdownConverter();
 let fails = 0;
@@ -13,6 +15,7 @@ const ok = (label, cond, extra = '') => { if (!cond) { fails++; console.log('FAI
 const CASES = {
   customTask: '- [/] 進行中\n- [-] 取消\n- [>] 延後\n- [X] 大寫\n- [x] 完成\n- [ ] 待辦\n',
   taskNotLink: '- [x](https://a.b) 連結不是任務\n- [^1] 註腳不是任務\n',
+  emptyTask: '- [ ] \n- [x] 做完的\n- [/] \n- [ ]\n> - [ ] \n',
   htmlComment: '文字 <!-- 註解 --> 後面\n',
   blockComment: '%%\n多行\n\n註解 **x**\n%%\n',
   blockCommentGlued: '前面的文字\n%%\n多行\n\n註解\n%%\n後面的文字\n',
@@ -35,6 +38,7 @@ const CASES = {
   tableCodePipe: '| a |\n|---|\n| `x|y` |\n',
   tableInline: '| a | b |\n| :-: | --: |\n| **粗** [[x\\|y]] | $m$ %%c%% |\n',
   emptyCells: '| a | b |\n|---|---|\n|  | x |\n',
+  tableLineStart: '| 項目 | - |\n| --- | --- |\n| -12.5 | > 3 |\n| + 1 | 1. 一 |\n| # 井 | >= 0 |\n',
   noLeadingPipe: 'a | b\n--- | ---\n1 | 2\n',
   calloutFold: '> [!note]- 標題 **粗**\n> 內容\n',
   calloutNested: '> [!tip] 外層\n> 文字\n> > [!warning] 內層\n> > 內文\n',
@@ -52,7 +56,9 @@ const CASES = {
   starBullets: '* a\n* b\n',
   headingTrail: '## 標題 ##\n',
   htmlInlineUnknown: '文字 <span class="x">a</span> <abbr title="t">b</abbr>\n',
+  nestedSpan: '前 <span style="border: 1px solid; padding: 0 2px">框<span style="color: red">紅</span>線</span> 與 <span style="color: blue">藍<span class="x">未知</span>字</span>\n',
   imgSize: '![alt|100x200](a.png) ![[b.png|說明|300]]\n',
+  imgAltMarks: '圖 ![**粗** 說明 `碼`|200](a.png) 與 ![R\\&D *chart*](b.png)\n',
   mathBlockInline: '$$x^2$$ 同一行\n',
   dataview: '```dataview\nTABLE a\n```\n',
   mermaid: '```mermaid\nflowchart TD\n  A[開始] --> B{判斷}\n  B -->|是| C[結束]\n```\n',
@@ -105,6 +111,32 @@ const kinds = src => { const out = []; c.parse(src).doc.forEach(n => out.push(n.
 let o = edited(CASES.customTask, '進行中');
 ok('自訂任務狀態：編輯後保留 [/] [-] [>] [X]', o === '- [/] 新進行中\n- [-] 取消\n- [>] 延後\n- [X] 大寫\n- [x] 完成\n- [ ] 待辦\n', JSON.stringify(o));
 ok('[x](網址) 與 [^1] 不是任務', c.parse(CASES.taskNotLink).doc.firstChild.firstChild.attrs.checked == null);
+{
+  // 還沒打字的待辦事項（- [ ] 後面是空的）：是任務，編輯同一個清單的其他項目不會把方框跳脫成 \[ \]
+  const items = []; c.parse(CASES.emptyTask).doc.firstChild.forEach(li => items.push([li.attrs.checked, li.attrs.status, li.textContent]));
+  ok('空的待辦事項是任務', JSON.stringify(items) === '[[false,null,""],[true,null,"做完的"],[true,"/",""],[false,null,""]]', JSON.stringify(items));
+  o = edited(CASES.emptyTask, '做完的');
+  ok('空的待辦事項：編輯其他項目後方框還在', o === '- [ ] \n- [x] 新做完的\n- [/] \n- [ ] \n> - [ ] \n', JSON.stringify(o));
+  const plain = c.parse('- [1]\n- [a] \n- [ ]\n  下一行\n').doc.firstChild;
+  ok('「- [1]」後面連空白都沒有：不是任務', plain.child(0).attrs.checked == null && plain.child(0).textContent === '[1]');
+  ok('「- [a] 」後面有空白：是自訂狀態的任務', plain.child(1).attrs.checked === true && plain.child(1).attrs.status === 'a');
+}
+
+{
+  // 圖片的說明文字裡有格式：說明文字是全部的純文字，編輯同一段後不會變成空的
+  const alts = []; c.parse(CASES.imgAltMarks).doc.descendants(n => { if (n.type.name === 'image') alts.push(n.attrs.alt, n.attrs.width); });
+  ok('圖片說明文字裡有格式：取全部的文字', JSON.stringify(alts) === '["粗 說明 碼","200","R&D chart",null]', JSON.stringify(alts));
+  o = edited(CASES.imgAltMarks, '圖');
+  ok('圖片說明文字裡有格式：編輯後說明還在', o === '新圖 ![粗 說明 碼|200](a.png) 與 ![R&D chart](b.png)\n', JSON.stringify(o));
+}
+
+{
+  // <span> 裡面再包 <span>：結尾標籤要配到對的那一個（框線包顏色時，顏色不能跑到後面的字上）
+  const got = []; c.parse(CASES.nestedSpan).doc.descendants(n => { if (n.isText && n.marks.length) got.push(n.text + '=' + n.marks.map(m => m.type.name).join('+')); });
+  ok('巢狀的 <span>：格式套在對的字上', got.join(' ') === '框=border 紅=border+color 線=border 藍=color 未知=color 字=color', got.join(' '));
+  o = edited(CASES.nestedSpan, '前');
+  ok('巢狀的 <span>：編輯後寫回同樣的標籤', o === '新' + CASES.nestedSpan, JSON.stringify(o));
+}
 
 ok('有空行的 %% 註解是一整個原文區塊', kinds(CASES.blockComment) === 'raw_block:comment', kinds(CASES.blockComment));
 ok('有空行的 $$ 數學式是一整個原文區塊', kinds(CASES.mathBlank) === 'raw_block:math', kinds(CASES.mathBlank));
@@ -117,6 +149,8 @@ ok('清單裡的 %% 不切開清單', kinds(CASES.commentInList) === 'bullet_lis
 ok('表格裡 [[x|y]] 沒跳脫的 |：仍是可編輯的表格', kinds(CASES.tableWikiPipe) === 'table', kinds(CASES.tableWikiPipe));
 o = edited(CASES.tableWikiPipe, 'a');
 ok('編輯該表格：連結與圖片都還在', o.includes('[[x\\|y]]') && o.includes('![[i.png\\|50]]'), JSON.stringify(o));
+o = edited(CASES.tableLineStart, '項目');
+ok('儲存格開頭的 - > + 1. #：編輯表格後不會多出反斜線', o === CASES.tableLineStart.replace('項目', '新項目'), JSON.stringify(o));
 ok('格數比標題列多的表格：保留原文', kinds(CASES.tableExtraCells) === 'raw_block:raw', kinds(CASES.tableExtraCells));
 ok('儲存格裡 `x|y` 沒跳脫：保留原文', kinds(CASES.tableCodePipe) === 'raw_block:raw', kinds(CASES.tableCodePipe));
 
@@ -128,6 +162,56 @@ ok('儲存格裡 `x|y` 沒跳脫：保留原文', kinds(CASES.tableCodePipe) ===
   ok('新增但沒有內容的文件屬性不會寫進檔案', c.serialize(st.doc, meta) === '內文\n', JSON.stringify(c.serialize(st.doc, meta)));
   st = st.apply(st.tr.setNodeMarkup(0, null, { src: '---\ntags:\n  - a\n---', bid: null }));
   ok('有內容的文件屬性寫在最前面', c.serialize(st.doc, meta) === '---\ntags:\n  - a\n---\n\n內文\n', JSON.stringify(c.serialize(st.doc, meta)));
+}
+
+// ---- 存檔後再讀回來要是同一份文件：重新產生的區塊不能跟前後的區塊黏在一起
+// 開一份文件、做一個修改（edit 收到目前的狀態、dispatch、取得最新狀態的函式），回傳存檔結果與讀回的文件
+const save = (src, edit) => {
+  const { doc, meta } = c.parse(src);
+  let state = EditorState.create({ doc, schema });
+  edit(state, tr => { state = state.apply(tr); }, () => state);
+  const out = c.serialize(state.doc, meta);
+  return { out, doc: state.doc, back: c.parse(out).doc };
+};
+const json = doc => JSON.stringify(doc.toJSON(), strip);
+const sameDoc = r => json(r.back) === json(r.doc);
+const posOf = (doc, text) => { let p = -1; doc.descendants((n, pos) => { if (p < 0 && n.isText && n.text.includes(text)) p = pos + n.text.indexOf(text); }); return p; };
+const caretAt = (state, text) => state.tr.setSelection(TextSelection.create(state.doc, posOf(state.doc, text)));
+const P = text => schema.nodes.paragraph.create(null, schema.text(text));
+
+{
+  let r = save('A', (s, d) => d(s.tr.insert(s.doc.content.size, P('B'))));
+  ok('結尾沒有換行，在最後加一段：是兩段', r.out === 'A\n\nB' && sameDoc(r), JSON.stringify(r.out));
+  r = save('A', (s, d, cur) => { d(s.tr.setSelection(TextSelection.create(s.doc, 2))); splitBlock(cur(), d); d(cur().tr.insertText('B')); });
+  ok('結尾沒有換行，按 Enter 再打字：是兩段', r.out === 'A\n\nB' && sameDoc(r), JSON.stringify(r.out));
+  r = save('A\r\n\r\nB', (s, d) => d(s.tr.insert(s.doc.content.size, P('C'))));
+  ok('結尾沒有換行（CRLF），在最後加一段', r.out === 'A\r\n\r\nB\r\n\r\nC' && sameDoc(r), JSON.stringify(r.out));
+  r = save('A\n\nB', (s, d, cur) => { d(caretAt(s, 'B')); moveBlock(-1)(cur(), d); });
+  ok('結尾沒有換行，把最後一段往上移：仍是兩段', r.out === 'B\n\nA\n' && sameDoc(r), JSON.stringify(r.out));
+  r = save('A\n\nB', (s, d) => d(s.tr.delete(0, s.doc.firstChild.nodeSize)));
+  ok('結尾沒有換行，刪掉前面的段落：最後一段照原文', r.out === 'B', JSON.stringify(r.out));
+
+  r = save('# H\ntext\n', (s, d, cur) => { d(caretAt(s, 'H')); setBlockStyle('p')(cur(), d); });
+  ok('標題緊接內文，標題改成內文：不會併成一段', r.out === 'H\n\ntext\n' && sameDoc(r), JSON.stringify(r.out));
+  r = save('# H\r\ntext\r\n', (s, d, cur) => { d(caretAt(s, 'H')); setBlockStyle('p')(cur(), d); });
+  ok('標題緊接內文（CRLF），標題改成內文', r.out === 'H\r\n\r\ntext\r\n' && sameDoc(r), JSON.stringify(r.out));
+  r = save('intro\n# H\ntext\n', (s, d, cur) => { d(caretAt(s, 'H')); setBlockStyle('p')(cur(), d); });
+  ok('內文、標題、內文都緊接：標題改成內文後仍是三段', r.out === 'intro\n\nH\n\ntext\n' && sameDoc(r), JSON.stringify(r.out));
+  r = save('Intro line\n- item 1\n- item 2\n', (s, d, cur) => { d(caretAt(s, 'Intro')); setAlign('center')(cur(), d); });
+  ok('內文緊接清單，內文置中：清單不會被吃進 HTML 區塊', r.out === '<p style="text-align: center">Intro line</p>\n\n- item 1\n- item 2\n' && sameDoc(r), JSON.stringify(r.out));
+  r = save('- a\n# H\n', (s, d, cur) => { d(caretAt(s, 'H')); setBlockStyle('p')(cur(), d); });
+  ok('清單緊接標題，標題改成內文：不會變成清單項目的延續', r.out === '- a\n\nH\n' && sameDoc(r), JSON.stringify(r.out));
+  r = save('---\na: 1\n---\n# H\ntext\n', (s, d, cur) => { d(caretAt(s, 'H')); setBlockStyle('p')(cur(), d); });
+  ok('文件屬性、標題、內文都緊接：只在會併段的地方加空行', r.out === '---\na: 1\n---\nH\n\ntext\n' && sameDoc(r), JSON.stringify(r.out));
+
+  // 筆記原本寫得很緊（中間沒有空行）：只改幾個字不會重排
+  const tight = '---\na: 1\n---\n# H\ntext\n- item 1\n- item 2\n## H2\n| a | b |\n| --- | --- |\n| 1 | 2 |\n```\ncode\n```\nSee [foo] here\n\n[foo]: https://x.com\n';
+  // [要改的字, 原本那一行, 改完那一行]
+  for (const [find, line, want] of [['H', '# H\n', '# 新H\n'], ['text', 'text\n', '新text\n'], ['item 2', '- item 2', '- 新item 2'], ['H2', '## H2', '## 新H2'],
+    ['a', '| a | b |', '| 新a | b |'], ['code', 'code\n', '新code\n'], ['See', 'See [foo] here', '新See [foo](https://x.com) here']]) {
+    const o2 = edited(tight, find);
+    ok('寫得很緊的筆記，只改「' + find + '」：其他地方一字不差', o2 === tight.replace(line, want), JSON.stringify(o2));
+  }
 }
 
 if (fails) process.exitCode = 1;
