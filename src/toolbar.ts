@@ -507,9 +507,19 @@ export class Toolbar {
     const p = el('div', 'wm-popup' + (this.ctx.isMobile ? ' is-mobile' : ''), this.dom.ownerDocument.body);
     this.popup = p; this.popupOwner = owner;
     build(p);
-    // 放在按鈕下方；超出畫面時改放上方或往左移（手機的工具列在畫面下方）
+    // 焦點在面板裡（色碼的輸入框）時按 Esc：關掉面板，回到編輯區。焦點在編輯區時由 view 的按鍵處理呼叫 closePopup()
+    p.addEventListener('keydown', e => {
+      if (e.key !== 'Escape' || e.isComposing) return;
+      e.preventDefault(); e.stopPropagation();
+      this.closePopup();
+      const v = this.view;
+      if (v) v.focus();
+    });
+    // 放在按鈕下方；超出畫面時改放上方或往左移（手機的工具列在畫面下方）。
+    // 視窗大小看按鈕所在的那個視窗：筆記拉到獨立視窗之後，全域的 window 還是主視窗
     const r = owner.getBoundingClientRect();
-    const vw = window.innerWidth; const vh = window.innerHeight;
+    const win = owner.ownerDocument.defaultView || window;
+    const vw = win.innerWidth; const vh = win.innerHeight;
     const w = p.offsetWidth || 200; const h = p.offsetHeight || 200;
     p.style.left = Math.max(4, Math.min(r.left, vw - w - 4)) + 'px';
     p.style.top = Math.max(4, r.bottom + 4 + h > vh && r.top - h - 4 > 0 ? r.top - h - 4 : r.bottom + 4) + 'px';

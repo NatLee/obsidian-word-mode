@@ -1,6 +1,6 @@
 // 編輯測試（第三部分）：程式碼區塊裡停用的功能、表格右鍵選單、分頁列樣式、色彩面板、
 // Markdown 工具列的版面、方程式編輯器的復原、圖表編輯器（各種圖表的表單、在圖上編輯）
-import { B, mock, assert, finish, makeEnv, caret, sleep, TextSelection } from './harness.mjs';
+import { B, mock, assert, finish, makeEnv, caret, press, sleep, TextSelection } from './harness.mjs';
 
 const env = await makeEnv({});
 const { view, plugin } = env;
@@ -1628,6 +1628,24 @@ await fresh('一段文字\n');
   Object.assign(S, keep);
   plugin.lastTab = keepTab;
   view.buildToolbar();
+}
+
+// ======== 功能區的下拉面板按 Esc 關閉 ========
+await fresh('一段文字\n');
+{
+  click(btn('段落樣式'));
+  assert(view.toolbar.popup && view.toolbar.popup.isConnected, '段落樣式的下拉面板打開');
+  // 按鈕不搶焦點，所以按鍵是送到編輯區
+  press(view, 'Escape');
+  assert(!view.toolbar.popup && !document.querySelector('.wm-popup'), '焦點在編輯區時按 Esc：面板關閉');
+  click(btn('段落樣式'));
+  const ev = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+  view.toolbar.popup.dispatchEvent(ev);
+  assert(!view.toolbar.popup && ev.defaultPrevented, '焦點在面板裡按 Esc：面板關閉');
+  click(btn('段落樣式'));
+  view.toolbar.popup.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', isComposing: true, bubbles: true, cancelable: true }));
+  assert(view.toolbar.popup, '輸入法選字中的 Esc 不關面板');
+  view.toolbar.closePopup();
 }
 
 finish();

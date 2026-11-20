@@ -1349,6 +1349,8 @@ export class WordModeView extends TextFileView {
     if (mod && !e.shiftKey && (k === '/' || e.code === 'Slash')) { e.preventDefault(); new ShortcutModal(this.app).open(); return true; }
     if (mod && e.shiftKey && k === 'v') { this.plainPasteNext = true; window.setTimeout(() => { this.plainPasteNext = false; }, 1000); return false; }
     if (e.key === 'Escape') {
+      // 功能區的下拉面板開著：先關它（按鈕不會搶走焦點，所以按鍵是送到編輯區這裡）
+      if (this.toolbar.popup) { this.toolbar.closePopup(); return true; }
       if (this.pasteChip) { this.hidePasteChip(); return true; }
       if (this.toolbar.painter) { this.toolbar.togglePainter(); return true; }
       if (this.findBar.isOpen) { this.findBar.close(); return true; }

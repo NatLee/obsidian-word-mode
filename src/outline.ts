@@ -98,7 +98,9 @@ export class OutlineView extends ItemView {
     // 建立樹狀關係（收合用）
     const stack: OutlineHeading[] = [];
     out.forEach((h, i) => {
-      h.key = i + ':' + h.text;
+      // 收合狀態記在這個鍵上。要帶筆記的路徑：只用「第幾個＋標題文字」的話，
+      // 另一份筆記同一個位置有同名的標題（例如第一個都是「摘要」）也會跟著收合
+      h.key = v.file!.path + '\n' + i + ':' + h.text;
       while (stack.length && stack[stack.length - 1].level >= h.level) stack.pop();
       h.parent = stack.length ? stack[stack.length - 1] : null;
       h.depth = stack.length;
