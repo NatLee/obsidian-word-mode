@@ -93,8 +93,20 @@ const FRACS = ['\\frac', '\\dfrac', '\\tfrac', '\\binom'];
 // 上括號、下括號：標籤寫成接在後面的 ^{…}（上括號）或 _{…}（下括號），TeX 會把它放在括號的正上方／正下方。
 // 以前不認得這兩個指令，格子裡照原文顯示「\overbrace」，標籤還被當成右上角的上標
 const H_BRACES: Record<string, '^' | '_'> = { '\\overbrace': '^', '\\underbrace': '_' };
-const GROUP_CMDS = ['\\vec', '\\bar', '\\hat', '\\tilde', '\\dot', '\\ddot', '\\overline', '\\underline', '\\mathbf', '\\mathbb', '\\mathrm', '\\mathcal', '\\mathit', '\\text', '\\boldsymbol', '\\overrightarrow', '\\tag'];
+// 大括號裡是一般文字或名稱的指令（文字、編號、標籤、運算子的名稱）：內容原樣保留，不拆成結構，
+// 格子裡也不轉換符號（不把 sin 變成 \sin、不把 α 變成 \alpha）。
+// 以前裡面的底線被當成下標：\text{learning_rate} 改過別的地方再存回去變成 \text{learning_{r}ate}，
+// 而 MathJax 在文字裡不處理下標，畫面上就多出一對大括號
+const PLAIN_GROUPS = new Set([
+  '\\text', '\\textrm', '\\textbf', '\\textit', '\\texttt', '\\textsf', '\\textnormal', '\\mbox',
+  '\\mathrm', '\\mathit', '\\operatorname', '\\operatorname*', '\\tag', '\\tag*', '\\label',
+]);
+const GROUP_CMDS = ['\\vec', '\\bar', '\\hat', '\\tilde', '\\dot', '\\ddot', '\\overline', '\\underline', '\\mathbf', '\\mathbb', '\\mathcal', '\\boldsymbol', '\\overrightarrow', ...PLAIN_GROUPS];
 const ENVS = ['matrix', 'bmatrix', 'pmatrix', 'vmatrix', 'Bmatrix', 'Vmatrix', 'cases', 'aligned', 'align', 'array', 'gathered'];
+// 後面不接參數的符號（寫成上下標時常見：A^\top、f^\prime、a^\dagger）。SYMBOL_PAIRS 與 FUNCS 裡的指令也都不接參數
+const NO_ARG = new Set(['\\prime', '\\top', '\\bot', '\\dagger', '\\dag', '\\ast', '\\star', '\\ell', '\\hbar', '\\intercal']);
+// 一定要接參數或另一半的指令：沒有大括號就出現在上下標裡（x^\frac12、x^\left(）時無法拆成格子
+const NEEDS_MORE = new Set([...FRACS, ...GROUP_CMDS, ...Object.keys(H_BRACES), '\\sqrt', '\\left', '\\right', '\\middle', '\\begin', '\\end']);
 
 class ParseError extends Error {}
 
@@ -116,13 +128,72 @@ function parseRow(s: string, pos: number, stops: string[]): RowResult {
     return r.row;
   };
   const command = () => { const m = /^\\[A-Za-z]+/.exec(s.slice(pos)); return m ? m[0] : null; };
+  // 文字類指令的 {…}：原樣讀到成對的 } 為止（\{、\} 不算），整段是一格文字
+  const verbatim = (): MathRow => {
+    const start = pos + 1;
+    let depth = 0;
+    for (; pos < s.length; pos++) {
+      if (s[pos] === '\\') { pos++; continue; }
+      if (s[pos] === '{') depth++;
+      else if (s[pos] === '}' && --depth === 0) { pos++; return [{ t: 'text', v: s.slice(start, pos - 1) }]; }
+    }
+    throw new ParseError('{');
+  };
+  // 從 pos 的指令 c 讀一個有格子的結構（分數、根號、\vec{…} 這類、上下括號）；不是這些就回傳 null，pos 不動
+  const structure = (c: string): MathItem | null => {
+    if (FRACS.includes(c)) { pos += c.length; const a = group(); const b = group(); return { t: 'frac', cmd: c, a, b }; }
+    if (c === '\\sqrt') {
+      pos += c.length; skipSpace();
+      let n: MathRow | null = null;
+      if (s[pos] === '[') { const r = parseRow(s, pos + 1, [']']); n = r.row; pos = r.pos + 1; }
+      return { t: 'sqrt', a: group(), n };
+    }
+    // \tag*{…}（編號不加括號）、\operatorname*{…}：指令名稱只抓到字母的部分，星號要一起算進去
+    const cmd = s[pos + c.length] === '*' && GROUP_CMDS.includes(c + '*') ? c + '*' : c;
+    const save = pos;
+    if (GROUP_CMDS.includes(cmd)) {
+      pos += cmd.length; skipSpace();
+      if (s[pos] === '{') return { t: 'group', cmd, a: PLAIN_GROUPS.has(cmd) ? verbatim() : group() };
+      pos = save;
+    }
+    if (H_BRACES[c]) {
+      pos += c.length; skipSpace();
+      if (s[pos] === '{') {
+        const a = group();
+        // 後面緊接 ^（上括號）或 _（下括號）就是標籤；沒有標籤時標籤格是空的，空白留給後面的文字
+        const afterBody = pos;
+        skipSpace();
+        let b: MathRow = [];
+        if (s[pos] === H_BRACES[c]) { pos++; b = scriptArg(); } else pos = afterBody;
+        return { t: 'brace', cmd: c, a, b };
+      }
+      pos = save;
+    }
+    return null;
+  };
   // ^ 或 _ 後面的內容：{…}、一個指令（x^\alpha）或一個字（x^2）
   const scriptArg = (): MathRow => {
     skipSpace();
     if (s[pos] === '{') return group();
+    if (isStop()) throw new ParseError('^');
     const c = command();
-    if (c) { pos += c.length; return [{ t: 'text', v: c }]; }
-    if (pos < s.length) return [{ t: 'text', v: s[pos++] }];
+    if (c) {
+      const mb = /^\\mathbb\{[RNZQC]\}/.exec(s.slice(pos));
+      if (mb) { pos += mb[0].length; return [{ t: 'text', v: mb[0] }]; }
+      // A^\mathrm{T}、e^\frac{1}{2}：指令連同它的參數才是上標。以前只拿指令名稱，
+      // 寫回去變成 A^{\mathrm}{T}、e^{\frac}{1}{2}（指令跟參數被拆開，是壞掉的 LaTeX）
+      const it = structure(c);
+      if (it) return [it];
+      pos += c.length;
+      // 要參數卻沒有大括號的指令（x^\frac12）、不認得又緊接著 { 的指令（不知道它要不要參數，x^\foo{a}）：
+      // 猜錯會把內容搬進或搬出上標，所以整段當成看不懂的寫法，原樣保留
+      const known = CMD_TO_CHAR.has(c) || FUNC_SET.has(c.slice(1)) || NO_ARG.has(c);
+      if (NEEDS_MORE.has(c) || (!known && /^ *[{[]/.test(s.slice(pos)))) throw new ParseError('^');
+      return [{ t: 'text', v: c }];
+    }
+    // \, \{ \| 這類：反斜線加一個字是一個單位（以前只拿走反斜線，x^\,y 寫回去變成 x^{\},y）
+    if (s[pos] === '\\' && pos + 1 < s.length && s[pos + 1] !== '\\') { pos += 2; return [{ t: 'text', v: s.slice(pos - 2, pos) }]; }
+    if (pos < s.length && !'^_}&\\'.includes(s[pos])) return [{ t: 'text', v: s[pos++] }];
     throw new ParseError('^');
   };
   while (pos < s.length) {
@@ -141,38 +212,8 @@ function parseRow(s: string, pos: number, stops: string[]): RowResult {
       if (!c) { text += s.slice(pos, pos + 2); pos += 2; continue; } // \{ \} \\ \, 等
       const mb = /^\\mathbb\{[RNZQC]\}/.exec(s.slice(pos));
       if (mb) { text += mb[0]; pos += mb[0].length; continue; }
-      if (FRACS.includes(c)) { flush(); pos += c.length; const a = group(); const b = group(); row.push({ t: 'frac', cmd: c, a, b }); continue; }
-      if (c === '\\sqrt') {
-        flush(); pos += c.length; skipSpace();
-        let n: MathRow | null = null;
-        if (s[pos] === '[') { const r = parseRow(s, pos + 1, [']']); n = r.row; pos = r.pos + 1; }
-        row.push({ t: 'sqrt', a: group(), n });
-        continue;
-      }
-      if (GROUP_CMDS.includes(c)) {
-        // \tag*{…}（編號不加括號）：指令名稱只抓到 \tag，星號要一起算進去
-        const cmd = c === '\\tag' && s[pos + c.length] === '*' ? '\\tag*' : c;
-        const save = pos;
-        pos += cmd.length; skipSpace();
-        if (s[pos] === '{') { flush(); row.push({ t: 'group', cmd, a: group() }); continue; }
-        pos = save;
-      }
-      if (H_BRACES[c]) {
-        const save = pos;
-        pos += c.length; skipSpace();
-        if (s[pos] === '{') {
-          flush();
-          const a = group();
-          // 後面緊接 ^（上括號）或 _（下括號）就是標籤；沒有標籤時標籤格是空的，空白留給後面的文字
-          const afterBody = pos;
-          skipSpace();
-          let b: MathRow = [];
-          if (s[pos] === H_BRACES[c]) { pos++; b = scriptArg(); } else pos = afterBody;
-          row.push({ t: 'brace', cmd: c, a, b });
-          continue;
-        }
-        pos = save;
-      }
+      const it = structure(c);
+      if (it) { flush(); row.push(it); continue; }
       if (c === '\\left') {
         flush(); pos += c.length; skipSpace();
         const dl = /^(\\[A-Za-z]+|\\.|.)/.exec(s.slice(pos));
@@ -234,7 +275,7 @@ export function toLatex(row: MathRow): string {
     else if (it.t === 'sqrt') out += '\\sqrt' + (it.n && trimRow(it.n) ? '[' + trimRow(it.n) + ']' : '') + '{' + trimRow(it.a) + '}';
     else if (it.t === 'sup') out += '^{' + trimRow(it.a) + '}';
     else if (it.t === 'sub') out += '_{' + trimRow(it.a) + '}';
-    else if (it.t === 'group') out += it.cmd + '{' + (it.cmd === '\\text' ? toLatex(it.a) : trimRow(it.a)) + '}';
+    else if (it.t === 'group') out += it.cmd + '{' + (PLAIN_GROUPS.has(it.cmd) ? toLatex(it.a) : trimRow(it.a)) + '}';
     else if (it.t === 'brace') { const label = trimRow(it.b); out += it.cmd + '{' + trimRow(it.a) + '}' + (label ? H_BRACES[it.cmd] + '{' + label + '}' : ''); }
     else if (it.t === 'paren') out += '\\left' + it.l + ' ' + trimRow(it.a) + ' \\right' + it.r;
     else if (it.t === 'braces') out += '{' + toLatex(it.a) + '}';
@@ -260,15 +301,16 @@ export function normalize(row: MathRow): MathRow {
 
 // ---------------------------------------------------------------- 編輯元件
 const MARK = '\u0001'; // 插入後游標要停的位置（暫時的記號）
-// \text{…} 等裡面是一般文字：不把 sin 變成 \sin、不把 α 變成 \alpha
-// 編號（\tag）裡面也是一般文字（MathJax 照文字排），一樣不轉換
-const PLAIN_GROUPS = new Set(['\\text', '\\mathrm', '\\mathit', '\\tag', '\\tag*']);
 // 字上面另外畫一個符號的結構（向量箭頭、上橫線、^、~、點，畫法見 accentMark）：符號要佔高度，
 // 外面的分數線、根號才不會壓到它（見 CSS 的 .has-accent）
 const ACCENTS = new Set(['\\vec', '\\overrightarrow', '\\bar', '\\overline', '\\hat', '\\tilde', '\\dot', '\\ddot']);
 const isScript = (it: MathItem | undefined): it is ScriptItem => !!it && (it.t === 'sup' || it.t === 'sub');
 // 空心字、花體的標記用基本平面（BMP）的字母符號：以前的 𝔹、𝒞 在補充平面，手機上常常沒有字型，縮小後也認不出來
-const GROUP_LABEL: Record<string, string> = { '\\text': 'T', '\\mathrm': 'rm', '\\mathit': 'it', '\\mathcal': 'ℒ', '\\mathbb': 'ℍ', '\\boldsymbol': 'B' };
+const GROUP_LABEL: Record<string, string> = {
+  '\\text': 'T', '\\mathrm': 'rm', '\\mathit': 'it', '\\mathcal': 'ℒ', '\\mathbb': 'ℍ', '\\boldsymbol': 'B',
+  '\\textrm': 'T', '\\textbf': 'T', '\\textit': 'T', '\\texttt': 'T', '\\textsf': 'T', '\\textnormal': 'T', '\\mbox': 'T',
+  '\\operatorname': 'op', '\\operatorname*': 'op', '\\label': '#',
+};
 // 在格子裡打「\指令」再按空白，就變成對應的結構（\frac → 分數的兩格、\sqrt → 根號…）
 const TYPED_STRUCTS: Record<string, string> = { '\\sqrt': '\\sqrt{}' };
 for (const c of FRACS) TYPED_STRUCTS[c] = c + '{}{}';
@@ -945,8 +987,8 @@ export class MathField {
       this.settle(row);
       return;
     }
-    // 打 ^ 或 _：直接開一個上標／下標的格子
-    if ((e.key === '^' || e.key === '_') && !mod && !e.altKey) {
+    // 打 ^ 或 _：直接開一個上標／下標的格子。文字的格子（\text{…}、\tag{…}）裡是一般的字，照樣打進去
+    if ((e.key === '^' || e.key === '_') && !mod && !e.altKey && !span.dataset.plain) {
       e.preventDefault();
       this.insertItems([{ t: e.key === '^' ? 'sup' : 'sub', a: [{ t: 'text', v: '' }] }], row, index, span);
     }

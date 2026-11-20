@@ -84,5 +84,28 @@ for (const s of ['n\\log n', '\\sin\\cos x', '\\arg\\max', 'O(n\\log n)', '\\alp
 ok('緊接字母的函數名稱照原文顯示', toDisplay('n\\log n') === 'n\\log n' && toDisplay('\\sin\\cos x') === 'sin\\cos x', toDisplay('\\sin\\cos x'));
 ok('換行後面的字不會被看成指令：\\\\sin', toDisplay('a \\\\sin x') === 'a \\\\sin x' && fromDisplay(toDisplay('a \\\\\\sin x')) === 'a \\\\\\sin x', toDisplay('a \\\\sin x'));
 
+// 上下標是「指令加它的參數」：以前指令跟參數被拆開（A^{\mathrm}{T}），是壞掉的 LaTeX
+for (const [s, want] of [
+  ['A^\\mathrm{T}', 'A^{\\mathrm{T}}'], ['x_\\text{max}', 'x_{\\text{max}}'], ['e^\\frac{1}{2}', 'e^{\\frac{1}{2}}'],
+  ['x^\\sqrt{2}', 'x^{\\sqrt{2}}'], ['a_\\mathbf{k}^\\mathrm{T}', 'a_{\\mathbf{k}}^{\\mathrm{T}}'], ['x_\\mathbb{R}', 'x_{\\mathbb{R}}'],
+  ['A^\\top B', 'A^{\\top} B'], ['f^\\prime(x)', 'f^{\\prime}(x)'], ['x^\\,y', 'x^{\\,}y'],
+]) ok('上下標裡的指令：' + s, rt(s) === want && rt(want) === want, rt(s));
+const supT = parseLatex('A^\\mathrm{T}')[1];
+ok('上標裡是一個完整的結構', supT.t === 'sup' && supT.a[1]?.t === 'group' && supT.a[1].cmd === '\\mathrm' && toLatex(supT.a[1].a) === 'T', JSON.stringify(supT));
+// 不知道要不要參數的指令、少了大括號的寫法：猜錯會把內容搬進或搬出上標，所以整段原樣保留
+for (const s of ['x^\\mathsf{T}', 'x^\\frac12', 'x^\\left( a \\right)', 'x^\\foo {a}', 'x^^2', 'x^\\\\ y']) {
+  ok('上下標看不懂就原樣保留：' + s, rt(s) === s && kinds(s) === 'text', rt(s) + ' / ' + kinds(s));
+}
+
+// 文字類指令的大括號裡是一般文字：底線不是下標（以前變成 \text{learning_{r}ate}）
+for (const s of [
+  '\\text{learning_rate}', '\\tag{eq_1}', '\\label{eq:loss_fn}', '\\operatorname{arg\\,max}_{x} f(x)', '\\operatorname*{arg\\,min}_{\\theta} L',
+  '\\mathrm{H_2O}', '\\mathrm{ d }x', '\\textbf{a_b^c}', '\\text{50\\% of {x} & y}', '\\mathit{max_iter}', '\\mbox{if $x_1 > 0$}',
+  'f(x) = \\begin{cases} 1 & \\text{if } x > 0 \\\\ 0 & \\text{other_wise} \\end{cases}',
+]) ok('文字原樣保留：' + s, rt(s) === s, rt(s));
+const txt = parseLatex('\\text{learning_rate}')[1];
+ok('文字是一格，裡面沒有下標', txt.t === 'group' && txt.a.length === 1 && txt.a[0].t === 'text' && txt.a[0].v === 'learning_rate', JSON.stringify(txt));
+ok('\\operatorname*：星號算在指令裡', parseLatex('\\operatorname*{argmax}')[1].cmd === '\\operatorname*');
+
 if (fails) process.exitCode = 1;
 console.log(fails ? `\n${fails} FAILED` : '\nALL PASS');
