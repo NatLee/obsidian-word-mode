@@ -233,7 +233,6 @@ export const CODE_LANGUAGES: CodeLanguage[] = [
   ['mermaid', 'Mermaid'], ['dataview', 'Dataview'],
 ];
 
-// 插入程式碼區塊：有選取的段落就把它們變成程式碼區塊，否則插入空的區塊
 // 選取範圍裡的段落是否只有純文字（轉成程式碼不會遺失連結、圖片、格式）
 function plainSelection(state: EditorState): boolean {
   let ok = true;
@@ -253,6 +252,45 @@ function plainSelection(state: EditorState): boolean {
   return ok;
 }
 
+// 選取範圍碰到的段落可以整個換成一個程式碼區塊時，回傳要換掉的範圍；不行就回傳 null。
+// 範圍只包住選到的段落：以前是把選取範圍所在的整個頂層區塊換掉，在清單裡選一個字，整個清單（連同其他項目裡的
+// [[連結]]）都會變成一個程式碼區塊
+function codeBlockRange(state: EditorState): TextRange | null {
+  const { $from, $to } = state.selection;
+  if (!$from.parent.isTextblock || !$to.parent.isTextblock) return null;
+  const range = $from.blockRange($to);
+  if (!range) return null;
+  let { depth, start, end } = range;
+  let parent = range.parent; let i = range.startIndex; let j = range.endIndex;
+  // 這一層不能放程式碼區塊（選了清單的好幾項），或是待辦事項的第一段（方框後面要接文字，接程式碼區塊會讀不回來）
+  const blocked = (): boolean => !parent.canReplaceWith(i, j, N.code_block)
+    || (parent.type === N.list_item && i === 0 && (parent.attrs as ListItemAttrs).checked != null);
+  while (blocked()) {
+    // 整個上層都選到了（例如選了整個清單）才往上一層、把上層整個換掉；只選到一部分就不轉換
+    if (depth === 0 || i !== 0 || j !== parent.childCount) return null;
+    start = $from.before(depth); end = $from.after(depth);
+    depth--;
+    parent = $from.node(depth); i = $from.index(depth); j = i + 1;
+  }
+  let ok = true; let first = -1; let last = -1;
+  state.doc.nodesBetween(start, end, (n, pos) => {
+    if (!ok) return false;
+    if (n.isTextblock) {
+      if (first < 0) first = pos;
+      last = pos;
+      // 只有純文字才轉（轉成程式碼不會遺失連結、圖片、格式）
+      n.forEach(c => { if (c.isText ? c.marks.some(m => m.type !== M.code) : c.type !== N.hard_break) ok = false; });
+      return false;
+    }
+    if (n.isLeaf) ok = false; // 分隔線、數學式、HTML 區塊這類沒有文字的區塊：變成程式碼就不見了
+    return true;
+  });
+  // 範圍裡還有沒選到的段落（例如從內文選到清單的第一項，清單還有其他項目）：不轉換
+  if (!ok || first !== $from.before() || last !== $to.before()) return null;
+  return { from: start, to: end };
+}
+
+// 插入程式碼區塊：有選取的段落就把它們變成程式碼區塊，否則插入空的區塊
 export function insertCodeBlock(lang: string): Command {
   return (state, dispatch) => {
     if (isInTable(state)) return false;
@@ -261,20 +299,20 @@ export function insertCodeBlock(lang: string): Command {
       if (dispatch) dispatch(state.tr.setNodeMarkup($from.before(), null, Object.assign({}, $from.parent.attrs, { params: lang })));
       return true;
     }
-    if (!empty && $from.depth >= 1 && plainSelection(state)) {
+    const range = empty ? null : codeBlockRange(state);
+    if (range) {
       // 段落裡的換行（hard_break）不是文字，要自己換成「\n」，不然幾行會併成一行
-      const text = state.doc.textBetween($from.before(1), $to.after(1), '\n', leaf => (leaf.type === N.hard_break ? '\n' : ''));
+      const text = state.doc.textBetween(range.from, range.to, '\n', leaf => (leaf.type === N.hard_break ? '\n' : ''));
       const node = N.code_block.create({ params: lang }, text ? schema.text(text) : null);
       if (dispatch) {
-        const from = $from.before(1);
-        const tr = state.tr.replaceWith(from, $to.after(1), node);
-        tr.setSelection(TextSelection.create(tr.doc, from + 1 + node.content.size));
+        const tr = state.tr.replaceWith(range.from, range.to, node);
+        tr.setSelection(TextSelection.create(tr.doc, range.from + 1 + node.content.size));
         dispatch(tr.scrollIntoView());
       }
       return true;
     }
     if (!empty) {
-      // 選取的內容有連結或格式：不轉換、也不取代，在選取範圍所在段落的後面插入新的程式碼區塊
+      // 選取的內容有連結或格式、或不能整個換成程式碼區塊：不轉換、也不取代，在選取範圍所在段落的後面插入新的程式碼區塊
       const st = state.apply(state.tr.setSelection(TextSelection.create(state.doc, $to.end())));
       return insertBlock(N.code_block.create({ params: lang }))(st, tr => {
         if (!dispatch) return;

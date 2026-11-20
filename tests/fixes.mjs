@@ -94,6 +94,32 @@ const select = (state, text, len = text.length) => { const p = posOf(state.doc, 
   check('表格裡不能放程式碼區塊：內容不動', r.out === '| a |\n| --- |\n| x<br>y |\n', JSON.stringify(r.out));
 }
 
+// ---- 選取文字後插入程式碼區塊：只換掉選到的段落，沒選到的內容不能動、更不能不見
+{
+  const code = (from, to = from, len) => (s, d, cur) => {
+    const a = posOf(s.doc, from); const b = posOf(s.doc, to) + (len == null ? to.length : len);
+    d(s.tr.setSelection(TextSelection.create(s.doc, a, b))); C.insertCodeBlock('')(cur(), d);
+  };
+  let r = save('- one\n- two [[note]]\n- three\n', code('three', 'three', 3));
+  check('清單裡選一個字 → 程式碼：只有那一項變成程式碼，其他項目與 [[連結]] 都在', r.out === '- one\n- two [[note]]\n- ```\n  three\n  ```\n' && sameDoc(r), JSON.stringify(r.out));
+  r = save('- one\n- two\n- three\n', code('one', 'three'));
+  check('選了整個清單 → 程式碼：整個清單變成一個程式碼區塊', r.out === '```\none\ntwo\nthree\n```\n' && sameDoc(r), JSON.stringify(r.out));
+  r = save('- one\n- two [[note]]\n- three\n', code('one', 'two', 1));
+  check('選了清單的前兩項（裡面有 [[連結]]）→ 程式碼：內容都不動', r.out.includes('- one\n- two [[note]]\n') && r.out.includes('- three') && sameDoc(r), JSON.stringify(r.out));
+  r = save('- one\n- two\n- three\n', code('one', 'two'));
+  check('選了清單的前兩項 → 程式碼：清單的每一項都還是清單項目', r.out.startsWith('- one\n- two\n') && r.out.includes('- three') && sameDoc(r), JSON.stringify(r.out));
+  r = save('intro\n\n- a\n- b [[n]]\n', code('intro', 'a'));
+  check('從內文選到清單的第一項 → 程式碼：沒選到的項目不動', r.out.startsWith('intro\n\n- a\n') && r.out.includes('- b [[n]]') && sameDoc(r), JSON.stringify(r.out));
+  r = save('one\n\ntwo\nlines\n\nthree\n', code('one', 'lines'));
+  check('選了兩個段落 → 程式碼：這兩段變成一個程式碼區塊，後面的段落不動', r.out === '```\none\ntwo\nlines\n```\n\nthree\n' && sameDoc(r), JSON.stringify(r.out));
+  r = save('a\n\n$$\nx\n$$\n\nb\n', code('a', 'b'));
+  check('選取範圍裡有數學式 → 程式碼：數學式還在', r.out.includes('$$\nx\n$$') && sameDoc(r), JSON.stringify(r.out));
+  r = save('- [ ] task\n- [x] done\n', code('task'));
+  check('待辦事項 → 程式碼：方框還在', r.out.startsWith('- [ ] task\n') && r.out.includes('- [x] done') && sameDoc(r), JSON.stringify(r.out));
+  r = save('> quote\n> second\n\nafter\n', code('quote', 'quote', 2));
+  check('引文裡選字 → 程式碼：程式碼區塊在引文裡', r.out === '> ```\n> quote\n> second\n> ```\n\nafter\n' && sameDoc(r), JSON.stringify(r.out));
+}
+
 // ---- 文件屬性的值：顯示文字、連結、類型轉換
 {
   const nested = { 作者: { 姓名: '小明', 信箱: 'a@b.c' }, 清單: [{ k: 1 }, 'x'] };
