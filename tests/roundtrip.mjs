@@ -38,6 +38,7 @@ const CASES = {
   tableCodePipe: '| a |\n|---|\n| `x|y` |\n',
   tableInline: '| a | b |\n| :-: | --: |\n| **粗** [[x\\|y]] | $m$ %%c%% |\n',
   emptyCells: '| a | b |\n|---|---|\n|  | x |\n',
+  tableLineStart: '| 項目 | - |\n| --- | --- |\n| -12.5 | > 3 |\n| + 1 | 1. 一 |\n| # 井 | >= 0 |\n',
   noLeadingPipe: 'a | b\n--- | ---\n1 | 2\n',
   calloutFold: '> [!note]- 標題 **粗**\n> 內容\n',
   calloutNested: '> [!tip] 外層\n> 文字\n> > [!warning] 內層\n> > 內文\n',
@@ -148,6 +149,8 @@ ok('清單裡的 %% 不切開清單', kinds(CASES.commentInList) === 'bullet_lis
 ok('表格裡 [[x|y]] 沒跳脫的 |：仍是可編輯的表格', kinds(CASES.tableWikiPipe) === 'table', kinds(CASES.tableWikiPipe));
 o = edited(CASES.tableWikiPipe, 'a');
 ok('編輯該表格：連結與圖片都還在', o.includes('[[x\\|y]]') && o.includes('![[i.png\\|50]]'), JSON.stringify(o));
+o = edited(CASES.tableLineStart, '項目');
+ok('儲存格開頭的 - > + 1. #：編輯表格後不會多出反斜線', o === CASES.tableLineStart.replace('項目', '新項目'), JSON.stringify(o));
 ok('格數比標題列多的表格：保留原文', kinds(CASES.tableExtraCells) === 'raw_block:raw', kinds(CASES.tableExtraCells));
 ok('儲存格裡 `x|y` 沒跳脫：保留原文', kinds(CASES.tableCodePipe) === 'raw_block:raw', kinds(CASES.tableCodePipe));
 

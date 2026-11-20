@@ -349,7 +349,8 @@ const URL_SPLIT = /(https?:\/\/[^\s<>()[\]]+)/;
 // eslint-disable-next-line @typescript-eslint/unbound-method -- the original method is kept so the wrapper can call it with the right `this`
 const origEsc = MarkdownSerializerState.prototype.esc;
 MarkdownSerializerState.prototype.esc = function (this: SerializerState, str: string, startOfLine = false): string {
-  let s = origEsc.call(this, str, startOfLine);
+  // 表格儲存格的內容前面一定有「| 」，不會在一行的開頭：-12.5、> 3、1. 這些不是清單或引文，不用跳脫
+  let s = origEsc.call(this, str, startOfLine && !this.inTable);
   if (this.options.obsidianEscapes) {
     // # 與 ^ 保留（Obsidian 標籤、區塊參照）；= 與 % 只在成對（== 螢光、%% 註解）時跳脫
     s = s.replace(/[=$%<|]/g, (m: string, i: number) => {
