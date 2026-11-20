@@ -60,6 +60,7 @@ C'est ce que montre l'animation du haut. Commencez un paragraphe par `# `, `- `,
 - **Vos propres formules** : sélectionnez le bouton signet à côté de l'aperçu pour enregistrer l'équation actuelle sous un nom. Les formules enregistrées apparaissent sous **Mes formules** dans la palette, et un clic les insère.
 - Une équation que vous ne modifiez pas est réécrite exactement telle qu'elle était.
 - **Sur téléphone et tablette** : des boutons au-dessus de la zone d'édition permettent de passer à la case précédente ou suivante et de retirer la structure au curseur, car les claviers virtuels n'ont pas de flèches. Sur téléphone, la zone d'édition reste en haut pendant que vous faites défiler la palette.
+- **Rien de perdu par mégarde** : s'il reste des modifications non appliquées, Échap, un clic à l'extérieur ou la croix demandent d'abord s'il faut les abandonner. L'éditeur de diagrammes fait de même.
 
 </details>
 

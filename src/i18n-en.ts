@@ -1185,5 +1185,8 @@ export default {
  "插入網路圖片（網址）…": "Insert online image (URL)…",
  "更換為保管庫裡的圖片…": "Replace with image from vault…",
  "更換為網路圖片（網址）…": "Replace with online image (URL)…",
- "編輯{name}": "Edit {name}"
+ "編輯{name}": "Edit {name}",
+ "還沒套用的修改會不見，要關閉嗎？": "Your changes have not been applied and will be lost. Close anyway?",
+ "繼續編輯": "Keep editing",
+ "捨棄修改": "Discard changes"
 };

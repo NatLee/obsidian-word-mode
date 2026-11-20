@@ -1185,5 +1185,8 @@ export default {
  "插入網路圖片（網址）…": "Insérer une image en ligne (URL)…",
  "更換為保管庫裡的圖片…": "Remplacer par une image du coffre…",
  "更換為網路圖片（網址）…": "Remplacer par une image en ligne (URL)…",
- "編輯{name}": "Modifier : {name}"
+ "編輯{name}": "Modifier : {name}",
+ "還沒套用的修改會不見，要關閉嗎？": "Les modifications non appliquées seront perdues. Fermer quand même ?",
+ "繼續編輯": "Continuer la modification",
+ "捨棄修改": "Abandonner les modifications"
 };

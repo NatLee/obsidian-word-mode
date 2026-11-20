@@ -768,6 +768,64 @@ await fresh('---\ntags:\n  - 會議\nrelated:\n  - [[其他筆記]]\n  - https:/
   assert(first.firstChild.type.name === 'table_header' && first.textContent === '甲乙丙', '標題列還是標題列');
 }
 
+// ======== 方程式、圖表對話框：有還沒套用的修改時，Esc／點外面／× 不直接關，先問一次 ========
+// Obsidian 的這三種關法都是呼叫對話框的 close()，所以測試直接呼叫 close()
+await fresh('公式 $a+b$ 結束\n');
+{
+  const openEq = async () => {
+    view.pm.dom.querySelector('.wm-raw-inline.is-math').dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    await sleep(25);
+    return mock.Modal.last;
+  };
+  const shown = m => m.contentEl.isConnected;
+  const bar = m => m.contentEl.querySelector('.wm-discard');
+  const button = (m, label) => [...m.contentEl.querySelectorAll('button')].find(b => b.textContent === label);
+  const before = out();
+
+  let eq = await openEq();
+  eq.close();
+  assert(!shown(eq), '方程式沒有修改：直接關閉');
+
+  eq = await openEq();
+  eq.setEdit('latex'); eq.ta.value = 'a+b+c';
+  eq.close();
+  assert(shown(eq) && bar(eq) && bar(eq).textContent.includes('還沒套用的修改會不見'), '方程式改過：不關，在上方問要不要捨棄');
+  assert(eq.contentEl.firstElementChild === bar(eq) && eq.contentEl.ownerDocument.activeElement === button(eq, '繼續編輯'), '詢問列在最上面，焦點在「繼續編輯」（再按 Enter 不會誤關）');
+  eq.close();
+  assert(shown(eq) && !bar(eq) && eq.ta.value === 'a+b+c', '問的時候再按一次 Esc：留下來繼續編輯，內容還在');
+  eq.close();
+  button(eq, '繼續編輯').click();
+  assert(shown(eq) && !bar(eq), '按「繼續編輯」：留下來');
+  eq.close();
+  button(eq, '捨棄修改').click();
+  assert(!shown(eq) && out() === before, '按「捨棄修改」：關閉，筆記沒有變');
+
+  eq = await openEq();
+  eq.setEdit('latex'); eq.ta.value = 'a+b+c';
+  button(eq, '取消').click();
+  assert(!shown(eq) && out() === before, '對話框自己的「取消」：已經表明要關，不再問');
+
+  eq = await openEq();
+  eq.setEdit('latex'); eq.ta.value = 'a+b+c';
+  button(eq, '套用').click();
+  assert(!shown(eq) && out().includes('$a+b+c$'), '「套用」照常寫回並關閉：' + JSON.stringify(out()));
+
+  // 圖表：新的圖表一開就是範本，沒動過就能直接關；改過才問
+  view.openMermaid();
+  await sleep(30);
+  let mm = mock.Modal.last;
+  mm.close();
+  assert(!shown(mm), '圖表沒有修改（還是範本）：直接關閉');
+  view.openMermaid();
+  await sleep(30);
+  mm = mock.Modal.last;
+  mm.src = mm.src + '\n    B --> Z[多一個]';
+  mm.close();
+  assert(shown(mm) && bar(mm), '圖表改過：先問');
+  button(mm, '捨棄修改').click();
+  assert(!shown(mm), '圖表：捨棄修改後關閉');
+}
+
 // ======== 複製之後的通知只顯示開頭，不把整份內容貼出來 ========
 {
   const written = [];

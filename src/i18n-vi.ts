@@ -1185,5 +1185,8 @@ export default {
  "插入網路圖片（網址）…": "Chèn ảnh trực tuyến (URL)…",
  "更換為保管庫裡的圖片…": "Thay bằng ảnh trong kho…",
  "更換為網路圖片（網址）…": "Thay bằng ảnh trực tuyến (URL)…",
- "編輯{name}": "Chỉnh sửa {name}"
+ "編輯{name}": "Chỉnh sửa {name}",
+ "還沒套用的修改會不見，要關閉嗎？": "Các thay đổi chưa áp dụng sẽ bị mất. Vẫn đóng?",
+ "繼續編輯": "Tiếp tục chỉnh sửa",
+ "捨棄修改": "Bỏ thay đổi"
 };

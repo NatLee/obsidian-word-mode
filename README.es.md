@@ -60,6 +60,7 @@ Es lo que se ve en la animación del principio. Empieza un párrafo con `# `, `-
 - **Tus propias fórmulas**: selecciona el botón de marcador junto a la vista previa para guardar la ecuación actual con un nombre. Las fórmulas guardadas aparecen en **Mis fórmulas** en la paleta, y se insertan con un clic.
 - Una ecuación que no cambias se vuelve a escribir exactamente como estaba.
 - **En teléfonos y tabletas**: unos botones encima del área de edición te llevan a la casilla anterior o siguiente y quitan la estructura donde está el cursor, porque los teclados en pantalla no tienen teclas de flecha. En un teléfono, el área de edición se queda arriba mientras desplazas la paleta.
+- **Nada se pierde por accidente**: si hay cambios sin aplicar, Esc, un clic fuera o la × preguntan primero si quieres descartarlos. El editor de diagramas hace lo mismo.
 
 </details>
 

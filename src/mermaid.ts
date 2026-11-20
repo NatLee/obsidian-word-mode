@@ -2,9 +2,10 @@
 // 表單依 diagrams.ts 對各種圖表的描述畫出來：流程圖、循序圖、甘特圖、圓餅圖、狀態圖、類別圖、心智圖、時間軸、ER 圖。
 // 很長的圖表：表單的清單分批顯示、可以篩選，下拉選單的選項按下去才產生；預覽重畫時先在背後畫好再換上去，捲動位置不會跑掉。
 // opts: { src, existing, mode: 'visual'|'code', render(src, el) → { unload(), ready? }, validate(src) → Promise<錯誤訊息|null> }
-import { Modal, Notice, setIcon } from 'obsidian';
+import { Notice, setIcon } from 'obsidian';
 import { t, key } from './i18n.js';
 import { keepFocus } from './dom.js';
+import { EditingModal } from './confirmclose.js';
 import { DIAGRAM_KINDS, DIAGRAM_REASONS, COMMON_OPTS, editableDiagram, generateDiagram, detectKind, textSlots, findSlot, setValue, restoreName, dropRefs, squash, sameSlot, slotNth, rowSlot } from './diagrams.js';
 import { uniqueName } from './templates.js';
 import type { App } from 'obsidian';
@@ -72,11 +73,14 @@ function labelAt(target: Element, root: Element): DiagramLabel | null {
   return { el, text, nth: Math.max(0, same.indexOf(el)) };
 }
 
-export class MermaidModal extends Modal {
+export class MermaidModal extends EditingModal {
   declare opts: MermaidModalOptions;
   declare onSave: (text: string) => void;
   declare src: string;
   declare original: string;
+  // 對話框打開時顯示的程式碼（新的圖表是範本）：跟它不一樣才算改過
+  declare opened: string;
+  hasChanges(): boolean { return this.src.replace(/\s+$/, '') !== this.opened.replace(/\s+$/, ''); }
   // 表單的資料：undefined＝還沒讀（程式碼改過之後要重讀）、null＝這段程式碼不能用表單編輯（原因在 reason）
   declare data: Editable | null | undefined;
   declare reason?: DiagramReason | null;
@@ -145,6 +149,7 @@ export class MermaidModal extends Modal {
     this.onSave = onSave;
     this.src = opts.src && opts.src.trim() ? opts.src : (opts.initial && opts.initial.trim() ? opts.initial : t(DEFAULT_SRC));
     this.original = opts.src || '';
+    this.opened = this.src;
     this.data = undefined;
     this.tab = opts.mode === 'code' ? 'code' : 'visual';
     this.selects = [];
@@ -282,7 +287,7 @@ export class MermaidModal extends Modal {
     }, { passive: false });
 
     const bar = c.createDiv('modal-button-container');
-    bar.createEl('button', { text: t('取消') }).addEventListener('click', () => { this.closeInline(); this.close(); });
+    bar.createEl('button', { text: t('取消') }).addEventListener('click', () => { this.closeInline(); this.closeNow(); });
     this.ok = bar.createEl('button', { text: this.opts.existing ? t('套用') : t('插入'), cls: 'mod-cta' });
     this.ok.addEventListener('click', () => this.submit());
     c.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); this.submit(); } });
@@ -310,7 +315,7 @@ export class MermaidModal extends Modal {
     this.closeInline();
     const text = this.src.replace(/\s+$/, '');
     if (!text.trim()) return;
-    this.close();
+    this.closeNow();
     // 沒有改動就交回原本的文字（不重寫使用者自己排的格式）
     this.onSave(text === this.original.replace(/\s+$/, '') ? this.original : text);
   }

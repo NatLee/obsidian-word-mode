@@ -95,6 +95,25 @@ const posOf = (doc, text) => { let p = -1; doc.descendants((n, pos) => { if (p <
 // 選取 text 的前 len 個字（len 是 0 就只放游標）
 const select = (state, text, len = text.length) => { const p = posOf(state.doc, text); return state.tr.setSelection(TextSelection.create(state.doc, p, p + len)); };
 
+// ---- 用 Backspace／Delete 把段落與程式碼區塊併在一起：換行要留著
+{
+  const { baseKeymap } = await import('prosemirror-commands');
+  const keys = C.buildKeymap();
+  // 外掛自己的按鍵先處理，沒處理的交給 ProseMirror 內建的（跟編輯器裡的順序一樣）
+  const key = name => (state, dispatch) => (keys[name] && keys[name](state, dispatch)) || baseKeymap[name](state, dispatch);
+  const lines = doc => { const a = []; doc.forEach(n => a.push(n.type.name + ':' + n.textBetween(0, n.content.size, '', '⏎'))); return a.join(' | '); };
+  let r = save('```\ncode\n```\n\nx\ny\n', (s, d, cur) => { d(select(s, 'x', 0)); key('Backspace')(cur(), d); });
+  check('程式碼區塊下面的段落開頭按 Backspace：併進程式碼區塊，段落裡的換行變成程式碼的換行', lines(r.doc) === 'code_block:codex\ny' && r.out === '```\ncodex\ny\n```\n' && sameDoc(r), lines(r.doc) + ' / ' + JSON.stringify(r.out));
+  r = save('x\ny\n\n```\na\nb\n```\n', (s, d, cur) => { d(select(s, 'a', 0)); key('Backspace')(cur(), d); });
+  check('段落下面的程式碼區塊開頭按 Backspace：併進段落，程式碼的換行變成段落裡的換行', lines(r.doc) === 'paragraph:x⏎ya⏎b' && sameDoc(r), lines(r.doc) + ' / ' + JSON.stringify(r.out));
+  r = save('```\ncode\n```\n\nx\ny\n', (s, d, cur) => { d(s.tr.setSelection(TextSelection.create(s.doc, 5))); key('Delete')(cur(), d); });
+  check('程式碼區塊結尾按 Delete：下面的段落併上來，換行留著', lines(r.doc) === 'code_block:codex\ny' && sameDoc(r), lines(r.doc) + ' / ' + JSON.stringify(r.out));
+  r = save('x\n\n```\na\nb\n```\n', (s, d, cur) => { d(s.tr.setSelection(TextSelection.create(s.doc, 2))); key('Delete')(cur(), d); });
+  check('段落結尾按 Delete：下面的程式碼區塊併上來，換行留著', lines(r.doc) === 'paragraph:xa⏎b' && sameDoc(r), lines(r.doc) + ' / ' + JSON.stringify(r.out));
+  r = save('一\n\n二\n', (s, d, cur) => { d(select(s, '二', 0)); key('Backspace')(cur(), d); });
+  check('兩個一般段落照平常合併', lines(r.doc) === 'paragraph:一二', lines(r.doc));
+}
+
 // ---- 段落 ⇄ 程式碼區塊：每一行都要留著（段落裡的換行是節點，程式碼區塊裡是「\n」）
 {
   let r = save('line1\nline2\nline3\n', (s, d, cur) => { d(select(s, 'line1', 0)); C.setBlockStyle('code')(cur(), d); });

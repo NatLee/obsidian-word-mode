@@ -1185,5 +1185,8 @@ export default {
  "插入網路圖片（網址）…": "Insertar imagen en línea (URL)…",
  "更換為保管庫裡的圖片…": "Reemplazar con imagen de la bóveda…",
  "更換為網路圖片（網址）…": "Reemplazar con imagen en línea (URL)…",
- "編輯{name}": "Editar {name}"
+ "編輯{name}": "Editar {name}",
+ "還沒套用的修改會不見，要關閉嗎？": "Los cambios sin aplicar se perderán. ¿Cerrar de todos modos?",
+ "繼續編輯": "Seguir editando",
+ "捨棄修改": "Descartar cambios"
 };
