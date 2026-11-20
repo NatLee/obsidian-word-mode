@@ -120,7 +120,7 @@ export const DEFAULTS: Settings = {
   pasteChip: true,
   keepHistory: true,
   // 顯示
-  fullWidth: false,
+  fullWidth: true,
   zoom: 100,
   showMarks: false,
   highlightWeird: true,
@@ -140,7 +140,7 @@ export const DEFAULTS: Settings = {
   groupOrder: [],
   tabStyle: 'text',
   tabLabels: {},
-  richHints: false,
+  richHints: true,
   mdToolbar: 'both',
   mdStatusBar: true,
   outlinePlace: 'split',
