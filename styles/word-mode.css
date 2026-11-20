@@ -1743,13 +1743,14 @@ mark.wm-set-find-hl { padding: 0 1px; border-radius: 3px; background: hsla(var(-
 .wm-hint-card:not(.is-shown) .wm-hint-demo, .wm-hint-card:not(.is-shown) .wm-hint-demo *, .wm-hint-card:not(.is-shown) .wm-hint-demo *::before, .wm-hint-card:not(.is-shown) .wm-hint-demo *::after { animation-play-state: paused; }
 
 /* 鍵盤焦點框。上面每一種自訂按鈕都用 box-shadow: none 拿掉 Obsidian 按鈕的陰影，連帶把它的焦點框也拿掉了，
-   用 Tab 鍵移動時看不出目前在哪一顆。這裡一顆一顆補回來（選擇器跟拿掉陰影的那一條相同，才蓋得過去） */
+   用 Tab 鍵移動時看不出目前在哪一顆。這裡一顆一顆補回來（選擇器跟拿掉陰影的那一條相同，才蓋得過去）。
+   注意：清單裡只要有一個選擇器寫錯，瀏覽器會整條規則都不要。這一條曾經因為兩個 :is(…) 被逗號切成兩半而完全沒生效 */
 .wm-toolbar button.wm-btn:focus-visible,
 .wm-bubble button.wm-bubble-btn:focus-visible,
 .wm-bubble button.wm-bubble-size:focus-visible,
 .wm-findbar button.wm-find-btn:focus-visible,
-.wm-statusbar) button.wm-bb-btn:focus-visible,
-.wm-statusbar) button.wm-bb-zoomlabel:focus-visible,
+:is(.wm-bottombar, .wm-statusbar) button.wm-bb-btn:focus-visible,
+:is(.wm-bottombar, .wm-statusbar) button.wm-bb-zoomlabel:focus-visible,
 .wm-props button.wm-props-raw:focus-visible,
 .wm-props button.wm-prop-del:focus-visible,
 .wm-tabs button.wm-tab:focus-visible,
@@ -1775,5 +1776,9 @@ mark.wm-set-find-hl { padding: 0 1px; border-radius: 3px; background: hsla(var(-
 .wm-mmd button.wm-mmd-color:focus-visible,
 .wm-mmd button.wm-mmd-swatch:focus-visible,
 .wm-mmd-templates button.wm-mmd-tpl:focus-visible,
-.wm-mmd-more button.wm-mmd-morebtn:focus-visible,
-.wm-editor .wm-codeblock button.wm-code-more:focus-visible { box-shadow: var(--wm-focus-ring); }
+.wm-mmd-more button.wm-mmd-morebtn:focus-visible { box-shadow: var(--wm-focus-ring); }
+
+/* 文件屬性清單項目的 × 平常是透明的，滑鼠移到那一項才出現。用 Tab 鍵移到它的時候也要出現，不然焦點在一顆看不見的按鈕上 */
+.wm-props .wm-chip-x:focus-visible, .wm-peek .wm-chip-x:focus-visible { opacity: 1; outline: 2px solid var(--interactive-accent); outline-offset: 1px; }
+/* 文件屬性的標題列與連結的值可以用鍵盤操作，取得焦點時要看得出來 */
+.wm-props .wm-props-title:focus-visible, .wm-props .wm-chip-text[role="link"]:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 2px; border-radius: 3px; }
