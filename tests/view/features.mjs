@@ -861,6 +861,218 @@ await fresh('---\ntags:\n  - 會議\nrelated:\n  - [[其他筆記]]\n  - https:/
   assert(!bad && edits > 200, `隨機改 ${edits} 次，局部更新的裝飾都跟整份重算一樣` + (bad ? '：不一樣，' + bad : ''));
 }
 
+// ======== 文件屬性：鍵盤也能操作（Enter、空白鍵） ========
+await fresh('---\ntags:\n  - 會議\n  - 專案\nrelated:\n  - [[其他筆記]]\nsite: https://example.com\ncount: 3\n---\n內文\n');
+{
+  const q = sel => [...view.pm.dom.querySelectorAll(sel)];
+  const one = sel => view.pm.dom.querySelector(sel);
+  const rowOf = name => q('.wm-prop').find(r => r.querySelector('.wm-prop-name') && r.querySelector('.wm-prop-name').textContent === name);
+  const key = (el, k, init = {}) => { const e = new KeyboardEvent('keydown', Object.assign({ key: k, bubbles: true, cancelable: true }, init)); el.dispatchEvent(e); return e; };
+  const collapsed = () => one('.wm-props').classList.contains('is-collapsed');
+
+  // 標題：收合、展開
+  const title = () => one('.wm-props-title');
+  assert(title().tagName === 'SPAN' && title().getAttribute('role') === 'button' && title().tabIndex === 0 && title().getAttribute('aria-expanded') === 'true',
+    '文件屬性的標題用 Tab 走得到，並標示目前是展開的');
+  const e1 = key(title(), 'Enter');
+  assert(collapsed() && e1.defaultPrevented && title().getAttribute('aria-expanded') === 'false', '在標題上按 Enter：收合');
+  key(title(), ' ');
+  assert(!collapsed() && q('.wm-prop').length === 5, '在標題上按空白鍵：展開');
+  key(title(), 'a'); key(title(), 'Tab'); key(title(), 'Enter', { repeat: true });
+  assert(!collapsed(), '其他按鍵、按住不放的重複按鍵不會收合');
+
+  // 標籤的 ×
+  const xs = () => [...rowOf('tags').querySelectorAll('.wm-chip-x')];
+  assert(xs().length === 2 && xs().every(x => x.tagName === 'SPAN' && x.getAttribute('role') === 'button' && x.tabIndex === 0), '標籤的 × 用 Tab 走得到');
+  key(xs()[0], 'Enter');
+  assert(/tags:\n {2}- 專案\nrelated:/.test(out()), '在標籤的 × 上按 Enter：移除那個標籤：' + JSON.stringify(out()));
+  const same = out();
+  key(rowOf('tags').querySelector('.wm-chip-input'), ' ');
+  assert(out() === same && !collapsed(), '在輸入框裡按空白鍵只是打字，不會觸發別的動作');
+
+  // 類型圖示：鍵盤沒有滑鼠位置，選單開在圖示旁邊
+  mock.Menu.last = null;
+  let shownAt = null;
+  const showAt = mock.Menu.prototype.showAtMouseEvent;
+  mock.Menu.prototype.showAtMouseEvent = function (evt) { shownAt = evt; return showAt.call(this, evt); };
+  key(rowOf('site').querySelector('.wm-prop-icon'), 'Enter');
+  mock.Menu.prototype.showAtMouseEvent = showAt;
+  assert(mock.Menu.last && mock.Menu.last.items.length === 7 && shownAt instanceof MouseEvent && shownAt.view === window && typeof shownAt.pageX === 'number',
+    '在類型圖示上按 Enter：開啟類型選單（給選單的是帶位置的滑鼠事件）');
+
+  // 連結
+  const link = rowOf('related').querySelector('.wm-chip-link .wm-chip-text');
+  assert(link.getAttribute('role') === 'link' && link.tabIndex === 0, '清單裡的連結用 Tab 走得到');
+  const before = app.workspace.opened.length;
+  key(link, 'Enter');
+  assert(app.workspace.opened.length === before + 1 && String(app.workspace.opened[before]).includes('其他筆記'), '在連結上按 Enter：開啟');
+  assert(!rowOf('site').querySelector('.wm-prop-name').hasAttribute('tabindex') && !rowOf('tags').querySelector('.wm-chip-text').hasAttribute('tabindex'), '不能按的文字不會多出停駐點');
+
+  // 原文
+  key(one('.wm-props-raw'), 'Enter');
+  const src = mock.Modal.last;
+  assert(src.contentEl.querySelector('textarea') && src.contentEl.querySelector('textarea').value.startsWith('---\n') && !collapsed(), '在「原文」按鈕上按 Enter：開啟原文編輯，不會連帶收合');
+  src.close();
+
+  // 刪除一個屬性
+  key(rowOf('site').querySelector('.wm-prop-del'), ' ');
+  assert(!out().includes('site:') && out().includes('count: 3'), '在刪除按鈕上按空白鍵：刪除這個屬性：' + JSON.stringify(out()));
+
+  // 新增
+  one('.wm-prop-add input').value = '負責人';
+  key(one('.wm-prop-addbtn'), 'Enter');
+  assert(/\n負責人:/.test(out()), '在「新增」按鈕上按 Enter：新增屬性：' + JSON.stringify(out()));
+
+  // 滑鼠照舊：按下就動作，不會把焦點從原本的地方搶走
+  const md = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
+  rowOf('count').querySelector('.wm-prop-del').dispatchEvent(md);
+  assert(md.defaultPrevented && !out().includes('count:') && !one('.wm-props').contains(document.activeElement), '滑鼠按下去照舊立刻動作，而且焦點不會跑進文件屬性');
+  const mh = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
+  title().dispatchEvent(mh);
+  assert(collapsed() && mh.defaultPrevented, '滑鼠按標題：只收合一次（不會標題與標題列各算一次）');
+  one('.wm-props-head').dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+  assert(!collapsed(), '滑鼠按標題列：展開');
+
+  // 移除整個區塊
+  key(one('.wm-props-remove'), 'Enter');
+  assert(!one('.wm-props') && out() === '內文\n', '在「移除」按鈕上按 Enter：移除文件屬性：' + JSON.stringify(out()));
+}
+
+// ======== 文件屬性：重畫之後焦點還在原本的地方 ========
+await fresh('---\ntags:\n  - 會議\n  - 專案\ndate: 2026-11-16\ndone: false\ntitle: 舊標題\ncount: 3\n---\n內文\n');
+{
+  const q = sel => [...view.pm.dom.querySelectorAll(sel)];
+  const one = sel => view.pm.dom.querySelector(sel);
+  const rowOf = name => q('.wm-prop').find(r => r.querySelector('.wm-prop-name') && r.querySelector('.wm-prop-name').textContent === name);
+  const input = name => rowOf(name).querySelector('.wm-prop-value input');
+  const change = el => el.dispatchEvent(new Event('change', { bubbles: true }));
+  const key = (el, k) => el.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }));
+  const focused = () => document.activeElement;
+
+  // 清單：按 Enter 加一個之後，可以接著打下一個
+  const chip = input('tags');
+  chip.focus(); chip.value = '週會';
+  let edits = 0;
+  const dispatch = view.dispatch;
+  view.dispatch = function (tr) { if (tr.docChanged) edits++; return dispatch.call(this, tr); };
+  key(chip, 'Enter');
+  view.dispatch = dispatch;
+  assert(out().includes('  - 週會\n') && input('tags') !== chip && focused() === input('tags') && input('tags').value === '', '加了標籤之後焦點還在輸入框，可以接著打下一個');
+  // 舊的輸入框被換掉、失去焦點時還會收到一次 blur，不能因此再存一次
+  assert(edits === 1, '加一個標籤只改一次文件：' + edits);
+
+  // 核取方塊
+  const cb = input('done');
+  cb.focus(); cb.checked = true; change(cb);
+  assert(out().includes('done: true') && input('done') !== cb && focused() === input('done') && input('done').checked, '勾了核取方塊之後焦點還在核取方塊上');
+
+  // 日期欄位每改完一段（年、月、日）就送出 change，這時人還在欄位裡：存檔，但欄位不能換成新的（換了就接不下去打）
+  const date = input('date');
+  date.focus(); date.value = '2026-12-01'; change(date);
+  assert(out().includes('date: 2026-12-01') && input('date') === date && focused() === date, '日期改到一半：存檔，欄位還是同一個、焦點還在');
+  date.value = '2026-12-31'; change(date);
+  date.value = '2026-11-16'; change(date);
+  assert(out().includes('date: 2026-11-16') && input('date') === date, '接著改、改回原本的值都會存：' + JSON.stringify(out()));
+  date.value = '2027-03-04'; change(date);
+  // 這時別的列還是原本畫的那一批，它們存檔時不能把日期蓋回去
+  input('done').checked = false; change(input('done'));
+  assert(out().includes('date: 2027-03-04') && out().includes('done: false'), '日期改完沒重畫，接著改別的屬性不會把日期蓋回去：' + JSON.stringify(out()));
+
+  // 改完按 Tab（或用滑鼠點別的控制項）：瀏覽器先把焦點拿走、送出 change（存檔），再送出 blur（這時才重畫，要去的那個控制項換成新的）。
+  // jsdom 不會自己做這一串，照真的瀏覽器的順序送
+  const leave = (el, next) => { el.blur(); change(el); el.dispatchEvent(new window.FocusEvent('blur', { relatedTarget: next })); };
+  const text = input('title');
+  const oldDel = rowOf('title').querySelector('.wm-prop-del');
+  text.focus(); text.value = 'https://example.com/新';
+  leave(text, oldDel);
+  assert(out().includes('title: https://example.com/新') && !oldDel.isConnected && focused() === rowOf('title').querySelector('.wm-prop-del'), '改完按 Tab：焦點到下一個控制項，不會掉出文件屬性');
+  assert(rowOf('title').querySelector('.wm-prop-open'), '離開欄位後重畫：值變成網址，旁邊出現開啟按鈕');
+
+  // 筆記在別處被改了（同步、復原）而重畫：被換掉的輸入框還會收到 change、blur，不能拿它手上的舊資料存回去
+  const stale = input('title');
+  stale.focus(); stale.value = '打到一半';
+  view.pm.dispatch(view.pm.state.tr.setNodeMarkup(0, null, Object.assign({}, view.pm.state.doc.firstChild.attrs, { src: '---\ntags:\n  - 會議\n  - 專案\n  - 週會\ndate: 2027-03-04\ndone: false\ntitle: 別處改的\ncount: 99\n---' })));
+  stale.blur(); change(stale); stale.dispatchEvent(new window.FocusEvent('blur'));
+  assert(!stale.isConnected && out().includes('title: 別處改的') && out().includes('count: 99') && q('.wm-props-head').length === 1, '被換掉的欄位不會拿舊資料蓋掉新的：' + JSON.stringify(out()));
+  // 清單的輸入框是離開時（blur）才存
+  const chip2 = input('tags');
+  const oldType = rowOf('date').querySelector('.wm-prop-icon');
+  chip2.focus(); chip2.value = '月會';
+  chip2.dispatchEvent(new window.FocusEvent('blur', { relatedTarget: oldType }));
+  assert(out().includes('  - 月會\n') && !oldType.isConnected && focused() === rowOf('date').querySelector('.wm-prop-icon'), '清單打到一半按 Tab：存起來，焦點到下一個控制項');
+
+  // 滑鼠按別的按鈕（焦點留在輸入框）造成重畫時，游標留在原位
+  const t2 = input('title');
+  t2.focus(); t2.setSelectionRange(1, 2);
+  rowOf('tags').querySelector('.wm-chip-x').dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+  assert(input('title') !== t2 && focused() === input('title') && input('title').selectionStart === 1 && input('title').selectionEnd === 2, '別處造成重畫時，正在用的文字欄位保有焦點與游標位置');
+
+  // 用鍵盤按按鈕之後，焦點留在同一個位置
+  one('.wm-props-title').focus();
+  key(one('.wm-props-title'), 'Enter');
+  assert(one('.wm-props').classList.contains('is-collapsed') && focused() === one('.wm-props-title'), '用鍵盤收合後焦點還在標題上，可以直接再按一次');
+  key(one('.wm-props-title'), 'Enter');
+  const xs = () => [...rowOf('tags').querySelectorAll('.wm-chip-x')];
+  const left = xs().length;
+  xs()[0].focus();
+  key(xs()[0], 'Enter');
+  assert(xs().length === left - 1 && focused() === xs()[0], '用鍵盤移除標籤後，焦點在補上來的下一個標籤的 × 上');
+  while (xs().length > 1) key(xs()[0], 'Enter');
+  key(xs()[0], 'Enter');
+  assert(xs().length === 0 && focused() === input('tags'), '最後一個標籤也移除之後，焦點到新增標籤的輸入框');
+  const del = rowOf('title').querySelector('.wm-prop-del');
+  del.focus();
+  key(del, 'Enter');
+  assert(!out().includes('title:') && focused() === rowOf('count').querySelector('.wm-prop-icon'), '用鍵盤刪除一列後，焦點移到下一列的第一個控制項');
+  const lastDel = rowOf('count').querySelector('.wm-prop-del');
+  lastDel.focus();
+  key(lastDel, 'Enter');
+  assert(!out().includes('count:') && focused() === one('.wm-prop-add input'), '刪掉最後一列：焦點到新增屬性的欄位');
+  one('.wm-prop-add input').value = '負責人';
+  key(one('.wm-prop-add input'), 'Enter');
+  assert(/\n負責人:/.test(out()) && focused() === one('.wm-prop-add input') && focused().value === '', '按 Enter 新增屬性後，焦點還在新增的欄位，可以接著加下一個');
+
+  // 焦點不在文件屬性裡（在內文打字、復原）時，重畫不會把焦點搶過來
+  focused().blur();
+  undo();
+  assert(!out().includes('負責人') && !one('.wm-props').contains(focused()), '焦點在別處時，文件屬性重畫不會搶焦點');
+}
+
+// ======== 第一份開啟的筆記就有註腳 ========
+{
+  // 編輯器是在載入第一份筆記時建立的，註腳記號在這個過程中就要讀得到註腳的內容
+  const env2 = await makeEnv({});
+  let err = null;
+  try { await env2.open('筆記/註腳.md', '內文[^1] 與[^沒有]\n\n[^1]: 註腳的內容\n'); } catch (e) { err = e; }
+  const refs = env2.view.pm ? [...env2.view.pm.dom.querySelectorAll('.wm-raw-inline.is-footnote')] : [];
+  assert(!err && refs.length === 2, '第一份開啟的筆記有註腳也開得起來' + (err ? '：' + err.message : ''));
+  assert(refs.length === 2 && refs[0].getAttribute('aria-label').includes('註腳的內容') && !refs[0].classList.contains('is-missing') && refs[1].classList.contains('is-missing'),
+    '註腳記號的提示是註腳的內容；找不到定義的另外標示');
+  env2.view.containerEl.remove();
+}
+
+// ======== 圖表還沒捲到就先被改過：捲到時畫的是現在的內容 ========
+{
+  // jsdom 沒有 IntersectionObserver（結果一開啟就畫）；裝一個假的，才等得到「捲到看得到才畫」
+  const observers = [];
+  globalThis.IntersectionObserver = class { constructor(cb) { this.cb = cb; observers.push(this); } observe(target) { this.target = target; } disconnect() { this.off = true; } };
+  await fresh('前文\n\n```mermaid\ngraph TD; A-->B\n```\n');
+  await sleep(10);
+  const io = observers.find(o => o.target && o.target.classList.contains('wm-codeblock'));
+  const preview = () => view.pm.dom.querySelector('.wm-code-preview').textContent;
+  assert(io && preview() === '', '還沒捲到圖表：先不畫');
+  // 這時內容被改了（全部取代、復原都不用先捲過去）
+  let end = 0;
+  view.pm.state.doc.descendants((n, pos) => { if (n.type.name === 'code_block') end = pos + 1 + n.content.size; });
+  view.pm.dispatch(view.pm.state.tr.insertText('\nB-->C', end));
+  // 打字後延後重畫的時間還沒到，就捲到看得到了
+  io.cb([{ isIntersecting: true }]);
+  assert(preview().includes('A-->B') && preview().includes('B-->C'), '捲到時畫的是改過之後的內容：' + JSON.stringify(preview()));
+  await sleep(700);
+  assert(preview().includes('B-->C'), '之後也不會停在舊的內容：' + JSON.stringify(preview()));
+  delete globalThis.IntersectionObserver;
+}
+
 //@@MORE@@
 
 finish();
