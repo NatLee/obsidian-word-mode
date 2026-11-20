@@ -54,6 +54,7 @@ C'est ce que montre l'animation du haut. Commencez un paragraphe par `# `, `- `,
 <summary>En savoir plus sur l'éditeur d'équations</summary>
 
 - Ouvrez-le avec **Insérer → Équation**, en double-cliquant sur une équation, ou en appuyant sur Enter quand une équation est sélectionnée.
+- Une équation sur sa propre ligne affiche de petits boutons dans son coin supérieur droit quand vous la survolez (sur un téléphone, touchez-la) : modifier, plus d'options (la mettre dans le texte, copier le LaTeX ou le Markdown) et supprimer.
 - `^` et `_` ouvrent un exposant ou un indice. Les flèches haut et bas passent du numérateur au dénominateur.
 - Annulez et rétablissez avec les boutons, ou avec `Ctrl+Z` et `Ctrl+Y`.
 - **Formules courantes et équations récentes** : insérez une formule entière, comme les solutions d'une équation du second degré ou un écart type, puis modifiez les parties nécessaires.
@@ -77,6 +78,7 @@ C'est ce que montre l'animation du haut. Commencez un paragraphe par `# `, `- `,
 <summary>En savoir plus sur l'éditeur de diagrammes</summary>
 
 - Ouvrez-le avec **Insérer → Diagramme**, ou avec le bouton de modification d'un bloc Mermaid.
+- Survolez un diagramme dans une note pour afficher les boutons de son coin supérieur droit : modifier, afficher le code, copier et supprimer. Supprimer retire tout le diagramme, et l'annulation le fait revenir.
 - Sur le diagramme, appuyez sur Enter pour appliquer une modification, ou sur Tab pour l'appliquer et passer au libellé suivant. Renommer un participant, un état, une classe ou une entité renomme toutes ses références.
 - **Apparence** : choisissez un thème Mermaid pour un seul diagramme, et une couleur de remplissage pour chaque étape d'un organigramme.
 - **Aperçu** : zoomez avec les boutons, ou avec `Ctrl` et la molette de la souris. Un diagramme est affiché à sa taille réelle au lieu d'être réduit jusqu'à rendre le texte illisible, et un bouton ajuste tout le diagramme à la largeur de l'aperçu.
@@ -90,7 +92,7 @@ C'est ce que montre l'animation du haut. Commencez un paragraphe par `# `, `- `,
 
 ### Et plus encore
 
-- **Propriétés** sous forme de formulaire : les étiquettes et les liens apparaissent comme des pastilles que vous pouvez sélectionner pour les ouvrir, les valeurs imbriquées apparaissent en arborescence, et vous pouvez changer le type d'une propriété ou la renommer depuis son icône. **Voir les propriétés**, dans l'onglet Affichage et la barre d'état, les affiche sans remonter en haut et permet de filtrer une longue liste. Un paramètre peut aussi épingler une fine barre de propriétés en haut pendant le défilement ; cliquez dessus pour voir la liste complète. Vous pouvez afficher les propriétés dans un bloc avec bordure et fond, avec une bordure seule, ou dans un style minimal sans bordure.
+- **Propriétés** sous forme de formulaire : les étiquettes et les liens apparaissent comme des pastilles que vous pouvez sélectionner pour les ouvrir, les valeurs imbriquées apparaissent en arborescence, et vous pouvez changer le type d'une propriété ou la renommer depuis son icône. **Voir les propriétés**, dans l'onglet Affichage et la barre d'état, les affiche sans remonter en haut et permet de filtrer une longue liste. Le bouton en forme d'épingle dans l'en-tête des propriétés (ou un paramètre) épingle une fine barre de propriétés en haut pendant le défilement ; cliquez dessus pour voir la liste complète. Vous pouvez afficher les propriétés dans un bloc avec bordure et fond, avec une bordure seule, ou dans un style minimal sans bordure.
 - **Images** : collez ou choisissez une image, puis faites glisser pour la redimensionner.
 - **Liens** vers des notes, des titres et des pages web, avec une petite barre d'outils qui apparaît quand le curseur est sur un lien.
 - **Rechercher et remplacer**, avec les options mot entier et expression régulière.
@@ -104,7 +106,7 @@ C'est ce que montre l'animation du haut. Commencez un paragraphe par `# `, `- `,
 - **Liste des raccourcis** : faites une recherche ou choisissez une catégorie, et sélectionnez un raccourci pour voir une courte animation de ce qu'il fait.
 - Interface en chinois traditionnel, taïwanais (caractères Han), cantonais, chinois simplifié, anglais, japonais, coréen, vietnamien, français, allemand, espagnol, arabe et hébreu.
 
-Tout ce que Word Mode ne peut pas modifier visuellement, comme un bloc HTML, s'affiche sous forme de bloc brut et est enregistré sans modification.
+Tout ce que Word Mode ne peut pas modifier visuellement, comme un bloc HTML, s'affiche sous forme de bloc brut et est enregistré sans modification. Survolez-le, ou un bloc de note de bas de page ou de commentaire, pour afficher dans son coin supérieur droit des boutons pour le modifier, le copier ou le supprimer. Supprimer une note de bas de page retire aussi ses appels dans le texte.
 
 ## Prise en main
 

@@ -54,6 +54,7 @@ Es lo que se ve en la animación del principio. Empieza un párrafo con `# `, `-
 <summary>Más sobre el editor de ecuaciones</summary>
 
 - Ábrelo con **Insertar → Ecuación**, haciendo doble clic en una ecuación o pulsando Enter sobre una ecuación seleccionada.
+- Una ecuación en su propia línea muestra botones pequeños en la esquina superior derecha al pasar el puntero por encima (en un teléfono, tócala): editar, más opciones (ponerla en línea, copiar el LaTeX o el Markdown) y eliminar.
 - `^` y `_` abren un superíndice o un subíndice. Las flechas arriba y abajo te mueven entre el numerador y el denominador.
 - Deshaz y rehaz con los botones, o con `Ctrl+Z` y `Ctrl+Y`.
 - **Fórmulas comunes y ecuaciones recientes**: inserta una fórmula completa, como la fórmula cuadrática o una desviación estándar, y luego cambia las partes que necesites.
@@ -77,6 +78,7 @@ Es lo que se ve en la animación del principio. Empieza un párrafo con `# `, `-
 <summary>Más sobre el editor de diagramas</summary>
 
 - Ábrelo con **Insertar → Diagrama**, o con el botón de edición de un bloque Mermaid.
+- Pasa el puntero por un diagrama de una nota para ver los botones de la esquina superior derecha: editar, mostrar el código, copiar y eliminar. Eliminar quita el diagrama entero, y deshacer lo recupera.
 - En el diagrama, pulsa Enter para aplicar un cambio, o Tab para aplicarlo y pasar a la siguiente etiqueta. Al cambiar el nombre de un participante, un estado, una clase o una entidad, se cambian todas las referencias a ese elemento.
 - **Apariencia**: elige un tema de Mermaid para un solo diagrama, y un color de relleno para cada paso de un diagrama de flujo.
 - **Vista previa**: haz zoom con los botones, o con `Ctrl` y la rueda del ratón. El diagrama se muestra a su tamaño real en lugar de reducirse hasta que el texto sea ilegible, y un botón ajusta todo el diagrama al ancho de la vista previa.
@@ -90,7 +92,7 @@ Es lo que se ve en la animación del principio. Empieza un párrafo con `# `, `-
 
 ### Y más
 
-- **Propiedades** en forma de formulario: las etiquetas y los enlaces aparecen como fichas que puedes seleccionar para abrirlos, los valores anidados aparecen como un árbol, y desde el icono de una propiedad puedes cambiar su tipo o su nombre. Ver propiedades, en la pestaña Vista y en la barra de estado, las muestra sin tener que desplazarte hasta arriba y te permite filtrar una lista larga. Un ajuste también puede fijar arriba una barra de propiedades delgada mientras te desplazas; haz clic en ella para ver la lista completa. Puedes mostrar las propiedades como un cuadro con borde y fondo, solo con borde, o con un estilo mínimo sin borde.
+- **Propiedades** en forma de formulario: las etiquetas y los enlaces aparecen como fichas que puedes seleccionar para abrirlos, los valores anidados aparecen como un árbol, y desde el icono de una propiedad puedes cambiar su tipo o su nombre. Ver propiedades, en la pestaña Vista y en la barra de estado, las muestra sin tener que desplazarte hasta arriba y te permite filtrar una lista larga. El botón de chincheta del encabezado de las propiedades (o un ajuste) fija arriba una barra de propiedades delgada mientras te desplazas; haz clic en ella para ver la lista completa. Puedes mostrar las propiedades como un cuadro con borde y fondo, solo con borde, o con un estilo mínimo sin borde.
 - **Imágenes**: pega o elige una imagen y luego arrástrala para cambiar su tamaño.
 - **Enlaces** a notas, títulos y páginas web, con una pequeña barra de herramientas que aparece cuando el cursor está sobre un enlace.
 - **Buscar y reemplazar**, con opciones de palabras completas y expresiones regulares.
@@ -104,7 +106,7 @@ Es lo que se ve en la animación del principio. Empieza un párrafo con `# `, `-
 - **Lista de atajos**: busca en ella o elige una categoría, y selecciona un atajo para ver una breve animación de lo que hace.
 - Interfaz en chino tradicional, taiwanés (caracteres han), cantonés, chino simplificado, inglés, japonés, coreano, vietnamita, francés, alemán, español, árabe y hebreo.
 
-Todo lo que Word Mode no puede editar visualmente, como un bloque HTML, se muestra como un bloque sin procesar y se guarda sin cambios.
+Todo lo que Word Mode no puede editar visualmente, como un bloque HTML, se muestra como un bloque sin procesar y se guarda sin cambios. Pasa el puntero por encima, o por una nota al pie o un bloque de comentario, para ver en la esquina superior derecha botones para editarlo, copiarlo o eliminarlo. Al eliminar una nota al pie también se quitan sus llamadas en el texto.
 
 ## Primeros pasos
 

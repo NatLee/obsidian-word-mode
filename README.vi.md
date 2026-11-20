@@ -54,6 +54,7 @@ Chỉnh sửa ghi chú [Obsidian](https://obsidian.md) giống như trong Word: 
 <summary>Thêm về trình soạn phương trình</summary>
 
 - Mở bằng **Chèn → Phương trình**, bằng cách nhấp đúp vào một phương trình, hoặc nhấn Enter khi đang chọn một phương trình.
+- Phương trình nằm riêng một dòng hiện các nút nhỏ ở góc trên bên phải khi bạn trỏ chuột vào (trên điện thoại thì chạm vào): sửa, tùy chọn khác (chuyển thành cùng dòng, sao chép LaTeX hoặc Markdown) và xóa.
 - `^` và `_` mở chỉ số trên hoặc chỉ số dưới. Phím mũi tên lên và xuống di chuyển giữa tử số và mẫu số.
 - Hoàn tác và làm lại bằng các nút, hoặc bằng `Ctrl+Z` và `Ctrl+Y`.
 - **Công thức thường dùng và phương trình gần đây**: chèn cả một công thức, như công thức nghiệm phương trình bậc hai hay độ lệch chuẩn, rồi sửa những phần bạn cần.
@@ -77,6 +78,7 @@ Chỉnh sửa ghi chú [Obsidian](https://obsidian.md) giống như trong Word: 
 <summary>Thêm về trình soạn sơ đồ</summary>
 
 - Mở bằng **Chèn → Sơ đồ**, hoặc bằng nút sửa trên một khối Mermaid.
+- Trỏ chuột vào một sơ đồ trong ghi chú để hiện các nút ở góc trên bên phải: sửa, xem mã, sao chép và xóa. Xóa sẽ bỏ cả sơ đồ, và hoàn tác sẽ đưa nó trở lại.
 - Trên sơ đồ, nhấn Enter để áp dụng thay đổi, hoặc Tab để áp dụng và chuyển sang nhãn tiếp theo. Đổi tên một bên tham gia, trạng thái, lớp hoặc thực thể sẽ đổi tên ở mọi chỗ tham chiếu đến nó.
 - **Hình thức**: chọn theme Mermaid cho riêng một sơ đồ, và màu nền cho từng bước của lưu đồ.
 - **Xem trước**: thu phóng bằng các nút, hoặc bằng `Ctrl` và con lăn chuột. Sơ đồ được hiển thị đúng kích thước thật thay vì bị thu nhỏ đến mức không đọc được chữ, và một nút giúp thu cả sơ đồ cho vừa chiều rộng bản xem trước.
@@ -90,7 +92,7 @@ Chỉnh sửa ghi chú [Obsidian](https://obsidian.md) giống như trong Word: 
 
 ### Và còn nữa
 
-- **Thuộc tính** dưới dạng biểu mẫu: thẻ và liên kết hiện thành các chip bạn có thể chọn để mở, giá trị lồng nhau hiện dạng cây, và bạn có thể đổi loại hoặc đổi tên thuộc tính từ biểu tượng của nó. Nút Xem thuộc tính, trong tab Xem và trên thanh trạng thái, hiện các thuộc tính mà không cần cuộn lên đầu và cho phép lọc danh sách dài. Một cài đặt cũng có thể ghim một thanh thuộc tính mảnh ở trên cùng khi bạn cuộn; nhấp vào thanh để xem danh sách đầy đủ. Bạn có thể hiện thuộc tính dạng hộp có viền và nền, chỉ có viền, hoặc kiểu tối giản không viền.
+- **Thuộc tính** dưới dạng biểu mẫu: thẻ và liên kết hiện thành các chip bạn có thể chọn để mở, giá trị lồng nhau hiện dạng cây, và bạn có thể đổi loại hoặc đổi tên thuộc tính từ biểu tượng của nó. Nút Xem thuộc tính, trong tab Xem và trên thanh trạng thái, hiện các thuộc tính mà không cần cuộn lên đầu và cho phép lọc danh sách dài. Nút ghim ở tiêu đề phần thuộc tính (hoặc một cài đặt) giữ một thanh thuộc tính mảnh ở trên cùng khi bạn cuộn; nhấp vào thanh để xem danh sách đầy đủ. Bạn có thể hiện thuộc tính dạng hộp có viền và nền, chỉ có viền, hoặc kiểu tối giản không viền.
 - **Ảnh**: dán hoặc chọn một ảnh, rồi kéo để đổi kích thước.
 - **Liên kết** đến ghi chú, tiêu đề và trang web, với một thanh công cụ nhỏ xuất hiện khi con trỏ nằm trên liên kết.
 - **Tìm và thay thế**, với tùy chọn khớp nguyên từ và biểu thức chính quy.
@@ -104,7 +106,7 @@ Chỉnh sửa ghi chú [Obsidian](https://obsidian.md) giống như trong Word: 
 - **Phím tắt**: tìm kiếm hoặc chọn một danh mục, rồi chọn một phím tắt để xem hoạt ảnh ngắn về tác dụng của nó.
 - Giao diện bằng tiếng Trung phồn thể, tiếng Đài Loan (chữ Hán), tiếng Quảng Đông, tiếng Trung giản thể, tiếng Anh, tiếng Nhật, tiếng Hàn, tiếng Việt, tiếng Pháp, tiếng Đức, tiếng Tây Ban Nha, tiếng Ả Rập và tiếng Do Thái.
 
-Những nội dung Word Mode không sửa trực quan được, như khối HTML, sẽ được hiển thị dưới dạng khối thô và được lưu nguyên vẹn.
+Những nội dung Word Mode không sửa trực quan được, như khối HTML, sẽ được hiển thị dưới dạng khối thô và được lưu nguyên vẹn. Trỏ chuột vào khối đó (hoặc khối chú thích cuối trang, khối bình luận) để hiện các nút sửa, sao chép và xóa ở góc trên bên phải. Xóa một chú thích cuối trang cũng xóa các số của nó trong văn bản.
 
 ## Bắt đầu
 

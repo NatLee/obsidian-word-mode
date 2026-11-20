@@ -54,6 +54,7 @@ Zu sehen in der Animation oben. Beginnen Sie einen Absatz mit `# `, `- `, `1. `,
 <summary>Mehr zum Formeleditor</summary>
 
 - Öffnen über **Einfügen → Formel**, per Doppelklick auf eine Formel oder mit Enter auf einer ausgewählten Formel.
+- Eine Formel in eigener Zeile zeigt kleine Schaltflächen oben rechts, wenn Sie mit der Maus darauf zeigen (auf dem Smartphone: antippen): Bearbeiten, weitere Optionen (in den Text setzen, LaTeX oder Markdown kopieren) und Löschen.
 - `^` und `_` öffnen eine Hoch- oder Tiefstellung. Die Pfeiltasten nach oben und unten wechseln zwischen Zähler und Nenner.
 - Rückgängig und Wiederholen über die Schaltflächen oder mit `Ctrl+Z` und `Ctrl+Y`.
 - **Häufige und zuletzt verwendete Formeln**: Fügen Sie eine ganze Formel ein, etwa die Lösungsformel für quadratische Gleichungen oder eine Standardabweichung, und ändern Sie dann die benötigten Teile.
@@ -77,6 +78,7 @@ Zu sehen in der Animation oben. Beginnen Sie einen Absatz mit `# `, `- `, `1. `,
 <summary>Mehr zum Diagrammeditor</summary>
 
 - Öffnen über **Einfügen → Diagramm** oder mit der Bearbeiten-Schaltfläche auf einem Mermaid-Block.
+- Zeigen Sie mit der Maus auf ein Diagramm in einer Notiz, erscheinen oben rechts die Schaltflächen: Bearbeiten, Code anzeigen, Kopieren und Löschen. Löschen entfernt das ganze Diagramm, Rückgängig holt es zurück.
 - Im Diagramm übernimmt Enter eine Änderung, Tab übernimmt sie und springt zur nächsten Beschriftung. Wird ein Teilnehmer, ein Zustand, eine Klasse oder eine Entität umbenannt, werden alle Verweise darauf mit umbenannt.
 - **Darstellung**: Wählen Sie ein Mermaid-Theme für ein einzelnes Diagramm und eine Füllfarbe für jeden Schritt eines Flussdiagramms.
 - **Vorschau**: Zoomen Sie über die Schaltflächen oder mit `Ctrl` und dem Mausrad. Ein Diagramm wird in seiner echten Größe angezeigt, statt so weit verkleinert zu werden, dass der Text unlesbar ist, und eine Schaltfläche passt das ganze Diagramm an die Breite der Vorschau an.
@@ -90,7 +92,7 @@ Zu sehen in der Animation oben. Beginnen Sie einen Absatz mit `# `, `- `, `1. `,
 
 ### Und mehr
 
-- **Eigenschaften** als Formular: Tags und Links erscheinen als Chips, die Sie zum Öffnen auswählen können, verschachtelte Werte erscheinen als Baum, und über das Symbol einer Eigenschaft ändern Sie ihren Typ oder benennen sie um. „Eigenschaften anzeigen“ auf der Registerkarte Ansicht und in der Statusleiste zeigt sie, ohne dass Sie nach oben scrollen müssen, und lässt lange Listen filtern. Eine Einstellung kann beim Scrollen außerdem eine schmale Eigenschaftsleiste oben anheften; ein Klick darauf zeigt die vollständige Liste. Eigenschaften lassen sich als Kasten mit Rahmen und Hintergrund, nur mit Rahmen oder in einem minimalen Stil ohne Rahmen darstellen.
+- **Eigenschaften** als Formular: Tags und Links erscheinen als Chips, die Sie zum Öffnen auswählen können, verschachtelte Werte erscheinen als Baum, und über das Symbol einer Eigenschaft ändern Sie ihren Typ oder benennen sie um. „Eigenschaften anzeigen“ auf der Registerkarte Ansicht und in der Statusleiste zeigt sie, ohne dass Sie nach oben scrollen müssen, und lässt lange Listen filtern. Die Stecknadel in der Kopfzeile der Eigenschaften (oder eine Einstellung) heftet beim Scrollen eine schmale Eigenschaftsleiste oben an; ein Klick darauf zeigt die vollständige Liste. Eigenschaften lassen sich als Kasten mit Rahmen und Hintergrund, nur mit Rahmen oder in einem minimalen Stil ohne Rahmen darstellen.
 - **Bilder**: Fügen Sie ein Bild ein oder wählen Sie eines aus und ändern Sie dann die Größe durch Ziehen.
 - **Links** zu Notizen, Überschriften und Webseiten, mit einer kleinen Symbolleiste, die erscheint, wenn der Cursor auf einem Link steht.
 - **Suchen und Ersetzen** mit den Optionen „Nur ganzes Wort“ und „Regulärer Ausdruck“.
@@ -104,7 +106,7 @@ Zu sehen in der Animation oben. Beginnen Sie einen Absatz mit `# `, `- `, `1. `,
 - **Liste der Tastenkürzel**: Durchsuchen Sie sie oder wählen Sie eine Kategorie, und wählen Sie ein Tastenkürzel aus, um eine kurze Animation seiner Wirkung zu sehen.
 - Oberfläche in Chinesisch (traditionell), Taiwanisch (Han-Schriftzeichen), Kantonesisch, Chinesisch (vereinfacht), Englisch, Japanisch, Koreanisch, Vietnamesisch, Französisch, Deutsch, Spanisch, Arabisch und Hebräisch.
 
-Alles, was Word Mode nicht visuell bearbeiten kann, etwa ein HTML-Block, wird als Rohblock angezeigt und unverändert gespeichert.
+Alles, was Word Mode nicht visuell bearbeiten kann, etwa ein HTML-Block, wird als Rohblock angezeigt und unverändert gespeichert. Zeigen Sie mit der Maus darauf, auf eine Fußnote oder einen Kommentarblock, erscheinen oben rechts Schaltflächen zum Bearbeiten, Kopieren und Löschen. Wird eine Fußnote gelöscht, verschwinden auch ihre Verweise im Text.
 
 ## Erste Schritte
 
