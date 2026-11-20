@@ -102,27 +102,80 @@ type GetPos = () => number | undefined;
 type MutableAttrs = { -readonly [K in keyof Attrs]: Attrs[K] };
 
 // 特殊節點的顯示方式（ctx 由 Obsidian 端提供）
-// ctx: { openLink(target, newLeaf), isResolved(target), resolveImage(attrs) -> url|null,
-//        renderMarkdown(src, el), renderMath(src, el, display), editSource(title, src, onSave), menu(evt, items) }
 
 const isMod = (e: MouseEvent): boolean => e.ctrlKey || e.metaKey;
+
+// 事件發生在內嵌的播放器、影片裡：交給它們自己處理，才能直接操作
+const inPlayer = (e: Event): boolean => !!(e.target && (e.target as Element).closest && (e.target as Element).closest('audio, video, iframe'));
+
+// ---------------------------------------------------------------- 各種節點共用的部分
+
+// 改節點的屬性，沒提到的屬性照舊。節點已經不在文件裡（例如對話框開著的時候被刪掉）就不做，回傳 false
+function setNodeAttrs(nv: { node: PMNode; view: EditorView; getPos: GetPos }, changes: Attrs): boolean {
+  const pos = nv.getPos();
+  if (pos == null) return false;
+  nv.view.dispatch(nv.view.state.tr.setNodeMarkup(pos, null, Object.assign({}, nv.node.attrs, changes)));
+  return true;
+}
+
+// 一次顯示借用、之後要還的東西：Obsidian 的顯示元件（內嵌的筆記、圖表、查詢結果）、還在等的「看得到才畫」。
+// 重畫之前與節點移除時呼叫 release() 一次還清，各個節點不用各自記 handle、取消函式再一個一個清
+class RenderScope {
+  declare owed: (() => void)[];
+  constructor() { this.owed = []; }
+  add(release: () => void): void { this.owed.push(release); }
+  // Obsidian 的顯示元件；回傳同一個 handle，方便接著用
+  embed(handle: EmbedHandle): EmbedHandle {
+    // 別的外掛註冊的區塊 unload 時可能出錯，不能讓它中斷這邊的重畫
+    this.add(() => { try { handle.unload(); } catch { /* 忽略 */ } });
+    return handle;
+  }
+  release(): void { for (const release of this.owed.splice(0)) release(); }
+}
+
+// 整塊當成一個東西、內容不能直接打字的節點（連結、圖片、原文、文件屬性）共用的部分：
+// 節點換了就視需要重畫、不理會自己畫面的變動、移除時還掉顯示借用的東西。
+// 子類別要提供三樣：自己的元素（傳給建構式）、render()、changed()；建構式最後自己呼叫 render()
+abstract class AtomView<D extends HTMLElement> implements NodeView {
+  declare node: PMNode;
+  declare view: EditorView;
+  declare getPos: GetPos;
+  declare ctx: NodeViewContext;
+  declare dom: D;
+  // 目前畫面借用的東西（重畫前、移除時還掉）
+  declare shown: RenderScope;
+  constructor(node: PMNode, view: EditorView, getPos: GetPos, ctx: NodeViewContext, dom: D) {
+    this.node = node; this.view = view; this.getPos = getPos; this.ctx = ctx; this.dom = dom;
+    this.shown = new RenderScope();
+  }
+  abstract render(): void;
+  // 節點換了之後畫面要不要重畫；prev 是換掉之前的節點，this.node 已經是新的
+  abstract changed(prev: PMNode): boolean;
+  update(node: PMNode): boolean {
+    if (node.type !== this.node.type) return false;
+    const prev = this.node;
+    this.node = node;
+    if (this.changed(prev)) this.render();
+    return true;
+  }
+  ignoreMutation(): boolean { return true; }
+  destroy(): void { this.shown.release(); }
+}
+
+// 被整個選取時自己加上選取的樣式。行內原文（RawInlineView）不在這一層：
+// 它一直是用 ProseMirror 預設的做法（除了加樣式，還會把元素設成可拖曳），維持原樣
+abstract class SelectableAtomView<D extends HTMLElement> extends AtomView<D> {
+  selectNode(): void { this.dom.classList.add('ProseMirror-selectednode'); }
+  deselectNode(): void { this.dom.classList.remove('ProseMirror-selectednode'); }
+}
 
 function displayTarget(tv: string): string {
   return tv.replace(/\.md$/i, '').replace(/#\^?/, ' › ');
 }
 
-class WikilinkView implements NodeView {
-  declare node: PMNode;
-  declare view: EditorView;
-  declare getPos: GetPos;
-  declare ctx: NodeViewContext;
-  declare dom: HTMLSpanElement;
-  declare handle: EmbedHandle | null | undefined;
-  // 取消「捲到看得到才載入」的等待
-  declare cancelVisible: (() => void) | null | undefined;
+class WikilinkView extends SelectableAtomView<HTMLSpanElement> {
   constructor(node: PMNode, view: EditorView, getPos: GetPos, ctx: NodeViewContext) {
-    this.node = node; this.view = view; this.getPos = getPos; this.ctx = ctx;
-    this.dom = el('span', 'wm-wikilink');
+    super(node, view, getPos, ctx, el('span', 'wm-wikilink'));
     this.dom.addEventListener('mousedown', e => {
       if (isMod(e) && e.button === 0) { e.preventDefault(); e.stopPropagation(); ctx.openLink((this.node.attrs as WikilinkAttrs).target, e.shiftKey); }
     });
@@ -139,7 +192,7 @@ class WikilinkView implements NodeView {
   }
   render(): void {
     const a = this.node.attrs as WikilinkAttrs;
-    this.dispose();
+    this.shown.release();
     this.dom.replaceChildren();
     this.dom.classList.toggle('is-embed', !!a.embed);
     this.dom.classList.toggle('is-unresolved', !this.ctx.isResolved(a.target));
@@ -147,27 +200,12 @@ class WikilinkView implements NodeView {
     const embed = !!a.embed && !!this.ctx.renderEmbed;
     this.dom.classList.toggle('wm-embed', embed);
     // 看得到才載入：內嵌的筆記要讀檔、整份顯示，一份筆記嵌了很多份時開啟會很慢
-    if (embed) { this.cancelVisible = whenVisible(this.dom, () => { this.handle = this.ctx.renderEmbed!(a.target, this.dom); }); return; }
+    if (embed) { this.shown.add(whenVisible(this.dom, () => { this.shown.embed(this.ctx.renderEmbed!(a.target, this.dom)); })); return; }
     if (a.embed) { const i = el('span', 'wm-inline-icon', this.dom); this.ctx.icon(i, 'file-text', ''); }
     this.dom.appendChild(activeDocument.createTextNode(a.alias || displayTarget(a.target)));
   }
-  dispose(): void {
-    if (this.cancelVisible) { this.cancelVisible(); this.cancelVisible = null; }
-    if (this.handle) { try { this.handle.unload(); } catch { /* 忽略 */ } this.handle = null; }
-  }
-  destroy(): void { this.dispose(); }
-  update(node: PMNode): boolean {
-    if (node.type !== this.node.type) return false;
-    const changed = !node.sameMarkup(this.node);
-    this.node = node;
-    if (changed) this.render();
-    return true;
-  }
-  selectNode(): void { this.dom.classList.add('ProseMirror-selectednode'); }
-  deselectNode(): void { this.dom.classList.remove('ProseMirror-selectednode'); }
-  ignoreMutation(): boolean { return true; }
-  // 內嵌的播放器、影片要能直接操作
-  stopEvent(e: Event): boolean { return e.type === 'contextmenu' || !!(e.target && (e.target as Element).closest && (e.target as Element).closest('audio, video, iframe')); }
+  changed(prev: PMNode): boolean { return !this.node.sameMarkup(prev); }
+  stopEvent(e: Event): boolean { return e.type === 'contextmenu' || inPlayer(e); }
 }
 
 export function parseWidth(attrs: Attrs): number | null {
@@ -188,21 +226,15 @@ export function imageAttrsWithWidth(attrs: Attrs, w: number | null): Attrs {
   return a;
 }
 
-class ImageView implements NodeView {
-  declare node: PMNode;
-  declare view: EditorView;
-  declare getPos: GetPos;
-  declare ctx: NodeViewContext;
-  declare dom: HTMLSpanElement;
+class ImageView extends SelectableAtomView<HTMLSpanElement> {
   declare img: HTMLImageElement;
   declare missing: HTMLSpanElement;
   declare embedEl: HTMLSpanElement;
   declare badge: HTMLSpanElement;
+  // 目前顯示成內嵌內容的來源；顯示成圖片時是 null
   declare embedKey: string | null | undefined;
-  declare handle: EmbedHandle | null | undefined;
   constructor(node: PMNode, view: EditorView, getPos: GetPos, ctx: NodeViewContext) {
-    this.node = node; this.view = view; this.getPos = getPos; this.ctx = ctx;
-    this.dom = el('span', 'wm-image');
+    super(node, view, getPos, ctx, el('span', 'wm-image'));
     this.img = el('img', null, this.dom);
     this.img.draggable = false;
     this.missing = el('span', 'wm-image-missing', this.dom);
@@ -225,10 +257,10 @@ class ImageView implements NodeView {
     const embed = kind !== 'image' && kind !== 'missing' && !!this.ctx.renderEmbed;
     this.dom.classList.toggle('wm-embed', embed);
     if (embed) {
-      if (this.embedKey !== a.src) { this.dispose(); this.embedKey = a.src; this.handle = this.ctx.renderEmbed!(a.src, this.embedEl); }
+      if (this.embedKey !== a.src) { this.shown.release(); this.embedKey = a.src; this.shown.embed(this.ctx.renderEmbed!(a.src, this.embedEl)); }
       return;
     }
-    if (this.embedKey != null) { this.dispose(); this.embedKey = null; this.embedEl.replaceChildren(); }
+    if (this.embedKey != null) { this.shown.release(); this.embedKey = null; this.embedEl.replaceChildren(); }
     const url = this.ctx.resolveImage(a);
     if (url) {
       if (this.img.getAttribute('src') !== url) this.img.src = url;
@@ -278,38 +310,22 @@ class ImageView implements NodeView {
     handle.addEventListener('pointercancel', up);
     window.addEventListener('pointerup', up);
   }
-  update(node: PMNode): boolean {
-    if (node.type !== this.node.type) return false;
-    this.node = node; this.render();
-    return true;
-  }
-  selectNode(): void { this.dom.classList.add('ProseMirror-selectednode'); }
-  deselectNode(): void { this.dom.classList.remove('ProseMirror-selectednode'); }
-  dispose(): void { if (this.handle) { try { this.handle.unload(); } catch { /* 忽略 */ } this.handle = null; } }
-  destroy(): void { this.dispose(); }
+  // 每次都重畫；render() 自己會略過沒變的部分（網址一樣不重設 src、內嵌的來源一樣不重新載入）
+  changed(): boolean { return true; }
   stopEvent(e: Event): boolean {
-    return (e.target && (e.target as Element).classList && (e.target as Element).classList.contains('wm-image-handle')) || e.type === 'contextmenu'
-      || !!(e.target && (e.target as Element).closest && (e.target as Element).closest('audio, video, iframe'));
+    return (e.target && (e.target as Element).classList && (e.target as Element).classList.contains('wm-image-handle')) || e.type === 'contextmenu' || inPlayer(e);
   }
-  ignoreMutation(): boolean { return true; }
 }
 
 const RAW_LABEL: Record<string, string> = {
   callout: t('提示框'), html: 'HTML', math: t('數學式'), comment: t('註解'), raw: t('Markdown 原文'), footnote: t('註腳'),
 };
 
-class RawBlockView implements NodeView {
-  declare node: PMNode;
-  declare view: EditorView;
-  declare getPos: GetPos;
-  declare ctx: NodeViewContext;
-  declare dom: HTMLDivElement;
+class RawBlockView extends SelectableAtomView<HTMLDivElement> {
   declare label: HTMLDivElement;
   declare body: HTMLDivElement;
-  declare handle: EmbedHandle | null | undefined;
   constructor(node: PMNode, view: EditorView, getPos: GetPos, ctx: NodeViewContext) {
-    this.node = node; this.view = view; this.getPos = getPos; this.ctx = ctx;
-    this.dom = el('div', 'wm-raw-block');
+    super(node, view, getPos, ctx, el('div', 'wm-raw-block'));
     this.dom.contentEditable = 'false';
     this.label = el('div', 'wm-raw-label', this.dom);
     this.body = el('div', 'wm-raw-body', this.dom);
@@ -332,24 +348,21 @@ class RawBlockView implements NodeView {
     this.label.textContent = t((RAW_LABEL[a.kind] || RAW_LABEL.raw) as I18nKey) + t('（按兩下編輯）');
     this.dom.dataset.kind = a.kind;
     this.body.replaceChildren();
-    this.dispose();
+    this.shown.release();
     const fn = a.kind === 'footnote' && FOOTNOTE_DEF.exec(a.src);
     if (fn) {
       // 註腳定義：顯示編號與內容（內容照 Markdown 顯示）
       this.label.textContent = t('註腳') + ' ' + fn[1] + t('（按兩下編輯）');
       const body = footnoteBody(a.src);
       if (!body.trim()) this.body.textContent = t('（空白）');
-      else if (this.ctx.renderBlock) this.handle = this.ctx.renderBlock(body, this.body);
+      else if (this.ctx.renderBlock) this.shown.embed(this.ctx.renderBlock(body, this.body));
       else this.body.textContent = body;
       return;
     }
     if (a.kind === 'comment') { el('pre', 'wm-raw-comment', this.body, a.src); return; }
-    if (this.ctx.renderBlock) this.handle = this.ctx.renderBlock(a.src, this.body);
+    if (this.ctx.renderBlock) this.shown.embed(this.ctx.renderBlock(a.src, this.body));
     else this.ctx.renderMarkdown(a.src, this.body);
   }
-  // 釋放上一次顯示用到的資源（Obsidian 的顯示元件）
-  dispose(): void { if (this.handle) { try { this.handle.unload(); } catch { /* 忽略 */ } this.handle = null; } }
-  destroy(): void { this.dispose(); }
   edit(): void {
     const a = this.node.attrs as RawBlockAttrs;
     const fn = a.kind === 'footnote' && FOOTNOTE_DEF.exec(a.src);
@@ -358,34 +371,16 @@ class RawBlockView implements NodeView {
     if (mm && this.ctx.editMath) { this.ctx.editMath(this.getPos(), mm[1].trim(), true); return; }
     // RAW_LABEL 的值是載入時 t() 的結果或 'HTML'，不一定是鍵；再翻一次，找不到時 t() 原樣回傳。
     // 標題用帶變數的整句（「編輯{name}」）：各語言的語序不同，直接拼起來英文還會變成「EditingHTML」
-    this.ctx.editSource(t('編輯{name}', { name: t((RAW_LABEL[a.kind] || RAW_LABEL.raw) as I18nKey) }), a.src, value => {
-      const pos = this.getPos();
-      if (pos == null) return;
-      this.view.dispatch(this.view.state.tr.setNodeMarkup(pos, null, Object.assign({}, this.node.attrs, { src: value.replace(/\s+$/, '') })));
-    });
+    this.ctx.editSource(t('編輯{name}', { name: t((RAW_LABEL[a.kind] || RAW_LABEL.raw) as I18nKey) }), a.src, value => { setNodeAttrs(this, { src: value.replace(/\s+$/, '') }); });
   }
-  update(node: PMNode): boolean {
-    if (node.type !== this.node.type) return false;
-    const changed = node.attrs.src !== this.node.attrs.src || node.attrs.kind !== this.node.attrs.kind;
-    this.node = node;
-    if (changed) this.render();
-    return true;
-  }
-  selectNode(): void { this.dom.classList.add('ProseMirror-selectednode'); }
-  deselectNode(): void { this.dom.classList.remove('ProseMirror-selectednode'); }
+  // bid（原文區塊的編號）變了不用重畫
+  changed(prev: PMNode): boolean { return this.node.attrs.src !== prev.attrs.src || this.node.attrs.kind !== prev.attrs.kind; }
   stopEvent(e: Event): boolean { return e.type === 'dblclick' || (e.type === 'mousedown' && isMod(e as MouseEvent)); }
-  ignoreMutation(): boolean { return true; }
 }
 
-class RawInlineView implements NodeView {
-  declare node: PMNode;
-  declare view: EditorView;
-  declare getPos: GetPos;
-  declare ctx: NodeViewContext;
-  declare dom: HTMLSpanElement;
+class RawInlineView extends AtomView<HTMLSpanElement> {
   constructor(node: PMNode, view: EditorView, getPos: GetPos, ctx: NodeViewContext) {
-    this.node = node; this.view = view; this.getPos = getPos; this.ctx = ctx;
-    this.dom = el('span', 'wm-raw-inline');
+    super(node, view, getPos, ctx, el('span', 'wm-raw-inline'));
     this.dom.addEventListener('dblclick', e => { e.preventDefault(); this.edit(); });
     // 註腳：滑鼠移上去顯示內容；按住 Ctrl／Cmd 點一下跳到內容
     this.dom.addEventListener('mouseenter', () => this.footnoteTip());
@@ -435,21 +430,10 @@ class RawInlineView implements NodeView {
     if (m && this.ctx.editMath) { this.ctx.editMath(this.getPos(), m[1].trim(), false); return; }
     const fn = FOOTNOTE_REF.exec(a.src);
     if (fn && this.ctx.editFootnote) { this.ctx.editFootnote(fn[1]); return; }
-    this.ctx.editSource(t('編輯原文'), a.src, value => {
-      const pos = this.getPos();
-      if (pos == null || !value) return;
-      this.view.dispatch(this.view.state.tr.setNodeMarkup(pos, null, { src: value }));
-    });
+    this.ctx.editSource(t('編輯原文'), a.src, value => { if (value) setNodeAttrs(this, { src: value }); });
   }
-  update(node: PMNode): boolean {
-    if (node.type !== this.node.type) return false;
-    const changed = node.attrs.src !== this.node.attrs.src;
-    this.node = node;
-    if (changed) this.render();
-    return true;
-  }
+  changed(prev: PMNode): boolean { return this.node.attrs.src !== prev.attrs.src; }
   stopEvent(e: Event): boolean { return e.type === 'dblclick'; }
-  ignoreMutation(): boolean { return true; }
 }
 
 // 文件屬性（frontmatter / metadata）：像 Word 的「摘要資訊」，以表單編輯，存回 YAML。
@@ -458,15 +442,9 @@ const TYPE_LABEL: Record<PropType, string> = { text: t('文字'), list: t('清�
 // 可以從選單換成的類型（巢狀資料只能用原文編輯）
 const EDITABLE_TYPES: Exclude<PropType, 'object'>[] = ['text', 'list', 'number', 'checkbox', 'date', 'datetime'];
 
-class FrontmatterView implements NodeView {
-  declare node: PMNode;
-  declare view: EditorView;
-  declare getPos: GetPos;
-  declare ctx: NodeViewContext;
-  declare dom: FrontmatterDom;
+class FrontmatterView extends SelectableAtomView<FrontmatterDom> {
   constructor(node: PMNode, view: EditorView, getPos: GetPos, ctx: NodeViewContext) {
-    this.node = node; this.view = view; this.getPos = getPos; this.ctx = ctx;
-    this.dom = el('div', 'wm-props');
+    super(node, view, getPos, ctx, el('div', 'wm-props'));
     this.dom.contentEditable = 'false';
     this.dom.wmOpen = () => { this.ctx.setPropsOpen(true); this.render(); };
     this.render();
@@ -481,10 +459,8 @@ class FrontmatterView implements NodeView {
     } catch { return null; }
   }
   commit(obj: PropValues): void {
-    const pos = this.getPos();
-    if (pos == null) return;
     const body = Object.keys(obj).length ? this.ctx.stringifyYaml(obj).replace(/\s+$/, '') + '\n' : '';
-    this.view.dispatch(this.view.state.tr.setNodeMarkup(pos, null, Object.assign({}, this.node.attrs, { src: '---\n' + body + '---' })));
+    setNodeAttrs(this, { src: '---\n' + body + '---' });
   }
   // 移除整個文件屬性區塊（可以用復原鍵救回來）
   remove(): void {
@@ -497,12 +473,10 @@ class FrontmatterView implements NodeView {
   }
   editRaw(): void {
     this.ctx.editSource(t('編輯文件屬性（YAML 原文）'), (this.node.attrs as FrontmatterAttrs).src, value => {
-      const pos = this.getPos();
-      if (pos == null) return;
       let v = value.replace(/\s+$/, '');
       if (!/^---\r?\n/.test(v)) v = '---\n' + v;
       if (!/\n(---|\.\.\.)$/.test(v)) v += '\n---';
-      this.view.dispatch(this.view.state.tr.setNodeMarkup(pos, null, Object.assign({}, this.node.attrs, { src: v })));
+      setNodeAttrs(this, { src: v });
     });
   }
   render(): void {
@@ -657,17 +631,8 @@ class FrontmatterView implements NodeView {
     const b = el('button', 'wm-prop-addbtn', r, t('新增')); b.type = 'button';
     b.addEventListener('mousedown', e => { e.preventDefault(); go(); });
   }
-  update(node: PMNode): boolean {
-    if (node.type !== this.node.type) return false;
-    const changed = node.attrs.src !== this.node.attrs.src;
-    this.node = node;
-    if (changed) this.render();
-    return true;
-  }
-  selectNode(): void { this.dom.classList.add('ProseMirror-selectednode'); }
-  deselectNode(): void { this.dom.classList.remove('ProseMirror-selectednode'); }
+  changed(prev: PMNode): boolean { return this.node.attrs.src !== prev.attrs.src; }
   stopEvent(): boolean { return true; }
-  ignoreMutation(): boolean { return true; }
 }
 
 // 任務的狀態（- [/]、- [-] 等是 Tasks 外掛與許多佈景主題通用的寫法）
@@ -690,10 +655,8 @@ class ListItemView implements NodeView {
       this.cb.contentEditable = 'false';
       this.cb.addEventListener('mousedown', e => {
         e.preventDefault();
-        const pos = this.getPos();
-        if (pos == null) return;
         // 點一下：未完成 ⇄ 完成；自訂狀態（/、-、> 等）點一下回到未完成，跟 Obsidian 一樣
-        this.view.dispatch(this.view.state.tr.setNodeMarkup(pos, null, Object.assign({}, this.node.attrs, { checked: !this.node.attrs.checked, status: null })));
+        setNodeAttrs(this, { checked: !this.node.attrs.checked, status: null });
       });
     }
     if (this.cb && ctx && ctx.menu) {
@@ -702,11 +665,7 @@ class ListItemView implements NodeView {
         e.stopPropagation();
         ctx.menu(e, TASK_STATUSES.map(([ch, label, icon]) => ({
           title: t(label) + (ch === ' ' ? '' : '  [' + ch + ']'), icon,
-          run: () => {
-            const pos = this.getPos();
-            if (pos == null) return;
-            this.view.dispatch(this.view.state.tr.setNodeMarkup(pos, null, Object.assign({}, this.node.attrs, { checked: ch !== ' ', status: ch === ' ' || ch === 'x' ? null : ch })));
-          },
+          run: () => { setNodeAttrs(this, { checked: ch !== ' ', status: ch === ' ' || ch === 'x' ? null : ch }); },
         })));
       });
     }
@@ -755,17 +714,18 @@ class CodeBlockView implements NodeView {
   declare pre: HTMLPreElement;
   declare contentDOM: HTMLElement;
   declare preview: HTMLDivElement;
+  // 打字時延後重畫結果的計時器
   declare timer: number | undefined;
-  declare handle: EmbedHandle | null | undefined;
+  // 目前的結果借用的東西（Obsidian 的顯示元件、還在等的「看得到才畫」）
+  declare shown: RenderScope;
   declare rendered: string | null | undefined;
-  // 取消「捲到看得到才畫」的等待
-  declare cancelVisible: (() => void) | null | undefined;
   // 很長的結果：收合時下方的「顯示完整內容」按鈕；expanded 是使用者按開了
   declare more: HTMLButtonElement;
   declare expanded: boolean;
   declare sizer: ResizeObserver | null | undefined;
   constructor(node: PMNode, view: EditorView, getPos: GetPos, ctx?: NodeViewContext) {
     this.node = node; this.view = view; this.getPos = getPos; this.ctx = ctx || {};
+    this.shown = new RenderScope();
     this.expanded = false;
     this.dom = el('div', 'wm-codeblock');
     this.head = el('div', 'wm-code-head', this.dom);
@@ -831,10 +791,7 @@ class CodeBlockView implements NodeView {
   }
   lang(): string { return ((this.node.attrs as CodeBlockAttrs).params || '').trim().split(/\s+/)[0].toLowerCase(); }
   setLang(lang: string): void {
-    const pos = this.getPos();
-    if (pos == null) return;
-    this.view.dispatch(this.view.state.tr.setNodeMarkup(pos, null, Object.assign({}, this.node.attrs, { params: lang })));
-    this.view.focus();
+    if (setNodeAttrs(this, { params: lang })) this.view.focus();
   }
   toggleSource(): void {
     const on = !this.dom.classList.contains('show-code');
@@ -870,8 +827,7 @@ class CodeBlockView implements NodeView {
   }
   dispose(): void {
     window.clearTimeout(this.timer);
-    if (this.cancelVisible) { this.cancelVisible(); this.cancelVisible = null; }
-    if (this.handle) { try { this.handle.unload(); } catch { /* 忽略 */ } this.handle = null; }
+    this.shown.release();
   }
   // 結果很高（超過 TALL_LIMIT）時收合成固定的高度，下面放「顯示完整內容」；游標在區塊裡編輯時不收合
   syncTall(): void {
@@ -908,14 +864,15 @@ class CodeBlockView implements NodeView {
       if (!text.trim()) return;
       const ticks = text.match(/`{3,}/g);
       const fence = ticks ? ticks.sort().slice(-1)[0] + '`' : '```';
-      this.handle = this.ctx.renderBlock!(fence + this.node.attrs.params + '\n' + text + '\n' + fence, this.preview);
-      // 畫好之後判斷要不要收合（沒有 ResizeObserver 的環境靠這裡）
-      const h = this.handle;
-      if (h.ready) void h.ready.then(() => { if (this.handle === h) this.syncTall(); });
+      const h = this.shown.embed(this.ctx.renderBlock!(fence + this.node.attrs.params + '\n' + text + '\n' + fence, this.preview));
+      // 畫好之後判斷要不要收合（沒有 ResizeObserver 的環境靠這裡）；這時結果已經換掉或節點已經移除就不用了
+      let current = true;
+      this.shown.add(() => { current = false; });
+      if (h.ready) void h.ready.then(() => { if (current) this.syncTall(); });
     };
     // 開啟筆記時：捲到看得到才畫（長筆記裡有很多圖表時，不用一開始全部畫完）。
     // 編輯時：停下來才重畫；內容越長畫得越久，等的時間也跟著拉長（0.4 到 1.5 秒）
-    if (now) this.cancelVisible = whenVisible(this.dom, run);
+    if (now) this.shown.add(whenVisible(this.dom, run));
     else this.timer = window.setTimeout(run, 400 + Math.min(1100, Math.floor(text.length / 8)));
   }
   update(node: PMNode): boolean {
@@ -981,10 +938,7 @@ class CalloutView implements NodeView {
     this.render();
   }
   set(attrs: Attrs): void {
-    const pos = this.getPos();
-    if (pos == null) return;
-    this.view.dispatch(this.view.state.tr.setNodeMarkup(pos, null, Object.assign({}, this.node.attrs, attrs)));
-    this.view.focus();
+    if (setNodeAttrs(this, attrs)) this.view.focus();
   }
   render(): void {
     const a = this.node.attrs as CalloutAttrs;
