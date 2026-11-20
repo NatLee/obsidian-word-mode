@@ -147,7 +147,8 @@ const flowchart: DiagramKind = {
     }
     m.opts = { keyword: f.keyword, dir: f.dir };
     m.lists.nodes = f.nodes.map(n => ({ id: n.id, text: n.text == null ? '' : n.text, shape: n.shape || 'rect', fill: '' }));
-    m.lists.edges = f.edges.map(e => ({ from: e.from, style: e.style, to: e.to, text: e.text || '' }));
+    // len（連線加長幾級）沒有對應的欄位，只是跟著這一列保留下來：以前讀進來就丟掉，---> 寫回去變成 -->，節點的層次就變了
+    m.lists.edges = f.edges.map(e => ({ from: e.from, style: e.style, to: e.to, text: e.text || '', len: e.len ? String(e.len) : '' }));
     for (const line of f.extra) {
       const x = NODE_STYLE.exec(line);
       const node = x ? m.lists.nodes.find(n => n.id === x[1]) : undefined;
@@ -161,7 +162,7 @@ const flowchart: DiagramKind = {
     return [...m.pre, generateFlowchart({
       keyword: m.opts.keyword, dir: m.opts.dir,
       nodes: m.lists.nodes.map(r => ({ id: r.id, text: r.text, shape: r.shape })),
-      edges: m.lists.edges.map(r => ({ from: r.from, to: r.to, text: r.text, style: r.style })),
+      edges: m.lists.edges.map(r => ({ from: r.from, to: r.to, text: r.text, style: r.style, len: +r.len || 0 })),
       extra: [...m.lists.nodes.filter(r => /^#[0-9a-f]{6}$/.test(r.fill || '')).map(r => styleOf(r.id, r.fill)), ...m.extra],
     })].join('\n');
   },

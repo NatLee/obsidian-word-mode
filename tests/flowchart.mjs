@@ -52,5 +52,23 @@ ok('多行文字用 <br>', (() => { const x = parseFlowchart('flowchart TD\n  A[
 ok('中文節點代號', (() => { const x = parseFlowchart('flowchart LR\n  開始 --> 結束\n'); return x.ok && x.nodes.map(n => n.id).join() === '開始,結束'; })());
 ok('加了引號的文字可以用反斜線開頭（是方形，不是梯形）', (() => { const x = parseFlowchart('flowchart TD\n  A["\\文字/"]\n'); return x.ok && x.nodes[0].shape === 'rect' && x.nodes[0].text === '\\文字/'; })());
 
+// 加長的連線（--->、-..->、===>）：Mermaid 用長度決定兩個節點隔幾層。以前讀進來就丟掉，寫回去都變成最短的
+{
+  const src = 'flowchart TD\n  A[開始] ---> B[結束]\n  B -..-> C\n  C ====> D\n  D ----- E\n  E <---> F\n  F -- 是 ----> G\n  G -. 否 ...-> H\n  H -->|好| I\n';
+  const long = parseFlowchart(src);
+  ok('加長的連線：讀出加長幾級', long.ok && long.edges.map(e => e.style + e.len).join(' ') === 'arrow1 dotted1 thick2 line2 both1 arrow2 dotted2 arrow0', JSON.stringify(long.edges));
+  const out = generateFlowchart(long);
+  ok('加長的連線：寫回去長度不變', ['A ---> B', 'B -..-> C', 'C ====> D', 'D ----- E', 'E <---> F', 'F ---->|是| G', 'G -...->|否| H', 'H -->|好| I'].every(x => out.split('\n').includes('    ' + x)), out);
+  ok('加長的連線：產生後再解析內容相同', sameFlowchart(long, parseFlowchart(out)));
+  // 經過表單（改一個節點的文字）之後也一樣
+  const r = editableDiagram(src);
+  ok('加長的連線：可以用表單編輯', r.ok, JSON.stringify(r));
+  if (r.ok) {
+    r.model.lists.nodes[0].text = '起點';
+    const edited = r.kind.generate(r.model);
+    ok('加長的連線：在表單改別的地方，長度不變', edited.includes('    A[起點]') && edited.includes('    A ---> B') && edited.includes('    B -..-> C') && edited.includes('    F ---->|是| G'), edited);
+  }
+}
+
 if (fails) process.exitCode = 1;
 console.log(fails ? `\n${fails} FAILED` : '\nALL PASS');
