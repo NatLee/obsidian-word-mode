@@ -667,6 +667,63 @@ await fresh('---\ntags:\n  - 會議\nrelated:\n  - [[其他筆記]]\n  - https:/
   assert(first.firstChild.type.name === 'table_header' && first.textContent === '甲乙丙', '標題列還是標題列');
 }
 
+// ======== 裝飾的局部更新：改動之後，跟整份重算的結果一樣 ========
+// 編輯標記、程式碼上色、標籤與網址的裝飾在文件改動時只重算有變的區塊（decoutil.js）。
+// 這裡用固定的亂數種子改很多次，每次都跟「同一份文件從頭算」比對
+{
+  await fresh('第一段 有 空白\t與 #標籤 和 https://example.com/a 網址\n\n- 項目一​零寬\n- 項目二  兩個空白\n\n```python\ndef f(): pass\ndef g(): pass\n```\n\n> 引文 **粗體** 結尾\n\n| 甲 | 乙 |\n| --- | --- |\n| 1 def | 2 |\n\n```js\nlet a = 1\n```\n\n最後一段\n');
+  await sleep(0); // 等 Prism 載入
+  const pm = view.pm;
+  const marksOn = { on: true, always: true };
+  pm.dispatch(pm.state.tr.setMeta(B.MARKS.marksKey, marksOn));
+  const watched = pm.state.plugins.filter(p => /^wm(Marks|Code|Inline)\$/.test(p.key));
+  const dump = state => watched.map(p => {
+    const set = p.props.decorations.call(p, state);
+    return (set ? set.find() : []).map(d => JSON.stringify([d.from, d.to, d.type.attrs || null, (d.spec && d.spec.key) || null])).sort().join('\n');
+  });
+  const rebuilt = state => {
+    const s = state.constructor.create({ doc: state.doc, plugins: watched });
+    return dump(s.apply(s.tr.setMeta(B.MARKS.marksKey, marksOn)));
+  };
+  assert(watched.length === 3 && dump(pm.state).every(d => d.length > 0), '編輯標記、程式碼上色、標籤與網址都有裝飾');
+  let seed = 20261120;
+  const rnd = n => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed % n; };
+  const pieces = ['字', ' ', '  ', '\t', '　', '​', ' #標籤 ', ' https://a.b/c ', 'def ', '**', 'x'];
+  const piece = () => pieces[rnd(pieces.length)];
+  // 隨機挑一個可以打字的位置
+  const textPos = () => {
+    const spots = [];
+    pm.state.doc.descendants((n, pos) => { if (n.isTextblock) for (let i = 0; i <= n.content.size; i++) spots.push(pos + 1 + i); });
+    return spots[rnd(spots.length)];
+  };
+  let bad = null; let edits = 0;
+  for (let i = 0; i < 400 && !bad; i++) {
+    const st = pm.state; const tr = st.tr; const kind = rnd(6);
+    try {
+      if (kind === 0) tr.insertText(piece(), textPos());
+      else if (kind === 1) { const a = textPos(), b = textPos(); tr.delete(Math.min(a, b), Math.max(a, b)); } // 可能跨好幾個區塊
+      else if (kind === 2) tr.split(textPos());
+      else if (kind === 3) { const second = textPos(); tr.insertText(piece(), textPos()); tr.insertText(piece(), tr.mapping.map(second)); } // 一筆交易兩個步驟
+      else if (kind === 4) { const p = textPos(); tr.delete(p, Math.min(p + 1 + rnd(3), st.doc.content.size)); }
+      else {
+        // 把一個頂層區塊換成新的段落
+        const idx = rnd(st.doc.childCount); let pos = 0;
+        for (let j = 0; j < idx; j++) pos += st.doc.child(j).nodeSize;
+        tr.replaceWith(pos, pos + st.doc.child(idx).nodeSize, B.schema.nodes.paragraph.create(null, B.schema.text('新的 一段 def #新標籤')));
+      }
+    } catch { continue; } // 這個位置不能這樣改（例如表格裡不能分段），換下一個
+    if (!tr.docChanged) continue;
+    pm.dispatch(tr); edits++;
+    const a = dump(pm.state), b = rebuilt(pm.state);
+    for (let j = 0; j < watched.length; j++) {
+      if (a[j] === b[j]) continue;
+      const only = (x, y) => { const set = new Set(y.split('\n')); return x.split('\n').filter(l => l && !set.has(l)).slice(0, 3).join(' '); };
+      bad = `第 ${i} 次（動作 ${kind}）${watched[j].key}；步驟 ${JSON.stringify(tr.steps.map(s => s.toJSON()))}；只有局部更新有：${only(a[j], b[j])}；只有重算有：${only(b[j], a[j])}`;
+    }
+  }
+  assert(!bad && edits > 200, `隨機改 ${edits} 次，局部更新的裝飾都跟整份重算一樣` + (bad ? '：不一樣，' + bad : ''));
+}
+
 //@@MORE@@
 
 finish();

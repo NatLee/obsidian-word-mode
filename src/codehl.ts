@@ -4,6 +4,7 @@ import type { Transaction } from 'prosemirror-state';
 import { Decoration, DecorationSet } from 'prosemirror-view';
 import type { Node as PMNode } from 'prosemirror-model';
 import type { CodeBlockAttrs } from './schema.js';
+import { buildBlockDecorations, updateBlockDecorations } from './decoutil.js';
 
 // Prism 由 Obsidian 的 loadPrism() 提供；這裡只描述用得到的部分
 export interface PrismToken {
@@ -49,41 +50,19 @@ function blockDecos(Prism: PrismLike, node: PMNode, pos: number): Decoration[] {
   return ranges.filter(r => r.to > r.from).map(r => Decoration.inline(r.from, r.to, { class: r.cls }));
 }
 
+const isCodeBlock = (node: PMNode): boolean => node.type.name === 'code_block';
+
 function build(doc: PMNode, getPrism: GetPrism): DecorationSet {
   const Prism = getPrism();
   if (!Prism) return DecorationSet.empty;
-  const decos: Decoration[] = [];
-  doc.descendants((node, pos) => {
-    if (node.type.name !== 'code_block') return true;
-    for (const d of blockDecos(Prism, node, pos)) decos.push(d);
-    return false;
-  });
-  return DecorationSet.create(doc, decos);
+  return buildBlockDecorations(doc, (node, pos) => blockDecos(Prism, node, pos), isCodeBlock);
 }
 
 // 只重算有改動的程式碼區塊
 function update(tr: Transaction, set: DecorationSet, getPrism: GetPrism): DecorationSet {
   const Prism = getPrism();
   if (!Prism) return DecorationSet.empty;
-  set = set.map(tr.mapping, tr.doc);
-  const doc = tr.doc;
-  const done = new Set<number>();
-  tr.mapping.maps.forEach((map, i) => {
-    const rest = tr.mapping.slice(i + 1);
-    map.forEach((oS, oE, nS, nE) => {
-      const from = Math.max(0, Math.min(rest.map(nS, -1), doc.content.size));
-      const to = Math.max(from, Math.min(rest.map(nE, 1), doc.content.size));
-      doc.nodesBetween(from, to, (node, pos) => {
-        if (node.type.name !== 'code_block') return !node.isTextblock;
-        if (done.has(pos)) return false;
-        done.add(pos);
-        set = set.remove(set.find(pos + 1, pos + node.nodeSize - 1));
-        set = set.add(doc, blockDecos(Prism, node, pos));
-        return false;
-      });
-    });
-  });
-  return set;
+  return updateBlockDecorations(tr, set, (node, pos) => blockDecos(Prism, node, pos), isCodeBlock);
 }
 
 // 游標所在的程式碼區塊加上 wm-code-active：會顯示結果的區塊（mermaid、dataview…）在游標進去時才顯示程式碼

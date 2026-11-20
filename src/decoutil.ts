@@ -8,7 +8,7 @@ import type { Transaction } from 'prosemirror-state';
 export type BuildDecorations = (node: PMNode, pos: number) => Decoration[];
 export type IsTarget = (node: PMNode) => boolean;
 
-// build(node, pos) → Decoration[]；isTarget(node) 判斷要不要處理這個節點（預設是所有文字區塊）
+// build(node, pos) → Decoration[]；isTarget(node) 判斷哪些文字區塊要加裝飾（預設是全部）
 export function buildBlockDecorations(doc: PMNode, build: BuildDecorations, isTarget: IsTarget = n => n.isTextblock): DecorationSet {
   const decos: Decoration[] = [];
   doc.descendants((node, pos) => {
@@ -30,11 +30,14 @@ export function updateBlockDecorations(tr: Transaction, set: DecorationSet, buil
       const from = Math.max(0, Math.min(rest.map(nS, -1), doc.content.size));
       const to = Math.max(from, Math.min(rest.map(nE, 1), doc.content.size));
       doc.nodesBetween(from, to, (node, pos) => {
-        if (!isTarget(node)) return !node.isTextblock;
+        if (!node.isTextblock) return true;
         if (done.has(pos)) return false;
         done.add(pos);
-        const old = set.find(pos, pos + node.nodeSize);
+        // 不是目標的文字區塊也要清：程式碼區塊跟段落合併之後，原本的上色會跟著文字搬進段落，
+        // 只清「現在是目標」的區塊就會留在那裡
+        const old = set.find(pos + 1, pos + node.nodeSize - 1);
         if (old.length) set = set.remove(old);
+        if (!isTarget(node)) return false;
         const next = build(node, pos);
         if (next.length) set = set.add(doc, next);
         return false;
