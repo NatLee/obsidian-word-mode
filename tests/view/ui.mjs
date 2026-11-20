@@ -370,7 +370,8 @@ await fresh('公式：\n');
   const eq2 = mock.Modal.last;
   await sleep(25);
   typeIn(eq2.contentEl.querySelector('.wm-mv-sup .wm-mv-text'), '3');
-  assert(eq2.ta.value === 'x^{3}', '改上標：' + eq2.ta.value);
+  // 原文沒有大括號，改過之後還是一個字：照樣不加（以前變成 x^{3}）
+  assert(eq2.ta.value === 'x^3', '改上標：' + eq2.ta.value);
   click(eq2.undoBtn);
   assert(eq2.ta.value === 'x^2', '復原到沒改過的狀態：原本的寫法一字不動：' + eq2.ta.value);
   // 在 LaTeX 模式改過再切回視覺化：也是可以復原的一步
@@ -1734,6 +1735,51 @@ await fresh('---\ntags: [會議]\n---\n內文\n');
   assert(pinBtn().getAttribute('aria-pressed') === 'true', '從設定頁改：圖釘跟著變');
   plugin.settings.propsSticky = false;
   view.applyPropsSticky();
+}
+
+// ======== 方程式編輯器：改一格，沒改到的寫法一字不動 ========
+// 以前改一個字，整個方程式都換成編輯器自己的寫法：x^2 → x^{2}、\leq → \le、max → \max、\left(y\right) → \left( y \right)
+await fresh('公式 $x^2 + a_i \\leq b_{max} + \\left(y\\right)$ 結束\n');
+{
+  const typeIn = (span, text) => { span.focus(); span.textContent = text; mock.Modal.last.field.place(span, text.length); span.dispatchEvent(new Event('input', { bubbles: true })); };
+  view.pm.dom.querySelector('.wm-raw-inline.is-math').dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }));
+  const eq = mock.Modal.last;
+  await sleep(25);
+  const q = s => eq.contentEl.querySelector(s);
+  const qa = s => [...eq.contentEl.querySelectorAll(s)];
+  const top = () => qa('.wm-mv > .wm-mv-row > .wm-mv-text');
+  // 在 ≤ 那一格多打一個字：同一格的 \leq、別的格子的 x^2、a_i、\left(y\right) 都不變
+  const leq = top().find(s => s.textContent.includes('≤'));
+  typeIn(leq, leq.textContent + 'c');
+  assert(eq.ta.value === 'x^2 + a_i \\leq bc_{max} + \\left(y\\right)', '改一個字，其他寫法一字不動：' + eq.ta.value);
+  // 下標的 max 後面多打一個字：原本的 max 不會變成 \max
+  const max = qa('.wm-mv-sub .wm-mv-text').find(s => s.textContent === 'max');
+  typeIn(max, 'max2');
+  assert(eq.ta.value === 'x^2 + a_i \\leq bc_{max2} + \\left(y\\right)', '原本的 max 不會變成 \\max：' + eq.ta.value);
+  // 改上標：原文沒有大括號，改過還是一個字就照樣不加
+  typeIn(q('.wm-mv-sup .wm-mv-text'), '3');
+  assert(eq.ta.value === 'x^3 + a_i \\leq bc_{max2} + \\left(y\\right)', '改上標，還是沒有大括號：' + eq.ta.value);
+  // 新打的函數名稱照樣換成指令；打 \leq 再按空白，存的就是 \leq（不是同一個符號的 \le）
+  const last = top().pop();
+  typeIn(last, ' + sin');
+  typeIn(last, ' + sin \\leq ');
+  assert(last.textContent === ' + sin ≤' && eq.ta.value === 'x^3 + a_i \\leq bc_{max2} + \\left(y\\right) + \\sin \\leq', '新打的 sin 與 \\leq：' + eq.ta.value);
+  // 復原到沒改過：交回一字不差的原文
+  for (let i = 0; i < 10 && !eq.undoBtn.disabled; i++) click(eq.undoBtn);
+  assert(eq.ta.value === 'x^2 + a_i \\leq b_{max} + \\left(y\\right)', '全部復原：' + eq.ta.value);
+  // 刪掉根號這類結構：其他地方照原文
+  eq.setEdit('latex'); eq.ta.value = 'x^2 + \\sqrt{y} + \\begin{pmatrix}\n1 & 0\n\\end{pmatrix}'; eq.setEdit('visual');
+  const afterSqrt = q('.wm-mv-sqrt').nextElementSibling;
+  eq.field.place(afterSqrt, 0);
+  afterSqrt.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true }));
+  assert(!q('.wm-mv-sqrt') && eq.ta.value === 'x^2 +  + \\begin{pmatrix}\n1 & 0\n\\end{pmatrix}', '刪掉根號，x^2 與分成兩行的矩陣不變：' + JSON.stringify(eq.ta.value));
+
+  // 不認得的指令的參數（\color{…} 的顏色）：打 tan 不會變成 \tan
+  eq.setEdit('latex'); eq.ta.value = '\\color{red}{x} + y'; eq.setEdit('visual');
+  typeIn(qa('.wm-mv-braces .wm-mv-text').find(s => s.textContent === 'red'), 'tan');
+  assert(eq.ta.value === '\\color{tan}{x} + y', '顏色的名稱打 tan 不會變成 \\tan：' + eq.ta.value);
+
+  eq.close();
 }
 
 finish();

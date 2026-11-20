@@ -587,7 +587,8 @@ await fresh('面積公式：\n');
   const afterSqrt = spans[spans.length - 1];
   eq.field.place(afterSqrt, 0);
   keyOn(afterSqrt, 'Backspace');
-  assert(!eq.contentEl.querySelector('.wm-mv-sqrt') && eq.ta.value === 'x^{2} +', '格子開頭按 Backspace：刪掉前面的根號：' + JSON.stringify(eq.ta.value));
+  // 沒改到的 x^2 照原文（以前變成 x^{2}）
+  assert(!eq.contentEl.querySelector('.wm-mv-sqrt') && eq.ta.value === 'x^2 +', '格子開頭按 Backspace：刪掉前面的根號：' + JSON.stringify(eq.ta.value));
   eq.setEdit('latex');
   assert(eq.ta.style.display !== 'none' && eq.contentEl.querySelector('.wm-eq-visual').style.display === 'none', '可以切到 LaTeX 模式');
   eq.ta.value = '\\begin{bmatrix} 1 & 2 \\\\ 3 & 4 \\end{bmatrix}';

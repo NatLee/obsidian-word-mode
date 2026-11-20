@@ -31,7 +31,6 @@ const FUNC_SET = new Set(FUNCS);
 // 指令名稱只由英文字母組成：判斷「接起來會不會變成另一個指令」都用這個
 const isLetter = (ch: string | undefined): boolean => !!ch && /[A-Za-z]/.test(ch);
 
-
 // ---------------------------------------------------------------- 一格文字：原文 ⇄ 畫面上的字
 // 格子裡顯示的是好讀的樣子（\alpha → α、\sin → sin、\, → 細空白），不認得的指令照原樣顯示。
 // 顯示是一段一段對出來的，每一段記著原文（src）與畫面上的字（shown）：使用者改了格子裡的字之後，
@@ -188,8 +187,11 @@ export function fromDisplay(text: string): string { return segSrc(editSegs([], t
 //   { t: 'env', name, rows }         矩陣、分段函數（rows 是「列」的陣列，每列是「格」的陣列，每格是一列項目）
 //   { t: 'braces', a }               單純的 { … }
 export type MathRow = MathItem[];
-// 結構項目放子列的欄位（a、b、n、rows）：走訪整棵樹時直接用欄位名稱取值，不必先分辨是哪一種項目
-interface MathSlots { a?: MathRow; b?: MathRow; n?: MathRow | null; rows?: MathRow[][]; }
+// 結構項目放子列的欄位（a、b、n、rows）：走訪整棵樹時直接用欄位名稱取值，不必先分辨是哪一種項目。
+// g：從原文讀進來的結構記著格子之間的原文（依格子的順序，第一段在第一格前面、最後一段在最後一格後面），
+// 寫回去時用這些原文接上格子的內容，所以沒改到的地方一字不差：x^2 不會變成 x^{2}、\left(x\right) 不會被加上空白、
+// 分成好幾行寫的矩陣不會接成一行。新插入的結構沒有 g，照編輯器自己的寫法（x^{…}、\left( … \right)）
+interface MathSlots { a?: MathRow; b?: MathRow; n?: MathRow | null; rows?: MathRow[][]; g?: string[]; }
 // raw：整段看不懂的 LaTeX（見 parseLatex），格子裡照原文顯示、原文存回
 export interface TextItem { t: 'text'; v: string; raw?: boolean; }
 export interface FracItem extends MathSlots { t: 'frac'; cmd: string; a: MathRow; b: MathRow; }
@@ -198,7 +200,8 @@ export interface ScriptItem extends MathSlots { t: 'sup' | 'sub'; a: MathRow; }
 export interface GroupItem extends MathSlots { t: 'group'; cmd: string; a: MathRow; }
 export interface BraceItem extends MathSlots { t: 'brace'; cmd: string; a: MathRow; b: MathRow; }
 export interface ParenItem extends MathSlots { t: 'paren'; l: string; r: string; a: MathRow; }
-export interface EnvItem extends MathSlots { t: 'env'; name: string; rows: MathRow[][]; }
+// w：讀進來時每一列有幾格（之後按「＋列」「＋欄」加的格子不在原文裡，照編輯器的寫法前後各空一格）
+export interface EnvItem extends MathSlots { t: 'env'; name: string; rows: MathRow[][]; w?: number[]; }
 export interface BracesItem extends MathSlots { t: 'braces'; a: MathRow; }
 export type MathItem = TextItem | FracItem | SqrtItem | ScriptItem | GroupItem | BraceItem | ParenItem | EnvItem | BracesItem;
 const FRACS = ['\\frac', '\\dfrac', '\\tfrac', '\\binom'];
@@ -231,81 +234,110 @@ function parseRow(s: string, pos: number, stops: string[]): RowResult {
   const flush = () => { if (text) { row.push({ t: 'text', v: text }); text = ''; } };
   const at = (w: string) => s.startsWith(w, pos);
   const isStop = () => stops.some(w => at(w) && (!/^\\[A-Za-z]+$/.test(w) || !/[A-Za-z]/.test(s[pos + w.length] || '')));
-  const skipSpace = () => { while (s[pos] === ' ') pos++; };
-  const group = (): MathRow => {
+  // 空白、換行都跳過（TeX 找參數時也跳過）。跳過的原文記在結構的 g 裡，寫回去還在
+  const skipSpace = () => { while (s[pos] === ' ' || s[pos] === '\n' || s[pos] === '\t' || s[pos] === '\r') pos++; };
+  // 讀一個 {…}。cut 依序記下每一格內容在原文的開頭與結尾（格子以外的原文就是結構的 g，見 glue）
+  const group = (cut: number[]): MathRow => {
     skipSpace();
     if (s[pos] !== '{') throw new ParseError('{');
     const r = parseRow(s, pos + 1, ['}']);
+    cut.push(pos + 1, r.pos);
     pos = r.pos + 1;
     return r.row;
   };
+  // 結構從 start 到目前位置的原文裡，cut 以外的部分：第一格前面、格子之間、最後一格後面
+  const glue = (start: number, cut: number[]): string[] => {
+    const g: string[] = [];
+    let from = start;
+    for (let i = 0; i < cut.length; i += 2) { g.push(s.slice(from, cut[i])); from = cut[i + 1]; }
+    g.push(s.slice(from, pos));
+    return g;
+  };
   const command = () => { const m = /^\\[A-Za-z]+/.exec(s.slice(pos)); return m ? m[0] : null; };
   // 文字類指令的 {…}：原樣讀到成對的 } 為止（\{、\} 不算），整段是一格文字
-  const verbatim = (): MathRow => {
+  const verbatim = (cut: number[]): MathRow => {
     const start = pos + 1;
     let depth = 0;
     for (; pos < s.length; pos++) {
       if (s[pos] === '\\') { pos++; continue; }
       if (s[pos] === '{') depth++;
-      else if (s[pos] === '}' && --depth === 0) { pos++; return [{ t: 'text', v: s.slice(start, pos - 1) }]; }
+      else if (s[pos] === '}' && --depth === 0) { cut.push(start, pos); pos++; return [{ t: 'text', v: s.slice(start, pos - 1) }]; }
     }
     throw new ParseError('{');
   };
+  // 原文裡空著的選擇性的格子（\sqrt[]{x} 的次方根、\overbrace{a}^{} 的標籤）：那一格從 cut 拿掉，
+  // 它的原文就算在格子之間（g 少一段）。格子照樣留著可以打字；空著的話寫回去還是原文，打了字才換成編輯器的寫法（見 toLatex）
+  const blankSlot = (cut: number[], mark: number): void => { if (!s.slice(cut[mark], cut[mark + 1]).trim()) cut.length = mark; };
   // 從 pos 的指令 c 讀一個有格子的結構（分數、根號、\vec{…} 這類、上下括號）；不是這些就回傳 null，pos 不動
   const structure = (c: string): MathItem | null => {
-    if (FRACS.includes(c)) { pos += c.length; const a = group(); const b = group(); return { t: 'frac', cmd: c, a, b }; }
+    const start = pos;
+    const cut: number[] = [];
+    if (FRACS.includes(c)) { pos += c.length; const a = group(cut); const b = group(cut); return { t: 'frac', cmd: c, a, b, g: glue(start, cut) }; }
     if (c === '\\sqrt') {
       pos += c.length; skipSpace();
       let n: MathRow | null = null;
-      if (s[pos] === '[') { const r = parseRow(s, pos + 1, [']']); n = r.row; pos = r.pos + 1; }
-      return { t: 'sqrt', a: group(), n };
+      if (s[pos] === '[') {
+        const r = parseRow(s, pos + 1, [']']);
+        n = r.row;
+        cut.push(pos + 1, r.pos);
+        blankSlot(cut, 0);
+        pos = r.pos + 1;
+      }
+      const a = group(cut);
+      return { t: 'sqrt', a, n, g: glue(start, cut) };
     }
     // \tag*{…}（編號不加括號）、\operatorname*{…}：指令名稱只抓到字母的部分，星號要一起算進去
     const cmd = s[pos + c.length] === '*' && GROUP_CMDS.includes(c + '*') ? c + '*' : c;
-    const save = pos;
     if (GROUP_CMDS.includes(cmd)) {
       pos += cmd.length; skipSpace();
-      if (s[pos] === '{') return { t: 'group', cmd, a: PLAIN_GROUPS.has(cmd) ? verbatim() : group() };
-      pos = save;
+      if (s[pos] === '{') { const a = PLAIN_GROUPS.has(cmd) ? verbatim(cut) : group(cut); return { t: 'group', cmd, a, g: glue(start, cut) }; }
+      pos = start;
     }
     if (H_BRACES[c]) {
       pos += c.length; skipSpace();
       if (s[pos] === '{') {
-        const a = group();
+        const a = group(cut);
         // 後面緊接 ^（上括號）或 _（下括號）就是標籤；沒有標籤時標籤格是空的，空白留給後面的文字
         const afterBody = pos;
         skipSpace();
         let b: MathRow = [];
-        if (s[pos] === H_BRACES[c]) { pos++; b = scriptArg(); } else pos = afterBody;
-        return { t: 'brace', cmd: c, a, b };
+        if (s[pos] === H_BRACES[c]) { pos++; b = scriptArg(cut); blankSlot(cut, 2); } else pos = afterBody;
+        return { t: 'brace', cmd: c, a, b, g: glue(start, cut) };
       }
-      pos = save;
+      pos = start;
     }
     return null;
   };
-  // ^ 或 _ 後面的內容：{…}、一個指令（x^\alpha）或一個字（x^2）
-  const scriptArg = (): MathRow => {
+  // ^ 或 _ 後面的內容：{…}、一個指令（x^\alpha）或一個字（x^2）。cut 記下內容在原文的範圍（沒有大括號時就是那一個單位）
+  const scriptArg = (cut: number[]): MathRow => {
     skipSpace();
-    if (s[pos] === '{') return group();
+    if (s[pos] === '{') return group(cut);
     if (isStop()) throw new ParseError('^');
+    const start = pos;
+    const one = (r: MathRow): MathRow => { cut.push(start, pos); return r; };
     const c = command();
     if (c) {
       const mb = /^\\mathbb\{[RNZQC]\}/.exec(s.slice(pos));
-      if (mb) { pos += mb[0].length; return [{ t: 'text', v: mb[0] }]; }
+      if (mb) { pos += mb[0].length; return one([{ t: 'text', v: mb[0] }]); }
       // A^\mathrm{T}、e^\frac{1}{2}：指令連同它的參數才是上標。以前只拿指令名稱，
       // 寫回去變成 A^{\mathrm}{T}、e^{\frac}{1}{2}（指令跟參數被拆開，是壞掉的 LaTeX）
       const it = structure(c);
-      if (it) return [it];
+      if (it) return one([it]);
       pos += c.length;
       // 要參數卻沒有大括號的指令（x^\frac12）、不認得又緊接著 { 的指令（不知道它要不要參數，x^\foo{a}）：
       // 猜錯會把內容搬進或搬出上標，所以整段當成看不懂的寫法，原樣保留
       const known = CMD_TO_CHAR.has(c) || FUNC_SET.has(c.slice(1)) || NO_ARG.has(c);
-      if (NEEDS_MORE.has(c) || (!known && /^ *[{[]/.test(s.slice(pos)))) throw new ParseError('^');
-      return [{ t: 'text', v: c }];
+      if (NEEDS_MORE.has(c) || (!known && /^\s*[{[]/.test(s.slice(pos)))) throw new ParseError('^');
+      return one([{ t: 'text', v: c }]);
     }
-    // \, \{ \| 這類：反斜線加一個字是一個單位（以前只拿走反斜線，x^\,y 寫回去變成 x^{\},y）
-    if (s[pos] === '\\' && pos + 1 < s.length && s[pos + 1] !== '\\') { pos += 2; return [{ t: 'text', v: s.slice(pos - 2, pos) }]; }
-    if (pos < s.length && !'^_}&\\'.includes(s[pos])) return [{ t: 'text', v: s[pos++] }];
+    // 一個字，或反斜線加一個字（\, \{ \|）：以前只拿走反斜線，x^\,y 寫回去變成 x^{\},y。
+    // 補充平面的字（𝔹）在字串裡是兩個單位，要整個拿：以前只拿前半個，寫回去變成拆開的亂碼
+    const esc = s[pos] === '\\' ? 1 : 0;
+    if (esc && (pos + 1 >= s.length || s[pos + 1] === '\\')) throw new ParseError('^');
+    if (pos < s.length && (esc || !'^_}&\\'.includes(s[pos]))) {
+      pos += esc + String.fromCodePoint(s.codePointAt(pos + esc)!).length;
+      return one([{ t: 'text', v: s.slice(start, pos) }]);
+    }
     throw new ParseError('^');
   };
   while (pos < s.length) {
@@ -315,8 +347,10 @@ function parseRow(s: string, pos: number, stops: string[]): RowResult {
     if (ch === '{') { flush(); const r = parseRow(s, pos + 1, ['}']); pos = r.pos + 1; row.push({ t: 'braces', a: r.row }); continue; }
     if (ch === '^' || ch === '_') {
       flush();
-      pos++;
-      row.push({ t: ch === '^' ? 'sup' : 'sub', a: scriptArg() });
+      const start = pos++;
+      const cut: number[] = [];
+      const a = scriptArg(cut);
+      row.push({ t: ch === '^' ? 'sup' : 'sub', a, g: glue(start, cut) });
       continue;
     }
     if (ch === '\\') {
@@ -327,17 +361,20 @@ function parseRow(s: string, pos: number, stops: string[]): RowResult {
       const it = structure(c);
       if (it) { flush(); row.push(it); continue; }
       if (c === '\\left') {
-        flush(); pos += c.length; skipSpace();
+        flush();
+        const start = pos;
+        pos += c.length; skipSpace();
         const dl = /^(\\[A-Za-z]+|\\.|.)/.exec(s.slice(pos));
         if (!dl) throw new ParseError('left');
         pos += dl[0].length;
         const r = parseRow(s, pos, ['\\right']);
         if (!s.startsWith('\\right', r.pos)) throw new ParseError('right');
+        const cut = [pos, r.pos];
         pos = r.pos + 6; skipSpace();
         const dr = /^(\\[A-Za-z]+|\\.|.)/.exec(s.slice(pos));
         if (!dr) throw new ParseError('right');
         pos += dr[0].length;
-        row.push({ t: 'paren', l: dl[0], r: dr[0], a: r.row });
+        row.push({ t: 'paren', l: dl[0], r: dr[0], a: r.row, g: glue(start, cut) });
         continue;
       }
       if (c === '\\begin') {
@@ -346,11 +383,14 @@ function parseRow(s: string, pos: number, stops: string[]): RowResult {
         flush(); pos += m[0].length;
         const end = '\\end{' + m[1] + '}';
         const rows: MathRow[][] = [[]];
+        // 格子之間只有 & 與 \\（格子裡的空白、換行都算在格子裡），所以 g 只記開頭與結尾；cellAt 是最後一格的開頭
+        let cellAt = pos;
         for (;;) {
+          cellAt = pos;
           const r = parseRow(s, pos, ['&', '\\\\', end]);
           rows[rows.length - 1].push(r.row);
           pos = r.pos;
-          if (s.startsWith(end, pos)) { pos += end.length; break; }
+          if (s.startsWith(end, pos)) break;
           if (s[pos] === '&') { pos++; continue; }
           if (s.startsWith('\\\\', pos)) {
             pos += 2;
@@ -362,10 +402,13 @@ function parseRow(s: string, pos: number, stops: string[]): RowResult {
           }
           throw new ParseError('end');
         }
-        // 最後一列如果只有一個空白格（結尾多寫了 \\）就拿掉
+        const endAt = pos;
+        pos += end.length;
+        // 最後一列如果只有一個空白格（結尾多寫了 \\）就拿掉；那段原文（\\ 與空白）算在結尾，寫回去還在
         const last = rows[rows.length - 1];
-        if (rows.length > 1 && last.length === 1 && !toLatex(last[0]).trim()) rows.pop();
-        row.push({ t: 'env', name: m[1], rows });
+        let tail = end;
+        if (rows.length > 1 && last.length === 1 && !s.slice(cellAt, endAt).trim()) { rows.pop(); tail = '\\\\' + s.slice(cellAt, endAt) + end; }
+        row.push({ t: 'env', name: m[1], rows, g: [m[0], tail], w: rows.map(r => r.length) });
         continue;
       }
       if (c === '\\right' || c === '\\end') throw new ParseError(c);
@@ -396,21 +439,99 @@ const trimRow = (row: MathRow): string => {
   const v = toLatex(row).trim();
   return /(^|[^\\])(\\\\)*\\$/.test(v) ? v + ' ' : v;
 };
-export function toLatex(row: MathRow): string {
+const rowEmpty = (row: MathRow): boolean => !toLatex(row).trim();
+
+// 字串結尾是什麼：'word' 是指令名稱（\alpha、\rangle），'bs' 是單獨一個反斜線，'' 是其他（\\ 是換行，不算）
+function ending(s: string): 'word' | 'bs' | '' {
+  let i = s.length;
+  while (i > 0 && isLetter(s[i - 1])) i--;
+  let n = 0;
+  while (i - n > 0 && s[i - n - 1] === '\\') n++;
+  if (n % 2 === 0) return '';
+  return i === s.length ? 'bs' : 'word';
+}
+// 把幾段 LaTeX 接起來。前一段以指令名稱結尾、下一段以字母開頭時隔一個空白，不然會接成另一個指令
+// （\left\langle 後面那一格改成字母開頭變成 \langlea、\right\rangle 後面打 x 變成 \ranglex）；
+// 前一段以單獨的反斜線結尾（格子裡打了 \ 還沒打完）也隔一個空白，不然會跟後面的 } 合成 \}，大括號就不成對了。
+// 讀進來的原文不會有這兩種接法，所以沒改到的地方不受影響
+function cat(parts: string[]): string {
   let out = '';
-  for (const it of row) {
-    if (it.t === 'text') out += it.v;
-    else if (it.t === 'frac') out += (it.cmd || '\\frac') + '{' + trimRow(it.a) + '}{' + trimRow(it.b) + '}';
-    else if (it.t === 'sqrt') out += '\\sqrt' + (it.n && trimRow(it.n) ? '[' + trimRow(it.n) + ']' : '') + '{' + trimRow(it.a) + '}';
-    else if (it.t === 'sup') out += '^{' + trimRow(it.a) + '}';
-    else if (it.t === 'sub') out += '_{' + trimRow(it.a) + '}';
-    else if (it.t === 'group') out += it.cmd + '{' + (PLAIN_GROUPS.has(it.cmd) ? toLatex(it.a) : trimRow(it.a)) + '}';
-    else if (it.t === 'brace') { const label = trimRow(it.b); out += it.cmd + '{' + trimRow(it.a) + '}' + (label ? H_BRACES[it.cmd] + '{' + label + '}' : ''); }
-    else if (it.t === 'paren') out += '\\left' + it.l + ' ' + trimRow(it.a) + ' \\right' + it.r;
-    else if (it.t === 'braces') out += '{' + toLatex(it.a) + '}';
-    else if (it.t === 'env') out += '\\begin{' + it.name + '} ' + it.rows.map(r => r.map(trimRow).join(' & ')).join(' \\\\ ') + ' \\end{' + it.name + '}';
+  for (const p of parts) {
+    if (!p) continue;
+    const e = ending(out);
+    if (e === 'bs' || (e === 'word' && isLetter(p[0]))) out += ' ';
+    out += p;
   }
   return out;
+}
+// 原文的格子之間（g）依序接上每一格的內容；段數對不上時回傳 null，改用編輯器自己的寫法
+function glued(g: string[] | undefined, slots: string[]): string | null {
+  if (!g || g.length !== slots.length + 1) return null;
+  const parts = [g[0]];
+  slots.forEach((x, i) => parts.push(x, g[i + 1]));
+  return cat(parts);
+}
+// 不加大括號也還是同一個上標的內容（一個字、一個指令、\mathrm{T} 這樣一個結構）：回傳那段 LaTeX，否則回傳 null。
+// 直接讀讀看：讀出來的上標剛好是這段內容才算
+function bareArg(row: MathRow): string | null {
+  const v = toLatex(row);
+  if (!v || v.trim() !== v) return null;
+  const back = parseLatex('^' + v);
+  const sup = back[1];
+  return back.length === 3 && sup.t === 'sup' && toLatex(sup.a) === v && !(back[2] as TextItem).v ? v : null;
+}
+// 原文寫的上下標（x^2、x^{2}、上下括號的標籤）：pre 是 ^ 加上原文的空白與 {，post 是 }（原文沒有大括號時都沒有）。
+// 沒有大括號的寫法，改過之後內容還是一個單位（2 改成 3、\alpha 改成 \beta）就照樣不加；變成好幾個字才加上
+function scriptLatex(pre: string, post: string, row: MathRow): string {
+  if (pre.endsWith('{')) return cat([pre, toLatex(row), post]);
+  const bare = bareArg(row);
+  return bare != null ? cat([pre, bare]) : cat([pre, '{', toLatex(row), '}']);
+}
+// 寫回 LaTeX。從原文讀進來的結構用記著的原文（g）接上格子的內容，格子裡的空白照原文；
+// 新插入的結構（沒有 g）用編輯器自己的寫法：格子去掉前後的空白、上下標一律加大括號、\left( … \right) 裡外各空一格
+export function toLatex(row: MathRow): string { return cat(row.map(itemLatex)); }
+function itemLatex(it: MathItem): string {
+  const L = toLatex;
+  const g = it.t === 'text' ? undefined : it.g;
+  switch (it.t) {
+    case 'text': return it.v;
+    case 'frac': return glued(g, [L(it.a), L(it.b)]) ?? cat([it.cmd || '\\frac', '{', trimRow(it.a), '}{', trimRow(it.b), '}']);
+    case 'sqrt': {
+      const n = it.n && !rowEmpty(it.n) ? it.n : null;
+      // 原文有次方根：清空了就拿掉 [ ]；原文沒有（或是空的）：打了次方根才加上 [ ]
+      if (g && g.length === 3) return n ? glued(g, [L(n), L(it.a)])! : cat(['\\sqrt', g[1].slice(1), L(it.a), g[2]]);
+      if (g && g.length === 2) return n ? cat(['\\sqrt[', trimRow(n), ']{', L(it.a), g[1]]) : glued(g, [L(it.a)])!;
+      return cat(['\\sqrt', n ? '[' + trimRow(n) + ']' : '', '{', trimRow(it.a), '}']);
+    }
+    case 'sup': case 'sub':
+      return g && g.length === 2 ? scriptLatex(g[0], g[1], it.a) : cat([it.t === 'sup' ? '^{' : '_{', trimRow(it.a), '}']);
+    case 'group': return glued(g, [L(it.a)]) ?? cat([it.cmd, '{', PLAIN_GROUPS.has(it.cmd) ? L(it.a) : trimRow(it.a), '}']);
+    case 'brace': {
+      const mark = H_BRACES[it.cmd];
+      const label = rowEmpty(it.b) ? null : it.b;
+      // 原文有標籤：清空了就拿掉 ^{…}；原文沒有（或是空的）：打了標籤才加上
+      if (g && g.length === 3) return label ? cat([g[0], L(it.a), scriptLatex(g[1], g[2], label)]) : cat([g[0], L(it.a), '}']);
+      if (g && g.length === 2) return label ? cat([g[0], L(it.a), '}' + mark + '{', trimRow(label), '}']) : glued(g, [L(it.a)])!;
+      return cat([it.cmd, '{', trimRow(it.a), '}', label ? mark + '{' + trimRow(label) + '}' : '']);
+    }
+    case 'paren': return glued(g, [L(it.a)]) ?? cat(['\\left' + it.l, ' ', trimRow(it.a), ' ', '\\right' + it.r]);
+    case 'braces': return cat(['{', L(it.a), '}']);
+    case 'env': {
+      // 原文的格子照原文（裡面的空白、換行都在）；按「＋列」「＋欄」加的格子照編輯器的寫法前後各空一格
+      const w = it.w || [];
+      const src = g && g.length === 2 ? g : null;
+      const parts = [src ? src[0] : '\\begin{' + it.name + '}'];
+      it.rows.forEach((r, i) => {
+        if (i) parts.push(src ? '\\\\' : ' \\\\');
+        r.forEach((cell, j) => {
+          if (j) parts.push(src ? '&' : ' &');
+          parts.push(src && i < w.length && j < w[i] ? L(cell) : ' ' + trimRow(cell) + (src ? ' ' : ''));
+        });
+      });
+      parts.push(src ? src[1] : ' \\end{' + it.name + '}');
+      return cat(parts);
+    }
+  }
 }
 
 // 整理：相鄰的文字合併；結構的前後與中間一定有文字格（才點得進去打字）
@@ -420,8 +541,9 @@ export function normalize(row: MathRow): MathRow {
     const last = out[out.length - 1];
     if (it.t === 'text') {
       if (!last || last.t !== 'text') out.push(it);
-      // 原文照樣顯示的文字（raw）跟旁邊的文字合併後，整格都照原文顯示
-      else { last.v += it.v; if (it.raw) last.raw = true; }
+      // 原文照樣顯示的文字（raw）跟旁邊的文字合併後，整格都照原文顯示。
+      // 其他的接起來時，\alpha 後面接字母要隔一個空白（見 cat）：拿掉兩者之間的結構、在 α 與 x 之間貼上字母時
+      else { last.v = last.raw || it.raw ? last.v + it.v : cat([last.v, it.v]); if (it.raw) last.raw = true; }
       continue;
     }
     if (!last || last.t !== 'text') out.push({ t: 'text', v: '' });
@@ -431,6 +553,19 @@ export function normalize(row: MathRow): MathRow {
   }
   if (!out.length || out[out.length - 1].t !== 'text') out.push({ t: 'text', v: '' });
   return out;
+}
+
+// 新插入的結構（功能區的按鈕、打 \frac 再按空白）照編輯器自己的寫法寫出去：拿掉讀範本時記下的原文（g）。
+// 不拿掉的話，範本「\left( \right)」打了字會寫成 \left(x\right)，「^\circ」不會加上大括號
+export function forgetSource(row: MathRow): MathRow {
+  for (const it of row) {
+    if (it.t === 'text') continue;
+    delete it.g;
+    if (it.t === 'env') delete it.w;
+    for (const k of ['a', 'b', 'n'] as const) if (Array.isArray(it[k])) forgetSource(it[k]);
+    if (it.rows) it.rows.forEach(r => r.forEach(forgetSource));
+  }
+  return row;
 }
 
 // 不認得的指令後面緊接的 {…}（\color{tan}、\mathsf{max}）多半是那個指令的參數（顏色的名稱、換字型的字）：
@@ -488,7 +623,6 @@ function slotsOf(it: MathItem): MathRow[] {
   if (it.t === 'env') return it.rows.flat();
   return [it.a];
 }
-const rowEmpty = (row: MathRow): boolean => !toLatex(row).trim();
 
 // 根號的符號。不用「√」字元：字的大小固定，裡面放分數、矩陣這類較高的內容時，
 // 上方那條線（被開方數的上框線）會被頂到內容頂端，跟縮在中間的「√」接不起來。
@@ -869,8 +1003,11 @@ export class MathField {
     });
     span.addEventListener('paste', e => {
       e.preventDefault();
-      const tx = (e.clipboardData && e.clipboardData.getData('text/plain')) || '';
-      this.insert(tx.replace(/\r?\n/g, ' '));
+      const tx = ((e.clipboardData && e.clipboardData.getData('text/plain')) || '').replace(/\r?\n/g, ' ');
+      // 貼上的是使用者自己的寫法，照原文保留（x^2 不加大括號，不像功能區的按鈕）；
+      // 照原文顯示的格子（\text{…}、看不懂的 LaTeX）貼上的就是文字，不拆成結構
+      const items = plain ? [{ t: 'text', v: tx } as TextItem] : parseLatex(tx).filter(x => !(x.t === 'text' && !x.v));
+      if (tx) this.insertItems(items, row, index, span);
     });
     span.addEventListener('keydown', e => this.onKey(e, row, index, span));
     return span;
@@ -1006,7 +1143,7 @@ export class MathField {
     if (TYPED_STRUCTS[cmd]) {
       it.v = this.swapTyped(span, raw, from, c.start, []);
       this.place(span, before.length);
-      this.insertItems(parseLatex(TYPED_STRUCTS[cmd]).filter(x => !(x.t === 'text' && !x.v)), row, index, span);
+      this.insertItems(forgetSource(parseLatex(TYPED_STRUCTS[cmd])).filter(x => !(x.t === 'text' && !x.v)), row, index, span);
       return true;
     }
     if (CMD_TO_CHAR.has(cmd) || FUNC_SET.has(m[1])) {
@@ -1208,7 +1345,12 @@ export class MathField {
     const walk = (r: MathRow): void => r.forEach(x => {
       if (x.t === 'text') {
         const i = x.v.indexOf(MARK);
-        if (i >= 0) { target = x; offset = i; x.v = x.v.replace(MARK, ''); }
+        if (i >= 0) {
+          // 拿掉記號後前後接起來（\alpha 與 x 之間要隔一個空白，見 cat）；照原文顯示的格子照原樣接
+          const head = x.v.slice(0, i), rest = x.v.slice(i + MARK.length);
+          x.v = x.raw ? head + rest : cat([head, rest]);
+          target = x; offset = x.v.length - rest.length;
+        }
         return;
       }
       for (const k of ['a', 'b', 'n'] as const) if (Array.isArray(x[k])) walk(x[k]);
@@ -1225,9 +1367,9 @@ export class MathField {
     this.changed();
   }
 
-  // 在目前的游標處插入一段 LaTeX（按上方的結構或符號按鈕）
+  // 在目前的游標處插入一段 LaTeX（按上方的結構或符號按鈕）。插入的結構照編輯器自己的寫法（x^{…}，見 forgetSource）
   insert(latex: string): void {
-    const items = parseLatex(latex).filter(it => !(it.t === 'text' && !it.v));
+    const items = forgetSource(parseLatex(latex)).filter(it => !(it.t === 'text' && !it.v));
     if (!items.length) return;
     let a = this.active;
     if (!a || !this.dom.contains(a.span)) { const spans = this.spans(); const span = spans[spans.length - 1]; a = this.active = this.findActive(span); }
