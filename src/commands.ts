@@ -11,7 +11,7 @@ import type { Command, EditorState, Transaction } from 'prosemirror-state';
 import type { Node as PMNode, Mark, MarkType, NodeType, ResolvedPos } from 'prosemirror-model';
 import type { I18nKey } from './i18n.js';
 import { schema } from './schema.js';
-import type { BidAttrs, BlockFormatAttrs, BulletListAttrs, ColorAttrs, HighlightAttrs, ListItemAttrs, OrderedListAttrs, TableCellAttrs } from './schema.js';
+import type { BidAttrs, BlockFormatAttrs, BulletListAttrs, HighlightAttrs, ListItemAttrs, OrderedListAttrs, TableCellAttrs } from './schema.js';
 import { htmlSafeBlock } from './markdown.js';
 import { autoformatEnter, undoAutoformat } from './autoformat.js';
 
@@ -74,7 +74,7 @@ export const compatPlugin = new Plugin({
     return tr ? tr.setMeta('addToHistory', true) : null;
   },
 });
-export function wordRangeAt(state: EditorState): TextRange | null {
+function wordRangeAt(state: EditorState): TextRange | null {
   if (!options.wordAtCursor) return null;
   const { $from, empty } = state.selection;
   if (!empty || !$from.parent.inlineContent || $from.parent.type.spec.code) return null;
@@ -150,7 +150,7 @@ export type CaseTransform = (s: string) => string;
 
 const toHalf = (s: string): string => s.replace(/[\uFF01-\uFF5E]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)).replace(/\u3000/g, ' ');
 const toFull = (s: string): string => s.replace(/[\u0021-\u007E]/g, c => String.fromCharCode(c.charCodeAt(0) + 0xFEE0)).replace(/ /g, '\u3000');
-export const CASE_KINDS: Record<CaseKind, CaseTransform> = {
+const CASE_KINDS: Record<CaseKind, CaseTransform> = {
   upper: s => s.toUpperCase(),
   lower: s => s.toLowerCase(),
   title: s => s.toLowerCase().replace(/(^|[\s\-（(「『"'])([a-z])/g, (m: string, a: string, b: string) => a + b.toUpperCase()),
@@ -397,7 +397,7 @@ export function currentAlign(state: EditorState): Align | null {
 }
 
 // 整段左縮排（像 Word 的「增加縮排」）
-export function blockIndent(dir: Direction): Command {
+function blockIndent(dir: Direction): Command {
   return (state, dispatch) => {
     let blocks = topBlocks(state, [N.paragraph]);
     if (dir < 0) blocks = blocks.filter(b => b.node.attrs.indent > 0);
@@ -461,15 +461,6 @@ export function markActive(state: EditorState, type: MarkType): boolean {
   const { from, $from, to, empty } = state.selection;
   if (empty) return !!type.isInSet(state.storedMarks || $from.marks());
   return state.doc.rangeHasMark(from, to, type);
-}
-
-export function currentColor(state: EditorState): string | null {
-  const { $from, empty, from, to } = state.selection;
-  const marks = empty ? (state.storedMarks || $from.marks()) : null;
-  if (marks) { const m = M.color.isInSet(marks); return m ? (m.attrs as ColorAttrs).color : null; }
-  let c: string | null = null;
-  state.doc.nodesBetween(from, to, n => { if (c == null && n.isText) { const m = M.color.isInSet(n.marks); if (m) c = (m.attrs as ColorAttrs).color; } });
-  return c;
 }
 
 // 格式刷：記住游標處的格式，套用到之後選取的文字
@@ -644,7 +635,7 @@ function paragraphsInSelection(state: EditorState): NodeAt[] {
   });
   return out;
 }
-export function paragraphIndent(dir: Direction, topLevelToo?: boolean): Command {
+function paragraphIndent(dir: Direction, topLevelToo?: boolean): Command {
   return (state, dispatch) => {
     let paras = paragraphsInSelection(state);
     if (dir > 0 && !topLevelToo) paras = paras.filter(p => state.doc.resolve(p.pos).depth > 0);
@@ -668,15 +659,6 @@ export const indent = chainCommands(sinkListItem(N.list_item), (s, d) => blockIn
 // 減少縮排：清單項目往上一層（最上層時取消清單）；一般段落減少左縮排，最後移除首行縮排
 export const outdent = chainCommands(liftListItem(N.list_item), (s, d) => blockIndent(-1)(s, d), paragraphIndent(-1));
 
-export function toggleTaskAt(pos: number): Command {
-  return (state, dispatch) => {
-    const node = state.doc.nodeAt(pos);
-    if (!node || node.type !== N.list_item) return false;
-    if (dispatch) dispatch(state.tr.setNodeMarkup(pos, null, Object.assign({}, node.attrs, { checked: !node.attrs.checked, status: null })));
-    return true;
-  };
-}
-
 // ---------------------------------------------------------------- 插入
 
 export function insertInline(node: PMNode): Command {
@@ -694,25 +676,6 @@ export function insertText(text: string, marks?: readonly Mark[] | null): Comman
       const { from, to } = state.selection;
       const tr = state.tr.insertText(text, from, to);
       if (marks) for (const m of marks) tr.addMark(from, from + text.length, m);
-      dispatch(tr.scrollIntoView());
-    }
-    return true;
-  };
-}
-
-export function setLink(href: string, text?: string | null): Command {
-  return (state, dispatch) => {
-    if (dispatch) {
-      const { from, to, empty } = state.selection;
-      let tr = state.tr;
-      if (empty || text != null) {
-        const t = text || href;
-        tr = tr.insertText(t, from, to);
-        if (href) tr = tr.addMark(from, from + t.length, M.link.create({ href }));
-      } else {
-        tr = tr.removeMark(from, to, M.link);
-        if (href) tr = tr.addMark(from, to, M.link.create({ href }));
-      }
       dispatch(tr.scrollIntoView());
     }
     return true;
@@ -766,7 +729,7 @@ export function insertHr(state: EditorState, dispatch?: Dispatch): boolean {
   return insertBlock(N.horizontal_rule.create())(state, dispatch);
 }
 
-export function createTable(rows: number, cols: number): PMNode {
+function createTable(rows: number, cols: number): PMNode {
   const header = N.table_row.create(null, Array.from({ length: cols }, () => N.table_header.createAndFill()!));
   const body = Array.from({ length: Math.max(0, rows - 1) }, () =>
     N.table_row.create(null, Array.from({ length: cols }, () => N.table_cell.createAndFill()!)));
@@ -828,7 +791,7 @@ export const table: TableCommands = {
   },
 };
 
-export function inTableCell(state: EditorState): boolean {
+function inTableCell(state: EditorState): boolean {
   const $from = state.selection.$from;
   for (let d = $from.depth; d > 0; d--) {
     const t = $from.node(d).type;
@@ -984,11 +947,6 @@ export function calloutIcon(type: string | null | undefined): string {
   return hit ? hit[2] : 'pencil';
 }
 
-export function calloutLabel<T extends string | null | undefined>(type: T): string | T {
-  const hit = CALLOUT_TYPES.find(x => x[0] === (type || '').toLowerCase());
-  return hit ? hit[1] : type;
-}
-
 // 把選取的段落放進提示框；沒有可包的段落時插入空的提示框
 export function insertCallout(type: string): Command {
   return (state, dispatch) => {
@@ -997,10 +955,6 @@ export function insertCallout(type: string): Command {
     if (wrap(state)) return wrap(state, dispatch);
     return insertBlock(N.callout.create({ type, title: null, fold: '' }, N.paragraph.create()))(state, dispatch);
   };
-}
-
-export function inCallout(state: EditorState): boolean {
-  return !!findAncestor(state.selection.$from, n => n.type === N.callout);
 }
 
 // ---------------------------------------------------------------- 鍵盤
@@ -1098,4 +1052,4 @@ export function buildKeymap(): Record<string, Command> {
   return keys;
 }
 
-export { baseKeymap, undo, redo, NodeSelection };
+export { baseKeymap, undo };

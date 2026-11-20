@@ -4,6 +4,7 @@ import { Decoration, DecorationSet } from 'prosemirror-view';
 import type { EditorState, Transaction } from 'prosemirror-state';
 import type { Node as PMNode } from 'prosemirror-model';
 import { t } from './i18n.js';
+import { buildBlockDecorations, updateBlockDecorations } from './decoutil.js';
 import type { I18nKey } from './i18n.js';
 
 // 奇怪符號的種類代號與修正方式
@@ -42,11 +43,6 @@ export const WEIRD_KINDS: readonly WeirdKind[] = [
   { id: 'space', label: '多餘的空白（連續空白、段落結尾空白）', fix: 'collapse', def: false, always: false },
 ];
 
-export function weirdLabel(kind: string): string {
-  const k = WEIRD_KINDS.find(x => x.id === kind);
-  return k ? t(k.label) : kind;
-}
-
 // 掃描一段文字，回傳 [{from, to, kind}]（位置是文件位置）
 function scanText(text: string, base: number, inCode: boolean): WeirdFound[] {
   const out: WeirdFound[] = [];
@@ -82,7 +78,7 @@ function scanText(text: string, base: number, inCode: boolean): WeirdFound[] {
 }
 
 // 掃描一個文字區塊（段落、標題…）
-export function scanBlock(node: PMNode, pos: number): WeirdFound[] {
+function scanBlock(node: PMNode, pos: number): WeirdFound[] {
   let text = '';
   node.forEach(c => {
     // 有程式碼格式的文字只檢查看不見的字元
@@ -163,38 +159,13 @@ function blockDecos(node: PMNode, pos: number, s: MarksFlags): Decoration[] {
 
 function buildAll(doc: PMNode, s: MarksFlags): DecorationSet {
   if (!s.on && !s.always) return DecorationSet.empty;
-  const decos: Decoration[] = [];
-  doc.descendants((node, pos) => {
-    if (!node.isTextblock) return true;
-    for (const d of blockDecos(node, pos, s)) decos.push(d);
-    return false;
-  });
-  return DecorationSet.create(doc, decos);
+  return buildBlockDecorations(doc, (node, pos) => blockDecos(node, pos, s));
 }
 
 // 只重算有改動的段落（打字時不用每次掃整份文件）
 function updateDecos(tr: Transaction, set: DecorationSet, s: MarksFlags): DecorationSet {
   if (!s.on && !s.always) return DecorationSet.empty;
-  set = set.map(tr.mapping, tr.doc);
-  const doc = tr.doc;
-  const ranges: [number, number][] = [];
-  tr.mapping.maps.forEach((map, i) => {
-    const rest = tr.mapping.slice(i + 1);
-    map.forEach((oS, oE, nS, nE) => ranges.push([rest.map(nS, -1), rest.map(nE, 1)]));
-  });
-  const done = new Set<number>();
-  for (const [a, b] of ranges) {
-    const from = Math.max(0, Math.min(a, doc.content.size)); const to = Math.max(from, Math.min(b, doc.content.size));
-    doc.nodesBetween(from, to, (node, pos) => {
-      if (!node.isTextblock) return true;
-      if (done.has(pos)) return false;
-      done.add(pos);
-      set = set.remove(set.find(pos + 1, pos + node.nodeSize - 1));
-      set = set.add(doc, blockDecos(node, pos, s));
-      return false;
-    });
-  }
-  return set;
+  return updateBlockDecorations(tr, set, (node, pos) => blockDecos(node, pos, s));
 }
 
 // 顯示編輯標記：空白 ·、全形空白 □、Tab →、換行 ↵、段落結尾 ¶，並標出奇怪符號

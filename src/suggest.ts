@@ -49,11 +49,11 @@ export interface SuggestContext {
 
 interface SuggestUI { view: EditorView; box: HTMLDivElement | null; items: SuggestItem[]; index: number; }
 
-export const suggestKey = new PluginKey<SuggestTrigger | null>('wmSuggest');
+const suggestKey = new PluginKey<SuggestTrigger | null>('wmSuggest');
 const LEAF = '￼';
 
 // 游標前面是不是正在打 [[… 或 #…
-export function suggestTrigger(state: EditorState): SuggestTrigger | null {
+function suggestTrigger(state: EditorState): SuggestTrigger | null {
   const { $from, empty } = state.selection;
   if (!empty || !$from.parent.isTextblock || $from.parent.type.spec.code) return null;
   if ((state.storedMarks || $from.marks()).some(m => m.type.name === 'code')) return null;

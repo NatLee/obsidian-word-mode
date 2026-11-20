@@ -203,5 +203,3 @@ export function attachHint(btn: HTMLElement, info: () => HintInfo): void {
   });
   btn.addEventListener('mousedown', hideHint);
 }
-
-export function hasDemo(kind: string): kind is DemoName { return Object.prototype.hasOwnProperty.call(DEMOS, kind); }

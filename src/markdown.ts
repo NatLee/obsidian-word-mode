@@ -9,7 +9,7 @@ import type { Mark, Node as PMNode } from 'prosemirror-model';
 // markdown-it 15 自帶型別定義；預設匯出是建構函式（值），實例的型別另外以具名的型別匯出
 import type { MarkdownIt as MarkdownItInstance, StateCore, StateInline, Token } from 'markdown-it';
 import type { ParseSpec } from 'prosemirror-markdown';
-import { schema } from './schema.js';
+import { schema, IMAGE_PATH } from './schema.js';
 import type {
   BidAttrs, CalloutAttrs, FrontmatterAttrs, HeadingAttrs, HorizontalRuleAttrs, ImageAttrs, LinkAttrs, ListItemAttrs,
   OrderedListAttrs, RawBlockAttrs, RawInlineAttrs, TableCellAttrs, WikilinkAttrs,
@@ -35,7 +35,6 @@ export interface SegmentMeta {
   canon: string; // 剛解析完時序列化的結果；存檔時結果相同就表示沒有修改
   trailing: string; // 區塊尾端的空行，修改後重新輸出時保留
   line: number; // 區塊第一行的行號（從 0 起算）
-  endsWithEol: boolean;
 }
 
 // parse() 回傳、serialize() 需要的文件資訊
@@ -89,7 +88,6 @@ interface TableCellOut {
   align: string | null;
 }
 
-const IMAGE_EXT = /\.(png|jpe?g|gif|bmp|svg|webp|avif|heic|tiff?)$/i;
 
 // ---------------------------------------------------------------------------
 // markdown-it 設定與 Obsidian 語法擴充
@@ -111,7 +109,7 @@ function wikilinkRule(state: StateInline, silent: boolean): boolean {
     let alias: string | null = null;
     const m = inner.match(/^(.*?)\\?\|(.*)$/);
     if (m) { target = m[1]; alias = m[2]; }
-    if (embed && IMAGE_EXT.test(target.split('#')[0])) {
+    if (embed && IMAGE_PATH.test(target.split('#')[0])) {
       // ![[圖.png|300]]、![[圖.png|說明]]、![[圖.png|說明|300]]
       let alt = alias;
       let width: string | null = null;
@@ -235,7 +233,7 @@ function obsidianCore(state: StateCore): void {
   state.tokens = out;
 }
 
-export function createTokenizer(): MarkdownItInstance {
+function createTokenizer(): MarkdownItInstance {
   const md = new MarkdownIt({ html: true, breaks: true, linkify: false, typographer: false });
   md.use(markPlugin);
   md.normalizeLink = s => s;
@@ -266,7 +264,7 @@ const alignAttr = (tok: ParseToken): { align: string | null } => {
   return { align: m ? m[1] : null };
 };
 
-export function createParser(tokenizer: MarkdownItInstance): MarkdownParser {
+function createParser(tokenizer: MarkdownItInstance): MarkdownParser {
   return new MarkdownParser(schema, tokenizer, {
     blockquote: { block: 'blockquote' },
     paragraph: { block: 'paragraph' },
@@ -358,7 +356,7 @@ function lastChar(s: string): string { const a = Array.from(s); return a[a.lengt
 function firstChar(s: string): string { return Array.from(s)[0] || ''; }
 
 // mark 從 parent 的 index 開始（open）或在 index 之前結束（close）：判斷用 Markdown 符號是否能正確解析
-export function delimiterOk(parent: PMNode, index: number, mark: Mark, open: boolean): boolean {
+function delimiterOk(parent: PMNode, index: number, mark: Mark, open: boolean): boolean {
   let start = open ? index : index - 1;
   if (start < 0 || start >= parent.childCount || !mark.isInSet(parent.child(start).marks)) return true;
   let end = start + 1;
@@ -432,7 +430,7 @@ const MARK_HTML: Record<string, (m: Mark) => [string, string]> = {
   link: m => [`<a href="${escHtml(m.attrs.href)}">`, '</a>'],
 };
 
-export function inlineToHtml(node: PMNode): string {
+function inlineToHtml(node: PMNode): string {
   let out = '';
   node.forEach(child => {
     let inner: string;
@@ -462,7 +460,7 @@ function blockHtml(node: PMNode): string {
 }
 
 // 解析我們自己寫出的對齊段落 HTML（只認得上面那幾種標籤，其餘一律當作原文保留）
-export function parseFormattedBlock(src: string): PMNode | null {
+function parseFormattedBlock(src: string): PMNode | null {
   const m = src.trim().match(/^<(p|h[1-6])\s+style="([^"]*)">([\s\S]*)<\/\1>$/);
   if (!m || /\n\s*\n/.test(m[3])) return null;
   const style = m[2];
@@ -543,7 +541,7 @@ function renderCell(state: SerializerState, cell: PMNode): string {
 }
 
 // 節點與 mark 的序列化函式收到的 state 其實是 SerializerState（多了內部成員與 inTable 等旗標），用到時轉型
-export function createSerializer(): MarkdownSerializer {
+function createSerializer(): MarkdownSerializer {
   return new MarkdownSerializer({
     blockquote(state, node) { state.wrapBlock('> ', null, node, () => state.renderContent(node)); },
     callout(state, node) {
@@ -821,7 +819,7 @@ function tableHasExtraCells(src: string): boolean {
 }
 
 // 文件屬性裡沒有任何內容（只有 --- 與 ---）
-export function emptyFrontmatter(src: string): boolean {
+function emptyFrontmatter(src: string): boolean {
   return !String(src).replace(/^---[^\n]*\r?\n?/, '').replace(/\r?\n?(---|\.\.\.)\s*$/, '').trim();
 }
 
@@ -914,6 +912,8 @@ export class MarkdownConverter {
       const src = lines.slice(r.start, r.end).map(stripEol).join('\n');
       prevEnd = r.end;
       let segNodes: PMNode[] | null = null;
+      // 這個區塊重新輸出的結果：存檔時拿來判斷區塊有沒有被改過
+      let canon: string | null = null;
       let kind: SegmentKind = r.kind;
       if (kind === 'md') {
         const first = stripEol(lines[r.start]);
@@ -944,23 +944,24 @@ export class MarkdownConverter {
           const inl = (nodes2: PMNode[]): string => this.serializeNodes([schema.nodes.paragraph.create(null, nodes2)]);
           d.forEach(n => segNodes!.push(withBid(liftCallouts(n, inl), idx)));
           if (!segNodes.length) segNodes = null;
-          else this.serializeNodes(segNodes); // 確認可序列化
+          else canon = this.serializeNodes(segNodes); // 確認可序列化；結果就是這個區塊的 canon，下面不用再算一次
         } catch {
           segNodes = null;
         }
       }
       if (!segNodes) segNodes = [schema.nodes.raw_block.create({ src, kind: kind === 'md' ? 'raw' : kind, bid: idx })];
-      let canon: string;
-      try { canon = this.serializeNodes(segNodes); }
-      catch {
-        segNodes = [schema.nodes.raw_block.create({ src, kind: 'raw', bid: idx })];
-        canon = this.serializeNodes(segNodes);
+      if (canon == null) {
+        try { canon = this.serializeNodes(segNodes); }
+        catch {
+          segNodes = [schema.nodes.raw_block.create({ src, kind: 'raw', bid: idx })];
+          canon = this.serializeNodes(segNodes);
+        }
       }
       // 區塊尾端的空行（markdown-it 有時把清單後的空行算進區塊）：修改後重新輸出時保留
       let k = r.end;
       while (k > r.start + 1 && isBlank(lines[k - 1])) k--;
       const trailing = lines.slice(k, r.end).join('');
-      meta.segments.push({ text: segText, gapBefore, canon, trailing, line: r.start, endsWithEol: /(\r\n|\n|\r)$/.test(segText) });
+      meta.segments.push({ text: segText, gapBefore, canon, trailing, line: r.start });
       nodes.push(...segNodes);
     });
     meta.trailingGap = lines.slice(prevEnd).join('');

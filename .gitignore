@@ -1,7 +1,6 @@
 # 相依套件與建置產物
 node_modules/
 dist/
-dist-test/
 tests/view/bundle.mjs
 
 # Obsidian 個人設定：不進版控

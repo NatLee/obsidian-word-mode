@@ -9,8 +9,9 @@ import { attachHint, hideHint } from './hints.js';
 import type { DemoName } from './hints.js';
 import { el, keepFocus } from './dom.js';
 import { closePropsPeek } from './propview.js';
-import { buildColorPanel, TEXT_COLORS, SHADING } from './colorpicker.js';
+import { buildColorPanel, SHADING } from './colorpicker.js';
 import type { ColorKind } from './colorpicker.js';
+import type { IconFn } from './icons.js';
 import type { Command, EditorState } from 'prosemirror-state';
 import type { EditorView } from 'prosemirror-view';
 import type { Mark, MarkType } from 'prosemirror-model';
@@ -46,7 +47,7 @@ export interface ToolbarContext {
   // 目前的編輯器；還沒載入筆記時是 null
   getView(): EditorView | null;
   // 在 el 裡放 Obsidian 圖示；找不到圖示時改顯示 fallback 文字
-  icon: (el: HTMLElement, name: string, fallback: string) => void;
+  icon: IconFn;
   isMobile: boolean;
   // 外掛設定（只列出功能區會讀的欄位）
   settings?: {
@@ -190,9 +191,7 @@ type DataNumbers = Record<string, string | number | undefined>;
 
 const M = schema.marks;
 
-export { TEXT_COLORS };
-
-export const SYMBOLS: readonly (readonly [group: I18nKey, chars: string])[] = [
+const SYMBOLS: readonly (readonly [group: I18nKey, chars: string])[] = [
   ['常用', '©®™°±×÷≈≠≤≥∞✓✗★☆●○■□◆◇※§¶†…‰€£¥'],
   ['中文標點', '「」『』（）【】《》〈〉、。，；：！？—～·‧'],
   ['箭頭', '→←↑↓↔⇒⇐⇔↗↘↖↙➔➜'],
@@ -202,7 +201,7 @@ export const SYMBOLS: readonly (readonly [group: I18nKey, chars: string])[] = [
   ['圈號數字', '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮'],
 ];
 
-export const DATE_FORMATS: readonly string[] = ['YYYY-MM-DD', 'YYYY/MM/DD', 'YYYY年M月D日', 'YYYY-MM-DD HH:mm', 'HH:mm', 'YYYY-MM-DD dddd'];
+const DATE_FORMATS: readonly string[] = ['YYYY-MM-DD', 'YYYY/MM/DD', 'YYYY年M月D日', 'YYYY-MM-DD HH:mm', 'HH:mm', 'YYYY-MM-DD dddd'];
 
 const CASE_MENU: readonly (readonly [kind: CaseKind, label: I18nKey])[] = [['upper', '全部大寫'], ['lower', '全部小寫'], ['title', '每個英文單字首字大寫'], ['sentence', '句首大寫'], ['half', '轉成半形'], ['full', '轉成全形']];
 
@@ -293,8 +292,6 @@ export function fillTab(b: HTMLElement, id: TabId, name: string, style: TabStyle
   if (style === 'icon') b.setAttribute('aria-label', name);
 }
 
-export { keepFocus };
-
 // 功能區；popup 是目前開著的下拉面板（沒有時是 null 或 undefined），painter 是格式刷記住的格式
 export class Toolbar {
   declare ctx: ToolbarContext;
@@ -325,13 +322,10 @@ export class Toolbar {
   declare onDocDown: (e: PointerEvent) => void;
   declare popup: HTMLDivElement | null | undefined;
   declare popupOwner: HTMLElement | null | undefined;
-  declare findBtn: HTMLButtonElement | null;
   declare painterBtn: HTMLButtonElement | null;
   declare styleBtn: HTMLButtonElement | null;
   declare hlBtn: HTMLButtonElement | null;
   declare colorBtn: HTMLButtonElement | null;
-  declare tableBtn: HTMLButtonElement | null;
-  declare fullBtn: HTMLButtonElement | null;
   declare tableGroup: HTMLDivElement;
 
   // ctx: { getView(), icon(el, name, fallbackText), dialogs: {...}, isMobile, settings }
@@ -521,7 +515,7 @@ export class Toolbar {
     if (this.layout === 'tabs' && !menuTabs) el('div', 'wm-tabs-spacer', this.tabsEl);
     const quick = el('div', 'wm-tabs-quick', quickHost);
     const prevSeen = this.seen; this.seen = new Set();
-    this.findBtn = this.button(quick, { icon: 'search', title: '尋找與取代', keys: 'Mod+F', text: '找', desc: '在這份筆記裡尋找文字，再按一次關閉。', demo: 'find', onClick: () => this.d.find(), active: () => this.isFindOpen() });
+    this.button(quick, { icon: 'search', title: '尋找與取代', keys: 'Mod+F', text: '找', desc: '在這份筆記裡尋找文字，再按一次關閉。', demo: 'find', onClick: () => this.d.find(), active: () => this.isFindOpen() });
     if (!this.hiddenGroups.has('help')) this.button(quick, { icon: 'help-circle', title: '快速鍵說明', keys: 'Mod+/', text: '?', demo: 'kbd', desc: '列出所有快速鍵；點一列可以看動畫示範。', onClick: () => this.d.shortcuts() });
     this.button(quick, { icon: 'code-2', title: '切換到 Markdown 編輯', keys: 'Mod+E', text: 'MD', desc: '用 Obsidian 原本的 Markdown 編輯這份筆記，再按一次（或在 Markdown 畫面按同樣的快速鍵）切回 Word 模式。', demo: 'markdown', onClick: () => this.d.markdown() });
     this.seen = prevSeen;
@@ -645,7 +639,7 @@ export class Toolbar {
 
   // ----------------------------------------------------------- 插入
   buildInsert(G: GroupBodies): void {
-    this.tableBtn = this.button(G.tables, { icon: 'table', title: '插入表格', text: '表', label: '表格', big: true, demo: 'table', desc: '拖曳選擇欄數與列數，插入表格。也可以直接貼上 Excel 的範圍。', onClick: (e, b) => this.openTablePopup(b), ...NO_CODE });
+    this.button(G.tables, { icon: 'table', title: '插入表格', text: '表', label: '表格', big: true, demo: 'table', desc: '拖曳選擇欄數與列數，插入表格。也可以直接貼上 Excel 的範圍。', onClick: (e, b) => this.openTablePopup(b), ...NO_CODE });
     let g = G.illustrations;
     this.button(g, { icon: 'image', title: '插入圖片', text: '圖', label: '圖片', big: true, demo: 'image', desc: '插入保管庫裡的圖片、電腦上的圖片或網路圖片。', onClick: (e, b) => this.d.image(b), ...NO_CODE });
     this.button(g, { icon: 'sigma', title: '插入方程式', text: '∑', label: '方程式', big: true, demo: 'equation', desc: '用方程式編輯器輸入數學式，即時預覽。', onClick: () => this.d.equation(), ...NO_CODE });
@@ -695,7 +689,7 @@ export class Toolbar {
     this.button(g, { icon: 'clipboard-list', title: '查看文件屬性', text: '屬', label: '查看屬性', big: true, demo: 'properties', desc: '不用捲到最上方，直接看這份筆記的屬性（標籤、日期等）。屬性很多時可以篩選。', onClick: (e, b) => this.d.peekProperties(b) });
     this.button(g, { icon: 'chevrons-down-up', title: '摺疊全部標題', text: '收', label: '全部摺疊', big: true, demo: 'fold', desc: '把所有標題下的內容收起來，只看標題。', onClick: () => this.d.foldAll(true) });
     this.button(g, { icon: 'chevrons-up-down', title: '展開全部標題', text: '展', label: '全部展開', big: true, demo: 'unfold', desc: '展開所有收起來的標題。', onClick: () => this.d.foldAll(false) });
-    this.fullBtn = this.button(g, { icon: 'move-horizontal', title: '全寬頁面', text: '寬', label: '全寬', big: true, demo: 'fullwidth', desc: '頁面使用整個視窗寬度；關閉時是 A4 紙張寬度。', onClick: () => this.d.toggleFullWidth(), active: () => !!(this.ctx.isFullWidth && this.ctx.isFullWidth()) });
+    this.button(g, { icon: 'move-horizontal', title: '全寬頁面', text: '寬', label: '全寬', big: true, demo: 'fullwidth', desc: '頁面使用整個視窗寬度；關閉時是 A4 紙張寬度。', onClick: () => this.d.toggleFullWidth(), active: () => !!(this.ctx.isFullWidth && this.ctx.isFullWidth()) });
     g = G.zoom;
     this.button(g, { icon: 'zoom-out', title: '縮小', text: '－', demo: 'zoom', desc: '縮小頁面（也可以按住 Ctrl 滾動滑鼠滾輪）。', onClick: () => this.d.zoom(-10) });
     this.button(g, { icon: 'zoom-in', title: '放大', text: '＋', demo: 'zoom', desc: '放大頁面（也可以按住 Ctrl 滾動滑鼠滾輪）。', onClick: () => this.d.zoom(10) });

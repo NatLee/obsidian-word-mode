@@ -8,13 +8,15 @@ import { EditorView } from 'prosemirror-view';
 import { loadPrism } from 'obsidian';
 import { TextSelection, NodeSelection } from 'prosemirror-state';
 import { linkContext, isExternal, isUrl } from './links.js';
+import { iconOr } from './icons.js';
+import type { IconFn } from './icons.js';
 import { bubblePlugin } from './bubble.js';
 import { parseWidth, imageAttrsWithWidth } from './nodeviews.js';
 import { findPlugin, FindBar } from './find.js';
 import { foldPlugin } from './fold.js';
 import { stripSliceBids, stripBids, clipboardTable, tableFromRows, fillTable, looksLikeMarkdown } from './paste.js';
 import { Slice, Fragment } from 'prosemirror-model';
-import { schema } from './schema.js';
+import { schema, IMAGE_EXT } from './schema.js';
 import { createEditorState, restoreEditorState } from './editor.js';
 import { createNodeViews } from './nodeviews.js';
 import { Toolbar } from './toolbar.js';
@@ -58,7 +60,6 @@ import type { TextRange } from './commands.js';
 import type { TemplatesInstance } from './obsidian-internal.js';
 
 export const VIEW_TYPE = 'natlee-word-mode';
-const IMAGE_EXT = /^(png|jpe?g|gif|bmp|svg|webp|avif)$/i;
 
 // 存檔狀態（下方狀態列顯示）：saved 已儲存、dirty 編輯中、saving 儲存中、conflict 同步衝突
 export type { SaveStatus } from './statusbar.js';
@@ -139,7 +140,7 @@ function canSubmenu(): boolean {
 // - lastOut：最後一次載入或輸出的 Markdown 原文
 // - toolbarHost、findHost、bannerHost、scroller、page、toolbar、findBar、bubble、fold：在 onOpen() 建立，
 //   之後一直存在，所以不標成可省略
-// - bottomBar、countEl、statusBox、zoomRange、zoomLabel：下方狀態列（buildBottomBar）建立的元素；
+// - countEl、statusBox、zoomRange、zoomLabel：下方狀態列（buildBottomBar）建立的元素；
 //   還沒建立狀態列時都不存在
 // - marks、code、suggest：第一次 editorPlugins() 時才建立
 // - prism：Obsidian 的 Prism（非同步載入，載入前不存在）
@@ -174,7 +175,6 @@ export class WordModeView extends TextFileView {
   declare bubble: Plugin;
   declare fold: Plugin<FoldState>;
   declare prism: PrismLike | undefined;
-  declare bottomBar: HTMLElement | undefined;
   declare countEl: HTMLDivElement | undefined;
   declare statusBox: HTMLDivElement | undefined;
   declare zoomRange: HTMLInputElement | undefined;
@@ -216,10 +216,9 @@ export class WordModeView extends TextFileView {
     this.scroller = this.contentEl.createDiv('wm-scroller');
     this.page = this.scroller.createDiv('wm-page');
     this.buildToolbar();
-    const icon = (el: HTMLElement, name: string, fallback: string) => { setIcon(el, name); if (!el.querySelector('svg') && fallback) el.setText(fallback); };
-    this.findBar = new FindBar(this.findHost, { getView: () => this.pm, icon, onChange: () => this.toolbar && this.toolbar.refresh() });
+    this.findBar = new FindBar(this.findHost, { getView: () => this.pm, icon: iconOr, onChange: () => this.toolbar && this.toolbar.refresh() });
     this.bubble = bubblePlugin(this.bubbleContext());
-    this.fold = foldPlugin({ icon });
+    this.fold = foldPlugin({ icon: iconOr });
     Promise.resolve(loadPrism()).then((P: PrismLike) => {
       this.prism = P;
       if (this.pm) this.pm.dispatch(this.pm.state.tr.setMeta(codeKey, true));
@@ -281,7 +280,7 @@ export class WordModeView extends TextFileView {
     this.contentEl.toggleClass('wm-toolbar-bottom', pos === 'bottom' || (pos === 'auto' && !!Platform.isPhone));
     this.toolbar = new Toolbar(this.toolbarHost, {
       getView: () => this.pm,
-      icon: (el, name, fallback) => { setIcon(el, name); if (!el.querySelector('svg')) el.setText(fallback); },
+      icon: iconOr,
       isMobile: !!Platform.isMobile,
       settings: S,
       initialTab: this.plugin.lastTab || 'home',
@@ -391,7 +390,6 @@ export class WordModeView extends TextFileView {
   // ---------------------------------------------------------- 下方狀態列（像 Word：字數、存檔、檢視、縮放）
 
   buildBottomBar(bar: HTMLElement, inStatusBar: boolean): void {
-    this.bottomBar = bar;
     // 字數：手機在筆記下方的列，桌機在 Obsidian 的狀態列（Obsidian 內建的字數只算 Markdown 編輯器）
     const parts = buildStatusBar(bar, {
       mode: 'word', inStatusBar, richHints: !!this.plugin.settings.richHints && !Platform.isMobile, modE: 'source', zoomable: true,
@@ -470,9 +468,9 @@ export class WordModeView extends TextFileView {
     return pin;
   }
 
-  pinOptions(): { icon: (el: HTMLElement, name: string, fallback: string) => void; typeHint: (k: string) => string | null } {
+  pinOptions(): { icon: IconFn; typeHint: (k: string) => string | null } {
     return {
-      icon: (el, name, fallback) => { setIcon(el, name); if (!el.querySelector('svg') && fallback) el.setText(fallback); },
+      icon: iconOr,
       typeHint: k => propertyWidget(this.app, k),
     };
   }
@@ -552,7 +550,7 @@ export class WordModeView extends TextFileView {
   editorPlugins(): Plugin[] {
     if (!this.marks) this.marks = marksPlugin({ on: !!this.plugin.settings.showMarks, always: this.plugin.settings.highlightWeird !== false });
     if (!this.code) this.code = codePlugin(() => this.prism);
-    if (!this.suggest) this.suggest = suggestPlugin(suggestContext(this, (el, name, fallback) => { setIcon(el, name); if (!el.querySelector('svg') && fallback) el.setText(fallback); }));
+    if (!this.suggest) this.suggest = suggestPlugin(suggestContext(this, iconOr));
     return [this.suggest, this.bubble, findPlugin, this.fold, this.marks, this.code, codeActivePlugin];
   }
 
@@ -700,7 +698,7 @@ export class WordModeView extends TextFileView {
   peekProperties(btn: HTMLElement): void {
     if (!this.pm) return;
     openPropsPeek(btn, this.propsPeekData(), {
-      icon: (el, name, fallback) => { setIcon(el, name); if (!el.querySelector('svg') && fallback) el.setText(fallback); },
+      icon: iconOr,
       typeHint: k => propertyWidget(this.app, k),
       go: () => this.openProperties(),
       isMobile: !!Platform.isMobile,
@@ -1072,7 +1070,7 @@ export class WordModeView extends TextFileView {
 
   nodeViewContext(): NodeViewContext {
     return {
-      icon: (el, name, fallback) => { setIcon(el, name); if (!el.querySelector('svg') && fallback) el.setText(fallback); },
+      icon: iconOr,
       openLink: (tv, n) => this.openLink(tv, n),
       isResolved: tv => !!this.resolveFile(tv),
       resolveImage: a => {
@@ -1726,7 +1724,7 @@ export class WordModeView extends TextFileView {
   bubbleContext(): BubbleContext {
     return {
       host: this.page,
-      icon: (el, name, fallback) => { setIcon(el, name); if (!el.querySelector('svg') && fallback) el.setText(fallback); },
+      icon: iconOr,
       describe: (tv, wiki) => this.describe(tv, wiki),
       open: (info, newTab) => this.openLink(info.kind === 'wikilink' ? (info.node.attrs as WikilinkAttrs).target : info.href!, newTab),
       edit: info => this.openLinkDialog(info),
@@ -1969,5 +1967,3 @@ export class WordModeView extends TextFileView {
     }
   }
 }
-
-export { Platform };

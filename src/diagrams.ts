@@ -216,7 +216,7 @@ function flowNodes(m: DiagramModel): Choice[] {
 // ---------------------------------------------------------------- 循序圖
 
 // 訊息的箭頭，以及三種備註（備註跟訊息排在同一個清單裡，順序才對）
-export const SEQUENCE_ARROWS: [string, I18nKey][] = [
+const SEQUENCE_ARROWS: [string, I18nKey][] = [
   ['->>', '實線箭頭'], ['-->>', '虛線箭頭（回覆）'], ['->', '實線（沒有箭頭）'], ['-->', '虛線（沒有箭頭）'],
   ['-x', '實線，結尾打叉'], ['--x', '虛線，結尾打叉'], ['-)', '非同步'], ['--)', '非同步（虛線）'],
   ['note-right', '備註（在右邊）'], ['note-left', '備註（在左邊）'], ['note-over', '備註（跨在上面）'],
@@ -310,7 +310,7 @@ function unique(rows: Row[], base: string, key = 'name'): string {
 
 // ---------------------------------------------------------------- 甘特圖
 
-export const GANTT_STATUS: [string, I18nKey][] = [
+const GANTT_STATUS: [string, I18nKey][] = [
   ['', '一般'], ['done', '已完成'], ['active', '進行中'], ['crit', '重要'], ['milestone', '里程碑'],
   ['crit, done', '重要、已完成'], ['crit, active', '重要、進行中'],
 ];
@@ -485,7 +485,7 @@ const state: DiagramKind = {
 
 // ---------------------------------------------------------------- 類別圖
 
-export const CLASS_RELATIONS: [string, I18nKey][] = [
+const CLASS_RELATIONS: [string, I18nKey][] = [
   ['<|--', '繼承'], ['*--', '組合'], ['o--', '聚合'], ['-->', '關聯'], ['--', '連結'], ['..>', '依賴'], ['..|>', '實作'], ['..', '虛線連結'],
   ['--|>', '繼承（方向相反）'], ['--*', '組合（方向相反）'], ['--o', '聚合（方向相反）'], ['<--', '關聯（方向相反）'], ['<..', '依賴（方向相反）'], ['<|..', '實作（方向相反）'],
 ];
@@ -570,7 +570,7 @@ const classDiagram: DiagramKind = {
 // ---------------------------------------------------------------- 心智圖
 
 // 形狀：[代號, 名稱, 開頭符號, 結尾符號]（解析時依這個順序比對）
-export const MIND_SHAPES: [string, I18nKey, string, string][] = [
+const MIND_SHAPES: [string, I18nKey, string, string][] = [
   ['default', '一般', '', ''],
   ['circle', '圓形', '((', '))'],
   ['bang', '爆炸形', '))', '(('],
@@ -709,8 +709,8 @@ const timeline: DiagramKind = {
 
 // ---------------------------------------------------------------- ER 圖
 
-export const ER_LEFT: [string, I18nKey][] = [['||', '剛好一個'], ['|o', '零或一個'], ['}o', '零或多個'], ['}|', '一個或多個']];
-export const ER_RIGHT: [string, I18nKey][] = [['||', '剛好一個'], ['o|', '零或一個'], ['o{', '零或多個'], ['|{', '一個或多個']];
+const ER_LEFT: [string, I18nKey][] = [['||', '剛好一個'], ['|o', '零或一個'], ['}o', '零或多個'], ['}|', '一個或多個']];
+const ER_RIGHT: [string, I18nKey][] = [['||', '剛好一個'], ['o|', '零或一個'], ['o{', '零或多個'], ['|{', '一個或多個']];
 // 實體名稱：英數字可以直接寫，其他（中文、有空白）要加引號
 const ER_NAME = '("[^"]+"|[^\\s"{]+)';
 const ER_REL = new RegExp('^' + ER_NAME + '\\s+(\\|o|\\|\\||\\}o|\\}\\|)(--|\\.\\.)(o\\||\\|\\||o\\{|\\|\\{)\\s+' + ER_NAME + '\\s*:\\s*(.+)$');
@@ -907,7 +907,7 @@ const quadrant: DiagramKind = {
 export const DIAGRAM_KINDS: readonly DiagramKind[] = [flowchart, sequence, gantt, pie, state, classDiagram, mindmap, timeline, er, journey, quadrant];
 
 // 圖表的外觀（Mermaid 的佈景）：寫成最前面的一行 %%{init: {"theme": "…"}}%%。空字串＝不指定，跟著 Obsidian
-export const THEMES: [string, I18nKey][] = [['', '跟著 Obsidian'], ['default', '預設（淺紫）'], ['neutral', '黑白'], ['forest', '綠色'], ['dark', '深色'], ['base', '米色']];
+const THEMES: [string, I18nKey][] = [['', '跟著 Obsidian'], ['default', '預設（淺紫）'], ['neutral', '黑白'], ['forest', '綠色'], ['dark', '深色'], ['base', '米色']];
 const THEME_LINE = /^%%\{\s*init\s*:\s*\{\s*["']theme["']\s*:\s*["'](default|neutral|forest|dark|base)["']\s*\}\s*\}%%$/;
 // 每一種圖表都有的設定（表單裡排在各自的設定後面）
 export const COMMON_OPTS: Field[] = [{ kind: 'select', key: 'theme', label: '外觀', options: fixed(THEMES) }];

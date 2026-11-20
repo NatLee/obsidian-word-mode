@@ -3,6 +3,7 @@
 import { TFile, resolveSubpath, setIcon } from 'obsidian';
 import { t, key } from './i18n.js';
 import { el } from './dom.js';
+import { IMAGE_EXT } from './schema.js';
 import type { WordModeView } from './view.js';
 
 // mediaKind 的結果：missing 是找不到的檔案，file 是交給 renderEmbed 的其他檔案
@@ -12,7 +13,6 @@ export type MediaKind = 'youtube' | 'audio' | 'video' | 'image' | 'missing' | 'f
 // ready：內容交給畫面之後完成（圖表是另外非同步畫的，可能更晚才出現）
 export interface EmbedHandle { unload(): void; ready?: Promise<unknown>; }
 
-const IMAGE = /^(png|jpe?g|gif|bmp|svg|webp|avif|heic|tiff?)$/i;
 const AUDIO = /^(mp3|wav|m4a|ogg|3gp|flac|oga|opus)$/i;
 const VIDEO = /^(mp4|webm|ogv|mov|mkv)$/i;
 const YOUTUBE = /^https?:\/\/(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{6,})/i;
@@ -28,12 +28,12 @@ export function mediaKind(view: WordModeView, src: string): MediaKind {
   }
   if (/^data:/i.test(src)) return 'image';
   const f = view.resolveFile(src);
-  if (!f) return IMAGE.test(extOf(src)) || !extOf(src) ? 'image' : 'missing';
-  return IMAGE.test(f.extension) ? 'image' : 'file';
+  if (!f) return IMAGE_EXT.test(extOf(src)) || !extOf(src) ? 'image' : 'missing';
+  return IMAGE_EXT.test(f.extension) ? 'image' : 'file';
 }
 
 // 取出要內嵌的那一段 Markdown：整份筆記（去掉文件屬性）、某個標題底下、或某個區塊
-export async function embedSource(view: WordModeView, file: TFile, subpath: string): Promise<string | null> {
+async function embedSource(view: WordModeView, file: TFile, subpath: string): Promise<string | null> {
   const app = view.app;
   const data = await app.vault.cachedRead(file);
   const cache = app.metadataCache.getFileCache(file);

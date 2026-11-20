@@ -84,7 +84,7 @@ await fresh('| 甲 | 乙 |\n| --- | --- |\n| a1 | b1 |\n');
 await fresh('一段文字\n');
 {
   const C = B.COLOR;
-  assert(C.normalizeColor('ABC') === '#aabbcc' && C.normalizeColor('#12ab3480') === '#12ab3480' && C.normalizeColor('xyz') === null, '色碼整理');
+  assert(C.toHex(C.parseHex('ABC')) === '#aabbcc' && C.toHex(C.parseHex('#12ab3480')) === '#12ab3480' && C.parseHex('xyz') === null, '色碼的讀寫');
   assert(C.shade('#000000', 0.5) === '#808080' && C.shade('#ff0000', -0.5) === '#800000', '深淺變化的計算');
   select(1, 3);
   view.toolbar.openHighlightPopup(view.toolbar.hlBtn);

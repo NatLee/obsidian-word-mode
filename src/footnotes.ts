@@ -36,7 +36,7 @@ export function footnoteText(doc: PMNode, id: string): string | null {
 }
 
 // 下一個編號：目前最大的數字編號 + 1
-export function nextFootnoteId(doc: PMNode): string {
+function nextFootnoteId(doc: PMNode): string {
   const { refs, defs } = footnotes(doc);
   let max = 0;
   for (const x of refs.concat(defs)) if (/^\d+$/.test(x.id)) max = Math.max(max, +x.id);

@@ -10,7 +10,8 @@ export interface FlowFailure { ok: false; reason: FlowReason; }
 export type FlowResult = FlowModel | FlowFailure;
 // generateFlowchart 只需要這些欄位（keyword、dir、extra 可以省略）
 export interface FlowSource { keyword?: string; dir?: string; nodes: FlowNode[]; edges: FlowEdge[]; extra?: string[]; }
-export type FlowReason = keyof typeof FLOW_REASONS;
+// 解析不出來的原因；給使用者看的說明在 diagrams.ts 的 DIAGRAM_REASONS（notFlowchart 在那裡算成 unknownKind）
+export type FlowReason = 'notFlowchart' | 'subgraph' | 'linkStyle' | 'multi' | 'syntax';
 interface ReadNode extends FlowNode { rest: string; }
 interface ReadLink { style: string; text: string; rest: string; }
 
@@ -150,37 +151,6 @@ export function generateFlowchart(model: FlowSource): string {
   for (const x of model.extra || []) out.push('    ' + x);
   return out.join('\n');
 }
-
-// 兩份資料內容是否相同（比較節點、連線、方向、附加的行）
-export function sameFlowchart(a: FlowResult | null | undefined, b: FlowResult | null | undefined): boolean {
-  const pick = (m: FlowModel): string => JSON.stringify({ d: m.dir, n: m.nodes.map(n => [n.id, n.text, n.shape]), e: m.edges.map(e => [e.from, e.to, e.text, e.style]), x: m.extra });
-  return !!a && !!b && a.ok && b.ok && pick(a) === pick(b);
-}
-
-// 這段程式碼能不能用表單編輯：解析得出來，而且「產生後再解析」內容不變
-export function editableFlowchart(src: string): FlowResult {
-  const m = parseFlowchart(src);
-  if (!m.ok) return m;
-  const again = parseFlowchart(generateFlowchart(m));
-  return sameFlowchart(m, again) ? m : fail('roundtrip');
-}
-
-// 新節點的代號：N1、N2…（避開已經用過的）
-export function newNodeId(model: { nodes: FlowNode[] }): string {
-  const used = new Set(model.nodes.map(n => n.id));
-  let i = model.nodes.length + 1;
-  while (used.has('N' + i)) i++;
-  return 'N' + i;
-}
-
-export const FLOW_REASONS = {
-  notFlowchart: '這不是流程圖（flowchart／graph），請用程式碼編輯。',
-  subgraph: '這張圖用了子圖（subgraph），表單編輯不支援，請用程式碼編輯。',
-  linkStyle: '這張圖用了 linkStyle（依順序指定連線樣式），表單編輯會打亂順序，請用程式碼編輯。',
-  multi: '這張圖用了「A & B --> C」的寫法，表單編輯不支援，請用程式碼編輯。',
-  syntax: '有表單編輯看不懂的寫法，請用程式碼編輯。',
-  roundtrip: '這張圖有表單編輯無法完整保留的內容，請用程式碼編輯。',
-} satisfies Record<string, I18nKey>;
 
 // 常用圖表的範本
 // [範本名稱, 範本內容]：兩者都會依介面語言翻譯
