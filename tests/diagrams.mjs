@@ -57,6 +57,10 @@ for (const k of DIAGRAM_KINDS) {
   ok('循序圖：參與者改名，訊息跟著改', r.kind.generate(m).includes('客戶->>伺服器: 下單') && r.kind.generate(m).includes('Note over 客戶,伺服器: 結束'), r.kind.generate(m));
   ok('循序圖：loop 區塊不能用表單', editableDiagram('sequenceDiagram\n    loop 每天\n    A->>B: hi\n    end').reason === 'blocks');
   ok('循序圖：啟動條的簡寫不能用表單', editableDiagram('sequenceDiagram\n    A->>+B: hi').reason === 'blocks');
+  // 雙向箭頭：以前讀成一個叫「A<<」的參與者，寫回去多出一行 participant A<<
+  for (const src of ['sequenceDiagram\n    A<<->>B: hi', 'sequenceDiagram\n    participant A\n    A <<-->> B: hi']) {
+    ok('循序圖：雙向箭頭不能用表單：' + src.split('\n').pop().trim(), editableDiagram(src).reason === 'syntax', JSON.stringify(editableDiagram(src).model));
+  }
 }
 
 // ---- 甘特圖

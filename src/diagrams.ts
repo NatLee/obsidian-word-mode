@@ -262,6 +262,8 @@ const sequence: DiagramKind = {
       if (/^(loop|alt|else|opt|par|and|end|rect|critical|option|break|activate|deactivate|box|create|destroy|links?|title|accTitle|accDescr)(\s|$)/.test(text)) return 'blocks';
       if ((x = SEQ_MESSAGE.exec(text))) {
         if (/^[+-]/.test(x[3])) return 'blocks'; // A->>+B：啟動條的簡寫
+        // A<<->>B：雙向箭頭，表單沒有這種箭頭。不擋的話會讀成一個叫「A<<」的參與者，寫回去多一行 participant A<<
+        if (/<<$/.test(x[1])) return 'syntax';
         person(x[1]); person(x[3]);
         steps.push({ from: x[1], arrow: x[2], to: x[3], text: x[4] });
         continue;
