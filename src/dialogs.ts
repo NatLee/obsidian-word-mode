@@ -9,6 +9,7 @@ import { buildDemo } from './hints.js';
 import { t, key, isMac } from './i18n.js';
 import type { App, TFile } from 'obsidian';
 import type { WeirdKindId } from './marks.js';
+import { EditingModal } from './confirmclose.js';
 import type WordModePlugin from './main.js';
 import type { WordModeView } from './view.js';
 import type { I18nKey } from './i18n.js';
@@ -70,20 +71,22 @@ export type EquationEditMode = 'visual' | 'latex';
 // 字數統計的一列：名稱、整份文件、選取範圍（沒有選取時為 null）
 export type WordCountRow = [label: string, all: string, sel: string | null];
 
-export class SourceModal extends Modal {
+export class SourceModal extends EditingModal {
   declare titleText: string;
   declare value: string;
   declare onSave: TextCallback;
+  declare ta: HTMLTextAreaElement | undefined;
+  hasChanges(): boolean { return !!this.ta && this.ta.value !== this.value; }
   constructor(app: App, title: string, value: string, onSave: TextCallback) { super(app); this.titleText = title; this.value = value; this.onSave = onSave; }
   onOpen(): void {
     this.titleEl.setText(this.titleText);
-    const ta = this.contentEl.createEl('textarea', { cls: 'wm-source-input' });
+    const ta = this.ta = this.contentEl.createEl('textarea', { cls: 'wm-source-input' });
     ta.value = this.value;
     ta.rows = Math.min(20, Math.max(4, this.value.split('\n').length + 1));
     const bar = this.contentEl.createDiv('modal-button-container');
-    bar.createEl('button', { text: t('取消') }).addEventListener('click', () => this.close());
+    bar.createEl('button', { text: t('取消') }).addEventListener('click', () => this.closeNow());
     const ok = bar.createEl('button', { text: t('套用'), cls: 'mod-cta' });
-    ok.addEventListener('click', () => { this.close(); this.onSave(ta.value); });
+    ok.addEventListener('click', () => { this.closeNow(); this.onSave(ta.value); });
     ta.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); ok.click(); } });
     window.setTimeout(() => ta.focus(), 10);
   }
@@ -319,7 +322,7 @@ const MATH_FORMULAS: readonly (readonly [name: I18nKey, latex: string])[] = [
 ];
 
 // 方程式編輯器：上方分類按鈕、編輯區（視覺化的格子或 LaTeX，可以復原）、即時預覽（含語法錯誤提示）、最近使用
-export class EquationModal extends Modal {
+export class EquationModal extends EditingModal {
   declare init: EquationInit;
   declare render: MathRenderer;
   declare onSave: EquationSaveCallback;
@@ -341,6 +344,8 @@ export class EquationModal extends Modal {
   declare visualTools: HTMLButtonElement[];
   // 視覺化的格子目前對應的 LaTeX（LaTeX 那一格跟它不同，表示在 LaTeX 模式改過）；還沒建立格子時是 null
   declare fieldSrc: string | null;
+  // 跟打開時的方程式不一樣（前後的空白不算）
+  hasChanges(): boolean { return !!this.ta && this.ta.value.trim() !== (this.init.src || '').trim(); }
   constructor(app: App, init: EquationInit, render: MathRenderer, onSave: EquationSaveCallback, plugin?: WordModePlugin | null) {
     super(app); this.init = init; this.render = render; this.onSave = onSave; this.plugin = plugin; this.display = !!init.display;
   }
@@ -513,9 +518,9 @@ export class EquationModal extends Modal {
     const bar = c.createDiv('modal-button-container');
     if (this.init.existing && this.init.onDelete) {
       const del = bar.createEl('button', { text: t('刪除方程式'), cls: 'mod-warning' });
-      del.addEventListener('click', () => { this.close(); this.init.onDelete!(); });
+      del.addEventListener('click', () => { this.closeNow(); this.init.onDelete!(); });
     }
-    bar.createEl('button', { text: t('取消') }).addEventListener('click', () => this.close());
+    bar.createEl('button', { text: t('取消') }).addEventListener('click', () => this.closeNow());
     const ok = bar.createEl('button', { text: this.init.existing ? t('套用') : t('插入'), cls: 'mod-cta' });
     ok.addEventListener('click', () => {
       const v = this.ta.value.trim(); if (!v) return;
@@ -523,7 +528,7 @@ export class EquationModal extends Modal {
         const r = [v].concat((this.plugin.settings.recentMath || []).filter((x: string) => x !== v)).slice(0, 12);
         this.plugin.settings.recentMath = r; void this.plugin.saveSettings();
       }
-      this.close(); this.onSave(v, this.display);
+      this.closeNow(); this.onSave(v, this.display);
     });
     this.ta.addEventListener('input', () => { window.clearTimeout(this.timer); this.timer = window.setTimeout(() => this.preview(), 150); });
     this.ta.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); ok.click(); } });

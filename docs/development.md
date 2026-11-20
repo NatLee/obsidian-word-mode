@@ -135,6 +135,7 @@ All styles are in `styles/word-mode.css`, and every class starts with `wm-`. The
 | `src/autoformat.ts` | Formatting as you type. |
 | `src/suggest.ts`, `src/complete.ts` | Suggestions for notes, headings, and tags. |
 | `src/dialogs.ts` | Dialogs: links, equations, shortcuts, cleanup, word count. |
+| `src/confirmclose.ts` | Base class for the editing dialogs: asks before closing with unapplied changes. |
 | `src/mathvisual.ts` | Visual equation editor. |
 | `src/templates.ts`, `src/templateui.ts` | Formulas and diagram templates you save yourself: the data operations, and the list in the settings that manages them. |
 | `src/mermaid.ts`, `src/diagrams.ts`, `src/flowchart.ts` | Diagram editor, the description of each diagram kind (parser, generator, and form fields) that drives its form and on-diagram editing, and the flowchart parser. |

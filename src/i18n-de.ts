@@ -1185,5 +1185,8 @@ export default {
  "插入網路圖片（網址）…": "Online-Bild (URL) einfügen…",
  "更換為保管庫裡的圖片…": "Durch Bild aus dem Tresor ersetzen…",
  "更換為網路圖片（網址）…": "Durch Online-Bild (URL) ersetzen…",
- "編輯{name}": "{name} bearbeiten"
+ "編輯{name}": "{name} bearbeiten",
+ "還沒套用的修改會不見，要關閉嗎？": "Nicht übernommene Änderungen gehen verloren. Trotzdem schließen?",
+ "繼續編輯": "Weiter bearbeiten",
+ "捨棄修改": "Änderungen verwerfen"
 };

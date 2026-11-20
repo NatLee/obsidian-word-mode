@@ -135,6 +135,7 @@ Word 模式的功能區（`src/toolbar.ts`）與 Markdown、閱讀模式的功�
 | `src/autoformat.ts` | 輸入時自動套用格式。 |
 | `src/suggest.ts`、`src/complete.ts` | 筆記、標題、標籤的建議清單。 |
 | `src/dialogs.ts` | 對話框：連結、方程式、快速鍵、清理符號、字數統計。 |
+| `src/confirmclose.ts` | 編輯內容的對話框共用的基底：有還沒套用的修改時，關閉前先問。 |
 | `src/mathvisual.ts` | 視覺化方程式編輯器。 |
 | `src/templates.ts`、`src/templateui.ts` | 自己存的公式與圖表範本：資料操作，以及設定頁裡管理它們的清單。 |
 | `src/mermaid.ts`、`src/diagrams.ts`、`src/flowchart.ts` | 圖表編輯器；每種圖表的描述（解析、產生、表單欄位），表單與在圖上編輯都依它運作；流程圖的解析。 |
