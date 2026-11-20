@@ -450,7 +450,8 @@ export class MermaidModal extends Modal {
       this.markTemplates();
     };
     save.addEventListener('click', run);
-    input.addEventListener('keydown', e => { if (e.key === 'Enter' && !(e.ctrlKey || e.metaKey)) { e.preventDefault(); e.stopPropagation(); run(); } });
+    // isComposing：輸入法選字中的 Enter 是確定選字，不是儲存
+    input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing && !(e.ctrlKey || e.metaKey)) { e.preventDefault(); e.stopPropagation(); run(); } });
     p.createDiv({ cls: 'wm-mmd-hint', text: t('同名的範本會被新的內容取代。改名、修改、刪除在「設定 → 方程式與圖表」。') });
   }
 
@@ -1055,6 +1056,8 @@ export class MermaidModal extends Modal {
       }
     }
     input.addEventListener('keydown', e => {
+      // 輸入法還在選字：這時的 Enter 是確定選字，不是寫回圖上
+      if (e.isComposing) return;
       if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); commit(); }
       else if (e.key === 'Tab') { e.preventDefault(); e.stopPropagation(); commit(e.shiftKey ? -1 : 1); }
     });
