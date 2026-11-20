@@ -156,38 +156,39 @@ const replace: RibbonAction = { icon: 'replace', title: '取代', keys: 'Mod+H',
 
 // 兩條功能區都有的功能。只有一邊有的按鈕直接寫在那一條功能區裡（它沒有第二份可以寫歪），
 // 之後另一邊也要有時再搬進來。
-// 說明放在 word 裡的，Markdown 功能區不顯示
+// 說明放在 word 裡的：那句話只有 Word 模式做得到（Markdown 的按鈕用 Obsidian 的指令，做法不同），
+// Markdown 功能區就不顯示說明
 export const ACTIONS = {
   // ---- 常用
   undo: { icon: 'undo-2', title: '復原', keys: 'Mod+Z', demo: 'undo', word: { desc: '取消上一個動作。切到 Markdown 再切回來也能復原。' } },
-  redo: { icon: 'redo-2', title: '取消復原', keys: 'Mod+Y', demo: 'redo', word: { desc: '把剛剛復原的動作做回來。' } },
+  redo: { icon: 'redo-2', title: '取消復原', keys: 'Mod+Y', demo: 'redo', desc: '把剛剛復原的動作做回來。' },
   // Word 模式的按鈕直接顯示目前的樣式名稱（沒有圖示）；Markdown 只改這一行的 # 記號，沒有「程式碼」
   style: { title: '段落樣式', demo: 'style', desc: '把段落改成標題 1～6、內文或程式碼。', md: { icon: 'heading', desc: '把這一行改成標題 1～6 或內文。' } },
   bold: { icon: 'bold', title: '粗體', keys: 'Mod+B', text: 'B', demo: 'bold', word: { desc: '把選取的文字（或游標所在的詞）變粗體。' } },
-  italic: { icon: 'italic', title: '斜體', keys: 'Mod+I', text: 'I', demo: 'italic', word: { desc: '把文字變斜體。' } },
-  underline: { icon: 'underline', title: '底線', text: 'U', demo: 'underline', word: { keys: 'Mod+U', desc: '在文字下方加底線。' } },
-  strike: { icon: 'strikethrough', title: '刪除線', text: 'S', demo: 'strike', word: { keys: 'Mod+Shift+X', desc: '在文字中間畫一條線。' } },
-  sup: { icon: 'superscript', title: '上標', text: 'x²', demo: 'sup', word: { desc: '把文字變成小字並往上移，例如平方。' } },
-  sub: { icon: 'subscript', title: '下標', text: 'x₂', demo: 'sub', word: { desc: '把文字變成小字並往下移，例如化學式。' } },
+  italic: { icon: 'italic', title: '斜體', keys: 'Mod+I', text: 'I', demo: 'italic', desc: '把文字變斜體。' },
+  underline: { icon: 'underline', title: '底線', text: 'U', demo: 'underline', desc: '在文字下方加底線。', word: { keys: 'Mod+U' } },
+  strike: { icon: 'strikethrough', title: '刪除線', text: 'S', demo: 'strike', desc: '在文字中間畫一條線。', word: { keys: 'Mod+Shift+X' } },
+  sup: { icon: 'superscript', title: '上標', text: 'x²', demo: 'sup', desc: '把文字變成小字並往上移，例如平方。' },
+  sub: { icon: 'subscript', title: '下標', text: 'x₂', demo: 'sub', desc: '把文字變成小字並往下移，例如化學式。' },
   highlight: { icon: 'highlighter', title: '醒目提示', text: 'H', demo: 'highlight', word: { keys: 'Mod+Shift+H', desc: '像螢光筆一樣標出文字。旁邊的箭頭可以換顏色。' } },
-  bullet: { icon: 'list', title: '項目符號', text: '•', demo: 'bullet', word: { desc: '把段落變成項目符號清單。' } },
-  ordered: { icon: 'list-ordered', title: '編號', text: '1.', demo: 'ordered', word: { desc: '把段落變成 1. 2. 3. 編號清單。' } },
-  task: { icon: 'list-checks', title: '核取清單', text: '☐', demo: 'task', word: { desc: '變成可以打勾的待辦清單。' } },
+  bullet: { icon: 'list', title: '項目符號', text: '•', demo: 'bullet', desc: '把段落變成項目符號清單。' },
+  ordered: { icon: 'list-ordered', title: '編號', text: '1.', demo: 'ordered', desc: '把段落變成 1. 2. 3. 編號清單。' },
+  task: { icon: 'list-checks', title: '核取清單', text: '☐', demo: 'task', desc: '變成可以打勾的待辦清單。' },
   outdent: { icon: 'indent-decrease', title: '減少縮排', text: '←', demo: 'outdent', word: { keys: 'Shift+Tab', desc: '整段往左移；清單往上一層。' } },
   indent: { icon: 'indent-increase', title: '增加縮排', text: '→', demo: 'indent', word: { desc: '整段往右移；清單變成下一層。' } },
-  quote: { icon: 'quote', title: '引文', text: '❝', demo: 'quote', word: { desc: '把段落變成引用（左邊有一條線）。' } },
+  quote: { icon: 'quote', title: '引文', text: '❝', demo: 'quote', desc: '把段落變成引用（左邊有一條線）。' },
   find,
   replace,
   // ---- 插入
   table: { icon: 'table', title: '插入表格', text: '表', label: '表格', big: true, demo: 'table', word: { desc: '拖曳選擇欄數與列數，插入表格。也可以直接貼上 Excel 的範圍。' } },
   equation: { icon: 'sigma', title: '插入方程式', text: '∑', label: '方程式', big: true, demo: 'equation', word: { desc: '用方程式編輯器輸入數學式，即時預覽。' } },
-  link: { icon: 'link', title: '超連結', text: '連', label: '連結', big: true, demo: 'link', word: { keys: 'Mod+K', desc: '把文字連到網址或保管庫裡的筆記。' } },
-  noteLink: { icon: 'file-symlink', title: '連結到筆記', text: '[[', label: '筆記', big: true, demo: 'notelink', word: { desc: '搜尋並插入另一份筆記的連結。' } },
-  code: { icon: 'code', title: '行內程式碼', text: '</>', label: '行內', big: true, demo: 'code', word: { keys: 'Mod+`', desc: '把文字標成程式碼（等寬字型）。' } },
-  codeBlock: { icon: 'square-code', title: '插入程式碼區塊', text: '{ }', label: '程式碼區塊', big: true, demo: 'codeblock', word: { desc: '插入一段程式碼，可以選語言，會自動上色。' } },
-  callout: { icon: 'info', title: '插入提示框', text: '框', label: '提示框', big: true, demo: 'callout', word: { desc: '插入有圖示與標題的提示框（Obsidian callout），例如注意、提示、範例。' } },
-  comment: { icon: 'message-square', title: '插入註解', text: '註', label: '註解', big: true, demo: 'comment', word: { desc: '加一段只有編輯時看得到的註解，閱讀模式不會顯示。' } },
-  hr: { icon: 'minus', title: '水平線', text: '—', label: '分隔線', big: true, demo: 'hr', word: { desc: '插入一條橫線分隔內容。' } },
+  link: { icon: 'link', title: '超連結', text: '連', label: '連結', big: true, demo: 'link', desc: '把文字連到網址或保管庫裡的筆記。', word: { keys: 'Mod+K' } },
+  noteLink: { icon: 'file-symlink', title: '連結到筆記', text: '[[', label: '筆記', big: true, demo: 'notelink', desc: '搜尋並插入另一份筆記的連結。' },
+  code: { icon: 'code', title: '行內程式碼', text: '</>', label: '行內', big: true, demo: 'code', desc: '把文字標成程式碼（等寬字型）。', word: { keys: 'Mod+`' } },
+  codeBlock: { icon: 'square-code', title: '插入程式碼區塊', text: '{ }', label: '程式碼區塊', big: true, demo: 'codeblock', desc: '插入一段程式碼，可以選語言，會自動上色。' },
+  callout: { icon: 'info', title: '插入提示框', text: '框', label: '提示框', big: true, demo: 'callout', desc: '插入有圖示與標題的提示框（Obsidian callout），例如注意、提示、範例。' },
+  comment: { icon: 'message-square', title: '插入註解', text: '註', label: '註解', big: true, demo: 'comment', desc: '加一段只有編輯時看得到的註解，閱讀模式不會顯示。' },
+  hr: { icon: 'minus', title: '水平線', text: '—', label: '分隔線', big: true, demo: 'hr', desc: '插入一條橫線分隔內容。' },
   // ---- 校閱：跟「編輯」群組的尋找、取代是同一個功能，這裡是有文字的大按鈕
   findBig: { ...find, label: '尋找', big: true },
   replaceBig: { ...replace, label: '取代', big: true },
@@ -195,13 +196,13 @@ export const ACTIONS = {
   wordMode: { icon: 'file-text', title: 'Word 模式（目前）', text: 'W', label: 'Word 模式', big: true, viewMode: true, demo: 'word', desc: '像 Word 一樣直接看到格式來編輯，存檔仍是純 Markdown。', md: { title: '切換到 Word 模式' } },
   markdownMode: { icon: 'code-2', title: '切換到 Markdown 編輯', text: 'MD', label: 'Markdown', big: true, viewMode: true, demo: 'markdown', desc: '用 Obsidian 原本的 Markdown 編輯這份筆記。', word: { keys: 'Mod+E' }, md: { title: 'Markdown 編輯' } },
   readingMode: { icon: 'book-open', title: '閱讀模式', text: '讀', label: '閱讀', big: true, viewMode: true, demo: 'reading', desc: '用 Obsidian 的閱讀模式檢視（不能編輯）。' },
-  outline: { icon: 'list-tree', title: '大綱', text: '綱', label: '大綱', big: true, demo: 'outline', word: { desc: '在筆記旁另外展開大綱欄，點標題可以跳過去。再按一次關閉。' } },
-  peekProperties: { icon: 'clipboard-list', title: '查看文件屬性', text: '屬', label: '查看屬性', big: true, demo: 'properties', desc: '不用捲到最上方，直接看這份筆記的屬性（標籤、日期等）。屬性很多時可以篩選。', md: { label: '屬性' } },
-  foldAll: { icon: 'chevrons-down-up', title: '摺疊全部標題', text: '收', label: '全部摺疊', big: true, demo: 'fold', word: { desc: '把所有標題下的內容收起來，只看標題。' } },
-  unfoldAll: { icon: 'chevrons-up-down', title: '展開全部標題', text: '展', label: '全部展開', big: true, demo: 'unfold', word: { desc: '展開所有收起來的標題。' } },
+  outline: { icon: 'list-tree', title: '大綱', text: '綱', label: '大綱', big: true, demo: 'outline', desc: '在筆記旁另外展開大綱欄，點標題可以跳過去。再按一次關閉。' },
+  peekProperties: { icon: 'clipboard-list', title: '查看文件屬性', text: '屬', label: '查看屬性', big: true, demo: 'properties', desc: '不用捲到最上方，直接看這份筆記的屬性（標籤、日期等）。屬性很多時可以篩選。' },
+  foldAll: { icon: 'chevrons-down-up', title: '摺疊全部標題', text: '收', label: '全部摺疊', big: true, demo: 'fold', desc: '把所有標題下的內容收起來，只看標題。' },
+  unfoldAll: { icon: 'chevrons-up-down', title: '展開全部標題', text: '展', label: '全部展開', big: true, demo: 'unfold', desc: '展開所有收起來的標題。' },
   settings: { icon: 'settings', title: 'Word 模式設定', text: '設', label: '設定', big: true, demo: 'settings', desc: '開啟 Word 模式的設定。在上方的搜尋框打幾個字就能找到想要的設定，也可以打英文。' },
-  // ---- 右上角的快速按鈕
-  findQuick: { ...find, title: '尋找與取代', word: { desc: '在這份筆記裡尋找文字，再按一次關閉。' }, md: { title: '尋找' } },
+  // ---- 右上角的快速按鈕：尋找列也能取代，所以名稱是「尋找與取代」
+  findQuick: { ...find, title: '尋找與取代' },
 } satisfies Record<string, RibbonAction>;
 
 // ----------------------------------------------------------- 功能區的外殼
