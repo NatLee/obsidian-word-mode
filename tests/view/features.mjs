@@ -967,7 +967,7 @@ await fresh('---\ntags:\n  - 會議\n  - 專案\nrelated:\n  - [[其他筆記]]\
   assert(!rowOf('site').querySelector('.wm-prop-name').hasAttribute('tabindex') && !rowOf('tags').querySelector('.wm-chip-text').hasAttribute('tabindex'), '不能按的文字不會多出停駐點');
 
   // 原文
-  key(one('.wm-props-raw'), 'Enter');
+  key(one('.wm-props-raw[aria-label="編輯 YAML 原文"]'), 'Enter');
   const src = mock.Modal.last;
   assert(src.contentEl.querySelector('textarea') && src.contentEl.querySelector('textarea').value.startsWith('---\n') && !collapsed(), '在「原文」按鈕上按 Enter：開啟原文編輯，不會連帶收合');
   src.close();

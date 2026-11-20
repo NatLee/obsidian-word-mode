@@ -1648,4 +1648,92 @@ await fresh('一段文字\n');
   view.toolbar.closePopup();
 }
 
+// ======== 區塊右上角的小按鈕：方程式、HTML、註腳、註解的編輯、更多功能或複製、刪除，圖表的刪除 ========
+const cornerNames = block => [...block.querySelectorAll('.wm-block-tools button')].filter(b => !b.hidden).map(b => b.getAttribute('aria-label')).join('、');
+await fresh('前面\n\n$$\nE=mc^2\n$$\n\n<div>HTML</div>\n\n後面\n');
+{
+  const block = view.pm.dom.querySelector('.wm-raw-block[data-kind="math"]');
+  const tools = block.querySelector('.wm-block-tools');
+  assert(!tools.hidden && cornerNames(block) === '編輯方程式、更多功能、刪除方程式', '獨立方程式右上角：編輯、更多功能、刪除：' + cornerNames(block));
+  const modal0 = mock.Modal.last;
+  click(tools.querySelector('.wm-block-edit'));
+  const eq = mock.Modal.last;
+  assert(eq !== modal0 && eq.ta && eq.ta.value === 'E=mc^2', '按「編輯方程式」：打開方程式編輯器，內容是這個方程式');
+  eq.close();
+  const menu0 = mock.Menu.last;
+  click(tools.querySelector('.wm-block-more'));
+  const titles = mock.Menu.last !== menu0 ? mock.Menu.last.items.map(i => i.title) : [];
+  assert(titles.join('、') === '改成文字中（行內）、複製 LaTeX、複製為 Markdown', '「更多功能」列出編輯、刪除以外的功能：' + titles.join('、'));
+  const modal1 = mock.Modal.last;
+  tools.querySelector('.wm-block-more').dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }));
+  assert(mock.Modal.last === modal1, '很快連按兩下右上角的按鈕：不會當成按兩下方程式而打開編輯器');
+  const ev = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
+  tools.querySelector('.wm-block-delete').dispatchEvent(ev);
+  assert(ev.defaultPrevented, '按下右上角的按鈕不搶走編輯區的焦點');
+  click(tools.querySelector('.wm-block-delete'));
+  assert(out() === '前面\n\n<div>HTML</div>\n\n後面\n', '按「刪除方程式」：整個方程式刪掉，其他內容原樣：' + JSON.stringify(out()));
+  B.undo(view.pm.state, tr => view.pm.dispatch(tr));
+  assert(out() === '前面\n\n$$\nE=mc^2\n$$\n\n<div>HTML</div>\n\n後面\n', '刪除可以復原：' + JSON.stringify(out()));
+}
+await fresh('```mermaid\nflowchart TD\n    A --> B\n```\n\n```dataview\nTABLE a\n```\n\n```python\nx = 1\n```\n');
+{
+  const [mmd, dv, py] = [...view.pm.dom.querySelectorAll('.wm-codeblock')].map(b => b.querySelector('.wm-code-delete'));
+  assert(!mmd.hidden && mmd.getAttribute('aria-label') === '刪除圖表' && !dv.hidden && dv.getAttribute('aria-label') === '刪除這個區塊' && py.hidden,
+    '顯示成結果的區塊右上角有刪除鍵（圖表叫「刪除圖表」），一般程式碼沒有');
+  click(dv);
+  assert(out() === '```mermaid\nflowchart TD\n    A --> B\n```\n\n```python\nx = 1\n```\n', '按刪除鍵：整個區塊刪掉：' + JSON.stringify(out()));
+}
+await fresh('```mermaid\nflowchart TD\n    A --> B\n```\n');
+{
+  click(view.pm.dom.querySelector('.wm-code-delete'));
+  assert(out().trim() === '' && view.pm.state.doc.childCount === 1 && view.pm.state.doc.firstChild.type.name === 'paragraph', '筆記裡只有一張圖表時刪掉它：留下一個空段落可以繼續打字：' + JSON.stringify(out()));
+}
+// 其他原文區塊（HTML、註解、註腳）：編輯、複製原文、刪除
+await fresh('前面[^1]，再一次[^1]。\n\n<div>HTML</div>\n\n%%\n區塊註解\n%%\n\n後面\n\n[^1]: 出處\n');
+{
+  const [html, comment, fn] = ['html', 'comment', 'footnote'].map(k => view.pm.dom.querySelector(`.wm-raw-block[data-kind="${k}"]`));
+  assert(cornerNames(html) === '編輯原文、複製為 Markdown、刪除這個區塊' && cornerNames(comment) === cornerNames(html), 'HTML、註解右上角：編輯原文、複製、刪除：' + cornerNames(html) + '／' + cornerNames(comment));
+  assert(cornerNames(fn) === '編輯註腳…、複製為 Markdown、刪除註腳（連同文中的編號）', '註腳右上角：編輯註腳、複製、刪除（連同文中的編號）：' + cornerNames(fn));
+  const modal0 = mock.Modal.last;
+  click(html.querySelector('.wm-block-edit'));
+  assert(mock.Modal.last !== modal0, '按「編輯原文」：打開原文編輯');
+  mock.Modal.last.close();
+  // 複製：jsdom 沒有剪貼簿，換成記下寫了什麼的替身
+  const copied = [];
+  const keepClip = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+  Object.defineProperty(navigator, 'clipboard', { value: { writeText: async s => { copied.push(s); } }, configurable: true });
+  click(html.querySelector('.wm-block-copy'));
+  await sleep(0);
+  assert(copied[0] === '<div>HTML</div>' && html.querySelector('.wm-block-copy').classList.contains('is-done'), '按「複製」：原文放進剪貼簿，按鈕變色表示好了：' + JSON.stringify(copied));
+  if (keepClip) Object.defineProperty(navigator, 'clipboard', keepClip); else delete navigator.clipboard;
+  click(comment.querySelector('.wm-block-delete'));
+  assert(!out().includes('區塊註解') && out().includes('<div>HTML</div>'), '刪除註解區塊：' + JSON.stringify(out()));
+  click(view.pm.dom.querySelector('.wm-raw-block[data-kind="footnote"] .wm-block-delete'));
+  assert(out() === '前面，再一次。\n\n<div>HTML</div>\n\n後面\n', '刪除註腳：內容與文中的編號一起刪掉，不留下對不到內容的 [^1]：' + JSON.stringify(out()));
+}
+
+// ======== 文件屬性標題列的圖釘：切換「固定在頁面上方」 ========
+await fresh('---\ntags: [會議]\n---\n內文\n');
+{
+  const pinBtn = () => view.pm.dom.querySelector('.wm-props-head .wm-props-pin');
+  const press1 = b => b.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+  plugin.settings.propsSticky = false;
+  view.applyPropsSticky();
+  assert(pinBtn() && pinBtn().getAttribute('aria-label') === '文件屬性固定在頁面上方' && pinBtn().getAttribute('aria-pressed') === 'false' && !pinBtn().classList.contains('is-active'),
+    '文件屬性標題列有圖釘按鈕，設定關閉時沒有按下');
+  const open0 = view.propsOpen;
+  const notices = mock.log.length;
+  press1(pinBtn());
+  assert(plugin.settings.propsSticky === true && pinBtn().getAttribute('aria-pressed') === 'true' && pinBtn().classList.contains('is-active'), '按圖釘：開啟「文件屬性固定在頁面上方」，按鈕顯示成按下');
+  assert(view.propsOpen === open0, '按圖釘不會連帶收合文件屬性');
+  assert(mock.log.slice(notices).some(x => x[0] === 'notice' && x[1] === '往下捲動時，文件屬性會固定在頁面上方'), '開啟時說明要往下捲才看得到');
+  press1(pinBtn());
+  assert(plugin.settings.propsSticky === false && pinBtn().getAttribute('aria-pressed') === 'false', '再按一次：關閉');
+  plugin.settings.propsSticky = true;
+  view.applyPropsSticky();
+  assert(pinBtn().getAttribute('aria-pressed') === 'true', '從設定頁改：圖釘跟著變');
+  plugin.settings.propsSticky = false;
+  view.applyPropsSticky();
+}
+
 finish();

@@ -423,6 +423,10 @@ export class WordModeView extends TextFileView {
   applyPropsSticky(): void {
     if (!this.plugin.settings.propsSticky) this.hidePin();
     this.updatePin();
+    // 文件屬性標題列的圖釘按鈕跟著設定變（設定頁、另一個分頁的圖釘改的也一樣）
+    const fm = this.propsNode();
+    const dom = fm && fm.dom as FrontmatterDom;
+    if (dom && dom.wmRefresh) dom.wmRefresh();
   }
 
   // 文件最前面的文件屬性節點與它的畫面；沒有時是 null
@@ -746,24 +750,33 @@ export class WordModeView extends TextFileView {
     if (!elx) return null;
     let pos: number;
     try { pos = this.pm!.posAtDOM(elx, 0); } catch { return null; }
-    const st = this.pm!.state;
-    for (const p of [pos, pos - 1]) {
-      const n = p >= 0 && st.doc.nodeAt(p);
-      if (!n) continue;
-      let m: RegExpExecArray | null;
-      if (n.type.name === 'raw_inline' && (m = /^\$\$?([\s\S]+?)\$?\$$/.exec((n.attrs as RawInlineAttrs).src))) return { pos: p, node: n, src: m[1].trim(), display: false };
-      if (n.type.name === 'raw_block' && (n.attrs as RawBlockAttrs).kind === 'math' && (m = /^\s*\$\$([\s\S]*?)\$\$\s*$/.exec((n.attrs as RawBlockAttrs).src))) return { pos: p, node: n, src: m[1].trim(), display: true };
-    }
+    return this.mathNodeAt(pos) || this.mathNodeAt(pos - 1);
+  }
+
+  // 位置 p 的節點是方程式的話，回傳它的內容
+  mathNodeAt(p: number): MathInfo | null {
+    const n = p >= 0 && this.pm!.state.doc.nodeAt(p);
+    if (!n) return null;
+    let m: RegExpExecArray | null;
+    if (n.type.name === 'raw_inline' && (m = /^\$\$?([\s\S]+?)\$?\$$/.exec((n.attrs as RawInlineAttrs).src))) return { pos: p, node: n, src: m[1].trim(), display: false };
+    if (n.type.name === 'raw_block' && (n.attrs as RawBlockAttrs).kind === 'math' && (m = /^\s*\$\$([\s\S]*?)\$\$\s*$/.exec((n.attrs as RawBlockAttrs).src))) return { pos: p, node: n, src: m[1].trim(), display: true };
     return null;
   }
 
   mathMenuItems(math: MathTarget): Required<NodeViewMenuItem>[] {
     return [
       { title: t('編輯方程式…'), icon: 'sigma', run: () => this.openEquation({ pos: math.pos, src: math.src, display: math.display }) },
+      ...this.mathMoreItems(math),
+      { title: t('刪除方程式'), icon: 'trash-2', run: () => this.deleteNodeAt(math.pos) },
+    ];
+  }
+
+  // 編輯、刪除以外的方程式功能：獨立方程式右上角已經有編輯、刪除的按鈕，「更多功能」只列這些
+  mathMoreItems(math: MathTarget): Required<NodeViewMenuItem>[] {
+    return [
       { title: math.display ? t('改成文字中（行內）') : t('改成獨立一行'), icon: math.display ? 'text-cursor' : 'align-center', run: () => this.convertMath(math) },
       { title: t('複製 LaTeX'), icon: 'copy', run: () => this.copyText(math.src) },
       { title: t('複製為 Markdown'), icon: 'file-code', run: () => this.copyText(math.display ? '$$\n' + math.src + '\n$$' : '$' + math.src + '$') },
-      { title: t('刪除方程式'), icon: 'trash-2', run: () => this.deleteNodeAt(math.pos) },
     ];
   }
 
@@ -1141,6 +1154,12 @@ export class WordModeView extends TextFileView {
   }
 
   nodeViewContext(): NodeViewContext {
+    const menu = (evt: MouseEvent, items: NodeViewMenuItem[]) => {
+      evt.preventDefault();
+      const m = new Menu();
+      for (const it of items) m.addItem(i => { i.setTitle(it.title); if (it.icon) i.setIcon(it.icon); i.onClick(it.run); });
+      m.showAtMouseEvent(evt);
+    };
     return {
       icon: iconOr,
       openLink: (tv, n) => this.openLink(tv, n),
@@ -1163,6 +1182,12 @@ export class WordModeView extends TextFileView {
       stringifyYaml: o => stringifyYaml(o),
       propsOpen: () => this.propsOpen !== false,
       setPropsOpen: v => { this.propsOpen = v; },
+      propsSticky: () => !!this.plugin.settings.propsSticky,
+      setPropsSticky: on => {
+        void this.plugin.setPropsSticky(on);
+        // 打開時畫面不會馬上變（要往下捲才出現），說一聲
+        if (on) new Notice(t('往下捲動時，文件屬性會固定在頁面上方'));
+      },
       propertyType: key => propertyWidget(this.app, key),
       unwrapCallout: pos => this.unwrapCallout(pos),
       imageMenu: (evt, pos) => this.imageMenu(evt, pos),
@@ -1179,12 +1204,8 @@ export class WordModeView extends TextFileView {
       renderEmbed: (target, el) => renderEmbed(this, target, el),
       mediaKind: src => mediaKind(this, src),
       hoverLink: (event, linktext, targetEl) => this.hoverLink(event, linktext, targetEl),
-      menu: (evt, items) => {
-        evt.preventDefault();
-        const m = new Menu();
-        for (const it of items) m.addItem(i => { i.setTitle(it.title); if (it.icon) i.setIcon(it.icon); i.onClick(it.run); });
-        m.showAtMouseEvent(evt);
-      },
+      menu,
+      mathMenu: (evt, pos) => { const math = this.mathNodeAt(pos); if (math) menu(evt, this.mathMoreItems(math)); },
     };
   }
 

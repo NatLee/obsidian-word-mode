@@ -52,6 +52,7 @@ Shown in the animation at the top. Start a paragraph with `# `, `- `, `1. `, `> 
 <summary>More about the equation editor</summary>
 
 - Open it with **Insert → Equation**, by double-clicking an equation, or by pressing Enter on a selected one.
+- An equation on its own line shows small buttons in its top-right corner when you point at it (on a phone, tap it): edit, more options (make it inline, copy the LaTeX or the Markdown), and delete.
 - `^` and `_` open a superscript or subscript. The up and down arrows move between a numerator and a denominator.
 - Undo and redo with the buttons, or with `Ctrl+Z` and `Ctrl+Y`.
 - **Common formulas and recent equations**: insert a whole formula, such as the quadratic formula or a standard deviation, and then change the parts you need.
@@ -75,6 +76,7 @@ Shown in the animation at the top. Start a paragraph with `# `, `- `, `1. `, `> 
 <summary>More about the diagram editor</summary>
 
 - Open it with **Insert → Diagram**, or with the edit button on a Mermaid block.
+- Point at a diagram in a note to show the buttons in its top-right corner: edit, show the code, copy, and delete. Deleting removes the whole diagram, and undo brings it back.
 - On the diagram, press Enter to apply a change, or Tab to apply it and move to the next label. Renaming a participant, state, class, or entity renames every reference to it.
 - **Appearance**: choose a Mermaid theme for a single diagram, and a fill color for each flowchart step.
 - **Preview**: zoom with the buttons, or with `Ctrl` and the mouse wheel. A diagram is shown at its real size instead of being shrunk until the text is unreadable, and one button fits the whole diagram to the width of the preview.
@@ -88,7 +90,7 @@ Shown in the animation at the top. Start a paragraph with `# `, `- `, `1. `, `> 
 
 ### And more
 
-- **Properties** as a form: tags and links appear as chips that you can select to open, nested values appear as a tree, and you can change a property's type or rename it from its icon. View properties, in the View tab and the status bar, shows them without scrolling to the top and lets you filter a long list. A setting can also pin a slim properties bar to the top while you scroll; click it to see the full list. You can show properties as a box with a border and background, with a border only, or in a minimal style without a border.
+- **Properties** as a form: tags and links appear as chips that you can select to open, nested values appear as a tree, and you can change a property's type or rename it from its icon. View properties, in the View tab and the status bar, shows them without scrolling to the top and lets you filter a long list. The pin button in the properties header (or a setting) keeps a slim properties bar at the top while you scroll; click the bar to see the full list. You can show properties as a box with a border and background, with a border only, or in a minimal style without a border.
 - **Images**: paste or pick an image, then drag to resize it.
 - **Links** to notes, headings, and web pages, with a small toolbar that appears when the cursor is on a link.
 - **Find and replace**, with whole-word and regular-expression options.
@@ -102,7 +104,7 @@ Shown in the animation at the top. Start a paragraph with `# `, `- `, `1. `, `> 
 - **Shortcut list**: search it or pick a category, and select a shortcut to watch a short animation of what it does.
 - Interface in Traditional Chinese, Taiwanese (Han characters), Cantonese, Simplified Chinese, English, Japanese, Korean, Vietnamese, French, German, Spanish, Arabic, and Hebrew.
 
-Anything Word Mode can't edit visually, such as an HTML block, is shown as a raw block and saved unchanged.
+Anything Word Mode can't edit visually, such as an HTML block, is shown as a raw block and saved unchanged. Point at one, or at a footnote or comment block, to show buttons in its top-right corner to edit, copy, or delete it. Deleting a footnote also removes its numbers in the text.
 
 ## Getting started
 
