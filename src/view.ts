@@ -28,7 +28,7 @@ import { codePlugin, codeKey, codeActivePlugin } from './codehl.js';
 import { MermaidModal } from './mermaid.js';
 import { DIAGRAM_KINDS } from './diagrams.js';
 import { saveTemplate } from './templates.js';
-import { footnotes, footnoteText, footnoteBody, insertFootnote, setFootnoteBody } from './footnotes.js';
+import { footnotes, footnoteBody, insertFootnote, setFootnoteBody } from './footnotes.js';
 import { renderEmbed, mediaKind } from './embeds.js';
 import { foldKey } from './fold.js';
 import { suggestPlugin } from './suggest.js';
@@ -1174,7 +1174,6 @@ export class WordModeView extends TextFileView {
       collapseTall: () => this.plugin.settings.collapseTall !== false,
       lineNumbers: () => !!this.plugin.settings.codeLineNumbers,
       editMermaid: pos => this.openMermaid(pos),
-      footnoteText: id => footnoteText(this.pm!.state.doc, id),
       gotoFootnote: id => this.gotoFootnote(id),
       editFootnote: id => this.editFootnote(id),
       renderEmbed: (target, el) => renderEmbed(this, target, el),

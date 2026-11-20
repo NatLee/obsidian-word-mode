@@ -54,9 +54,6 @@ export interface NodeViewContext {
   menu(evt: MouseEvent, items: NodeViewMenuItem[]): void;
   notice?(message: string): void;
   // ---- 註腳
-  // 註腳的內容；找不到定義時是 null。
-  // 顯示元件已經不用它了（建立編輯器的過程中呼叫會出錯，見 RawInlineView.footnoteTip），留著是因為 view.ts 還有提供
-  footnoteText?(id: string): string | null;
   gotoFootnote?(id: string): void;
   editFootnote?(id: string): void;
   // ---- 文件屬性（frontmatter）
@@ -634,7 +631,8 @@ class FrontmatterView extends SelectableAtomView<FrontmatterDom> {
         // [[筆記|別名]] 裡的逗號不是分隔
         set(arr.concat(/^\[\[.*\]\]$/.test(tv) ? [tv] : tv.split(/[,，]\s*/).filter(Boolean)));
       };
-      inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); add(); } });
+      // isComposing：輸入法選字中的 Enter 是確定選字，不是加入這一項
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); add(); } });
       inp.addEventListener('blur', e => { add(); this.keeper.follow(e.relatedTarget); });
     } else if (type === 'checkbox') {
       const cb = keep('value', el('input', 'wm-prop-check', v)); cb.type = 'checkbox'; cb.checked = !!value;
@@ -665,7 +663,7 @@ class FrontmatterView extends SelectableAtomView<FrontmatterDom> {
         this.quiet = true;
         try { set(nv); } finally { this.quiet = false; }
       };
-      inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); inp.blur(); } });
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); inp.blur(); } });
       inp.addEventListener('change', save);
       inp.addEventListener('blur', e => {
         // 改過才重畫（值變了，類型、旁邊的開啟按鈕可能跟著變）；這一列已經作廢（整塊重畫過）就不用
@@ -731,7 +729,7 @@ class FrontmatterView extends SelectableAtomView<FrontmatterDom> {
       const o = Object.assign({}, obj); o[key] = init === '' ? null : init;
       this.commit(o);
     };
-    k.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); go(); } });
+    k.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); go(); } });
     const b = this.keeper.keep('new-add', el('button', 'wm-prop-addbtn', r, t('新增'))); b.type = 'button';
     onPress(b, go);
   }
