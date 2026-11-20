@@ -125,6 +125,15 @@ for (const k of DIAGRAM_KINDS) {
   const out = r.kind.generate(m);
   ok('心智圖：寫回程式碼', out === 'mindmap\n  root((主題))\n    分支一\n      新分支\n      細項\n    [方形]\n    分支三', out);
   ok('心智圖：圖示不能用表單', editableDiagram('mindmap\n  root\n    A\n    ::icon(fa fa-book)').reason === 'blocks');
+  // 文字裡有括號要加引號：以前引號讀進來就拿掉，寫回去是 root((計畫 (2026)))，Mermaid 畫不出來
+  const src = 'mindmap\n  root(("計畫 (2026)"))\n    子題\n    id["a [b]"]\n    "引號"';
+  const q = edit(src);
+  ok('心智圖：有引號的文字（表單裡不顯示引號）', q.model.lists.nodes[0].text === '計畫 (2026)' && q.model.lists.nodes[0].shape === 'circle' && q.model.lists.nodes[2].text === 'a [b]', JSON.stringify(q.model.lists.nodes));
+  ok('心智圖：有括號的文字寫回去還有引號', q.kind.generate(q.model) === src, q.kind.generate(q.model));
+  ok('心智圖：沒有形狀的節點整行原樣保留', q.model.lists.nodes[3].text === '"引號"' && q.model.lists.nodes[3].shape === 'default');
+  q.model.lists.nodes[1].shape = 'round';
+  q.model.lists.nodes[1].text = '子題 (一)';
+  ok('心智圖：在表單打了括號也會加引號', q.kind.generate(q.model).includes('\n    ("子題 (一)")\n') && editableDiagram(q.kind.generate(q.model)).ok, q.kind.generate(q.model));
 }
 
 // ---- 時間軸

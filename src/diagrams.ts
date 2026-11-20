@@ -614,7 +614,8 @@ const mindmap: DiagramKind = {
       const level = stack.length;
       stack.push(indent);
       if (level === 0 && nodes.length) return 'syntax'; // 只能有一個中心主題
-      let row: Row = { level: String(level), text: unquote(text), shape: 'default', id: '' };
+      // 沒有形狀的節點整行都是文字（引號也是），照原樣保留；有形狀的節點文字可以加引號
+      let row: Row = { level: String(level), text, shape: 'default', id: '' };
       for (const [shape, re] of MIND_RE) {
         const x = re.exec(text);
         if (x) { row = { level: String(level), text: unquote(x[2]), shape, id: x[1] }; break; }
@@ -629,7 +630,10 @@ const mindmap: DiagramKind = {
     const body = m.lists.nodes.map(r => {
       const shape = MIND_SHAPES.find(x => x[0] === r.shape) || MIND_SHAPES[0];
       const text = one(r.text) || '?';
-      return '  '.repeat(+r.level + 1) + (shape[0] === 'default' ? text : (r.id || '') + shape[2] + text + shape[3]);
+      // 有形狀的節點，文字裡有括號或引號時要加引號：不加的話 Mermaid 會把文字裡的括號當成形狀的結尾。
+      // 以前讀進來時拿掉引號、寫回去沒有加回來：root(("計畫 (2026)")) 變成 root((計畫 (2026)))，整張圖畫不出來
+      const label = /[()[\]{}"]/.test(text) ? '"' + text.replace(/"/g, '\'') + '"' : text;
+      return '  '.repeat(+r.level + 1) + (shape[0] === 'default' ? text : (r.id || '') + shape[2] + label + shape[3]);
     });
     return [...m.pre, 'mindmap', ...m.extra.map(x => '  ' + x), ...body].join('\n');
   },
