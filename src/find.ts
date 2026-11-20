@@ -50,6 +50,16 @@ function buildMatcher(query: string, opts: FindOptions = {}): Matcher | MatcherE
   }
 }
 
+// 一個文字區塊拿來比對的文字：圖片、連結這類不是文字的節點用 OBJ 佔位，字元位置才會跟文件位置對得上
+function blockText(node: PMNode): string {
+  let text = '';
+  node.forEach(child => { text += child.isText ? child.text : OBJ.repeat(child.nodeSize); });
+  return text;
+}
+
+// 最多找這麼多筆：再多也沒辦法一筆一筆看，而且每一筆都要畫一個標記
+const MAX_MATCHES = 5000;
+
 // opts 可以是布林值（是否區分大小寫，舊的呼叫方式）或 { caseSensitive, regex, wholeWord }
 function findMatches(doc: PMNode, query: string, opts?: FindOptions | boolean | null): FindMatch[] {
   const out: FindMatch[] = [];
@@ -57,9 +67,10 @@ function findMatches(doc: PMNode, query: string, opts?: FindOptions | boolean | 
   const mt = buildMatcher(query, o);
   if (!mt || mt.error) return out;
   doc.descendants((node, pos) => {
+    // 已經到上限：後面的區塊都不用看了（只在迴圈裡跳出的話，每個區塊還是會再多找一筆）
+    if (out.length > MAX_MATCHES) return false;
     if (!node.isTextblock) return true;
-    let text = '';
-    node.forEach(child => { text += child.isText ? child.text : OBJ.repeat(child.nodeSize); });
+    const text = blockText(node);
     mt.re.lastIndex = 0;
     let m: RegExpExecArray | null;
     while ((m = mt.re.exec(text))) {
@@ -69,19 +80,49 @@ function findMatches(doc: PMNode, query: string, opts?: FindOptions | boolean | 
       if (len <= 0) { mt.re.lastIndex = m.index + 1; if (mt.re.lastIndex > text.length) break; continue; }
       out.push({ from: pos + 1 + start, to: pos + 1 + start + len });
       mt.re.lastIndex = start + len;
-      if (out.length > 5000) return false;
+      if (out.length > MAX_MATCHES) return false;
     }
     return false;
   });
   return out;
 }
 
-// 取代的文字：正規表示式模式可以用 $1、$2 代表括號裡找到的內容
-function replacementFor(matched: string, query: string, opts: FindOptions, replacement: string): string {
+// 把取代文字裡的 $1、$2、$&、$$、$<名稱> 換成比對到的內容（規則跟 String.replace 一樣）
+function expandReplacement(replacement: string, m: RegExpExecArray, text: string): string {
+  const groups = m.length - 1;
+  return replacement.replace(/\$(?:(\$)|(&)|(`)|(')|(\d\d?)|<([^>]*)>)/g,
+    (all: string, dollar?: string, amp?: string, before?: string, after?: string, num?: string, name?: string) => {
+      if (dollar) return '$';
+      if (amp) return m[0];
+      if (before) return text.slice(0, m.index);
+      if (after) return text.slice(m.index + m[0].length);
+      if (num != null) {
+        // 兩位數的組別不存在時，當成一位數的組別後面接一個普通的數字
+        let n = +num; let rest = '';
+        if (n > groups && num.length === 2) { n = +num[0]; rest = num[1]; }
+        return n >= 1 && n <= groups ? (m[n] ?? '') + rest : all;
+      }
+      if (name != null) return m.groups ? (m.groups[name] ?? '') : all;
+      return all;
+    });
+}
+
+// 取代的文字：正規表示式模式可以用 $1、$2 代表括號裡找到的內容。
+// 要在那個文字區塊的原位置重新比對一次：只拿找到的那幾個字去比對的話，看前後文的寫法
+// （cat(?=2)、\Bcat）會比對不到，結果是「取代」了卻什麼都沒變
+function replacementFor(doc: PMNode, at: FindMatch, query: string, opts: FindOptions, replacement: string): string {
   if (!opts.regex) return replacement;
   const mt = buildMatcher(query, opts);
   if (!mt || mt.error) return replacement;
-  try { return matched.replace(new RegExp(mt.re.source, mt.re.flags.replace('g', '')), replacement); } catch { return replacement; }
+  const $from = doc.resolve(at.from);
+  const text = blockText($from.parent);
+  try {
+    // y：只在 lastIndex 這個位置比對，不往後找
+    const re = new RegExp(mt.re.source, mt.re.flags.replace('g', '') + 'y');
+    re.lastIndex = $from.parentOffset;
+    const hit = re.exec(text);
+    return hit ? expandReplacement(replacement, hit, text) : replacement;
+  } catch { return replacement; }
 }
 
 function compute(doc: PMNode, s: FindState): FindState {
@@ -281,7 +322,7 @@ export class FindBar {
     const s = this.state();
     const m = s.matches[s.current];
     if (!m) return;
-    const text = replacementFor(v.state.doc.textBetween(m.from, m.to, null, OBJ), s.query, s, this.replInput.value);
+    const text = replacementFor(v.state.doc, m, s.query, s, this.replInput.value);
     const tr = v.state.tr.insertText(text, m.from, m.to);
     v.dispatch(tr);
     const after = this.state();
@@ -297,7 +338,7 @@ export class FindBar {
     if (!s.matches.length) return;
     const tr = v.state.tr;
     for (const m of s.matches.slice().reverse()) {
-      tr.insertText(replacementFor(v.state.doc.textBetween(m.from, m.to, null, OBJ), s.query, s, this.replInput.value), m.from, m.to);
+      tr.insertText(replacementFor(v.state.doc, m, s.query, s, this.replInput.value), m.from, m.to);
     }
     const n = s.matches.length;
     v.dispatch(tr);
