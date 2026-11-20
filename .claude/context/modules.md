@@ -11,7 +11,7 @@
 | 功能區按鈕 | `toolbar.ts` 的 `buildHome`／`buildInsert`／`buildReview`／`buildView`；Markdown／閱讀模式的對應按鈕在 `mdbar.ts` 的 `render()` |
 | 功能區的分頁與群組（哪個群組在哪個分頁、順序、名稱） | `toolbar.ts` 的 `TABS`、`GROUPS` 是預設值；`groupLayout(settings)` 套用使用者的自訂（`groupNames`、`groupTabs`、`groupOrder`），兩條功能區與設定頁的清單（`groupsettings.ts`）都用它，不要直接讀 `GROUPS` 排版 |
 | 色彩面板 | `colorpicker.ts`（`buildColorPanel`）；由 `toolbar.ts` 的 `openColorPopup`／`openHighlightPopup` 開啟 |
-| 右鍵選單、快速鍵、貼上、拖放 | `view.ts` 的 `onContextMenu`、`onOpen`（scope 的快速鍵）、`onKeyDown`、`onPaste`、`onDrop` |
+| 右鍵選單、快速鍵、貼上、拖放 | 右鍵選單在 `contextmenu.ts` 的 `openContextMenu`（`view.ts` 的 `onContextMenu` 呼叫它）；其餘在 `view.ts` 的 `onOpen`（scope 的快速鍵）、`onKeyDown`、`onPaste`、`onDrop` |
 | 連結、圖片、程式碼區塊、表格、提示框、文件屬性的畫面 | `nodeviews.ts`（每種節點一個 NodeView；需要 Obsidian 的功能由 `NodeViewContext` 傳入，在 `view.ts` 的 `nodeViewContext()`） |
 | 連結／圖片上的浮動小工具列 | `bubble.ts` |
 | 右下角的狀態列（字數、存檔狀態、檢視切換、查看文件屬性、縮放） | `statusbar.ts` 的 `buildStatusBar`：Word 模式（`view.ts` 的 `buildBottomBar`）與 Markdown／閱讀模式（`MdStatusBar`，由 `main.ts` 的 `updateStatus` 建立）共用，兩邊的版面要一樣 |

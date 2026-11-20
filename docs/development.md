@@ -109,6 +109,7 @@ All styles are in `styles/word-mode.css`, and every class starts with `wm-`. The
 | `src/main.ts` | Plugin entry point, and switching between Word mode and Markdown. |
 | `src/settings.ts`, `src/settingstab.ts` | `Settings` and `DEFAULTS`; the settings tab. |
 | `src/view.ts` | The Word mode view (`TextFileView`). |
+| `src/contextmenu.ts` | The right-click menu of the Word mode view. |
 | `src/markdown.ts` | Conversion between Markdown and the document model. |
 | `src/schema.ts` | Document model (ProseMirror schema). |
 | `src/editor.ts` | Editor state setup. |

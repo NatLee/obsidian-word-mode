@@ -109,6 +109,7 @@ Word 模式的功能區（`src/toolbar.ts`）與 Markdown、閱讀模式的功�
 | `src/main.ts` | 外掛進入點、Word 模式與 Markdown 的切換。 |
 | `src/settings.ts`、`src/settingstab.ts` | `Settings` 與 `DEFAULTS`；設定頁。 |
 | `src/view.ts` | Word 模式的檢視（`TextFileView`）。 |
+| `src/contextmenu.ts` | Word 模式檢視的右鍵選單。 |
 | `src/markdown.ts` | Markdown 與文件模型之間的轉換。 |
 | `src/schema.ts` | 文件模型（ProseMirror schema）。 |
 | `src/editor.ts` | 編輯器狀態的設定。 |
