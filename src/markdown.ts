@@ -202,6 +202,8 @@ function htmlToMarks(children: Token[]): void {
 function obsidianCore(state: StateCore): void {
   const tokens = state.tokens;
   const out: Token[] = [];
+  let lines: string[] | null = null; // 原文的每一行：用到才切
+  const lineOf = (n: number): string => { if (!lines) lines = state.src.split('\n'); return lines[n] || ''; };
   for (let i = 0; i < tokens.length; i++) {
     const t = tokens[i];
     // 任務清單 - [ ] / - [x]
@@ -209,7 +211,13 @@ function obsidianCore(state: StateCore): void {
       && tokens[i + 2] && tokens[i + 2].type === 'inline') {
       const inl = tokens[i + 2];
       // 任何單一字元都算任務狀態（- [/]、- [-]、- [>] 等自訂狀態，Tasks 外掛與佈景主題會用）
-      const m = inl.content.match(/^\[([^[\]\n])\][ \t]/);
+      let m = inl.content.match(/^\[([^[\]\n])\][ \t]/);
+      if (!m) {
+        // 方框後面什麼都沒有（剛加、還沒打字的待辦事項「- [ ] 」）也是任務：markdown-it 會去掉行尾的空白，
+        // 所以回頭看原文那一行。原文連空白都沒有時只認 [ ] 與 [x]，免得「- [1]」這種項目變成任務
+        const bare = inl.content.match(/^\[([^[\]\n])\]$/);
+        if (bare && (/[ xX]/.test(bare[1]) || (inl.map && /\][ \t]+$/.test(lineOf(inl.map[0]))))) m = bare;
+      }
       const first = inl.children && inl.children[0];
       if (m && first && first.type === 'text' && first.content.startsWith(m[0])) {
         t.meta = Object.assign({}, t.meta, { checked: m[1] !== ' ', status: m[1] === ' ' || m[1] === 'x' ? null : m[1] });

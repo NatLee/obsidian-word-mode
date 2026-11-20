@@ -15,6 +15,7 @@ const ok = (label, cond, extra = '') => { if (!cond) { fails++; console.log('FAI
 const CASES = {
   customTask: '- [/] 進行中\n- [-] 取消\n- [>] 延後\n- [X] 大寫\n- [x] 完成\n- [ ] 待辦\n',
   taskNotLink: '- [x](https://a.b) 連結不是任務\n- [^1] 註腳不是任務\n',
+  emptyTask: '- [ ] \n- [x] 做完的\n- [/] \n- [ ]\n> - [ ] \n',
   htmlComment: '文字 <!-- 註解 --> 後面\n',
   blockComment: '%%\n多行\n\n註解 **x**\n%%\n',
   blockCommentGlued: '前面的文字\n%%\n多行\n\n註解\n%%\n後面的文字\n',
@@ -107,6 +108,16 @@ const kinds = src => { const out = []; c.parse(src).doc.forEach(n => out.push(n.
 let o = edited(CASES.customTask, '進行中');
 ok('自訂任務狀態：編輯後保留 [/] [-] [>] [X]', o === '- [/] 新進行中\n- [-] 取消\n- [>] 延後\n- [X] 大寫\n- [x] 完成\n- [ ] 待辦\n', JSON.stringify(o));
 ok('[x](網址) 與 [^1] 不是任務', c.parse(CASES.taskNotLink).doc.firstChild.firstChild.attrs.checked == null);
+{
+  // 還沒打字的待辦事項（- [ ] 後面是空的）：是任務，編輯同一個清單的其他項目不會把方框跳脫成 \[ \]
+  const items = []; c.parse(CASES.emptyTask).doc.firstChild.forEach(li => items.push([li.attrs.checked, li.attrs.status, li.textContent]));
+  ok('空的待辦事項是任務', JSON.stringify(items) === '[[false,null,""],[true,null,"做完的"],[true,"/",""],[false,null,""]]', JSON.stringify(items));
+  o = edited(CASES.emptyTask, '做完的');
+  ok('空的待辦事項：編輯其他項目後方框還在', o === '- [ ] \n- [x] 新做完的\n- [/] \n- [ ] \n> - [ ] \n', JSON.stringify(o));
+  const plain = c.parse('- [1]\n- [a] \n- [ ]\n  下一行\n').doc.firstChild;
+  ok('「- [1]」後面連空白都沒有：不是任務', plain.child(0).attrs.checked == null && plain.child(0).textContent === '[1]');
+  ok('「- [a] 」後面有空白：是自訂狀態的任務', plain.child(1).attrs.checked === true && plain.child(1).attrs.status === 'a');
+}
 
 ok('有空行的 %% 註解是一整個原文區塊', kinds(CASES.blockComment) === 'raw_block:comment', kinds(CASES.blockComment));
 ok('有空行的 $$ 數學式是一整個原文區塊', kinds(CASES.mathBlank) === 'raw_block:math', kinds(CASES.mathBlank));
