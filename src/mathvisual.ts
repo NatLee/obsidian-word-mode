@@ -29,16 +29,24 @@ for (const [cmd, ch] of [...SYMBOL_PAIRS, ...SPACE_PAIRS]) if (!CHAR_TO_CMD.has(
 const FUNCS = ['arcsin', 'arccos', 'arctan', 'sinh', 'cosh', 'tanh', 'sin', 'cos', 'tan', 'cot', 'sec', 'csc', 'log', 'ln', 'lim', 'max', 'min', 'exp', 'det', 'gcd'];
 const FUNC_SET = new Set(FUNCS);
 
-// LaTeX 文字 → 顯示：\alpha → α、\sin → sin、\, → 細空白；不認得的指令照原樣顯示
+// LaTeX 文字 → 顯示：\alpha → α、\sin → sin、\, → 細空白；不認得的指令照原樣顯示。
+// 顯示的結果要能用 fromDisplay 轉回原本的 LaTeX：使用者只改格子裡的一個字，整格都會從顯示的文字轉回去，
+// 轉不回來的寫法就等於被改掉。所以只有「轉得回來」的時候才換成好讀的樣子，否則照原文顯示
 export function toDisplay(latex: string): string {
-  // bb、sp、name 只會有一個有值；前兩個有值時就先回傳了，所以 name 在後面一定是字串
-  return latex.replace(/\\mathbb\{([RNZQC])\}|\\([,:;])|\\([A-Za-z]+) ?/g, (m: string, bb: string | undefined, sp: string | undefined, name: string) => {
+  // 反斜線加一個不是字母的字（\\、\{、\,）是一個單位：不這樣讀的話，「\\sin」（換行後面接 sin）會被看成「\」加「\sin」。
+  // bb、other 有值時就先回傳了，所以 name 與 space 在後面一定是字串
+  return latex.replace(/\\mathbb\{([RNZQC])\}|\\([^A-Za-z])|\\([A-Za-z]+)( ?)/g, (m: string, bb: string | undefined, other: string | undefined, name: string, space: string, at: number) => {
     if (bb) return CMD_TO_CHAR.get('\\mathbb{' + bb + '}')!;
-    if (sp) return SPACE_TO_CHAR.get('\\' + sp)!;
-    if (name === 'qquad') return '\u2003\u2003';
+    if (other != null) return SPACE_TO_CHAR.get('\\' + other) || m;
     const cmd = '\\' + name;
-    if (CMD_TO_CHAR.has(cmd)) return CMD_TO_CHAR.get(cmd)!;
-    if (FUNC_SET.has(name)) return name + (m.endsWith(' ') ? ' ' : '');
+    // 符號後面的空白只有在「隔開後面的字母」時才不顯示（\alpha x → αx，轉回去時 fromDisplay 會補上）；
+    // 其他的空白照樣顯示，轉回去才一字不差（以前 \alpha + \beta 改過一個字就變成 \alpha+ \beta）
+    const shownSpace = space && /[A-Za-z]/.test(latex[at + m.length] || '') ? '' : space;
+    if (name === 'qquad') return '\u2003\u2003' + shownSpace;
+    if (CMD_TO_CHAR.has(cmd)) return CMD_TO_CHAR.get(cmd)! + shownSpace;
+    // 函數名稱前面緊接字母或反斜線（n\log n、\sin\cos x、\arg\max）時不能拿掉反斜線：
+    // 拿掉之後跟前面的字連在一起，轉回去就變成 nlog n、\argmax（少了反斜線，或變成不存在的指令）
+    if (FUNC_SET.has(name) && !/[A-Za-z\\]/.test(latex[at - 1] || '')) return name + space;
     return m;
   });
 }
@@ -797,7 +805,8 @@ export class MathField {
       return true;
     }
     if (CMD_TO_CHAR.has(cmd) || FUNC_SET.has(m[1])) {
-      const shown = toDisplay(cmd + ' ');
+      // 符號顯示成符號；函數名稱拿掉反斜線、後面留一個空白。函數名稱前面緊接字母時照原文顯示（n\log，見 toDisplay）
+      const shown = CMD_TO_CHAR.get(cmd) || (/[A-Za-z\\]$/.test(before) ? cmd : m[1]) + ' ';
       it.v = fromDisplay(before + shown + after);
       span.textContent = before + shown + after;
       span.classList.remove('is-slot');

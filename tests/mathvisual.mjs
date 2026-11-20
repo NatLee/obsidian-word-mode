@@ -53,10 +53,11 @@ const tag = parseLatex('E \\tag{1}')[1], tagStar = parseLatex('\\tag*{x}')[1];
 ok('編號的結構', tag.t === 'group' && tag.cmd === '\\tag' && toLatex(tag.a) === '1' && tagStar.t === 'group' && tagStar.cmd === '\\tag*', JSON.stringify([tag.cmd, tagStar.cmd]));
 
 // 符號顯示
-ok('顯示：\\alpha + \\beta → α+ β', toDisplay('\\alpha + \\beta') === 'α+ β', toDisplay('\\alpha + \\beta'));
+ok('顯示：\\alpha + \\beta → α + β', toDisplay('\\alpha + \\beta') === 'α + β', toDisplay('\\alpha + \\beta'));
+ok('顯示：\\alpha x → αx（隔開字母的空白不顯示）', toDisplay('\\alpha x') === 'αx', toDisplay('\\alpha x'));
 ok('顯示：\\sin x → sin x', toDisplay('\\sin x') === 'sin x', toDisplay('\\sin x'));
 ok('顯示：不認得的指令照原樣', toDisplay('\\foo x') === '\\foo x');
-ok('顯示：\\mathbb{R} → ℝ', toDisplay('x \\in \\mathbb{R}') === 'x ∈ℝ', toDisplay('x \\in \\mathbb{R}'));
+ok('顯示：\\mathbb{R} → ℝ', toDisplay('x \\in \\mathbb{R}') === 'x ∈ ℝ', toDisplay('x \\in \\mathbb{R}'));
 ok('輸入：α+β → \\alpha+\\beta', fromDisplay('α+β') === '\\alpha+\\beta', fromDisplay('α+β'));
 ok('輸入：αx → \\alpha x（補空白）', fromDisplay('αx') === '\\alpha x', fromDisplay('αx'));
 ok('輸入：sin x → \\sin x', fromDisplay('sin x') === '\\sin x' && fromDisplay('2sin(x)') === '2\\sin(x)', fromDisplay('2sin(x)'));
@@ -71,6 +72,17 @@ for (const s of ['\\alpha x', '\\sin x', 'a \\le b', '\\sum', '\\infty', 'x \\to
   const back = fromDisplay(toDisplay(s));
   ok('顯示再轉回 LaTeX 意思相同：' + s, back.replace(/ /g, '') === s.replace(/ /g, ''), back);
 }
+
+// ---- 沒有改到的內容要原樣回來
+// 使用者在格子裡改一個字，整格都會「顯示 → 再轉回 LaTeX」；整個方程式也會從格子重新寫出來。
+// 這兩條路只要有一條轉不回來，沒改到的地方就被改掉了。
+
+// 函數名稱前面緊接字母或另一個指令：以前反斜線不見了（nlog n、sincos x、\argmax）
+for (const s of ['n\\log n', '\\sin\\cos x', '\\arg\\max', 'O(n\\log n)', '\\alpha\\sin x', '2\\pi\\cos\\theta', 'x\\max y']) {
+  ok('顯示再轉回，反斜線還在：' + s, fromDisplay(toDisplay(s)) === s, JSON.stringify(toDisplay(s)) + ' → ' + fromDisplay(toDisplay(s)));
+}
+ok('緊接字母的函數名稱照原文顯示', toDisplay('n\\log n') === 'n\\log n' && toDisplay('\\sin\\cos x') === 'sin\\cos x', toDisplay('\\sin\\cos x'));
+ok('換行後面的字不會被看成指令：\\\\sin', toDisplay('a \\\\sin x') === 'a \\\\sin x' && fromDisplay(toDisplay('a \\\\\\sin x')) === 'a \\\\\\sin x', toDisplay('a \\\\sin x'));
 
 if (fails) process.exitCode = 1;
 console.log(fails ? `\n${fails} FAILED` : '\nALL PASS');
