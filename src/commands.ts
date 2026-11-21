@@ -4,9 +4,10 @@ import { toggleMark, wrapIn, lift, baseKeymap, chainCommands, exitCode, selectAl
 import { wrapInList, liftListItem, sinkListItem, splitListItem } from 'prosemirror-schema-list';
 import { undo, redo } from 'prosemirror-history';
 import {
-  addRowBefore, addRowAfter, addColumnBefore, addColumnAfter, deleteRow, deleteColumn, deleteTable,
+  addRowBefore, addRowAfter, addColumnBefore, addColumnAfter, deleteRow, deleteColumn,
   goToNextCell, setCellAttr, isInTable, CellSelection,
 } from 'prosemirror-tables';
+import { Fragment } from 'prosemirror-model';
 import type { Command, EditorState, Transaction } from 'prosemirror-state';
 import type { Attrs, Node as PMNode, Mark, MarkType, NodeType, ResolvedPos } from 'prosemirror-model';
 import type { I18nKey } from './i18n.js';
@@ -857,6 +858,17 @@ export interface TableCommands {
   deleteRow: Command;
   deleteColumn: Command;
   deleteTable: Command;
+  // 選取游標所在的儲存格、整列、整欄、整張表
+  selectCell: Command;
+  selectRow: Command;
+  selectColumn: Command;
+  selectTable: Command;
+  // 清除選取的儲存格的內容（表格本身留著）
+  clearCells: Command;
+  // 在表格後面新增段落並把游標移過去
+  exit: Command;
+  // 表格轉成文字
+  toText: Command;
   // 只設定選取的儲存格
   align: (a: CellAlign) => Command;
   // 設定游標所在的整欄
@@ -865,9 +877,326 @@ export interface TableCommands {
 
 // ---------------------------------------------------------------- 表格
 
+// 選取或游標所在的表格：整張表被選取（NodeSelection，例如表格下方的段落開頭按 Backspace）、
+// 選取了儲存格、游標在儲存格裡都算
+function tableAt(state: EditorState): NodeAt | null {
+  const sel = state.selection;
+  if (sel instanceof NodeSelection && sel.node.type === N.table) return { node: sel.node, pos: sel.from };
+  const a = findAncestor(sel instanceof CellSelection ? sel.$anchorCell : sel.$from, n => n.type === N.table);
+  return a ? { node: a.node, pos: a.pos } : null;
+}
+
+// 游標所在的儲存格（指在儲存格前面的位置，跟 CellSelection 的 $anchorCell 一樣）；選取了儲存格時是選取的終點
+function cellAt(state: EditorState): ResolvedPos | null {
+  const sel = state.selection;
+  if (sel instanceof CellSelection) return sel.$headCell;
+  const $f = sel.$from;
+  for (let d = $f.depth; d > 0; d--) {
+    const t = $f.node(d).type;
+    if (t === N.table_cell || t === N.table_header) return state.doc.resolve($f.before(d));
+  }
+  return null;
+}
+
+// 刪除整張表。表格是所在區塊唯一的內容（整份文件、提示框裡只有這張表）時換成一個空段落，
+// 游標放在表格原本的位置（後面的段落開頭；後面沒有東西時放到前面）
+const removeTable: Command = (state, dispatch) => removeTableNode(state, tableAt(state), dispatch);
+
+// 刪除 pos 位置的表格（表格右上角的刪除按鈕：游標不一定在表格裡）
+export function deleteTableAt(pos: number): Command {
+  return (state, dispatch) => {
+    const node = state.doc.nodeAt(pos);
+    return removeTableNode(state, node && node.type === N.table ? { node, pos } : null, dispatch);
+  };
+}
+
+function removeTableNode(state: EditorState, t: NodeAt | null, dispatch?: Dispatch): boolean {
+  if (!t) return false;
+  if (dispatch) {
+    const tr = state.tr;
+    if (state.doc.resolve(t.pos).parent.childCount === 1) tr.replaceWith(t.pos, t.pos + t.node.nodeSize, N.paragraph.create());
+    else tr.delete(t.pos, t.pos + t.node.nodeSize);
+    tr.setSelection(Selection.near(tr.doc.resolve(Math.min(t.pos, tr.doc.content.size)), 1));
+    dispatch(tr.scrollIntoView());
+  }
+  return true;
+};
+
+// 刪除列。刪掉的是標題列時，下一列升為標題列：Markdown 的表格一定有標題列，
+// 不升的話存檔時第一列還是會被寫成標題，但編輯時看起來不是
+const removeRows: Command = (state, dispatch) => {
+  const t = tableAt(state);
+  if (!t) return false;
+  if (!dispatch) return deleteRow(state);
+  return deleteRow(state, tr => {
+    const node = tr.doc.nodeAt(t.pos);
+    const head = node && node.type === N.table ? node.firstChild : null;
+    if (head) {
+      let p = t.pos + 2;
+      head.forEach(cell => {
+        if (cell.type !== N.table_header) tr.setNodeMarkup(p, N.table_header, cell.attrs);
+        p += cell.nodeSize;
+      });
+    }
+    dispatch(tr);
+  });
+};
+
+// 選取整張表：所有儲存格（跟 Word 一樣看得到哪些格被選取）
+const selectTable: Command = (state, dispatch) => {
+  const t = tableAt(state);
+  const last = t && t.node.lastChild && t.node.lastChild.lastChild;
+  if (!t || !last) return false;
+  // 第一格在表格與列的開頭之後；最後一格在表格與列的結尾之前
+  if (dispatch) dispatch(state.tr.setSelection(CellSelection.create(state.doc, t.pos + 2, t.pos + t.node.nodeSize - 2 - last.nodeSize)));
+  return true;
+};
+
+// 選取游標所在（或已選取的範圍所在）的儲存格、整列、整欄
+function selectCells(how: 'cell' | 'row' | 'col'): Command {
+  return (state, dispatch) => {
+    const $head = cellAt(state);
+    if (!$head) return false;
+    const sel = state.selection;
+    const $anchor = sel instanceof CellSelection ? sel.$anchorCell : $head;
+    if (dispatch) {
+      const next = how === 'row' ? CellSelection.rowSelection($anchor, $head)
+        : how === 'col' ? CellSelection.colSelection($anchor, $head) : new CellSelection($head);
+      dispatch(state.tr.setSelection(next));
+    }
+    return true;
+  };
+}
+
+// 清除選取的儲存格（沒有選取儲存格時是游標所在的那一格）的內容，表格留著
+const clearCells: Command = (state, dispatch) => {
+  const sel = state.selection;
+  if (!(sel instanceof CellSelection)) {
+    const $cell = cellAt(state);
+    if (!$cell) return false;
+    const cell = $cell.nodeAfter!;
+    if (!cell.textContent && cell.firstChild!.childCount === 0) return false;
+    if (dispatch) dispatch(state.tr.replaceWith($cell.pos + 1, $cell.pos + cell.nodeSize - 1, N.paragraph.create()));
+    return true;
+  }
+  if (dispatch) dispatch(state.tr.deleteSelection());
+  return true;
+};
+
+// 選取了整張表、整列或整欄時按 Backspace：刪掉選取的表格、列或欄（像 Word）。
+// 只選了其中幾格時回傳 false，交給內建的處理清空內容；Delete 鍵一律只清空內容（也跟 Word 一樣）
+const backspaceCells: Command = (state, dispatch) => {
+  const sel = state.selection;
+  if (!(sel instanceof CellSelection)) return false;
+  const rows = sel.isRowSelection();
+  const cols = sel.isColSelection();
+  if (rows && cols) return removeTable(state, dispatch);
+  if (rows) return removeRows(state, dispatch);
+  if (cols) return deleteColumn(state, dispatch);
+  return false;
+};
+
+// 表格每一格都是空的、游標在第一格開頭時按 Backspace：刪掉整張表（剛插入又不要的表格）
+const backspaceEmptyTable: Command = (state, dispatch) => {
+  const sel = state.selection;
+  if (!(sel instanceof TextSelection) || !sel.empty) return false;
+  const t = tableAt(state);
+  // 第一格的段落開頭：表格、列、儲存格、段落的開頭各一個位置
+  if (!t || sel.from !== t.pos + 4) return false;
+  let empty = true;
+  t.node.descendants(n => { if (n.isInline) empty = false; return empty; });
+  return empty && removeTable(state, dispatch);
+};
+
+// 表格下面的空段落開頭按 Backspace：刪掉這個空段落，游標移到最後一格的結尾（像 Word）。
+// 段落有字時交給內建的處理：先選取整張表（有外框），再按一次才刪除
+const backspaceAfterTable: Command = (state, dispatch) => {
+  const sel = state.selection;
+  if (!(sel instanceof TextSelection) || !sel.empty) return false;
+  const $c = sel.$from;
+  if ($c.depth < 1 || $c.parent.type !== N.paragraph || $c.parent.content.size) return false;
+  const before = state.doc.resolve($c.before()).nodeBefore;
+  if (!before || before.type !== N.table) return false;
+  if (dispatch) {
+    const start = $c.before();
+    const tr = state.tr.delete(start, $c.after());
+    // 最後一格的段落結尾：表格、列、儲存格、段落的結尾各往前一個位置
+    tr.setSelection(TextSelection.create(tr.doc, start - 4));
+    dispatch(tr.scrollIntoView());
+  }
+  return true;
+};
+
+// 在表格後面新增一個空段落並把游標移過去（Ctrl+Enter）。表格在文件最後時，沒有這個就很難在表格下面打字
+const exitTable: Command = (state, dispatch) => {
+  const t = tableAt(state);
+  if (!t) return false;
+  if (dispatch) {
+    const end = t.pos + t.node.nodeSize;
+    const tr = state.tr.insert(end, N.paragraph.create());
+    tr.setSelection(TextSelection.create(tr.doc, end + 1));
+    dispatch(tr.scrollIntoView());
+  }
+  return true;
+};
+
+// 表格是文件的最後一個區塊、游標在最後一列時按 ↓：在表格後面新增段落（像在 Word 裡往下走出表格）
+const arrowDownOutOfTable: Command = (state, dispatch, view) => {
+  const sel = state.selection;
+  if (!(sel instanceof TextSelection) || !sel.empty) return false;
+  const t = tableAt(state);
+  if (!t) return false;
+  const $t = state.doc.resolve(t.pos);
+  if ($t.depth !== 0 || $t.index() !== state.doc.childCount - 1) return false;
+  // 列在表格的下一層；儲存格裡有換行時，先在格子裡往下移
+  if (sel.$from.index($t.depth + 1) !== t.node.childCount - 1) return false;
+  if (view && !view.endOfTextblock('down')) return false;
+  return exitTable(state, dispatch);
+};
+
+// 表格轉成文字（Word 的「轉換成文字」）：每一列變成一個段落，儲存格之間用 Tab 隔開；格式與格子裡的換行都留著
+const tableToText: Command = (state, dispatch) => {
+  const t = tableAt(state);
+  if (!t) return false;
+  if (dispatch) {
+    const paras: PMNode[] = [];
+    t.node.forEach(row => {
+      const inline: PMNode[] = [];
+      row.forEach((cell, _off, i) => {
+        if (i) inline.push(schema.text('\t'));
+        cell.forEach(p => p.content.forEach(n => { inline.push(n); }));
+      });
+      paras.push(N.paragraph.create(null, inline));
+    });
+    const tr = state.tr.replaceWith(t.pos, t.pos + t.node.nodeSize, paras);
+    tr.setSelection(TextSelection.create(tr.doc, t.pos + 1, t.pos + paras.reduce((n, p) => n + p.nodeSize, 0) - 1));
+    dispatch(tr.scrollIntoView());
+  }
+  return true;
+};
+
+// 把一段行內內容在 cut 成立的地方切開（cut 是字元，或是遇到就切開的節點，例如換行）；格式留著
+function splitInline(content: Fragment, cut: string | ((n: PMNode) => boolean)): Fragment[] {
+  const out: Fragment[] = [];
+  let cur: PMNode[] = [];
+  content.forEach(n => {
+    if (typeof cut === 'function') {
+      if (cut(n)) { out.push(Fragment.fromArray(cur)); cur = []; } else cur.push(n);
+      return;
+    }
+    if (!n.isText) { cur.push(n); return; }
+    n.text!.split(cut).forEach((part, i) => {
+      if (i) { out.push(Fragment.fromArray(cur)); cur = []; }
+      if (part) cur.push(schema.text(part, n.marks));
+    });
+  });
+  out.push(Fragment.fromArray(cur));
+  return out;
+}
+
+// 去掉行內內容頭尾的空白
+function trimInline(content: Fragment): Fragment {
+  const nodes: PMNode[] = [];
+  content.forEach(n => { nodes.push(n); });
+  const edit = (i: number, f: (s: string) => string) => {
+    const n = nodes[i];
+    if (!n || !n.isText) return;
+    const s = f(n.text!);
+    if (s) nodes[i] = schema.text(s, n.marks); else nodes.splice(i, 1);
+  };
+  edit(0, s => s.replace(/^\s+/, ''));
+  edit(nodes.length - 1, s => s.replace(/\s+$/, ''));
+  return Fragment.fromArray(nodes);
+}
+
+const inlineText = (f: Fragment): string => f.textBetween(0, f.size, '', '');
+// Markdown 表格的分隔列（|---|:---:|）：用「|」分欄時跳過
+const PIPE_RULE = /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/;
+
+// 選取的段落轉成表格（Word 的「文字轉換成表格」）。每一行一列；有 Tab 用 Tab 分欄，
+// 每一行都有「|」就用「|」，每一行都有逗號就用逗號（半形或全形），都沒有就只有一欄。
+// 第一列是標題列（Markdown 的表格一定有標題列）；欄數不一樣的列補上空格
+export const textToTable: Command = (state, dispatch) => {
+  const sel = state.selection;
+  // 文字選取或全選（Ctrl+A）都可以；選了整個區塊（圖片、原文區塊）或儲存格時不行
+  if (sel.empty || sel instanceof NodeSelection || sel instanceof CellSelection || isInTable(state)) return false;
+  const range = sel.$from.blockRange(sel.$to);
+  if (!range) return false;
+  const paras: PMNode[] = [];
+  for (let i = range.startIndex; i < range.endIndex; i++) paras.push(range.parent.child(i));
+  if (!paras.every(p => p.type === N.paragraph)) return false;
+  if (!range.parent.canReplaceWith(range.startIndex, range.endIndex, N.table)) return false;
+  // 空白的行不算一列；只有圖片、連結、方程式（沒有文字）的行要留著
+  const hasContent = (l: Fragment): boolean => { let any = false; l.forEach(n => { if (!n.isText || n.text!.trim()) any = true; }); return any; };
+  const lines = paras.flatMap(p => splitInline(p.content, n => n.type === N.hard_break)).filter(hasContent);
+  if (!lines.length) return false;
+  const texts = lines.map(inlineText);
+  const delim = texts.some(s => s.includes('\t')) ? '\t'
+    : texts.every(s => s.includes('|')) ? '|'
+      : texts.every(s => s.includes(',')) ? ','
+        : texts.every(s => s.includes('，')) ? '，' : null;
+  const rows: Fragment[][] = [];
+  lines.forEach((line, i) => {
+    if (delim === '|' && PIPE_RULE.test(texts[i])) return;
+    let cells = delim ? splitInline(line, delim) : [line];
+    // 「| a | b |」頭尾的「|」外面是空的，不算一格
+    if (delim === '|' && /^\s*\|/.test(texts[i]) && cells.length > 1) cells = cells.slice(1);
+    if (delim === '|' && /\|\s*$/.test(texts[i]) && cells.length > 1) cells = cells.slice(0, -1);
+    rows.push(cells.map(trimInline));
+  });
+  if (!rows.length) return false;
+  if (dispatch) {
+    const cols = Math.max(...rows.map(r => r.length));
+    const node = N.table.create(null, rows.map((r, i) => N.table_row.create(null,
+      Array.from({ length: cols }, (_, c) => (i === 0 ? N.table_header : N.table_cell).create(null, N.paragraph.create(null, r[c] || Fragment.empty))))));
+    const tr = state.tr.replaceWith(range.start, range.end, node);
+    tr.setSelection(TextSelection.create(tr.doc, range.start + 4));
+    dispatch(tr.scrollIntoView());
+  }
+  return true;
+};
+
+// 行內的單一節點轉成純文字：換行是「\n」，筆記連結是顯示的名稱，圖片是替代文字，方程式、註解這類原文是原文。
+// 不寫在 schema 的 leafText：那會改到字數統計、尋找等所有用 textContent 的地方
+function leafText(n: PMNode): string {
+  if (n.type === N.hard_break) return '\n';
+  if (n.type === N.wikilink) return String(n.attrs.alias || n.attrs.target || '');
+  if (n.type === N.image) return String(n.attrs.alt || '');
+  if (n.type === N.raw_inline) return String(n.attrs.src || '');
+  return '';
+}
+
+// 複製表格時剪貼簿裡的純文字：Tab 分隔（貼到 Excel、試算表會分好欄）。
+// 格子裡有 Tab、換行或雙引號時照 Excel 的寫法用雙引號包起來。
+// rows 是整張表，或只選了幾格、一列、一欄時複製到的那幾列（CellSelection.content() 給的是 table_row，不是 table）
+export function tableTSV(rows: PMNode | Fragment): string {
+  const out: string[] = [];
+  rows.forEach(row => {
+    const cells: string[] = [];
+    row.forEach(cell => {
+      const s = cell.textBetween(0, cell.content.size, ' ', leafText);
+      cells.push(/[\t\n"]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s);
+    });
+    out.push(cells.join('\t'));
+  });
+  return out.join('\n');
+}
+
+// 剪貼簿的純文字：複製的是表格或表格裡的幾格時用 Tab 分隔，不是時回傳 null（用 ProseMirror 原本的寫法）
+export function clipboardTableText(content: Fragment): string | null {
+  const first = content.firstChild;
+  if (!first) return null;
+  if (content.childCount === 1 && first.type === N.table) return tableTSV(first);
+  let rows = true;
+  content.forEach(n => { if (n.type !== N.table_row) rows = false; });
+  return rows ? tableTSV(content) : null;
+}
+
 export const table: TableCommands = {
-  isIn: isInTable,
-  addRowBefore, addRowAfter, addColumnBefore, addColumnAfter, deleteRow, deleteColumn, deleteTable,
+  isIn: state => !!tableAt(state),
+  addRowBefore, addRowAfter, addColumnBefore, addColumnAfter, deleteRow: removeRows, deleteColumn, deleteTable: removeTable,
+  selectCell: selectCells('cell'), selectRow: selectCells('row'), selectColumn: selectCells('col'), selectTable,
+  clearCells, exit: exitTable, toText: tableToText,
   align: (a: CellAlign) => setCellAttr('align', a),
   // Markdown 的對齊是整欄的：一次設定整欄
   alignColumn(a: CellAlign): Command {
@@ -944,7 +1273,12 @@ export function moveBlock(dir: Direction): Command {
         newStart = start + sib.nodeSize;
         tr.insert(end + sib.nodeSize, node).delete(start, end);
       }
-      try { tr.setSelection(TextSelection.create(tr.doc, newStart + a, newStart + b)); } catch { /* 保持預設 */ }
+      const sel = state.selection;
+      try {
+        // 選取了儲存格（列把手選的整列）：搬過去之後還是選取那幾格，不然選取的兩端會落在儲存格之間
+        if (sel instanceof CellSelection) tr.setSelection(CellSelection.create(tr.doc, newStart + sel.$anchorCell.pos - start, newStart + sel.$headCell.pos - start));
+        else tr.setSelection(TextSelection.create(tr.doc, newStart + a, newStart + b));
+      } catch { /* 保持預設 */ }
       dispatch(tr.scrollIntoView());
     }
     return true;
@@ -988,7 +1322,14 @@ export function sortTableByColumn(dir: Direction): Command {
       const pos = $from.before(tDepth);
       const node = table.type.create(table.attrs, [head, ...sorted]);
       const tr = state.tr.replaceWith(pos, pos + table.nodeSize, node);
-      try { tr.setSelection(TextSelection.near(tr.doc.resolve(Math.min(state.selection.from, tr.doc.content.size)))); } catch { /* 保持預設 */ }
+      try {
+        if (state.selection instanceof CellSelection) {
+          // 選取了整欄（欄把手）：排序後還是選取那一欄（標題列那一格在表格與列的開頭之後）
+          let cellPos = pos + 2;
+          for (let c = 0; c < col; c++) cellPos += head.child(c).nodeSize;
+          tr.setSelection(CellSelection.colSelection(tr.doc.resolve(cellPos)));
+        } else tr.setSelection(TextSelection.near(tr.doc.resolve(Math.min(state.selection.from, tr.doc.content.size))));
+      } catch { /* 保持預設 */ }
       dispatch(tr);
     }
     return true;
@@ -1026,7 +1367,11 @@ export function moveTableColumn(dir: Direction): Command {
       cellPos += 1;
       for (let c = 0; c < to; c++) cellPos += node.child(rowIndex).child(c).nodeSize;
       const offset = $from.pos - $from.before(tDepth + 2);
-      try { tr.setSelection(TextSelection.near(tr.doc.resolve(cellPos + offset))); } catch { /* 保持預設 */ }
+      try {
+        // 選取了整欄（欄把手）：搬過去之後選取新位置的那一欄
+        if (state.selection instanceof CellSelection) tr.setSelection(CellSelection.colSelection(tr.doc.resolve(cellPos)));
+        else tr.setSelection(TextSelection.near(tr.doc.resolve(cellPos + offset)));
+      } catch { /* 保持預設 */ }
       dispatch(tr.scrollIntoView());
     }
     return true;
@@ -1187,7 +1532,8 @@ export function buildKeymap(): Record<string, Command> {
     'Mod-l': setAlign('left'), 'Mod-j': setAlign('justify'),
     'Mod-Alt-0': setBlockStyle('p'),
     'Shift-Enter': chainCommands(insertHardBreak, (s, d) => (s.selection.$from.parent.type === N.heading ? enterAfterHeading(s, d) || baseKeymap.Enter(s, d) : false)),
-    'Mod-Enter': chainCommands(exitCode, insertHardBreak),
+    // 程式碼區塊、表格裡按 Ctrl+Enter：跳到後面新增的段落
+    'Mod-Enter': chainCommands(exitCode, (s, d) => (inTableCell(s) ? exitTable(s, d) : false), insertHardBreak),
     Enter: chainCommands(
       autoformatEnter,
       (s, d) => (inTableCell(s) ? insertHardBreak(s, d) : false),
@@ -1196,8 +1542,9 @@ export function buildKeymap(): Record<string, Command> {
     ),
     Tab: chainCommands(tabInTable, sinkListItem(N.list_item), (s) => !!currentList(s), tabInText),
     'Shift-Tab': chainCommands(goToNextCell(-1), liftListItem(N.list_item), paragraphIndent(-1), () => true),
-    Backspace: chainCommands(undoAutoformat, backspaceLift, selectAtomBefore, joinKeepingBreaks(-1)),
+    Backspace: chainCommands(undoAutoformat, backspaceCells, backspaceEmptyTable, backspaceAfterTable, backspaceLift, selectAtomBefore, joinKeepingBreaks(-1)),
     Delete: joinKeepingBreaks(1),
+    ArrowDown: arrowDownOutOfTable,
     'Alt-ArrowUp': moveBlock(-1),
     'Alt-ArrowDown': moveBlock(1),
   };
