@@ -1874,14 +1874,27 @@ mark.wm-set-find-hl { padding: 0 1px; border-radius: 3px; background: hsla(var(-
 .wm-editor .wm-table:hover .wm-table-corner, .wm-editor .wm-table.is-active .wm-table-corner, .wm-editor .wm-table .wm-table-corner:focus-within { opacity: 1; pointer-events: auto; }
 /* 手機的頁面留白太窄：改成橫排放在表格上方的結尾那一邊 */
 .wm-mobile .wm-editor .wm-table .wm-table-corner { top: auto; bottom: calc(100% - 8px); inset-inline-end: 0; flex-direction: row; }
-/* 列與欄的把手：壓在格線上的小長條（每一列的開頭、第一列每一格的上方），按一下選取整列或整欄並開選單 */
-.wm-editor .wm-table-grip { position: absolute; z-index: 3; min-height: 0; padding: 0; border: none; border-radius: 4px; box-shadow: none; background: var(--background-modifier-border-hover); opacity: .75; cursor: pointer; }
-.wm-editor .wm-table-grip:hover, .wm-editor .wm-table-grip:focus-visible { background: var(--interactive-accent); opacity: 1; }
-.wm-editor .wm-table-grip.is-col { top: -5px; left: 50%; width: 24px; height: 9px; transform: translateX(-50%); }
-.wm-editor .wm-table-grip.is-row { top: 50%; inset-inline-start: -5px; width: 9px; height: 24px; transform: translateY(-50%); }
-/* 手機：手指點得到的大小（仍在留給把手的 8px 裡） */
-.wm-mobile .wm-editor .wm-table-grip.is-col { top: -7px; width: 36px; height: 13px; }
-.wm-mobile .wm-editor .wm-table-grip.is-row { inset-inline-start: -7px; width: 13px; height: 70%; max-height: 36px; }
+/* 列與欄的把手：壓在格線上（每一列的開頭、第一列每一格的上方），按一下選取整列或整欄並開選單。
+   平常只是淡淡的點點（欄是 •••，列是 ⋮），不搶表格內容的注意；滑鼠移上來、游標所在的那一列與那一欄變成小卡片，
+   選取了整列或整欄時填上強調色，看得出選的是哪幾列、哪幾欄（is-current、is-selected 由 tablegrips.ts 加） */
+.wm-editor .wm-table-grip { position: absolute; z-index: 3; min-height: 0; padding: 0; border: 1px solid transparent; border-radius: 5px; box-shadow: none; background-color: transparent; color: var(--text-faint); opacity: .7; cursor: pointer; transition: opacity .12s, color .12s, background-color .12s, border-color .12s, box-shadow .12s; }
+.wm-editor .wm-table-grip::before { content: ''; position: absolute; inset: 0; margin: auto; background-image: radial-gradient(circle, currentColor 1.1px, transparent 1.6px); background-size: 4px 4px; }
+.wm-editor .wm-table-grip.is-col { top: -5px; left: 50%; width: 22px; height: 10px; transform: translateX(-50%); }
+.wm-editor .wm-table-grip.is-col::before { width: 12px; height: 4px; }
+.wm-editor .wm-table-grip.is-row { top: 50%; inset-inline-start: -5px; width: 10px; height: 22px; transform: translateY(-50%); }
+.wm-editor .wm-table-grip.is-row::before { width: 4px; height: 12px; }
+/* 滑鼠移到某一列上：那一列的把手點點變清楚（欄的把手在第一列，移到其他列時看不出是哪一欄，所以只有列有這個） */
+.wm-editor .wm-table tr:hover .wm-table-grip.is-row { opacity: 1; color: var(--text-muted); }
+/* 小卡片：游標所在的列與欄、滑鼠指著、鍵盤選到 */
+.wm-editor .wm-table-grip.is-current, .wm-editor .wm-table-grip:hover, .wm-editor .wm-table-grip:focus-visible { opacity: 1; background-color: var(--background-primary); border-color: var(--background-modifier-border-hover); box-shadow: 0 1px 3px rgba(0, 0, 0, .14); color: var(--text-muted); }
+.wm-editor .wm-table-grip:hover, .wm-editor .wm-table-grip:focus-visible { border-color: var(--interactive-accent); color: var(--interactive-accent); }
+/* 選取了整列或整欄 */
+.wm-editor .wm-table-grip.is-selected { opacity: 1; background-color: var(--interactive-accent); border-color: var(--interactive-accent); box-shadow: 0 1px 3px rgba(0, 0, 0, .18); color: var(--text-on-accent); }
+/* 手機：沒有滑鼠移上來這回事，一律是小卡片，大小是手指點得到的（仍在留給把手的 8px 裡） */
+.wm-mobile .wm-editor .wm-table-grip:not(.is-selected) { opacity: 1; background-color: var(--background-primary); border-color: var(--background-modifier-border-hover); color: var(--text-muted); }
+.wm-mobile .wm-editor .wm-table-grip.is-current { border-color: var(--interactive-accent); color: var(--interactive-accent); }
+.wm-mobile .wm-editor .wm-table-grip.is-col { top: -7px; width: 34px; height: 14px; }
+.wm-mobile .wm-editor .wm-table-grip.is-row { inset-inline-start: -7px; width: 14px; height: 70%; max-height: 34px; }
 /* 功能區的情境分頁「表格」：游標在表格裡才出現；名稱用強調色，看得出是跟著游標出現的分頁 */
 .wm-tabs button.wm-tab.is-context[hidden] { display: none; }
 .wm-tabs button.wm-tab.is-context { color: var(--text-accent); }

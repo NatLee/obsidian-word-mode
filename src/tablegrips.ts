@@ -9,7 +9,7 @@ import { el } from './dom.js';
 import { schema } from './schema.js';
 import type { EditorState } from 'prosemirror-state';
 import type { EditorView } from 'prosemirror-view';
-import type { Node as PMNode } from 'prosemirror-model';
+import type { Node as PMNode, ResolvedPos } from 'prosemirror-model';
 
 const N = schema.nodes;
 
@@ -31,10 +31,41 @@ function activeTable(state: EditorState): { node: PMNode; pos: number } | null {
   return null;
 }
 
+// 把手的狀態：current＝游標所在的列或欄，selected＝整列或整欄被選取（不含整張表被選取，那時每一格都反白，不用再標）
+type GripState = 'current' | 'selected' | null;
+
+// 游標所在的列與欄（第幾列、第幾欄），以及被選取的整列、整欄
+interface GripFocus { row: number; col: number; rows: Set<number>; cols: Set<number>; }
+
+// 指在儲存格前面的位置 → 第幾列、第幾欄（Markdown 的表格沒有合併儲存格，用索引就好）
+const rowOf = ($cell: ResolvedPos): number => $cell.index($cell.depth - 1);
+const colOf = ($cell: ResolvedPos): number => $cell.index();
+
+function focusOf(state: EditorState): GripFocus {
+  const sel = state.selection;
+  const f: GripFocus = { row: -1, col: -1, rows: new Set(), cols: new Set() };
+  if (sel instanceof CellSelection) {
+    const byRow = sel.isRowSelection(); const byCol = sel.isColSelection();
+    // 只選了幾格：拖選的終點那一格算游標所在的列與欄。選了整列、整欄或整張表時不標游標所在的位置
+    if (!byRow && !byCol) { f.row = rowOf(sel.$headCell); f.col = colOf(sel.$headCell); }
+    if (byRow !== byCol) {
+      const [a, b] = byRow ? [rowOf(sel.$anchorCell), rowOf(sel.$headCell)] : [colOf(sel.$anchorCell), colOf(sel.$headCell)];
+      for (let i = Math.min(a, b); i <= Math.max(a, b); i++) (byRow ? f.rows : f.cols).add(i);
+    }
+    return f;
+  }
+  const $f = sel.$from;
+  for (let d = $f.depth; d > 1; d--) {
+    const t = $f.node(d).type;
+    if (t === N.table_cell || t === N.table_header) { f.row = $f.index(d - 2); f.col = $f.index(d - 1); break; }
+  }
+  return f;
+}
+
 // pos 是儲存格裡段落前面的位置
-function grip(pos: number, kind: GripKind, index: number, open: OpenGripMenu): Decoration {
+function grip(pos: number, kind: GripKind, index: number, state: GripState, open: OpenGripMenu): Decoration {
   return Decoration.widget(pos, (view: EditorView, getPos: () => number | undefined) => {
-    const b = el('button', 'wm-table-grip is-' + kind);
+    const b = el('button', 'wm-table-grip is-' + kind + (state ? ' is-' + state : ''));
     b.type = 'button';
     b.contentEditable = 'false';
     b.setAttribute('aria-label', kind === 'row' ? t('選取整列') : t('選取整欄'));
@@ -58,22 +89,27 @@ function grip(pos: number, kind: GripKind, index: number, open: OpenGripMenu): D
     return b;
   }, {
     side: -1, ignoreSelection: true, stopEvent: () => true,
-    // 同一個位置的把手沿用 DOM（不用每打一個字就重建）
-    key: 'wm-grip-' + kind + index,
+    // 同一個位置、同一個狀態的把手沿用 DOM（不用每打一個字就重建）；狀態變了才換新的
+    key: 'wm-grip-' + kind + index + (state || ''),
   });
+}
+
+function gripState(index: number, current: number, selected: Set<number>): GripState {
+  return selected.has(index) ? 'selected' : index === current ? 'current' : null;
 }
 
 function decorate(state: EditorState, open: OpenGripMenu): DecorationSet | null {
   const tb = activeTable(state);
   if (!tb) return null;
   const decos: Decoration[] = [Decoration.node(tb.pos, tb.pos + tb.node.nodeSize, { class: 'is-active' })];
+  const f = focusOf(state);
   let rowPos = tb.pos + 1;
   tb.node.forEach((row, _off, r) => {
     let cellPos = rowPos + 1;
     row.forEach((cell, _o, c) => {
       // 每一列的第一格放列的把手；第一列的每一格放欄的把手
-      if (c === 0) decos.push(grip(cellPos + 1, 'row', r, open));
-      if (r === 0) decos.push(grip(cellPos + 1, 'col', c, open));
+      if (c === 0) decos.push(grip(cellPos + 1, 'row', r, gripState(r, f.row, f.rows), open));
+      if (r === 0) decos.push(grip(cellPos + 1, 'col', c, gripState(c, f.col, f.cols), open));
       cellPos += cell.nodeSize;
     });
     rowPos += row.nodeSize;
