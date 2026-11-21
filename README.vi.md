@@ -41,6 +41,9 @@ Chỉnh sửa ghi chú [Obsidian](https://obsidian.md) giống như trong Word: 
 - Chọn kích thước từ lưới, rồi gõ và nhấn Tab để chuyển sang ô tiếp theo. Nhấn Tab ở ô cuối cùng sẽ thêm một hàng.
 - Nhấp chuột phải vào một ô để thêm, xóa hoặc di chuyển hàng và cột, sắp xếp theo một cột, hoặc đặt căn chỉnh cho một cột.
 - Dán các ô từ bảng tính, chúng sẽ trở thành bảng.
+- Khi con trỏ nằm trong bảng, dải băng sẽ có thêm thẻ **Bảng**. Các tay cầm ở mép bảng giúp chọn cả hàng hoặc cả cột và mở menu của nó, dùng được cả trên điện thoại.
+- Chọn cả hàng, cả cột hoặc cả bảng rồi nhấn Backspace để xóa chúng; Delete chỉ xóa nội dung. Các nút bên cạnh bảng giúp sao chép bảng dưới dạng Markdown hoặc xóa bảng chỉ với một lần nhấp.
+- Chọn vài dòng được phân tách bằng Tab, `|` hoặc dấu phẩy để chuyển thành bảng, hoặc chuyển bảng về lại văn bản. Ctrl+Enter thoát khỏi bảng và bắt đầu một đoạn bên dưới. Bảng đã sao chép khi dán vào bảng tính sẽ được chia thành các cột.
 
 ### Phương trình
 

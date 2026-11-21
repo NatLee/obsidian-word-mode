@@ -39,6 +39,9 @@ Shown in the animation at the top. Start a paragraph with `# `, `- `, `1. `, `> 
 - Pick a size from the grid, then type and press Tab to move to the next cell. Tab in the last cell adds a row.
 - Right-click a cell to add, remove, or move rows and columns, sort by a column, or set a column's alignment.
 - Paste cells from a spreadsheet, and they become a table.
+- When the cursor is in a table, a **Table** tab appears on the ribbon. Handles on the edges of the table select a whole row or column and open its menu, which also works on phones.
+- Select whole rows, columns, or the whole table and press Backspace to delete them; Delete only clears the contents. The buttons beside the table copy it as Markdown or delete it in one click.
+- Turn selected lines into a table (split by tabs, `|`, or commas), or turn a table back into text. Ctrl+Enter leaves the table and starts a paragraph below it. A copied table pastes into a spreadsheet in columns.
 
 ### Equations
 

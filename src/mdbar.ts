@@ -10,7 +10,7 @@ import { el } from './dom.js';
 import { iconOr } from './icons.js';
 import { frontmatterOf, peekData } from './props.js';
 import { openPropsPeek, closePropsPeek, propertyWidget } from './propview.js';
-import { ACTIONS as A, RibbonShell, TABS, ribbonClass } from './ribbon.js';
+import { ACTIONS as A, RibbonShell, ribbonClass } from './ribbon.js';
 import type { ButtonClick, MenuItem, RibbonAction, RibbonButton, TabId } from './ribbon.js';
 import type { App, Editor, MarkdownViewModeType } from 'obsidian';
 import type WordModePlugin from './main.js';
@@ -150,7 +150,8 @@ export class MarkdownBar {
     const shell = new RibbonShell(this.dom, {
       side: 'md', settings: S, isMobile: !!Platform.isMobile, icon: iconOr,
       openMenu: (owner, items) => this.menu(owner, items),
-      pickTab: id => this.showTab(id),
+      // Markdown 的功能區沒有情境分頁
+      pickTab: id => { if (id !== 'tabletab') this.showTab(id); },
     });
     this.shell = shell;
     const G = shell.groups;
@@ -223,11 +224,6 @@ export class MarkdownBar {
 
     // 右邊固定的快速按鈕（位置跟 Word 模式一樣）：尋找、切回 Word 模式
     const quick = shell.finish();
-    // Word 模式把沒有按鈕的分頁面板留著（表格工具放在「常用」的面板裡）；這裡沒有那樣的東西，直接拿掉
-    for (const [id] of TABS) {
-      const panel = shell.panels[id];
-      if (panel && panel.classList.contains('is-empty')) { panel.remove(); delete shell.panels[id]; }
-    }
     shell.apart(() => {
       this.button(quick, A.findQuick, find);
       this.button(quick, { ...toWord, big: false, label: undefined }, goWord);

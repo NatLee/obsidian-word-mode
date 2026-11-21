@@ -41,6 +41,9 @@ Zu sehen in der Animation oben. Beginnen Sie einen Absatz mit `# `, `- `, `1. `,
 - Wählen Sie eine Größe im Raster, tippen Sie dann und springen Sie mit Tab zur nächsten Zelle. Tab in der letzten Zelle fügt eine Zeile hinzu.
 - Mit einem Rechtsklick auf eine Zelle fügen Sie Zeilen und Spalten hinzu, entfernen oder verschieben sie, sortieren nach einer Spalte oder legen die Ausrichtung einer Spalte fest.
 - Aus einer Tabellenkalkulation eingefügte Zellen werden zu einer Tabelle.
+- Steht der Cursor in einer Tabelle, erscheint im Menüband die Registerkarte **Tabelle**. Griffe am Rand der Tabelle markieren eine ganze Zeile oder Spalte und öffnen ihr Menü, auch auf dem Smartphone.
+- Markieren Sie ganze Zeilen, Spalten oder die ganze Tabelle und drücken Sie Backspace, um sie zu löschen; Delete leert nur den Inhalt. Mit den Schaltflächen neben der Tabelle kopieren Sie sie als Markdown oder löschen sie mit einem Klick.
+- Wandeln Sie markierte Zeilen, die durch Tabs, `|` oder Kommas getrennt sind, in eine Tabelle um, oder eine Tabelle wieder in Text. Strg+Enter verlässt die Tabelle und beginnt darunter einen Absatz. Eine kopierte Tabelle wird in einer Tabellenkalkulation in Spalten eingefügt.
 
 ### Formeln
 

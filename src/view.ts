@@ -9,7 +9,8 @@ import { loadPrism } from 'obsidian';
 import { TextSelection, NodeSelection } from 'prosemirror-state';
 import { linkContext, isExternal, isUrl } from './links.js';
 import { iconOr } from './icons.js';
-import { openContextMenu } from './contextmenu.js';
+import { openContextMenu, openTableMenu } from './contextmenu.js';
+import { tableGripsPlugin } from './tablegrips.js';
 import { renderMathInto } from './mathrender.js';
 import type { IconFn } from './icons.js';
 import { bubblePlugin } from './bubble.js';
@@ -167,6 +168,8 @@ export class WordModeView extends TextFileView {
   declare findBar: FindBar;
   declare bubble: Plugin;
   declare fold: Plugin<FoldState>;
+  // 表格的列與欄把手（tablegrips.ts）
+  declare grips: Plugin;
   declare prism: PrismLike | undefined;
   declare countEl: HTMLDivElement | undefined;
   declare statusBox: HTMLDivElement | undefined;
@@ -217,6 +220,7 @@ export class WordModeView extends TextFileView {
     this.findBar = new FindBar(this.findHost, { getView: () => this.pm, icon: iconOr, onChange: () => this.toolbar && this.toolbar.refresh() });
     this.bubble = bubblePlugin(this.bubbleContext());
     this.fold = foldPlugin({ icon: iconOr });
+    this.grips = tableGripsPlugin((v, kind, anchor) => { const r = anchor.getBoundingClientRect(); openTableMenu(this, kind, { x: r.left, y: r.bottom }); });
     Promise.resolve(loadPrism()).then((P: PrismLike) => {
       this.prism = P;
       if (this.pm) this.pm.dispatch(this.pm.state.tr.setMeta(codeKey, true));
@@ -564,7 +568,7 @@ export class WordModeView extends TextFileView {
     if (!this.marks) this.marks = marksPlugin({ on: !!this.plugin.settings.showMarks, always: this.plugin.settings.highlightWeird !== false });
     if (!this.code) this.code = codePlugin(() => this.prism);
     if (!this.suggest) this.suggest = suggestPlugin(suggestContext(this, iconOr));
-    return [this.suggest, this.bubble, findPlugin, this.fold, this.marks, this.code, codeActivePlugin];
+    return [this.suggest, this.bubble, findPlugin, this.fold, this.marks, this.code, codeActivePlugin, this.grips];
   }
 
   setMarks(on: boolean): void {
@@ -1074,6 +1078,8 @@ export class WordModeView extends TextFileView {
         handlePaste: (v, e) => this.onPaste(e),
         handleDrop: (v, e) => this.onDrop(e),
         transformPasted: slice => stripSliceBids(slice),
+        // 複製表格（或表格裡的幾格）時，純文字用 Tab 分隔：貼到 Excel、試算表會分好欄
+        clipboardTextSerializer: slice => C.clipboardTableText(slice.content) ?? slice.content.textBetween(0, slice.content.size, '\n\n'),
         transformPastedHTML: html => html
           .replace(/<img[^>]+src="(?:file:|data:)[^"]*"[^>]*>/gi, '')
           .replace(/<!--\[if[\s\S]*?<!\[endif\]-->/gi, ''),
@@ -1200,6 +1206,8 @@ export class WordModeView extends TextFileView {
       },
       propertyType: key => propertyWidget(this.app, key),
       unwrapCallout: pos => this.unwrapCallout(pos),
+      tableMenu: (evt, pos) => this.tableMenu(evt, pos),
+      tableMarkdown: node => this.plugin.converter.serializeNodes([schema.nodes.table.create(null, node.content)]).replace(/\n+$/, ''),
       imageMenu: (evt, pos) => this.imageMenu(evt, pos),
       setImageWidth: (pos, w) => this.setImageWidth(pos, w),
       pageWidth: () => this.pageWidth(),
@@ -1397,6 +1405,19 @@ export class WordModeView extends TextFileView {
       return true;
     }
     return false;
+  }
+
+  // 表格右上角的「表格選項」：先選取整張表（選單裡的指令作用在選取的範圍），再開選單
+  tableMenu(evt: MouseEvent, pos: number): void {
+    const pm = this.pm;
+    if (!pm) return;
+    const node = pm.state.doc.nodeAt(pos);
+    if (!node || node.type !== schema.nodes.table) return;
+    // 第一格的段落開頭：表格、列、儲存格、段落的開頭各一個位置
+    pm.dispatch(pm.state.tr.setSelection(TextSelection.create(pm.state.doc, pos + 4)));
+    C.table.selectTable(pm.state, tr => pm.dispatch(tr));
+    pm.focus();
+    openTableMenu(this, 'table', { x: evt.clientX, y: evt.clientY });
   }
 
   // 右鍵選單（內容在 contextmenu.ts）

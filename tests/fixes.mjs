@@ -267,5 +267,129 @@ const select = (state, text, len = text.length) => { const p = posOf(state.doc, 
   check('字數統計視窗：字數換成原文的算法，段落與標題的數目不變', both.words === 5 && both.charsSp === st.charsWithSpaces && both.heads === 1 && both.paras === docStats(doc).paras, JSON.stringify(both));
 }
 
+// ---- 表格：用鍵盤刪除、選取、進出表格，文字與表格互轉
+{
+  const { baseKeymap } = await import('prosemirror-commands');
+  const { CellSelection } = await import('prosemirror-tables');
+  const { NodeSelection } = await import('prosemirror-state');
+  const keys = C.buildKeymap();
+  const key = name => (state, dispatch) => (keys[name] && keys[name](state, dispatch)) || (baseKeymap[name] ? baseKeymap[name](state, dispatch) : false);
+  const T = C.table;
+  const kinds = doc => { const a = []; doc.forEach(n => a.push(n.type.name)); return a.join(','); };
+  const md = 'before\n\n| a | b |\n| --- | --- |\n| c | d |\n| e | f |\n\nafter\n';
+  // 開一份文件、照順序執行指令，回傳最後的狀態與存檔結果
+  const run = (src, setup, ...cmds) => {
+    const { doc, meta } = c.parse(src);
+    let st = EditorState.create({ doc, schema });
+    if (setup) st = st.apply(setup(st));
+    const results = cmds.map(cmd => cmd(st, tr => { st = st.apply(tr); }));
+    return { st, results, out: c.serialize(st.doc, meta) };
+  };
+  const at = (text, off = 0) => s => s.tr.setSelection(TextSelection.create(s.doc, posOf(s.doc, text) + off));
+  const tablePos = doc => { let p = -1; doc.forEach((n, o) => { if (p < 0 && n.type === N.table) p = o; }); return p; };
+  const cells = s => { const a = []; s.doc.descendants((n, p) => { if (n.type === N.table_cell || n.type === N.table_header) a.push(p); }); return a; };
+
+  let r = run(md, at('after'), key('Backspace'));
+  check('表格下方的段落開頭按 Backspace：先選取整張表（不刪）', r.st.selection instanceof NodeSelection && r.st.selection.node.type === N.table && kinds(r.st.doc) === 'paragraph,table,paragraph');
+  r = run(md, at('after'), key('Backspace'), key('Backspace'));
+  check('再按一次 Backspace：刪掉表格', kinds(r.st.doc) === 'paragraph,paragraph' && r.out === 'before\n\nafter\n', JSON.stringify(r.out));
+  check('整張表被選取時表格指令也能用（情境分頁要顯示）', T.isIn(run(md, at('after'), key('Backspace')).st));
+
+  r = run(md, at('a'), T.selectTable, key('Backspace'));
+  check('選取整張表按 Backspace：刪掉表格，游標在後面的段落', kinds(r.st.doc) === 'paragraph,paragraph' && r.st.selection.$from.parent.textContent === 'after', kinds(r.st.doc));
+  r = run(md, at('a'), T.selectTable, key('Delete'));
+  check('選取整張表按 Delete：只清空內容，表格留著', kinds(r.st.doc) === 'paragraph,table,paragraph' && r.st.doc.child(1).textContent === '');
+  r = run(md, at('c'), T.selectRow, key('Backspace'));
+  check('選取整列按 Backspace：刪掉那一列', r.out === 'before\n\n| a | b |\n| --- | --- |\n| e | f |\n\nafter\n', JSON.stringify(r.out));
+  r = run(md, at('d'), T.selectColumn, key('Backspace'));
+  check('選取整欄按 Backspace：刪掉那一欄', r.out === 'before\n\n| a |\n| --- |\n| c |\n| e |\n\nafter\n', JSON.stringify(r.out));
+  r = run(md, s => s.tr.setSelection(CellSelection.create(s.doc, cells(s)[0], cells(s)[3])), key('Backspace'));
+  check('只選了幾格按 Backspace：清空那幾格', kinds(r.st.doc) === 'paragraph,table,paragraph' && r.st.doc.child(1).textContent === 'ef', r.st.doc.child(1).textContent);
+  r = run(md, at('a'), T.selectRow, key('Backspace'));
+  check('刪掉標題列：下一列升為標題列', r.st.doc.child(1).firstChild.firstChild.type === N.table_header && r.out.includes('| c | d |\n| --- | --- |\n| e | f |'), JSON.stringify(r.out));
+  r = run(md, at('a'), T.deleteRow);
+  check('功能區的刪除列刪掉標題列時也一樣', r.st.doc.child(1).firstChild.firstChild.type === N.table_header);
+
+  r = run('x\n\n| a | b |\n| --- | --- |\n| c | d |\n', s => s.tr.setSelection(TextSelection.create(s.doc, tablePos(s.doc) + 4)), C.insertTable(2, 2));
+  const empty = run('x\n', at('x', 1), C.insertTable(2, 3), key('Backspace'));
+  check('剛插入的空表格在第一格開頭按 Backspace：刪掉整張表', kinds(empty.st.doc) === 'paragraph', kinds(empty.st.doc));
+  r = run(md, at('a'), key('Backspace'));
+  check('有內容的表格在第一格開頭按 Backspace：不刪', kinds(r.st.doc) === 'paragraph,table,paragraph');
+
+  r = run('before\n\n| a | b |\n| --- | --- |\n| c | d |\n\n\n', s => s.tr.setSelection(TextSelection.atEnd(s.doc)), key('Backspace'));
+  check('表格下面的空段落按 Backspace：刪掉空段落，游標到最後一格結尾', kinds(r.st.doc) === 'paragraph,table' && r.st.selection.$from.parent.textContent === 'd' && r.st.selection.$from.parentOffset === 1, kinds(r.st.doc));
+
+  r = run('| a | b |\n| --- | --- |\n| c | d |\n', s => s.tr.setSelection(TextSelection.create(s.doc, 4)), T.deleteTable);
+  check('文件裡只有一張表時刪除：留下一個空段落', kinds(r.st.doc) === 'paragraph' && r.out.trim() === '', kinds(r.st.doc) + JSON.stringify(r.out));
+
+  r = run('| a | b |\n| --- | --- |\n| c | d |\n', at('c'), key('ArrowDown'));
+  check('表格在文件最後、最後一列按 ↓：在表格後面新增段落', kinds(r.st.doc) === 'table,paragraph' && r.st.selection.$from.parent.type === N.paragraph && r.st.selection.$from.depth === 1);
+  r = run('| a | b |\n| --- | --- |\n| c | d |\n', at('a'), key('ArrowDown'));
+  check('不是最後一列按 ↓：不新增段落', !r.results[0] && kinds(r.st.doc) === 'table');
+  r = run(md, at('c'), key('ArrowDown'));
+  check('表格後面還有段落時按 ↓：不新增段落', !r.results[0] && kinds(r.st.doc) === 'paragraph,table,paragraph');
+  r = run(md, at('a'), key('Mod-Enter'));
+  check('表格裡按 Ctrl+Enter：在表格後面新增段落', kinds(r.st.doc) === 'paragraph,table,paragraph,paragraph' && r.st.selection.$from.index(0) === 2);
+
+  r = run(md, at('c'), T.selectCell);
+  check('選取儲存格', r.st.selection instanceof CellSelection && r.st.selection.$anchorCell.nodeAfter.textContent === 'c');
+  r = run(md, at('c'), T.clearCells);
+  check('清除內容（沒有選取儲存格）：清空游標所在的那一格', r.out.includes('|  | d |') || r.out.includes('| | d |'), JSON.stringify(r.out));
+
+  r = run('before\n\n| **a** | b |\n| --- | --- |\n| c | d<br>e |\n\nafter\n', at('a'), T.toText);
+  check('表格轉成文字：每列一段，Tab 分隔，格式與換行留著', kinds(r.st.doc) === 'paragraph,paragraph,paragraph,paragraph' && r.st.doc.child(1).textContent === 'a\tb'
+    && r.st.doc.child(1).firstChild.marks.length === 1 && r.st.doc.child(2).childCount === 3, kinds(r.st.doc));
+  check('表格轉成文字：存檔再讀回內容一樣', strip(c.parse(r.out).doc) === strip(r.st.doc), JSON.stringify(r.out));
+  r = run('| | b |\n| --- | --- |\n| c | d |\n', at('b'), T.toText);
+  check('表格轉成文字：開頭是空格（Tab 開頭）存檔再讀回也一樣，不會變成程式碼', strip(c.parse(r.out).doc) === strip(r.st.doc), JSON.stringify(r.out));
+
+  const sel = (src, a, b) => s => s.tr.setSelection(TextSelection.create(s.doc, posOf(s.doc, a), posOf(s.doc, b) + b.length));
+  r = run('名稱\t數量\n\n蘋果\t3\n\n**梨**\t10\n', sel('名稱', '名稱', '10'), C.textToTable);
+  check('文字轉成表格：Tab 分欄，第一列是標題，格式留著', r.out === '| 名稱 | 數量 |\n| --- | --- |\n| 蘋果 | 3 |\n| **梨** | 10 |\n', JSON.stringify(r.out));
+  r = run('a, b, c\nd, e\n', sel('', 'a', 'e'), C.textToTable);
+  check('文字轉成表格：逗號分欄、段落裡的換行也分列、欄數不夠的補空格', r.out === '| a | b | c |\n| --- | --- | --- |\n| d | e |  |\n', JSON.stringify(r.out));
+  // 寫成跳脫的「\|」，讀進來才是一段文字（不然就直接是表格了）
+  r = run('\\| a \\| b \\|\n\\|---\\|---\\|\n\\| c \\| d \\|\n', sel('', 'a', 'd'), C.textToTable);
+  check('文字轉成表格：「|」分欄，頭尾的「|」不算一格、分隔列跳過', r.out === '| a | b |\n| --- | --- |\n| c | d |\n', JSON.stringify(r.out));
+  r = run('一\n\n二\n', sel('', '一', '二'), C.textToTable);
+  check('文字轉成表格：沒有分隔符號時每段一列、只有一欄', r.out === '| 一 |\n| --- |\n| 二 |\n', JSON.stringify(r.out));
+  r = run('一\n\n- 二\n', sel('', '一', '二'), C.textToTable);
+  check('文字轉成表格：選取範圍有清單時不轉', !r.results[0]);
+  r = run('一\n', at('一'), C.textToTable);
+  check('文字轉成表格：沒有選取文字時不轉', !r.results[0]);
+  const { AllSelection } = await import('prosemirror-state');
+  r = run('a\tb\n\nc\td\n', s => s.tr.setSelection(new AllSelection(s.doc)), C.textToTable);
+  check('文字轉成表格：全選（Ctrl+A）也可以', r.out === '| a | b |\n| --- | --- |\n| c | d |\n', JSON.stringify(r.out));
+
+  const tsv = C.tableTSV(c.parse('| a | b |\n| --- | --- |\n| c "q" | d<br>e |\n').doc.firstChild);
+  check('複製表格的純文字：Tab 分隔，有換行或引號的格子用雙引號包起來', tsv === 'a\tb\n"c ""q"""\t"d\ne"', JSON.stringify(tsv));
+
+  // 審查找到的問題
+  r = run('a\tb\n![[img.png]]\nc\td\n', s => s.tr.setSelection(new AllSelection(s.doc)), C.textToTable);
+  check('文字轉成表格：只有圖片的一行不會被丟掉', r.out.includes('![[img.png]]') && r.st.doc.firstChild.childCount === 3, JSON.stringify(r.out));
+  r = run('x\n[[Note]]\n$E=mc^2$\n', s => s.tr.setSelection(new AllSelection(s.doc)), C.textToTable);
+  check('文字轉成表格：只有連結、只有方程式的行也留著', r.out.includes('[[Note]]') && r.out.includes('$E=mc^2$') && r.st.doc.firstChild.childCount === 3, JSON.stringify(r.out));
+  const links = C.tableTSV(c.parse('| [[Note]] | [[Other\\|別名]] |\n| --- | --- |\n| ![[a.png]] | $x$ |\n').doc.firstChild);
+  check('複製表格的純文字：連結是顯示的名稱、方程式是原文', links === 'Note\t別名\n\t$x$', JSON.stringify(links));
+  r = run(md, at('c'), T.selectRow);
+  const rowText = C.clipboardTableText(r.st.selection.content().content);
+  check('只複製一列：純文字也是 Tab 分隔', rowText === 'c\td', JSON.stringify(rowText));
+  check('不是表格的內容：用原本的純文字', C.clipboardTableText(c.parse('一\n\n二\n').doc.content) === null);
+
+  r = run(md, at('c'), T.selectRow, C.moveBlock(1));
+  check('選取整列後下移：還是選取搬過去的那一列', r.st.selection instanceof CellSelection && r.st.selection.isRowSelection() && r.st.selection.$anchorCell.nodeAfter.textContent === 'c'
+    && r.out.includes('| e | f |\n| c | d |'), JSON.stringify(r.out));
+  r = run(md, at('a'), T.selectColumn, C.moveTableColumn(1));
+  check('選取整欄後右移：還是選取搬過去的那一欄', r.st.selection instanceof CellSelection && r.st.selection.isColSelection() && r.st.selection.$anchorCell.nodeAfter.textContent === 'a'
+    && r.out.includes('| b | a |'), JSON.stringify(r.out));
+  r = run(md, at('d'), T.selectColumn, C.sortTableByColumn(-1));
+  check('選取整欄後排序：還是選取那一欄', r.st.selection instanceof CellSelection && r.st.selection.isColSelection() && r.st.selection.$anchorCell.nodeAfter.textContent === 'b'
+    && r.out.includes('| e | f |\n| c | d |'), JSON.stringify(r.out));
+
+  // 把段落的文字整個換成「兩個空白、Tab、y」
+  const spaced = run('x\n', at('x'), (s, d) => { d(s.tr.insertText('  \ty', 1, 2)); return true; });
+  check('段落開頭是空白加 Tab：存檔再讀回不會變成程式碼', spaced.st.doc.firstChild.textContent === '  \ty' && c.parse(spaced.out).doc.firstChild.type === N.paragraph && c.parse(spaced.out).doc.firstChild.textContent.includes('\ty'), JSON.stringify(spaced.out));
+}
+
 if (failed) { console.log(`\n${failed} 項失敗`); process.exit(1); }
 console.log('\nALL PASS');

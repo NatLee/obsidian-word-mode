@@ -129,7 +129,7 @@ assert(out().includes('- [x] 待辦一'), '點擊核取方塊打勾');
 p = posOf('小明');
 select(p + 2);
 assert(C.table.isIn(pm.state), '游標在表格內');
-assert(!view.toolbar.tableGroup.classList.contains('is-hidden'), '表格工具列出現');
+assert(!view.toolbar.tabBtns.tabletab.hidden && view.toolbar.panels.tabletab.querySelector('.wm-table-tools .wm-btn'), '「表格」分頁出現');
 run(C.table.addRowAfter);
 select(posOf('A |') ?? posOf('A'));
 run(C.table.alignColumn('right'));
@@ -671,7 +671,7 @@ assert(switched === 1, 'Ctrl+E 切到 Markdown');
 const allBtns = [...view.toolbar.dom.querySelectorAll('button')];
 assert(allBtns.every(b => !b.hasAttribute('title')), '工具列按鈕不用瀏覽器 title（避免提示互相蓋住）');
 assert(allBtns.filter(b => b.classList.contains('wm-btn')).every(b => b.getAttribute('aria-label')), '每個按鈕都有 aria-label 提示');
-assert(view.toolbar.dom.querySelectorAll('.wm-tab').length === 4, '功能區有 常用／插入／校閱／檢視 四個分頁');
+assert(view.toolbar.dom.querySelectorAll('.wm-tab:not(.is-context)').length === 4 && (!view.toolbar.tabBtns.tabletab || view.toolbar.tabBtns.tabletab.hidden), '功能區有 常用／插入／校閱／檢視 四個分頁（「表格」分頁平常不出現）');
 view.toolbar.showTab('insert');
 assert(view.toolbar.panels.insert.classList.contains('is-hidden') === false && view.toolbar.panels.home.classList.contains('is-hidden'), '切換分頁');
 view.toolbar.showTab('home');
@@ -882,7 +882,7 @@ assert([...sc.contentEl.querySelectorAll('.wm-sc-card')].filter(c => c.style.dis
   search('zzz');
   assert(q('.wm-sc-empty').style.display !== 'none' && q('.wm-sc-hint').style.display === 'none' && shownCards() === '', '找不到時顯示說明');
   search('');
-  assert(qa('.wm-sc-col').length === 2 && shownCols() === 2 && shownCards().split(',').length === 7 && !q('.wm-sc-mark') && q('.wm-sc-count').textContent === '30 個快速鍵' && q('.wm-sc-empty').style.display === 'none', '清掉搜尋：七張卡片分成兩欄，全部回來');
+  assert(qa('.wm-sc-col').length === 2 && shownCols() === 2 && shownCards().split(',').length === 7 && !q('.wm-sc-mark') && q('.wm-sc-count').textContent === '33 個快速鍵' && q('.wm-sc-empty').style.display === 'none', '清掉搜尋：七張卡片分成兩欄，全部回來');
   // 分類：只看其中一類；打字搜尋時回到全部
   const cats = qa('.wm-sc-cat');
   assert(cats.length === 8 && cats[0].textContent === '全部' && cats[0].classList.contains('is-active') && cats[2].textContent === '文字格式', '分類：全部加上七類，一開始是全部');

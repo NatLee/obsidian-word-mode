@@ -41,6 +41,9 @@ C'est ce que montre l'animation du haut. Commencez un paragraphe par `# `, `- `,
 - Choisissez une taille dans la grille, puis tapez et appuyez sur Tab pour passer à la cellule suivante. Tab dans la dernière cellule ajoute une ligne.
 - Faites un clic droit sur une cellule pour ajouter, supprimer ou déplacer des lignes et des colonnes, trier selon une colonne ou définir l'alignement d'une colonne.
 - Collez des cellules d'un tableur : elles deviennent un tableau.
+- Quand le curseur est dans un tableau, un onglet **Tableau** apparaît dans le ruban. Des poignées sur les bords du tableau sélectionnent une ligne ou une colonne entière et ouvrent son menu, y compris sur téléphone.
+- Sélectionnez des lignes, des colonnes ou le tableau entiers et appuyez sur Backspace pour les supprimer ; Delete efface seulement le contenu. Les boutons à côté du tableau le copient en Markdown ou le suppriment en un clic.
+- Transformez quelques lignes séparées par des tabulations, des `|` ou des virgules en tableau, ou un tableau en texte. Ctrl+Entrée sort du tableau et commence un paragraphe en dessous. Un tableau copié se colle dans un tableur en colonnes.
 
 ### Équations
 
