@@ -1870,6 +1870,13 @@ await fresh('前面\n\n| 甲 | 乙 |\n| --- | --- |\n| a1 | b1 |\n| a2 | b2 |\n\
   select(posOf('a1') + 1, posOf('a1') + 1);
   const grips = kind => [...view.pm.dom.querySelectorAll('.wm-table-grip.is-' + kind)];
   assert(wrap().classList.contains('is-active') && grips('row').length === 3 && grips('col').length === 2, '游標在表格裡：每一列一個列把手、每一欄一個欄把手：' + grips('row').length + '/' + grips('col').length);
+  const state = list => list.map(g => g.classList.contains('is-selected') ? 'S' : g.classList.contains('is-current') ? 'C' : '-').join('');
+  assert(state(grips('row')) === '-C-' && state(grips('col')) === 'C-', '游標所在的列與欄的把手標成 is-current：' + state(grips('row')) + '/' + state(grips('col')));
+  select(posOf('b2') + 1, posOf('b2') + 1);
+  assert(state(grips('row')) === '--C' && state(grips('col')) === '-C', '游標移動：標示跟著換：' + state(grips('row')) + '/' + state(grips('col')));
+  click(grips('row')[1]);
+  assert(state(grips('row')) === '-S-' && state(grips('col')) === '--', '選取整列：那一列的把手標成 is-selected，欄的把手不標：' + state(grips('row')) + '/' + state(grips('col')));
+  select(posOf('a1') + 1, posOf('a1') + 1);
   const tab = view.toolbar.tabBtns.tabletab;
   assert(tab && !tab.hidden && tab.classList.contains('is-context') && tab.textContent === '表格', '游標在表格裡：出現「表格」分頁');
   assert(view.toolbar.activeTab === 'home', '「表格」分頁出現時不自動切過去');
