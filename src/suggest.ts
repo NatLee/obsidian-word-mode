@@ -3,7 +3,7 @@
 //        tags(query) → ['#標籤'], linkNode(file|null, heading|null, embed) → 節點, icon(el, name, fallback) }
 import { Plugin, PluginKey } from 'prosemirror-state';
 import { t } from './i18n.js';
-import { el, isRtl, popupLeft } from './dom.js';
+import { el, isRtl, popupLeft, visibleBottom } from './dom.js';
 import type { EditorState } from 'prosemirror-state';
 import type { EditorView } from 'prosemirror-view';
 import type { Node as PMNode } from 'prosemirror-model';
@@ -129,7 +129,7 @@ export function suggestPlugin(ctx: SuggestContext): Plugin<SuggestTrigger | null
     try {
       const c = view.coordsAtPos(active.from);
       const w = box.offsetWidth || 260; const h = box.offsetHeight || 200;
-      const vw = window.innerWidth || 1024; const vh = window.innerHeight || 768;
+      const vw = window.innerWidth || 1024; const vh = visibleBottom(window) || 768;
       box.style.left = popupLeft(c, w, vw, isRtl(view.dom)) + 'px';
       box.style.top = (c.bottom + 4 + h > vh && c.top - h - 4 > 0 ? c.top - h - 4 : c.bottom + 4) + 'px';
     } catch { /* 測試環境沒有版面資訊 */ }

@@ -7,7 +7,7 @@ import { schema } from './schema.js';
 import { t, key } from './i18n.js';
 import { marksOn } from './marks.js';
 import { hideHint } from './hints.js';
-import { el, isRtl, keepFocus, popupLeft } from './dom.js';
+import { el, isRtl, keepFocus, popupLeft, visibleBottom } from './dom.js';
 import { closePropsPeek } from './propview.js';
 import { buildColorPanel, SHADING } from './colorpicker.js';
 import { ACTIONS as A, RibbonShell, ribbonClass } from './ribbon.js';
@@ -553,7 +553,7 @@ export class Toolbar {
     // 視窗大小看按鈕所在的那個視窗：筆記拉到獨立視窗之後，全域的 window 還是主視窗
     const r = owner.getBoundingClientRect();
     const win = owner.ownerDocument.defaultView || window;
-    const vw = win.innerWidth; const vh = win.innerHeight;
+    const vw = win.innerWidth; const vh = visibleBottom(win);
     const w = p.offsetWidth || 200; const h = p.offsetHeight || 200;
     p.style.left = popupLeft(r, w, vw, isRtl(owner)) + 'px';
     p.style.top = Math.max(4, r.bottom + 4 + h > vh && r.top - h - 4 > 0 ? r.top - h - 4 : r.bottom + 4) + 'px';

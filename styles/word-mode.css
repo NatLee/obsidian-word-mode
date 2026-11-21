@@ -21,6 +21,10 @@ body {
 }
 /* 蓋過 Obsidian 給檢視內容的留白與捲動 */
 .wm-view.wm-view.wm-view { padding: 0; overflow: hidden; }
+/* 螢幕鍵盤開著：Obsidian 縮小 app 之後還被鍵盤蓋住的高度（view.ts 的 syncKeyboard 量出來的）留在檢視下方，
+   功能區就貼在鍵盤上方；手機把狀態列收起來，多一點地方打字 */
+.wm-view.wm-view.wm-view.wm-kb-open { padding-bottom: var(--wm-kb-inset, 0px); }
+.wm-phone.wm-kb-open .wm-bottombar { display: none; }
 .wm-toolbar-host { flex: 0 0 auto; }
 .wm-scroller { flex: 1 1 auto; overflow: auto; padding: 24px 16px 120px; }
 .wm-page {

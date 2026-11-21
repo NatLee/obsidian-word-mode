@@ -1132,6 +1132,63 @@ await fresh('---\ntags:\n  - 會議\n  - 專案\ndate: 2026-11-16\ndone: false\n
   delete globalThis.IntersectionObserver;
 }
 
+// ======== 手機的螢幕鍵盤：檢視下方被鍵盤蓋住多少就留多少，功能區才會在鍵盤上方 ========
+{
+  await fresh('一段\n');
+  const el = view.contentEl;
+  const inset = () => el.style.getPropertyValue('--wm-kb-inset');
+  const realRect = el.getBoundingClientRect;
+  // 檢視的下緣在 520；視窗高 768（jsdom 的預設），鍵盤升起後只看得到上面 400
+  el.getBoundingClientRect = () => ({ left: 0, top: 100, right: 390, bottom: 520, width: 390, height: 420 });
+  const vv = { offsetTop: 0, height: 768 };
+  Object.defineProperty(window, 'visualViewport', { value: vv, configurable: true });
+  const scrolls = [];
+  const realScrollTo = window.scrollTo;
+  window.scrollTo = (x, y) => scrolls.push([x, y]);
+  const input = document.body.appendChild(document.createElement('input'));
+  input.focus();
+  view.syncKeyboard();
+  assert(!el.classList.contains('wm-kb-open') && !view.kbInset, '有焦點但鍵盤沒升起（外接鍵盤）：不留空間');
+  vv.height = 400;
+  view.syncKeyboard();
+  assert(el.classList.contains('wm-kb-open') && inset() === '120px', '鍵盤升起，檢視下方有 120 被蓋住：留 120，得到 ' + inset());
+  await sleep(30);
+  assert(!scrolls.length, '畫面沒有被往上推：不去動它');
+  vv.offsetTop = 30;
+  view.syncKeyboard();
+  await sleep(30);
+  assert(inset() === '90px' && scrolls.length === 1 && scrolls[0][1] === 0, 'iOS 把畫面往上推了 30：只留 90，並把畫面推回原位');
+  vv.offsetTop = 0; vv.height = 600;
+  view.syncKeyboard();
+  assert(el.classList.contains('wm-kb-open') && inset() === '0px', 'Obsidian 自己縮得夠（檢視沒有被蓋住）：不多留，但還是算鍵盤開著');
+  vv.height = 400;
+  input.blur();
+  view.syncKeyboard();
+  assert(!el.classList.contains('wm-kb-open') && inset() === '0px', '沒有在輸入：就算 visualViewport 還沒恢復也不留空間');
+  input.focus();
+  view.kbEvent = false;
+  view.syncKeyboard();
+  assert(!el.classList.contains('wm-kb-open') && inset() === '0px', 'Obsidian 通知鍵盤收起來了：不留空間');
+  view.kbEvent = true;
+  view.syncKeyboard();
+  assert(el.classList.contains('wm-kb-open') && inset() === '120px', 'Obsidian 通知鍵盤升起：留 120');
+  // 彈出選單要放在看得到的範圍裡：按鈕在鍵盤正上方時往上開
+  view.toolbar.showTab('insert');
+  const owner = view.toolbar.dom.querySelector('button.wm-btn');
+  const ownerRect = owner.getBoundingClientRect;
+  owner.getBoundingClientRect = () => ({ left: 10, top: 360, right: 50, bottom: 396, width: 40, height: 36 });
+  view.toolbar.openPopup(owner, p => { p.textContent = '選單'; });
+  assert(parseFloat(view.toolbar.popup.style.top) < 360, '功能區在鍵盤上方時，選單往上開（不放到鍵盤後面）：top = ' + view.toolbar.popup.style.top);
+  view.toolbar.closePopup();
+  owner.getBoundingClientRect = ownerRect;
+  input.remove();
+  view.kbEvent = null;
+  view.syncKeyboard();
+  el.getBoundingClientRect = realRect;
+  window.scrollTo = realScrollTo;
+  delete window.visualViewport;
+}
+
 //@@MORE@@
 
 finish();
