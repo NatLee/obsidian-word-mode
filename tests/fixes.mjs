@@ -6,7 +6,7 @@ import { normalizeCellAlign } from '../src/schema.js';
 import * as C from '../src/commands.js';
 import { insertFootnote } from '../src/footnotes.js';
 import { propType, summarize, propLink, convertProp, renameProp, propsSummary, frontmatterOf, frontmatterBody, peekData } from '../src/props.js';
-import { countText, docText, docStats } from '../src/textstats.js';
+import { countSource, countText, docText, docStats, stripFrontmatter, withSourceCounts } from '../src/textstats.js';
 
 const c = new MarkdownConverter();
 const N = schema.nodes;
@@ -241,6 +241,30 @@ const select = (state, text, len = text.length) => { const p = posOf(state.doc, 
   const st = docStats(doc);
   check('字數統計：段落、標題、表格、連結', st.heads === 1 && st.tables === 1 && st.links === 1 && st.words === all.words && st.minutes === 1, JSON.stringify(st));
   check('字數統計：選取一段', docStats(doc, 0, doc.child(0).nodeSize + doc.child(1).nodeSize).heads === 1 && docStats(doc, 0, doc.child(0).nodeSize).words === 0);
+}
+
+// ---- 字數「跟 Obsidian 內建的一樣」：算 Markdown 原文，結果要跟 Obsidian 1.15.1 的字數相同
+// （下面的數字是照 Obsidian 的算法算出來的：中文、日文一字一個詞，其他文字、數字與 - ' ’ 連成一串算一個）
+{
+  const words = s => countSource(s, true).words;
+  check('Obsidian 字數：中文一字一個、英文一串一個', words('這是 hello world。') === 4);
+  check('Obsidian 字數：日文假名一字一個，長音符號也算', words('カタカナー ひらがな') === 9);
+  check('Obsidian 字數：韓文一串算一個', words('한국어 문장입니다') === 2);
+  check('Obsidian 字數：數字的千分位與小數點連在一起', words('1,000.5 與 3.14') === 3);
+  check("Obsidian 字數：- ' ’ 跟字母連成一串，單獨的 - 也算一個", words("well-known it's don’t - x") === 5);
+  check('Obsidian 字數：網址拆成好幾個詞，Markdown 符號不算', words('[連結](https://example.com) **粗**') === 6);
+  check('Obsidian 字數：其他語言', words('Русский العربية עברית ภาษาไทย') === 4);
+  check('Obsidian 字數：空字串', words('') === 0 && countSource('').charsWithSpaces === 0);
+  const md = '---\ntags: [a]\n---\n# 標題\n\n內文 text\n';
+  const st = countSource(md);
+  check('Obsidian 字數：不算文件屬性，字元數含空白與換行', st.words === 5 && st.charsWithSpaces === '# 標題\n\n內文 text\n'.length && st.chars === '#標題內文text'.length, JSON.stringify(st));
+  check('Obsidian 字數：選取的一段不去掉開頭的 ---', countSource(md, true).charsWithSpaces === md.length);
+  check('文件屬性：跟 Obsidian 一樣判斷', stripFrontmatter('---\n---\n內文') === '內文' && stripFrontmatter('---\r\na: 1\r\n---\r\n內文') === '內文'
+    && stripFrontmatter('---\nno close\n內文') === '---\nno close\n內文' && stripFrontmatter('--- \n內文\n---\n') === '--- \n內文\n---\n'
+    && stripFrontmatter('---\na: b---\n---\n內文') === '內文' && stripFrontmatter('---\na: 1\n---') === '');
+  const doc = c.parse(md).doc;
+  const both = withSourceCounts(docStats(doc), md);
+  check('字數統計視窗：字數換成原文的算法，段落與標題的數目不變', both.words === 5 && both.charsSp === st.charsWithSpaces && both.heads === 1 && both.paras === docStats(doc).paras, JSON.stringify(both));
 }
 
 if (failed) { console.log(`\n${failed} 項失敗`); process.exit(1); }

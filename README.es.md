@@ -32,7 +32,7 @@ Es lo que se ve en la animación del principio. Empieza un párrafo con `# `, `-
 - **Adáptala a tu gusto**: muestra las pestañas como texto, iconos o ambos, agrúpalas en un solo botón de menú y cámbiales el nombre. Los grupos de botones se pueden renombrar, reordenar, ocultar o mover a otra pestaña.
 - **La misma barra de herramientas en Markdown y en la vista de lectura**, con la misma distribución, para que nada salte al cambiar. Puedes mostrarla en ambos, solo en uno de ellos o en ninguno.
 - **Descripciones detalladas**: al pasar el ratón sobre un botón, verás una explicación con una breve animación, también en los botones del grupo Vistas y en los de la barra de estado. Vienen activadas; puedes desactivarlas en los ajustes o en la lista de atajos.
-- **Barra de estado** con el recuento de palabras, el estado de guardado, botones para cambiar entre el modo Word, Markdown y la vista de lectura, Ver propiedades y el zoom. Markdown y la vista de lectura mantienen los mismos botones y cuentan las palabras de la misma forma. Puedes desactivarla en los ajustes.
+- **Barra de estado** con el recuento de palabras, el estado de guardado, botones para cambiar entre el modo Word, Markdown y la vista de lectura, Ver propiedades y el zoom. Markdown y la vista de lectura mantienen los mismos botones y cuentan las palabras de la misma forma. Puedes desactivarla en los ajustes. Solo muestra el número de palabras, sin contar los símbolos de Markdown ni las direcciones de los enlaces; los caracteres y el tiempo de lectura están en su descripción emergente. Para obtener los mismos números que el recuento integrado de Obsidian, cambia "Forma de contar palabras" en los ajustes.
 
 ### Tablas
 

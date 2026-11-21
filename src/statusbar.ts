@@ -4,11 +4,11 @@
 import { setIcon } from 'obsidian';
 import { t, key } from './i18n.js';
 import { attachHint } from './hints.js';
-import { countText, docText, docStats } from './textstats.js';
+import { countSource, countText, docText, docStats, readingMinutes, withSourceCounts } from './textstats.js';
 import { WordCountModal, wordCountRows } from './dialogs.js';
 import { openMarkdownPeek } from './mdbar.js';
-import type { MarkdownView } from 'obsidian';
-import type { TextStats } from './textstats.js';
+import type { App, MarkdownView } from 'obsidian';
+import type { CountMethod, TextStats, WordStats } from './textstats.js';
 import type { DemoName, HintInfo } from './hints.js';
 import type { I18nKey } from './i18n.js';
 import type WordModePlugin from './main.js';
@@ -128,14 +128,33 @@ export function renderSaveStatus(box: HTMLElement, st: SaveStatus, at: Date | nu
   box.toggleClass('is-conflict', st === 'conflict');
 }
 
-// 字數：有選取時顯示「已選取 a／b 字」；提示裡是預估閱讀時間
-export function renderCount(box: HTMLElement, all: TextStats, sel: TextStats | null): void {
+// 字數的算法的說明（狀態列字數的提示與「字數統計」視窗用）
+export function countNote(method: CountMethod): string {
+  return method === 'obsidian'
+    ? t('跟 Obsidian 內建的字數一樣：算 Markdown 原文（文件屬性除外），符號與連結網址也算；中文、日文每個字算一個詞。')
+    : t('只算看得到的文字：中文、日文、韓文一字算一個，英文與數字一個單字算一個；Markdown 符號、連結網址與文件屬性不算。');
+}
+
+// 字數：只顯示字數，有選取時顯示「已選取 a／b 字」。字元數放在提示與「字數統計」視窗：
+// 兩個數字並排太擠，而且字元數的算法各家不同（Obsidian 內建的含空白與 Markdown 符號），並排容易看成同一種數字
+export function renderCount(box: HTMLElement, all: TextStats, sel: TextStats | null, method: CountMethod): void {
   const fmt = (n: number) => n.toLocaleString();
   if (sel) box.setText(t('已選取 {a}／{b} 字', { a: fmt(sel.words), b: fmt(all.words) }));
-  else box.setText(t('{a} 字・{b} 個字元', { a: fmt(all.words), b: fmt(all.chars) }));
-  // 閱讀時間：中文每分鐘 400 字、英文每分鐘 200 個單字（與「字數統計」視窗相同）
-  const minutes = Math.max(1, Math.round(all.cjk / 400 + all.latin / 200));
-  box.setAttribute('aria-label', t('預估閱讀時間') + t('：') + t('{n} 分鐘', { n: minutes }) + ' · ' + t('中文字以字計、英文以單字計（點一下看詳細統計）'));
+  else box.setText(t('{n} 字', { n: fmt(all.words) }));
+  // 「跟 Obsidian 一樣」時字元數也跟 Obsidian 一樣含空白與換行
+  const chars = method === 'obsidian' ? t('字元數（含空白）') + t('：') + fmt(all.charsWithSpaces) : t('字元數（不含空白）') + t('：') + fmt(all.chars);
+  const minutes = t('預估閱讀時間') + t('：') + t('{n} 分鐘', { n: readingMinutes(all) });
+  box.setAttribute('aria-label', [chars, minutes, countNote(method), t('點一下看詳細統計')].join('\n'));
+}
+
+// 「字數統計」視窗。all、sel 是文件與選取範圍的統計；算法是「跟 Obsidian 一樣」時，字數改用 Markdown 原文算
+// （md、selMd 只在這時呼叫：Word 模式要先把文件轉成 Markdown）
+export function showWordCount(app: App, method: CountMethod, all: WordStats, sel: WordStats | null, md: () => string, selMd: () => string): void {
+  if (method === 'obsidian') {
+    all = withSourceCounts(all, md());
+    if (sel) sel = withSourceCounts(sel, selMd(), true);
+  }
+  new WordCountModal(app, wordCountRows(all, sel), countNote(method)).open();
 }
 
 // 很長的筆記不轉成文件，直接算原文（每次改字都要重算，轉換太花時間）
@@ -191,7 +210,7 @@ export class MdStatusBar {
       if (settled) {
         if (text !== this.text) this.all = this.countMarkdown(text);
         this.text = text; this.sel = sel;
-        renderCount(this.parts.count, this.all, sel ? this.countMarkdown(sel, true) : null);
+        renderCount(this.parts.count, this.all, sel ? this.countMarkdown(sel, true) : null, this.plugin.settings.countMethod);
       }
     }
     this.renderStatus();
@@ -215,8 +234,9 @@ export class MdStatusBar {
     renderSaveStatus(this.parts.status, this.dirty ? 'dirty' : 'saved', at);
   }
 
-  // fragment：選取的一段（不切文件屬性與區塊）
+  // fragment：選取的一段（不切文件屬性與區塊）。「跟 Obsidian 一樣」的算法直接算原文，不用轉換
   countMarkdown(text: string, fragment = false): TextStats {
+    if (this.plugin.settings.countMethod === 'obsidian') return countSource(text, fragment);
     if (text.length > PARSE_LIMIT) return countText(text);
     try {
       const c = this.plugin.converter;
@@ -230,7 +250,7 @@ export class MdStatusBar {
     try { text = this.view.getViewData(); } catch { return; }
     try {
       const sel = this.mode === 'source' && this.view.editor ? this.view.editor.getSelection() : '';
-      new WordCountModal(this.plugin.app, wordCountRows(docStats(c.parse(text).doc), sel ? docStats(c.parseFragment(sel)) : null)).open();
+      showWordCount(this.plugin.app, this.plugin.settings.countMethod, docStats(c.parse(text).doc), sel ? docStats(c.parseFragment(sel)) : null, () => text, () => sel);
     } catch (e) { console.error('[Word 模式] 無法統計字數', e); }
   }
 }

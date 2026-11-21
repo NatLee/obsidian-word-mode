@@ -809,7 +809,9 @@ export function wordCountRows(all: WordStats, sel: WordStats | null): WordCountR
 // 字數統計（像 Word 的「字數統計」視窗）
 export class WordCountModal extends Modal {
   declare rows: WordCountRow[];
-  constructor(app: App, rows: WordCountRow[]) { super(app); this.rows = rows; }
+  // 算法的說明（statusbar.ts 的 countNote）
+  declare note: string;
+  constructor(app: App, rows: WordCountRow[], note: string) { super(app); this.rows = rows; this.note = note; }
   onOpen(): void {
     this.titleEl.setText(t('字數統計'));
     const table = this.contentEl.createEl('table', { cls: 'wm-count-table' });
@@ -819,7 +821,9 @@ export class WordCountModal extends Modal {
       tr.createEl('td', { text: a, cls: 'wm-count-num' });
       if (b != null) tr.createEl('td', { text: b, cls: 'wm-count-num wm-count-sel' });
     }
-    this.contentEl.createDiv({ cls: 'wm-count-note', text: t('中文、日文、韓文以字計；英文與數字以單字計。') });
+    // 數字跟 Obsidian 內建的字數不一樣時，看得到為什麼、去哪裡換算法
+    const note = this.contentEl.createDiv({ cls: 'wm-count-note', text: this.note });
+    note.createDiv({ text: t('可以在 Word 模式的設定「字數的算法」換成另一種算法。') });
   }
   onClose(): void { this.contentEl.empty(); }
 }

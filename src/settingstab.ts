@@ -167,7 +167,10 @@ function settingSections(settingTab: WordModeSettings): SettingSection[] {
         s => s.addDropdown(d => d.addOptions({ both: t('兩種模式都顯示'), source: t('只在 Markdown 編輯顯示'), preview: t('只在閱讀模式顯示'), none: t('都隱藏') })
           .setValue(mdToolbarMode(S.mdToolbar)).onChange(async v => { S.mdToolbar = mdToolbarMode(v); await rebuild(); }))),
       toggleRow(t('切換到 Markdown／閱讀模式時保留狀態列'),
-        t('Obsidian 右下角的狀態列維持跟 Word 模式一樣：字數、存檔狀態、Word 模式／Markdown／閱讀的切換按鈕、查看文件屬性與縮放（縮放只用在 Word 模式，這時會停用），切換模式時按鈕不會突然不見。字數用 Word 模式的算法，所以會取代 Obsidian 內建的字數。'), 'mdStatusBar', () => p.updateStatus(null)),
+        t('Obsidian 右下角的狀態列維持跟 Word 模式一樣：字數、存檔狀態、Word 模式／Markdown／閱讀的切換按鈕、查看文件屬性與縮放（縮放只用在 Word 模式，這時會停用），切換模式時按鈕不會突然不見。這時 Obsidian 內建的字數會藏起來，字數的算法見下一項設定。'), 'mdStatusBar', () => p.updateStatus(null)),
+      row(t('字數的算法'), t('狀態列與「字數統計」視窗的字數怎麼算。「只算看得到的文字」像 Word：中文、日文、韓文一字算一個，英文一個單字算一個，Markdown 符號、連結網址與文件屬性不算。「跟 Obsidian 內建的一樣」算 Markdown 原文，符號與連結網址也算，數字跟 Obsidian 內建的字數相同。'),
+        s => s.addDropdown(d => d.addOptions({ word: t('只算看得到的文字'), obsidian: t('跟 Obsidian 內建的一樣') })
+          .setValue(S.countMethod === 'obsidian' ? 'obsidian' : 'word').onChange(async v => { S.countMethod = v === 'obsidian' ? 'obsidian' : 'word'; await save(); p.refreshCounts(); }))),
       row(t('大綱的位置'), t('「另開一欄」在筆記左邊再展開一個大綱欄（像第二個側邊欄，不會蓋掉檔案總管）；也可以放進 Obsidian 的左或右側邊欄，或用小型下拉選單。'),
         s => s.addDropdown(d => d.addOptions({ split: t('在筆記旁另開一欄（建議）'), left: t('左側邊欄（與檔案總管同一區）'), right: t('右側邊欄'), popup: t('下拉選單') })
           .setValue(S.outlinePlace || 'split').onChange(async v => {

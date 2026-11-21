@@ -6,6 +6,7 @@ import type { PropsStyle } from './view.js';
 import type { EquationEditMode } from './dialogs.js';
 import type { MermaidTab } from './mermaid.js';
 import type { SavedTemplate } from './templates.js';
+import type { CountMethod } from './textstats.js';
 
 // 介面語言設定：auto＝跟隨 Obsidian 的語言
 export type LanguageSetting = 'auto' | Language;
@@ -63,6 +64,8 @@ export interface Settings {
   // Markdown／閱讀模式要不要顯示工具列：都顯示、只在其中一種模式顯示、都隱藏（舊版存的是 true／false，載入時轉換）
   mdToolbar: MdToolbarMode;
   mdStatusBar: boolean;
+  // 狀態列與「字數統計」的字數怎麼算：只算看得到的文字，或跟 Obsidian 內建的字數一樣算 Markdown 原文
+  countMethod: CountMethod;
   outlinePlace: OutlinePlace;
   // 分頁列的樣式（文字、圖示、圖示加文字、收成選單）與自訂的分頁名稱（分頁 id → 名稱）
   tabStyle: TabStyle;
@@ -143,6 +146,7 @@ export const DEFAULTS: Settings = {
   richHints: true,
   mdToolbar: 'both',
   mdStatusBar: true,
+  countMethod: 'word',
   outlinePlace: 'split',
   // 右鍵選單與方程式
   ctxMenu: true,
