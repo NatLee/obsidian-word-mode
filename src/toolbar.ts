@@ -18,7 +18,7 @@ import type { EditorView } from 'prosemirror-view';
 import type { Mark, MarkType } from 'prosemirror-model';
 import type { Align, CaseKind, Direction } from './commands.js';
 import type { I18nKey } from './i18n.js';
-import type { ButtonClick, GroupBodies, MenuItem, RibbonAction, RibbonButton, RibbonSettings, TabId } from './ribbon.js';
+import type { AnyTabId, ButtonClick, GroupBodies, MenuItem, RibbonAction, RibbonButton, RibbonSettings, TabId } from './ribbon.js';
 
 // 「貼上」按鈕與選單的模式：auto＝一般貼上、text＝只貼文字、markdown＝把 Markdown 轉成格式
 export type PasteMode = 'auto' | 'text' | 'markdown';
@@ -146,7 +146,9 @@ export class Toolbar {
   declare shell: RibbonShell;
   declare dom: HTMLDivElement;
   declare items: ToolbarItem[];
-  declare activeTab: TabId;
+  declare activeTab: AnyTabId;
+  // 最後一個選的一般分頁：離開表格時，情境分頁消失，回到這個分頁
+  declare lastTab: TabId;
   declare painter: readonly Mark[] | null;
   declare painterSticky: boolean;
   declare painterHandler: (() => void) | null;
@@ -159,7 +161,8 @@ export class Toolbar {
   declare styleBtn: HTMLButtonElement | null;
   declare hlBtn: HTMLButtonElement | null;
   declare colorBtn: HTMLButtonElement | null;
-  declare tableGroup: HTMLDivElement;
+  // 表格工具的群組：分頁版面放在情境分頁「表格」，其他版面跟其他按鈕排在一起、游標在表格裡才顯示
+  declare tableGroups: HTMLDivElement[];
 
   // ctx: { getView(), icon(el, name, fallbackText), dialogs: {...}, isMobile, settings }
   constructor(container: HTMLElement, ctx: ToolbarContext) {
@@ -208,10 +211,13 @@ export class Toolbar {
     return r;
   }
 
-  showTab(id: TabId): void {
+  showTab(id: AnyTabId): void {
     if (this.shell.layout !== 'tabs') return;
     this.activeTab = id;
     this.shell.showTab(id);
+    // 情境分頁不記成上次的分頁（下次開啟時游標不一定在表格裡）
+    if (id === 'tabletab') return;
+    this.lastTab = id;
     if (this.ctx.onTab) this.ctx.onTab(id);
   }
 
@@ -244,6 +250,7 @@ export class Toolbar {
     this.buildInsert(G);
     this.buildReview(G);
     this.buildView(G);
+    this.buildTable();
     // 右上角固定的快速按鈕
     const quick = shell.finish();
     shell.apart(() => {
@@ -334,30 +341,6 @@ export class Toolbar {
     this.button(g, A.find, this.findHandler());
     this.button(g, A.replace, this.replaceHandler());
     this.button(g, { icon: 'text-select', title: '全選', keys: 'Mod+A', text: '全', demo: 'selectall', desc: '選取整份筆記。再按一次取消選取。' }, { onClick: () => this.toggleSelectAll(), active: s => C.isAllSelected(s) });
-
-    // 表格工具（游標在表格內才顯示）。分頁版面放在「常用」的面板，所以這個分頁被隱藏時面板也要留著
-    const tableGroup = el('div', 'wm-group wm-table-tools', this.shell.all || this.shell.panels.home);
-    this.tableGroup = tableGroup;
-    const tbody = el('div', 'wm-group-body', tableGroup);
-    el('span', 'wm-group-label', tbody, t('表格'));
-    el('div', 'wm-group-name', tableGroup, t('表格工具'));
-    const T = C.table;
-    const tb = (icon: string, title: I18nKey, cmd: Command, text: string) => this.button(tbody, { icon, title, text }, { cmd, enabled: s => cmd(s) });
-    this.shell.apart(() => {
-      tb('arrow-up-to-line', '在上方插入列', T.addRowBefore, '↑列');
-      tb('arrow-down-to-line', '在下方插入列', T.addRowAfter, '↓列');
-      tb('arrow-left-to-line', '在左側插入欄', T.addColumnBefore, '←欄');
-      tb('arrow-right-to-line', '在右側插入欄', T.addColumnAfter, '→欄');
-      tb('rows-3', '刪除列', T.deleteRow, '刪列');
-      tb('columns-3', '刪除欄', T.deleteColumn, '刪欄');
-      tb('arrow-up', '列上移', C.moveBlock(-1), '列↑');
-      tb('arrow-down', '列下移', C.moveBlock(1), '列↓');
-      tb('arrow-left', '欄左移', C.moveTableColumn(-1), '欄←');
-      tb('arrow-right', '欄右移', C.moveTableColumn(1), '欄→');
-      tb('arrow-down-a-z', '依此欄排序（遞增）', C.sortTableByColumn(1), '排↑');
-      tb('arrow-up-z-a', '依此欄排序（遞減）', C.sortTableByColumn(-1), '排↓');
-      tb('trash-2', '刪除表格', T.deleteTable, '刪表');
-    });
   }
 
   toggleSelectAll(): void {
@@ -372,6 +355,53 @@ export class Toolbar {
     if (!v) return;
     if (C.table.isIn(v.state)) this.run(C.sortTableByColumn(dir));
     else if (!this.run(C.sortBlocks(dir)) && this.d.notice) this.d.notice(t('請先選取要排序的段落，或把游標放在清單或表格裡'));
+  }
+
+  // ----------------------------------------------------------- 表格（情境分頁）
+  // 游標在表格裡時才出現的「表格」分頁（像 Word 的表格工具）；不用分頁的版面，這些群組排在最後、游標在表格裡才顯示
+  buildTable(): void {
+    const shell = this.shell;
+    const host = shell.contextTab('tabletab', '表格') || shell.all;
+    this.tableGroups = [];
+    if (!host) return;
+    const T = C.table;
+    const group = (name: I18nKey) => { const body = shell.group(host, 'wm-table-tools', t(name)); this.tableGroups.push(body.parentElement as HTMLDivElement); return body; };
+    const run = (cmd: Command) => () => { this.run(cmd); };
+    const tb = (parent: HTMLElement, icon: string, title: I18nKey, cmd: Command, text: string, more: Partial<WordHandler> = {}) => this.button(parent, { icon, title, text }, { cmd, enabled: s => cmd(s), ...more });
+    // 跟其他分頁同名的按鈕（全部排在一起的版面會去除重複）也要出現
+    shell.apart(() => {
+      let g = group('表格');
+      this.menuButton(g, { icon: 'mouse-pointer-click', title: '選取', text: '選', label: '選取', big: true, desc: '選取游標所在的儲存格、整列、整欄或整張表。選取整列、整欄或整張表後按 Backspace 會刪掉它們。' }, [
+        { title: t('選取儲存格'), icon: 'square', run: run(T.selectCell) },
+        { title: t('選取整列'), icon: 'rows-3', run: run(T.selectRow) },
+        { title: t('選取整欄'), icon: 'columns-3', run: run(T.selectColumn) },
+        { title: t('選取表格'), icon: 'table', run: run(T.selectTable) },
+      ]);
+      this.menuButton(g, { icon: 'trash-2', title: '刪除', text: '刪', label: '刪除', big: true, desc: '清除儲存格的內容，或刪除列、欄、整張表。' }, [
+        { title: t('清除內容'), icon: 'eraser', run: run(T.clearCells) },
+        { title: t('刪除列'), icon: 'rows-3', run: run(T.deleteRow) },
+        { title: t('刪除欄'), icon: 'columns-3', run: run(T.deleteColumn) },
+        { title: t('刪除表格'), icon: 'trash-2', run: run(T.deleteTable) },
+      ]);
+      this.button(g, { icon: 'text', title: '表格轉成文字', text: '文', label: '轉成文字', big: true, desc: '把表格換回一般段落：每一列一段，儲存格之間用 Tab 隔開。' }, { cmd: T.toText, enabled: s => T.toText(s) });
+      g = group('列與欄');
+      tb(g, 'arrow-up-to-line', '在上方插入列', T.addRowBefore, '↑列');
+      tb(g, 'arrow-down-to-line', '在下方插入列', T.addRowAfter, '↓列');
+      tb(g, 'arrow-left-to-line', '在左側插入欄', T.addColumnBefore, '←欄');
+      tb(g, 'arrow-right-to-line', '在右側插入欄', T.addColumnAfter, '→欄');
+      g = group('移動');
+      tb(g, 'arrow-up', '列上移', C.moveBlock(-1), '列↑');
+      tb(g, 'arrow-down', '列下移', C.moveBlock(1), '列↓');
+      tb(g, 'arrow-left', '欄左移', C.moveTableColumn(-1), '欄←');
+      tb(g, 'arrow-right', '欄右移', C.moveTableColumn(1), '欄→');
+      g = group('對齊');
+      tb(g, 'align-left', '整欄靠左', T.alignColumn('left'), '左', { active: s => C.currentAlign(s) === 'left' });
+      tb(g, 'align-center', '整欄置中', T.alignColumn('center'), '中', { active: s => C.currentAlign(s) === 'center' });
+      tb(g, 'align-right', '整欄靠右', T.alignColumn('right'), '右', { active: s => C.currentAlign(s) === 'right' });
+      g = group('排序');
+      tb(g, 'arrow-down-a-z', '依此欄排序（遞增）', C.sortTableByColumn(1), '排↑');
+      tb(g, 'arrow-up-z-a', '依此欄排序（遞減）', C.sortTableByColumn(-1), '排↓');
+    });
   }
 
   // ----------------------------------------------------------- 插入
@@ -458,7 +488,11 @@ export class Toolbar {
       const txt = this.styleBtn.querySelector('.wm-btn-text');
       if (txt && st) txt.textContent = t(st.label);
     }
-    this.tableGroup.classList.toggle('is-hidden', !C.table.isIn(state));
+    const inTable = C.table.isIn(state);
+    if (this.shell.layout === 'tabs') {
+      this.shell.setContextTab('tabletab', inTable);
+      if (!inTable && this.activeTab === 'tabletab') this.showTab(this.lastTab || this.shell.usableTab(null));
+    } else for (const g of this.tableGroups) g.classList.toggle('is-hidden', !inTable);
   }
 
   // 尋找列、大綱等開關變了：只更新按鈕狀態
@@ -659,9 +693,18 @@ export class Toolbar {
           // 觸控：第一下選大小、第二下確認；滑鼠：按一下就插入
           cell.addEventListener('pointerup', e => {
             if (e.pointerType !== 'mouse' && picked !== r + 'x' + c) { picked = r + 'x' + c; mark(r, c); label.textContent += ' ' + t('— 再點一下插入'); return; }
-            this.closePopup(); this.run(C.insertTable(r, c));
+            this.closePopup();
+            // 插入之後切到「表格」分頁（像 Word），接著要加列、對齊都在那裡
+            if (this.run(C.insertTable(r, c))) this.showTab('tabletab');
           });
         }
+      }
+      // 選取了幾段文字：也可以直接把它們轉成表格（用 Tab、「|」或逗號分欄）
+      if (this.view && C.textToTable(this.view.state)) {
+        const conv = el('button', 'wm-table-convert', p, t('把選取文字轉成表格'));
+        conv.type = 'button';
+        keepFocus(conv);
+        conv.addEventListener('click', () => { this.closePopup(); if (this.run(C.textToTable)) this.showTab('tabletab'); });
       }
     });
   }

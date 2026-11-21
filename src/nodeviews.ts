@@ -1,5 +1,5 @@
 import { TableView } from 'prosemirror-tables';
-import { CALLOUT_TYPES, calloutIcon, CODE_LANGUAGES } from './commands.js';
+import { CALLOUT_TYPES, calloutIcon, CODE_LANGUAGES, deleteTableAt } from './commands.js';
 import { t, key } from './i18n.js';
 import { FOOTNOTE_DEF, FOOTNOTE_REF, footnoteBody, footnoteText, removeFootnote } from './footnotes.js';
 import { el, whenVisible, onPress, onKeyPress, keepFocus } from './dom.js';
@@ -71,6 +71,11 @@ export interface NodeViewContext {
   // ---- 提示框
   // pos 是 getPos() 的結果，可能是 undefined
   unwrapCallout(pos: number | undefined): void;
+  // ---- 表格
+  // 表格右上角「更多功能」的選單；pos 是表格節點的位置
+  tableMenu?(evt: MouseEvent, pos: number): void;
+  // 表格的 Markdown 原文（右上角的「複製為 Markdown」）
+  tableMarkdown?(node: PMNode): string;
 }
 
 // 文件屬性區塊的 DOM：view.js 的 openProperties() 呼叫 wmOpen() 展開它；設定改了（例如固定在上方）呼叫 wmRefresh() 重畫
@@ -1152,6 +1157,47 @@ class CalloutView implements NodeView {
   ignoreMutation(m: ViewMutationRecord): boolean { return this.head.contains(m.target) || m.target === this.dom && m.type === 'attributes'; }
 }
 
+// 表格：prosemirror-tables 的 TableView（可以左右捲動的 .tableWrapper 裡放表格）外面再包一層 .wm-table，
+// 放右上角的小按鈕（複製為 Markdown、更多功能、刪除表格）。按鈕放在捲動的那一層外面，表格很寬時才不會被捲走或裁掉。
+// 游標在表格裡時 .wm-table 會加上 is-active（tablegrips.ts 的節點裝飾），按鈕一直顯示；其他時候滑鼠移上來才顯示
+class WordTableView extends TableView {
+  declare view: EditorView;
+  declare getPos: GetPos;
+  declare tools: HTMLDivElement;
+  declare copyBtn: HTMLButtonElement;
+  constructor(node: PMNode, view: EditorView, getPos: GetPos, ctx: NodeViewContext) {
+    super(node, 90);
+    this.view = view;
+    this.getPos = getPos;
+    const scroll = this.dom;
+    this.dom = el('div', 'wm-table');
+    this.tools = el('div', 'wm-block-tools wm-table-corner', this.dom);
+    this.tools.contentEditable = 'false';
+    if (ctx.tableMarkdown) {
+      this.copyBtn = cornerButton(this.tools, ctx, 'wm-block-copy', t('複製為 Markdown'), 'copy', t('複製為 Markdown'), () => copyWithFeedback(this.copyBtn, ctx.tableMarkdown!(this.node)));
+    }
+    if (ctx.tableMenu) {
+      const more = cornerButton(this.tools, ctx, 'wm-block-more', t('表格選項'), 'more-horizontal', '⋯', e => {
+        const pos = this.getPos();
+        if (pos != null) ctx.tableMenu!(menuEvent(e, more), pos);
+      });
+    }
+    cornerButton(this.tools, ctx, 'wm-block-delete', t('刪除表格'), 'trash-2', t('刪除表格'), () => {
+      const pos = this.getPos();
+      if (pos == null) return;
+      deleteTableAt(pos)(this.view.state, tr => this.view.dispatch(tr));
+      this.view.focus();
+    });
+    this.dom.appendChild(scroll);
+  }
+  stopEvent(e: Event): boolean { return this.tools.contains(e.target as Node | null); }
+  ignoreMutation(m: ViewMutationRecord): boolean {
+    // 節點裝飾改的是外層的 class
+    if (m.target === this.dom && m.type === 'attributes') return true;
+    return this.tools.contains(m.target) || super.ignoreMutation(m);
+  }
+}
+
 export function createNodeViews(ctx: NodeViewContext): Record<string, NodeViewConstructor> {
   return {
     wikilink: (n, v, g) => new WikilinkView(n, v, g, ctx),
@@ -1161,7 +1207,7 @@ export function createNodeViews(ctx: NodeViewContext): Record<string, NodeViewCo
     frontmatter: (n, v, g) => new FrontmatterView(n, v, g, ctx),
     list_item: (n, v, g) => new ListItemView(n, v, g, ctx),
     code_block: (n, v, g) => new CodeBlockView(n, v, g, ctx),
-    table: n => new TableView(n, 90),
+    table: (n, v, g) => new WordTableView(n, v, g, ctx),
     callout: (n, v, g) => new CalloutView(n, v, g, ctx),
   };
 }

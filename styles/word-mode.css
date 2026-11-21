@@ -52,7 +52,8 @@ body {
    它前面那一組後面會多一條線。用 inline-start 而不是 left：介面由右到左時分隔線跟著換到右邊 */
 .wm-group + .wm-group { padding-inline-start: 6px; border-inline-start: 1px solid var(--background-modifier-border); }
 .wm-group.is-hidden { display: none; }
-.wm-table-tools { background: var(--background-modifier-hover); border-radius: 4px; padding: 0 4px; }
+/* 不分頁的版面：表格工具跟其他按鈕排在一起，加底色看得出是游標在表格裡才出現的群組（「表格」分頁裡不需要） */
+.wm-panel:not(.is-context) > .wm-table-tools { background: var(--background-modifier-hover); border-radius: 4px; padding: 0 4px; }
 .wm-group-label { font-size: var(--font-ui-smaller); color: var(--text-muted); padding: 0 4px; }
 .wm-toolbar button.wm-btn {
   min-width: 28px;
@@ -218,7 +219,10 @@ body {
 .wm-raw-inline.ProseMirror-selectednode { outline: 2px solid var(--interactive-accent); }
 
 /* 表格（像 Word 的格線） */
-.wm-editor .tableWrapper { margin: .8em 0; overflow-x: auto; }
+/* 外層 .wm-table 放表格的按鈕，.tableWrapper 是可以左右捲動的那一層。列與欄的把手壓在格線上、有一半在表格外面，
+   捲動的那一層會把超出的部分裁掉，所以上方與開頭留 8px 給把手，再用負的外距抵掉，表格的位置不變 */
+.wm-editor .wm-table { position: relative; margin: calc(.8em - 8px) 0 .8em; }
+.wm-editor .tableWrapper { overflow-x: auto; padding-block-start: 8px; padding-inline-start: 8px; margin-inline-start: -8px; }
 .wm-editor table { border-collapse: collapse; width: auto; min-width: 40%; table-layout: auto; }
 .wm-editor td, .wm-editor th { border: 1px solid var(--table-border-color, var(--background-modifier-border-hover)); padding: 4px 8px; min-width: 3em; vertical-align: top; position: relative; }
 .wm-editor th { background: var(--table-header-background, var(--background-secondary)); font-weight: var(--table-header-weight, 600); text-align: left; }
@@ -1863,3 +1867,23 @@ mark.wm-set-find-hl { padding: 0 1px; border-radius: 3px; background: hsla(var(-
 .mod-rtl :is(.wm-link-dialog input.wm-link-href, .wm-cp input.wm-cp-hex) { text-align: left; }
 /* 方向說不準的文字（網址或筆記名稱、檔案路徑、原始碼、YAML、註解）：每一行依內容決定方向 */
 .mod-rtl :is(.wm-bubble-label, .wm-link-path, .wm-suggest-detail, .wm-source-input, .wm-fm-body, .wm-peek-raw, .wm-raw-comment) { unicode-bidi: plaintext; }
+
+/* ---------- 表格：右上角的按鈕、列與欄的把手 ---------- */
+/* 表格的按鈕：桌機直排在表格開頭那一邊的頁面留白裡（不蓋到文字）；游標在表格裡或滑鼠移上來才顯示 */
+.wm-editor .wm-table .wm-table-corner { position: absolute; top: 8px; inset-inline-end: calc(100% + 4px); z-index: 2; display: flex; flex-direction: column; gap: 2px; border-radius: 4px; background: var(--background-primary); opacity: 0; pointer-events: none; transition: opacity .12s; }
+.wm-editor .wm-table:hover .wm-table-corner, .wm-editor .wm-table.is-active .wm-table-corner, .wm-editor .wm-table .wm-table-corner:focus-within { opacity: 1; pointer-events: auto; }
+/* 手機的頁面留白太窄：改成橫排放在表格上方的結尾那一邊 */
+.wm-mobile .wm-editor .wm-table .wm-table-corner { top: auto; bottom: calc(100% - 8px); inset-inline-end: 0; flex-direction: row; }
+/* 列與欄的把手：壓在格線上的小長條（每一列的開頭、第一列每一格的上方），按一下選取整列或整欄並開選單 */
+.wm-editor .wm-table-grip { position: absolute; z-index: 3; min-height: 0; padding: 0; border: none; border-radius: 4px; box-shadow: none; background: var(--background-modifier-border-hover); opacity: .75; cursor: pointer; }
+.wm-editor .wm-table-grip:hover, .wm-editor .wm-table-grip:focus-visible { background: var(--interactive-accent); opacity: 1; }
+.wm-editor .wm-table-grip.is-col { top: -5px; left: 50%; width: 24px; height: 9px; transform: translateX(-50%); }
+.wm-editor .wm-table-grip.is-row { top: 50%; inset-inline-start: -5px; width: 9px; height: 24px; transform: translateY(-50%); }
+/* 手機：手指點得到的大小（仍在留給把手的 8px 裡） */
+.wm-mobile .wm-editor .wm-table-grip.is-col { top: -7px; width: 36px; height: 13px; }
+.wm-mobile .wm-editor .wm-table-grip.is-row { inset-inline-start: -7px; width: 13px; height: 70%; max-height: 36px; }
+/* 功能區的情境分頁「表格」：游標在表格裡才出現；名稱用強調色，看得出是跟著游標出現的分頁 */
+.wm-tabs button.wm-tab.is-context[hidden] { display: none; }
+.wm-tabs button.wm-tab.is-context { color: var(--text-accent); }
+/* 插入表格的面板：選取了文字時下方多一個「把選取文字轉成表格」 */
+.wm-table-popup button.wm-table-convert { display: block; width: 100%; margin-top: 8px; font-size: var(--font-ui-smaller); }

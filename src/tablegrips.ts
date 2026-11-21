@@ -1,0 +1,89 @@
+// 表格的列與欄把手（不依賴 Obsidian）：游標所在的表格，每一列開頭、每一欄上方的格線上各有一個小把手，
+// 按一下選取整列或整欄，再開選單（插入、移動、對齊、排序、刪除）。手機沒有右鍵選單，表格靠這個與功能區操作。
+// 同時在游標所在的表格加上 is-active，讓右上角的按鈕一直顯示（nodeviews.ts 的 WordTableView）
+import { Plugin, PluginKey } from 'prosemirror-state';
+import { Decoration, DecorationSet } from 'prosemirror-view';
+import { CellSelection } from 'prosemirror-tables';
+import { t } from './i18n.js';
+import { el } from './dom.js';
+import { schema } from './schema.js';
+import type { EditorState } from 'prosemirror-state';
+import type { EditorView } from 'prosemirror-view';
+import type { Node as PMNode } from 'prosemirror-model';
+
+const N = schema.nodes;
+
+// 把手的種類：整列、整欄
+export type GripKind = 'row' | 'col';
+
+// 按下把手、選好整列或整欄之後要做的事（開選單）；anchor 是把手本身，選單開在它旁邊
+export type OpenGripMenu = (view: EditorView, kind: GripKind, anchor: HTMLElement) => void;
+
+export const tableGripsKey = new PluginKey('wmTableGrips');
+
+// 游標所在（或選取所在）的表格；整張表被選取時也算
+function activeTable(state: EditorState): { node: PMNode; pos: number } | null {
+  const sel = state.selection;
+  const $p = sel instanceof CellSelection ? sel.$anchorCell : sel.$from;
+  for (let d = $p.depth; d > 0; d--) if ($p.node(d).type === N.table) return { node: $p.node(d), pos: $p.before(d) };
+  const after = $p.nodeAfter;
+  if (after && after.type === N.table && sel.from === $p.pos && sel.to === $p.pos + after.nodeSize) return { node: after, pos: $p.pos };
+  return null;
+}
+
+// pos 是儲存格裡段落前面的位置
+function grip(pos: number, kind: GripKind, index: number, open: OpenGripMenu): Decoration {
+  return Decoration.widget(pos, (view: EditorView, getPos: () => number | undefined) => {
+    const b = el('button', 'wm-table-grip is-' + kind);
+    b.type = 'button';
+    b.contentEditable = 'false';
+    b.setAttribute('aria-label', kind === 'row' ? t('選取整列') : t('選取整欄'));
+    // 不搶走編輯區的焦點，也不讓瀏覽器把游標移到這裡（觸控也是，螢幕鍵盤才不會收起來）
+    const hold = (e: Event) => { e.preventDefault(); e.stopPropagation(); };
+    b.addEventListener('pointerdown', hold);
+    b.addEventListener('mousedown', hold);
+    b.addEventListener('click', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      // 位置在按下時才算：把手的 DOM 會沿用到之後的狀態，建立時記下的位置可能已經過時
+      const at = getPos();
+      if (at == null) return;
+      // 把手放在儲存格的段落前面，往前一個位置就是儲存格的開頭
+      const $cell = view.state.doc.resolve(at - 1);
+      if (!$cell.nodeAfter || ($cell.nodeAfter.type !== N.table_cell && $cell.nodeAfter.type !== N.table_header)) return;
+      view.dispatch(view.state.tr.setSelection(kind === 'row' ? CellSelection.rowSelection($cell) : CellSelection.colSelection($cell)));
+      view.focus();
+      open(view, kind, b);
+    });
+    return b;
+  }, {
+    side: -1, ignoreSelection: true, stopEvent: () => true,
+    // 同一個位置的把手沿用 DOM（不用每打一個字就重建）
+    key: 'wm-grip-' + kind + index,
+  });
+}
+
+function decorate(state: EditorState, open: OpenGripMenu): DecorationSet | null {
+  const tb = activeTable(state);
+  if (!tb) return null;
+  const decos: Decoration[] = [Decoration.node(tb.pos, tb.pos + tb.node.nodeSize, { class: 'is-active' })];
+  let rowPos = tb.pos + 1;
+  tb.node.forEach((row, _off, r) => {
+    let cellPos = rowPos + 1;
+    row.forEach((cell, _o, c) => {
+      // 每一列的第一格放列的把手；第一列的每一格放欄的把手
+      if (c === 0) decos.push(grip(cellPos + 1, 'row', r, open));
+      if (r === 0) decos.push(grip(cellPos + 1, 'col', c, open));
+      cellPos += cell.nodeSize;
+    });
+    rowPos += row.nodeSize;
+  });
+  return DecorationSet.create(state.doc, decos);
+}
+
+export function tableGripsPlugin(open: OpenGripMenu): Plugin {
+  return new Plugin({
+    key: tableGripsKey,
+    props: { decorations: state => decorate(state, open) },
+  });
+}

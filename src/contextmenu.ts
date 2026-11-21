@@ -10,6 +10,7 @@ import { marksOn } from './marks.js';
 import { removeFootnote } from './footnotes.js';
 import { PromptModal } from './dialogs.js';
 import type { Command } from 'prosemirror-state';
+import type { I18nKey } from './i18n.js';
 import type { CodeBlockAttrs } from './schema.js';
 import type { WordModeView, ElementEvent } from './view.js';
 
@@ -124,6 +125,15 @@ export function openContextMenu(view: WordModeView, e: ElementEvent): boolean {
       cmd(t('刪除列'), 'rows-3', T.deleteRow);
       cmd(t('刪除欄'), 'columns-3', T.deleteColumn);
       cmd(t('刪除表格'), 'trash-2', T.deleteTable, false);
+      cmd(t('清除內容'), 'eraser', T.clearCells);
+    });
+    // 表格裡的「全選」也收在這裡（剪貼簿那一段就不放），主選單才不會變長
+    submenu(t('選取'), 'mouse-pointer-click', () => {
+      cmd(t('選取儲存格'), 'square', T.selectCell);
+      cmd(t('選取整列'), 'rows-3', T.selectRow);
+      cmd(t('選取整欄'), 'columns-3', T.selectColumn);
+      cmd(t('選取表格'), 'table', T.selectTable);
+      item(t('全選'), 'text-select', () => { C.selectAll(view.pm!.state, v => view.pm!.dispatch(v)); view.pm!.focus(); });
     });
     submenu(t('移動列或欄'), 'move', () => {
       cmd(t('列上移'), 'arrow-up', C.moveBlock(-1));
@@ -150,7 +160,7 @@ export function openContextMenu(view: WordModeView, e: ElementEvent): boolean {
     item(t('複製'), 'copy', () => view.clipboardAction('copy'), hasSel);
     item(t('貼上'), 'clipboard-paste', () => { void view.pasteFromClipboard('auto'); });
     item(t('只貼上文字'), 'type', () => { void view.pasteFromClipboard('text'); });
-    item(t('全選'), 'text-select', () => { C.selectAll(view.pm!.state, v => view.pm!.dispatch(v)); view.pm!.focus(); });
+    if (!inTable || hidden.has('table')) item(t('全選'), 'text-select', () => { C.selectAll(view.pm!.state, v => view.pm!.dispatch(v)); view.pm!.focus(); });
     sep();
   }
   // ---- 格式（有選取文字時，像 Word 的迷你工具列）
@@ -179,6 +189,7 @@ export function openContextMenu(view: WordModeView, e: ElementEvent): boolean {
       item(t('連結到筆記…'), 'file-symlink', () => view.openNoteLinkPicker());
       item(hasSel ? t('把選取文字變成方程式…') : t('插入方程式…'), 'sigma', () => view.openEquation());
       item(t('插入註解…'), 'message-square', () => view.insertComment());
+      if (hasSel && C.textToTable(st)) cmd(t('把選取文字轉成表格'), 'table', C.textToTable);
     }, inTable);
     if (!inTable) sep();
   }
@@ -196,8 +207,57 @@ export function openContextMenu(view: WordModeView, e: ElementEvent): boolean {
       item(t('字數統計'), 'bar-chart-3', () => view.openWordCount());
     }
     item(marksOn(st) ? t('隱藏編輯標記') : t('顯示編輯標記'), 'pilcrow', () => view.setMarks(!marksOn(view.pm!.state)));
+    if (inTable) cmd(t('表格轉成文字'), 'text', C.table.toText);
   }, inTable);
   m.showAtMouseEvent(e);
   e.preventDefault();
   return true;
+}
+
+// 表格上的把手（整列、整欄）與表格右上角「表格選項」的選單。手機也會用到（手機沒有右鍵選單）。
+// 開選單之前已經選好整列、整欄或整張表，選單裡的指令都作用在選取的範圍
+export function openTableMenu(view: WordModeView, kind: 'row' | 'col' | 'table', at: { x: number; y: number }): void {
+  const pm = view.pm;
+  if (!pm) return;
+  const st = pm.state;
+  const T = C.table;
+  const m = new Menu();
+  const cmd = (title: I18nKey, icon: string, c: Command) => m.addItem(i => {
+    i.setTitle(t(title)).setIcon(icon).onClick(() => { c(pm.state, tr => pm.dispatch(tr), pm); pm.focus(); });
+    if (!c(st)) i.setDisabled(true);
+  });
+  if (kind === 'row') {
+    cmd('在上方插入列', 'arrow-up-to-line', T.addRowBefore);
+    cmd('在下方插入列', 'arrow-down-to-line', T.addRowAfter);
+    m.addSeparator();
+    cmd('列上移', 'arrow-up', C.moveBlock(-1));
+    cmd('列下移', 'arrow-down', C.moveBlock(1));
+    m.addSeparator();
+    cmd('清除內容', 'eraser', T.clearCells);
+    cmd('刪除列', 'trash-2', T.deleteRow);
+  } else if (kind === 'col') {
+    cmd('在左側插入欄', 'arrow-left-to-line', T.addColumnBefore);
+    cmd('在右側插入欄', 'arrow-right-to-line', T.addColumnAfter);
+    m.addSeparator();
+    cmd('欄左移', 'arrow-left', C.moveTableColumn(-1));
+    cmd('欄右移', 'arrow-right', C.moveTableColumn(1));
+    m.addSeparator();
+    cmd('整欄靠左', 'align-left', T.alignColumn('left'));
+    cmd('整欄置中', 'align-center', T.alignColumn('center'));
+    cmd('整欄靠右', 'align-right', T.alignColumn('right'));
+    m.addSeparator();
+    cmd('依此欄排序（遞增）', 'arrow-down-a-z', C.sortTableByColumn(1));
+    cmd('依此欄排序（遞減）', 'arrow-up-z-a', C.sortTableByColumn(-1));
+    m.addSeparator();
+    cmd('清除內容', 'eraser', T.clearCells);
+    cmd('刪除欄', 'trash-2', T.deleteColumn);
+  } else {
+    cmd('選取表格', 'table', T.selectTable);
+    m.addItem(i => i.setTitle(t('複製為 Markdown')).setIcon('file-code').onClick(() => view.copyText(view.selectionMarkdown())));
+    cmd('表格轉成文字', 'text', T.toText);
+    m.addSeparator();
+    cmd('清除內容', 'eraser', T.clearCells);
+    cmd('刪除表格', 'trash-2', T.deleteTable);
+  }
+  m.showAtPosition(at);
 }

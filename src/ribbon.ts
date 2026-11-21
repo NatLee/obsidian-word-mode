@@ -10,6 +10,11 @@ import type { I18nKey } from './i18n.js';
 
 // 分頁 id（TABS 的第一欄；也是設定 hiddenTabs 存的值）
 export type TabId = 'home' | 'insert' | 'review' | 'viewtab';
+// 情境分頁：需要時才出現的分頁（游標在表格裡時的「表格」，像 Word 的表格工具）。
+// 不在設定的分頁清單裡，不能隱藏或改名，也不會記成下次開啟時的分頁
+export type ContextTabId = 'tabletab';
+export type AnyTabId = TabId | ContextTabId;
+export const CONTEXT_TABS: readonly ContextTabId[] = ['tabletab'];
 // 按鈕群組 id（GROUPS 的第一欄；也是設定 hiddenGroups 存的值）
 export type GroupId =
   | 'undo' | 'clipboard' | 'styles' | 'font' | 'paragraph' | 'editing'
@@ -96,7 +101,7 @@ export function moveGroupToTab(custom: GroupCustom | null | undefined, id: Group
 }
 
 // 分頁的圖示（分頁列樣式為「圖示」「圖示加文字」「收成選單」時顯示）
-export const TAB_ICONS: Record<TabId, string> = { home: 'home', insert: 'plus-circle', review: 'spell-check', viewtab: 'eye' };
+export const TAB_ICONS: Record<AnyTabId, string> = { home: 'home', insert: 'plus-circle', review: 'spell-check', viewtab: 'eye', tabletab: 'table' };
 
 // 分頁顯示的名稱：使用者在設定裡自訂的名稱，沒有時用預設名稱
 export function tabName(id: TabId, label: I18nKey, custom?: Partial<Record<string, string>> | null): string {
@@ -105,7 +110,7 @@ export function tabName(id: TabId, label: I18nKey, custom?: Partial<Record<strin
 }
 
 // 在分頁按鈕裡放圖示與名稱（依分頁列的樣式）；只有圖示時名稱放在提示裡
-export function fillTab(b: HTMLElement, id: TabId, name: string, style: TabStyle, icon: IconFn): void {
+export function fillTab(b: HTMLElement, id: AnyTabId, name: string, style: TabStyle, icon: IconFn): void {
   b.replaceChildren();
   if (style !== 'text') icon(el('span', 'wm-tab-icon', b), TAB_ICONS[id], '');
   if (style !== 'icon' || !b.querySelector('svg')) el('span', 'wm-tab-text', b, name);
@@ -252,7 +257,7 @@ export interface ShellOptions {
   // 分頁收成選單時，按下選單按鈕要開的選單（Word 模式用自己的下拉面板，Markdown 用 Obsidian 的選單）
   openMenu(owner: HTMLElement, items: MenuItem[]): void;
   // 使用者選了分頁（分頁按鈕或選單）
-  pickTab(id: TabId): void;
+  pickTab(id: AnyTabId): void;
 }
 
 // 功能區最外層元素的 class（版面、按鈕樣式、分頁列樣式、要不要顯示群組名稱）
@@ -274,17 +279,21 @@ export class RibbonShell {
   declare hiddenGroups: Set<string>;
   declare tabsEl: HTMLDivElement;
   declare bar: HTMLDivElement;
-  // 分頁版面：每個分頁一塊面板（被隱藏的分頁也有，標成 is-empty）；其他版面是空的，按鈕全部放在 all
-  declare panels: Partial<Record<TabId, HTMLDivElement>>;
+  // 分頁版面：每個分頁一塊面板（被隱藏或沒有按鈕的分頁在 finish() 拿掉）；其他版面是空的，按鈕全部放在 all
+  declare panels: Partial<Record<AnyTabId, HTMLDivElement>>;
   declare all: HTMLDivElement | null;
-  declare tabBtns: Partial<Record<TabId, HTMLButtonElement>>;
-  // 看得到的分頁的名稱；被隱藏或沒有按鈕的分頁沒有這一項
-  declare tabNames: Partial<Record<TabId, string>>;
+  declare tabBtns: Partial<Record<AnyTabId, HTMLButtonElement>>;
+  // 看得到的分頁的名稱；被隱藏或沒有按鈕的分頁、目前沒出現的情境分頁沒有這一項
+  declare tabNames: Partial<Record<AnyTabId, string>>;
+  // 情境分頁的名稱（出現時才放進 tabNames）
+  declare contextNames: Partial<Record<ContextTabId, string>>;
   // 分頁收成選單時的選單按鈕
   declare tabSwitch: HTMLButtonElement | null;
   declare groups: GroupBodies;
   // 全部排在一起的版面：已經放過的功能（按鈕的 title）
   declare seen: Set<string>;
+  // 使用者選了分頁（建構時傳入的 pickTab；情境分頁的按鈕也用它）
+  declare pickTab: (id: AnyTabId) => void;
 
   constructor(root: HTMLElement, o: ShellOptions) {
     const S = o.settings;
@@ -304,6 +313,7 @@ export class RibbonShell {
     this.all = null;
     this.tabBtns = {};
     this.tabNames = {};
+    this.contextNames = {};
     this.tabSwitch = null;
     this.groups = {};
     this.seen = new Set();
@@ -316,14 +326,14 @@ export class RibbonShell {
         el('span', 'wm-tab-switch-label', sw);
         this.icon(el('span', 'wm-tab-switch-arrow', sw), 'chevron-down', '▾');
         keepFocus(sw);
-        sw.addEventListener('click', () => o.openMenu(sw, TABS.filter(([id]) => this.tabNames[id] != null)
-          .map(([id]) => ({ title: this.tabNames[id]!, icon: TAB_ICONS[id], run: () => o.pickTab(id) }))));
+        sw.addEventListener('click', () => o.openMenu(sw, [...TABS.map(([id]) => id), ...CONTEXT_TABS].filter(id => this.tabNames[id] != null)
+          .map(id => ({ title: this.tabNames[id]!, icon: TAB_ICONS[id], run: () => o.pickTab(id) }))));
         this.tabSwitch = sw;
       }
       for (const [id, label] of TABS) {
         const panel = el('div', 'wm-panel', this.bar);
         this.panels[id] = panel;
-        if (hiddenTabs.has(id)) { panel.classList.add('is-empty'); continue; }
+        if (hiddenTabs.has(id)) continue;
         const name = tabName(id, label, S.tabLabels);
         this.tabNames[id] = name;
         if (menuTabs) continue;
@@ -340,14 +350,49 @@ export class RibbonShell {
     // 群組的名稱、順序與所在分頁來自同一份 groupLayout（包含使用者自訂的部分）
     for (const { id, tab, name } of groupLayout(S)) {
       if (hiddenTabs.has(tab) || this.hiddenGroups.has(id)) continue;
-      const g = el('div', 'wm-group wm-group-' + id, this.all || this.panels[tab]);
-      this.groups[id] = el('div', 'wm-group-body', g);
-      el('div', 'wm-group-name', g, name);
+      this.groups[id] = this.group(this.all || this.panels[tab]!, 'wm-group-' + id, name);
     }
+    this.pickTab = id => o.pickTab(id);
+  }
+
+  // 在 parent 裡建立一個群組（name 已經翻譯好），回傳放按鈕的容器
+  group(parent: HTMLElement, cls: string, name: string): HTMLDivElement {
+    const g = el('div', 'wm-group ' + cls, parent);
+    const body = el('div', 'wm-group-body', g);
+    el('div', 'wm-group-name', g, name);
+    return body;
+  }
+
+  // 建立情境分頁的面板（只有分頁版面有，其他版面回傳 null），一開始不出現，由 setContextTab() 決定
+  contextTab(id: ContextTabId, label: I18nKey): HTMLDivElement | null {
+    if (this.layout !== 'tabs') return null;
+    const panel = el('div', 'wm-panel is-context is-hidden', this.bar);
+    this.panels[id] = panel;
+    this.contextNames[id] = t(label);
+    return panel;
+  }
+
+  // 情境分頁出現或消失（不會切換到它；切換由功能區決定）。
+  // 分頁按鈕第一次出現時才建立，排在一般分頁的後面：沒用到的時候分頁列跟沒有情境分頁時一模一樣
+  setContextTab(id: ContextTabId, show: boolean): void {
+    const name = this.contextNames[id];
+    if (name == null) return;
+    let b = this.tabBtns[id];
+    if (show && !b && this.tabStyle !== 'menu') {
+      b = el('button', 'wm-tab is-context');
+      b.type = 'button';
+      fillTab(b, id, name, this.tabStyle, this.icon);
+      keepFocus(b);
+      b.addEventListener('click', () => this.pickTab(id));
+      this.tabsEl.insertBefore(b, this.tabsEl.querySelector('.wm-tabs-spacer'));
+      this.tabBtns[id] = b;
+    }
+    if (b) b.hidden = !show;
+    if (show) this.tabNames[id] = name; else delete this.tabNames[id];
   }
 
   // 顯示某個分頁的面板，並更新分頁按鈕（或選單按鈕）的樣子
-  showTab(id: TabId): void {
+  showTab(id: AnyTabId): void {
     for (const [k, p] of Object.entries(this.panels)) p.classList.toggle('is-hidden', k !== id);
     for (const [k, b] of Object.entries(this.tabBtns)) b.classList.toggle('is-active', k === id);
     if (this.tabSwitch) {
@@ -360,7 +405,7 @@ export class RibbonShell {
 
   // 一開始要顯示的分頁：想要的那個（上次的分頁）還在就用它，否則用第一個有按鈕的分頁
   usableTab(want: TabId | null | undefined): TabId {
-    const ok = (id: TabId) => { const p = this.panels[id]; return !!p && !p.classList.contains('is-empty'); };
+    const ok = (id: TabId) => !!this.panels[id];
     if (want && ok(want)) return want;
     const first = TABS.find(([id]) => ok(id));
     return first ? first[0] : 'home';
@@ -422,10 +467,12 @@ export class RibbonShell {
   // 按鈕都放好之後：拿掉沒有按鈕的群組與分頁，建立右上角放快速按鈕的容器並回傳
   // （分頁版面放在分頁列，收成選單時放在按鈕列，其他版面放在最後）
   finish(): HTMLDivElement {
+    // 沒有按鈕的分頁（被隱藏、或群組都被隱藏）：分頁按鈕與面板都拿掉
     for (const [id] of TABS) {
       const p = this.panels[id];
       if (!p || p.querySelector('.wm-btn')) continue;
-      p.classList.add('is-empty');
+      p.remove();
+      delete this.panels[id];
       delete this.tabNames[id];
       const b = this.tabBtns[id];
       if (b) { b.remove(); delete this.tabBtns[id]; }

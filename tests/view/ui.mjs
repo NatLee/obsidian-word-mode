@@ -44,8 +44,8 @@ await fresh('| 甲 | 乙 |\n| --- | --- |\n| a1 | b1 |\n');
   assert(!titles.includes('在上方插入列') && !titles.includes('刪除表格'), '表格的功能不直接列在主選單');
   const sub = name => items.find(i => i.title === name).submenu.items.map(i => i.title);
   assert(sub('插入列或欄').join() === '在上方插入列,在下方插入列,在左側插入欄,在右側插入欄', '子選單：插入列或欄');
-  assert(sub('刪除列、欄或表格').join() === '刪除列,刪除欄,刪除表格' && sub('移動列或欄').length === 4 && sub('整欄對齊').length === 3 && sub('依此欄排序').length === 2, '子選單：刪除、移動、對齊、排序');
-  assert(sub('段落').includes('項目符號') && sub('插入').some(x => x.includes('超連結')) && sub('工具').some(x => x.includes('字數統計')), '表格裡：段落、插入、工具也收成子選單');
+  assert(sub('刪除列、欄或表格').join() === '刪除列,刪除欄,刪除表格,清除內容' && sub('選取').join() === '選取儲存格,選取整列,選取整欄,選取表格,全選' && !titles.includes('全選') && sub('移動列或欄').length === 4 && sub('整欄對齊').length === 3 && sub('依此欄排序').length === 2, '子選單：刪除、選取（全選也收在這裡）、移動、對齊、排序');
+  assert(sub('段落').includes('項目符號') && sub('插入').some(x => x.includes('超連結')) && sub('工具').some(x => x.includes('字數統計')) && sub('工具').includes('表格轉成文字'), '表格裡：段落、插入、工具也收成子選單');
   assert(items.length <= 13, '表格右鍵選單的主選單不超過 13 項：' + items.length + '（' + titles.join('、') + '）');
   items.find(i => i.title === '插入列或欄').submenu.items.find(i => i.title === '在下方插入列').fn();
   assert(out() === '| 甲 | 乙 |\n| --- | --- |\n| a1 | b1 |\n|  |  |\n', '子選單的項目可以執行：' + JSON.stringify(out()));
@@ -1634,11 +1634,11 @@ await fresh('一段文字\n');
   rebuild();
   const flat = root => { const p = root.querySelectorAll('.wm-panel'); return p.length + ':' + p[0].lastElementChild.className + ':' + root.querySelector('.wm-tabs').className; };
   assert(flat(view.toolbar.dom) === '1:wm-tabs-quick:wm-tabs is-hidden' && flat(bar.dom) === flat(view.toolbar.dom), '全部排在一起的版面：只有一塊面板，快速按鈕在最後：' + flat(bar.dom));
-  // 隱藏的分頁：Word 模式留著空的面板（表格工具放在「常用」的面板裡），Markdown 功能區沒有那塊面板
+  // 隱藏的分頁：兩條功能區都沒有那塊面板；Word 模式多一塊情境分頁「表格」的面板
   S.ribbonLayout = 'tabs'; S.hiddenTabs = ['home'];
   rebuild();
-  assert(view.toolbar.panels.home.classList.contains('is-empty') && view.toolbar.panels.home.querySelector('.wm-table-tools .wm-btn') && !view.toolbar.tabBtns.home && view.toolbar.dom.querySelectorAll('.wm-panel').length === 4,
-    'Word 模式：隱藏「常用」分頁後面板還在（放表格工具），只是不顯示');
+  assert(!view.toolbar.panels.home && !view.toolbar.tabBtns.home && view.toolbar.dom.querySelectorAll('.wm-panel').length === 4 && view.toolbar.panels.tabletab.querySelector('.wm-table-tools .wm-btn'),
+    'Word 模式：隱藏「常用」分頁後沒有它的面板，表格工具在「表格」分頁');
   assert(!bar.panels.home && !bar.tabBtns.home && bar.dom.querySelectorAll('.wm-panel').length === 3 && !bar.dom.querySelector('.wm-panel.is-empty'), 'Markdown 功能區：隱藏的分頁沒有面板');
 
   // 詳細提示的說明：兩邊做法一樣的共用同一句；只有 Word 模式做得到的那句不出現在 Markdown 功能區
@@ -1856,6 +1856,118 @@ await fresh('一段文字\n');
   assert(ltr === '600px', '由左到右：面板左緣對齊按鈕左緣：' + ltr);
   assert(rtl === '500px', '由右到左：面板右緣對齊按鈕右緣（700 - 200）：' + rtl);
   assert(rtlEdge === '4px', '由右到左、按鈕靠近左邊：面板不超出畫面左緣：' + rtlEdge);
+}
+
+// ======== 表格：右上角的按鈕、列與欄的把手、「表格」情境分頁 ========
+await fresh('前面\n\n| 甲 | 乙 |\n| --- | --- |\n| a1 | b1 |\n| a2 | b2 |\n\n後面\n');
+{
+  const wrap = () => view.pm.dom.querySelector('.wm-table');
+  const corner = label => wrap().querySelector(`.wm-table-corner button[aria-label="${label}"]`);
+  assert(wrap() && wrap().querySelector(':scope > .tableWrapper > table') && corner('複製為 Markdown') && corner('表格選項') && corner('刪除表格'), '表格外層有右上角的按鈕：複製、表格選項、刪除');
+  assert(!wrap().classList.contains('is-active') && !view.pm.dom.querySelector('.wm-table-grip'), '游標不在表格裡：沒有把手，按鈕只在滑鼠移上來時顯示');
+  assert(!view.toolbar.tabBtns.tabletab, '游標不在表格裡：還沒有「表格」分頁');
+
+  select(posOf('a1') + 1, posOf('a1') + 1);
+  const grips = kind => [...view.pm.dom.querySelectorAll('.wm-table-grip.is-' + kind)];
+  assert(wrap().classList.contains('is-active') && grips('row').length === 3 && grips('col').length === 2, '游標在表格裡：每一列一個列把手、每一欄一個欄把手：' + grips('row').length + '/' + grips('col').length);
+  const tab = view.toolbar.tabBtns.tabletab;
+  assert(tab && !tab.hidden && tab.classList.contains('is-context') && tab.textContent === '表格', '游標在表格裡：出現「表格」分頁');
+  assert(view.toolbar.activeTab === 'home', '「表格」分頁出現時不自動切過去');
+  click(tab);
+  assert(!view.toolbar.panels.tabletab.classList.contains('is-hidden') && plugin.lastTab === 'home', '切到「表格」分頁：顯示表格工具，但不記成下次開啟的分頁');
+  const groupNames = [...view.toolbar.panels.tabletab.querySelectorAll('.wm-group-name')].map(x => x.textContent).join();
+  assert(groupNames === '表格,列與欄,移動,對齊,排序', '「表格」分頁的群組：' + groupNames);
+
+  // 欄把手：選取整欄、開選單；選單裡的指令作用在選取的那一欄
+  click(grips('col')[1]);
+  const sel = view.pm.state.selection;
+  assert(typeof sel.isColSelection === 'function' && sel.isColSelection() && !sel.isRowSelection(), '按欄把手：選取整欄');
+  let menu = mock.Menu.last.items.map(i => i.title);
+  assert(menu.includes('在右側插入欄') && menu.includes('整欄置中') && menu.includes('依此欄排序（遞增）') && menu.includes('刪除欄') && !menu.includes('刪除列'), '欄把手的選單：插入、移動、對齊、排序、刪除欄：' + menu.join('、'));
+  mock.Menu.last.items.find(i => i.title === '刪除欄').fn();
+  assert(out() === '前面\n\n| 甲 |\n| --- |\n| a1 |\n| a2 |\n\n後面\n', '欄把手選單的「刪除欄」刪掉那一欄：' + JSON.stringify(out()));
+
+  // 列把手 + Backspace：選取整列後按 Backspace 刪掉那一列
+  select(posOf('a2') + 1, posOf('a2') + 1);
+  click(grips('row')[2]);
+  menu = mock.Menu.last.items.map(i => i.title);
+  assert(menu.includes('在下方插入列') && menu.includes('列上移') && menu.includes('刪除列') && !menu.includes('刪除欄'), '列把手的選單：' + menu.join('、'));
+  press(view, 'Backspace');
+  assert(out() === '前面\n\n| 甲 |\n| --- |\n| a1 |\n\n後面\n', '選取整列按 Backspace：刪掉那一列：' + JSON.stringify(out()));
+
+  // 離開表格：「表格」分頁消失，回到原本的分頁
+  caret(view, 0);
+  assert(view.toolbar.tabBtns.tabletab.hidden && view.toolbar.activeTab === 'home' && !view.toolbar.panels.home.classList.contains('is-hidden'), '離開表格：「表格」分頁消失，回到「常用」');
+
+  // 表格下方的段落開頭按 Backspace：先選取整張表（prosemirror-tables 把它換成所有儲存格都選取，看得到反白），
+  // 再按一次刪除。以前第二下只會清空內容，表格永遠刪不掉
+  select(posOf('後面'), posOf('後面'));
+  press(view, 'Backspace');
+  const all = view.pm.state.selection;
+  assert(typeof all.isRowSelection === 'function' && all.isRowSelection() && all.isColSelection() && view.pm.dom.querySelectorAll('.selectedCell').length === 2 && out().includes('| 甲 |'), '表格下方的段落開頭按 Backspace：先選取整張表（每一格都反白）');
+  assert(!view.toolbar.tabBtns.tabletab.hidden, '整張表被選取時「表格」分頁也出現');
+  press(view, 'Backspace');
+  assert(out() === '前面\n\n後面\n', '再按一次 Backspace：刪掉表格：' + JSON.stringify(out()));
+}
+
+// ======== 表格：右上角的刪除、表格選項，複製時的純文字 ========
+await fresh('前面\n\n| 甲 | 乙 |\n| --- | --- |\n| a1 | b1 |\n\n後面\n');
+{
+  const corner = label => view.pm.dom.querySelector(`.wm-table-corner button[aria-label="${label}"]`);
+  // 游標不在表格裡也能直接按右上角的按鈕
+  click(corner('表格選項'));
+  const sel = view.pm.state.selection;
+  const menu = mock.Menu.last.items.map(i => i.title);
+  assert(typeof sel.isColSelection === 'function' && sel.isRowSelection() && sel.isColSelection(), '表格選項：先選取整張表');
+  assert(menu.join() === '選取表格,複製為 Markdown,表格轉成文字,清除內容,刪除表格', '表格選項的選單：' + menu.join());
+  const text = view.pm.someProp('clipboardTextSerializer', f => f(view.pm.state.selection.content(), view.pm));
+  assert(text === '甲\t乙\na1\tb1', '複製整張表：純文字是 Tab 分隔（貼到 Excel 會分好欄）：' + JSON.stringify(text));
+  mock.Menu.last.items.find(i => i.title === '表格轉成文字').fn();
+  assert(out() === '前面\n\n甲\t乙\n\na1\tb1\n\n後面\n', '表格轉成文字：' + JSON.stringify(out()));
+  press(view, 'z', { ctrlKey: true });
+  assert(out().includes('| 甲 | 乙 |'), '復原：表格回來');
+  click(corner('刪除表格'));
+  assert(out() === '前面\n\n後面\n', '右上角的刪除：一按就刪掉整張表：' + JSON.stringify(out()));
+}
+
+// ======== 插入表格：插入後切到「表格」分頁、把選取文字轉成表格 ========
+await fresh('名稱\t數量\n\n蘋果\t3\n');
+{
+  view.toolbar.showTab('insert');
+  select(posOf('名稱'), posOf('3') + 1);
+  click(btn('插入表格'));
+  const conv = document.querySelector('.wm-table-popup .wm-table-convert');
+  assert(conv && conv.textContent === '把選取文字轉成表格', '選取了文字：插入表格的面板多一個「把選取文字轉成表格」');
+  click(conv);
+  assert(out() === '| 名稱 | 數量 |\n| --- | --- |\n| 蘋果 | 3 |\n', '把選取文字轉成表格：' + JSON.stringify(out()));
+  assert(view.toolbar.activeTab === 'tabletab', '轉成表格之後切到「表格」分頁');
+  await fresh('一段\n');
+  view.toolbar.showTab('insert');
+  caret(view, 0);
+  click(btn('插入表格'));
+  assert(!document.querySelector('.wm-table-popup .wm-table-convert'), '沒有選取文字：沒有「把選取文字轉成表格」');
+  const cell = document.querySelector('.wm-table-popup .wm-table-cell[data-r="2"][data-c="3"]');
+  // jsdom 沒有 PointerEvent：用 MouseEvent 加上 pointerType
+  const up = new MouseEvent('pointerup', { bubbles: true });
+  Object.defineProperty(up, 'pointerType', { value: 'mouse' });
+  cell.dispatchEvent(up);
+  assert(view.pm.state.doc.child(1).type.name === 'table' && view.toolbar.activeTab === 'tabletab', '插入表格之後切到「表格」分頁');
+  // 剛插入的空表格：第一格開頭按 Backspace 刪掉整張表
+  press(view, 'Backspace');
+  assert(!view.pm.dom.querySelector('table') && view.toolbar.activeTab === 'insert', '空表格第一格按 Backspace：刪掉表格，回到原本的分頁');
+}
+
+// ======== 不分頁的版面：表格工具跟其他按鈕排在一起，游標在表格裡才出現 ========
+{
+  plugin.settings.ribbonLayout = 'wrap';
+  view.buildToolbar();
+  await fresh('前面\n\n| 甲 | 乙 |\n| --- | --- |\n| a1 | b1 |\n');
+  const groups = () => [...view.toolbar.dom.querySelectorAll('.wm-table-tools')];
+  assert(groups().length === 5 && groups().every(g => g.classList.contains('is-hidden')) && !view.toolbar.tabBtns.tabletab, '不分頁的版面：表格工具平常隱藏，沒有情境分頁');
+  select(posOf('a1') + 1, posOf('a1') + 1);
+  assert(groups().every(g => !g.classList.contains('is-hidden')), '游標在表格裡：表格工具出現');
+  plugin.settings.ribbonLayout = 'tabs';
+  view.buildToolbar();
 }
 
 finish();

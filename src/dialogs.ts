@@ -275,7 +275,7 @@ const SHORTCUTS: readonly ShortcutGroup[] = [
   ['檢視', 'eye', [['Mod+E', 'Word 模式 ⇄ Markdown 編輯（在 Markdown 畫面再按一次切回）', 'markdown'], ['Mod+滑鼠滾輪', '放大／縮小頁面', 'zoom'], ['Mod+/', '快速鍵說明']]],
   ['文字格式', 'bold', [['Mod+B', '粗體', 'bold'], ['Mod+I', '斜體', 'italic'], ['Mod+U', '底線', 'underline'], ['Mod+Shift+X', '刪除線', 'strike'], ['Mod+Shift+H', '醒目提示（螢光筆）', 'highlight'], ['Mod+`', '行內程式碼', 'code'], ['（沒有選取時）', '格式套用到游標所在的詞']]],
   ['段落', 'pilcrow', [['Mod+Alt+1～6', '標題 1～6', 'style'], ['Mod+Alt+0', '內文'], ['Mod+L／Mod+J', '靠左／左右對齊（置中、靠右在工具列）', 'justify'], ['Tab', '段落開頭：首行縮排兩個字'], ['Alt+↑／Alt+↓', '上下移動段落、清單項目或表格列', 'sort'], ['Shift+Enter', '同一段落內換行']]],
-  ['表格', 'table', [['Tab／Shift+Tab', '下一格／上一格（最後一格按 Tab 新增一列）', 'table'], ['Enter', '儲存格內換行'], ['貼上 Excel 範圍', '建立表格，或從目前儲存格開始填入']]],
+  ['表格', 'table', [['Tab／Shift+Tab', '下一格／上一格（最後一格按 Tab 新增一列）', 'table'], ['Enter', '儲存格內換行'], ['Mod+Enter', '跳出表格（在表格後面新增段落）'], ['Backspace', '選取整列、整欄或整張表時：刪掉它們（Delete 只清空內容）'], ['表格下方的段落開頭按 Backspace', '先選取整張表，再按一次刪除'], ['貼上 Excel 範圍', '建立表格，或從目前儲存格開始填入']]],
   ['連結與插入', 'link', [['Mod+K', '插入／編輯超連結', 'link'], ['Mod+點擊', '開啟連結'], ['選取文字後貼上網址', '把文字變成超連結']]],
   ['尋找與編輯', 'search', [['Mod+F', '尋找', 'find'], ['Mod+H', '取代', 'replace'], ['Mod+Z／Mod+Y', '復原／取消復原', 'undo'], ['Mod+Shift+V', '貼上純文字', 'paste'], ['Mod+S', '立即存檔'], ['Esc', '關閉尋找、結束格式刷']]],
   ['格式刷', 'paintbrush', [['按一下', '刷一次', 'painter'], ['按兩下', '連續刷，按 Esc 或再按一次結束']]],
