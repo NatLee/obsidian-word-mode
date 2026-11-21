@@ -1209,7 +1209,7 @@ await fresh('一段文字\n');
     '縮放只用在 Word 模式：Markdown 模式仍然顯示，但停用並說明原因');
   assert(!wordBar.querySelector('.wm-bb-zoom').classList.contains('is-disabled') && !wordBar.querySelector('.wm-bb-range').disabled, 'Word 模式的縮放可以用');
   const count = root => root.querySelector('.wm-bb-count').textContent;
-  assert(count(mdEl) === count(wordBar) && /^\d+ 字・\d+ 個字元$/.test(count(mdEl)), '字數跟 Word 模式一樣（Markdown 符號與文件屬性不算）：' + count(mdEl) + ' / ' + count(wordBar));
+  assert(count(mdEl) === count(wordBar) && /^\d+ 字$/.test(count(mdEl)), '字數跟 Word 模式一樣（Markdown 符號與文件屬性不算），只顯示字數：' + count(mdEl) + ' / ' + count(wordBar));
   await sleep(0);
   assert(mdEl.querySelector('.wm-bb-status').textContent === '已儲存', '內容跟檔案一樣：已儲存');
   md.text = text + '\n多打的字\n';
@@ -1238,6 +1238,41 @@ await fresh('一段文字\n');
   click(modeBtn('word'));
   assert(plugin.toWord === before + 1, '按「Word 模式」切回 Word 模式');
   wordBar.remove(); mdEl.remove(); md.containerEl.remove();
+}
+
+// ======== 字數的算法：只算看得到的文字，或跟 Obsidian 內建的一樣 ========
+{
+  const text = '---\ntags: [a]\n---\n# 標題\n\n見 [連結](https://example.com) 與 **粗體**。\n';
+  // Obsidian 不算文件屬性；字元數是剩下原文的長度
+  const body = text.slice(text.indexOf('---\n', 4) + 4);
+  await fresh(text);
+  const bar = document.body.createDiv('wm-statusbar');
+  view.buildBottomBar(bar, true);
+  const box = () => bar.querySelector('.wm-bb-count');
+  view.updateCount();
+  assert(box().textContent === '8 字' && box().getAttribute('aria-label').includes('字元數（不含空白）：') && box().getAttribute('aria-label').includes('只算看得到的文字'),
+    '只算看得到的文字：標題、見、連結、與、粗體共 8 字；提示裡有字元數與算法：' + box().textContent + ' / ' + box().getAttribute('aria-label'));
+  plugin.settings.countMethod = 'obsidian';
+  view.updateCount();
+  assert(box().textContent === '11 字' && box().getAttribute('aria-label').includes('字元數（含空白）：' + body.length) && box().getAttribute('aria-label').includes('跟 Obsidian 內建的字數一樣'),
+    '跟 Obsidian 一樣：算原文，網址也算（https、example、com 三個詞），字元數含空白與換行：' + box().textContent + ' / ' + box().getAttribute('aria-label'));
+  let para = null;
+  view.pm.state.doc.forEach((n, pos) => { if (n.type.name === 'paragraph') para = { from: pos + 1, to: pos + 1 + n.content.size }; });
+  select(para.from, para.to);
+  view.updateCount();
+  assert(box().textContent === '已選取 9／11 字', '選取一段：也用原文算（連結網址也算）：' + box().textContent);
+  click(box());
+  const rows = mock.Modal.last.rows;
+  assert(rows[1][0] === '字數' && rows[1][1] === '11' && rows[1][2] === '9' && rows[3][1] === String(body.length) && mock.Modal.last.note.includes('跟 Obsidian'),
+    '字數統計視窗也用同一種算法：' + JSON.stringify(rows.slice(0, 4)));
+  mock.Modal.last.close();
+  // Markdown 模式的狀態列：跟 Word 模式同一個數字
+  const mdEl = document.body.createDiv('wm-statusbar');
+  const md = fakeMarkdown('筆記/算法.md', text);
+  new B.MdStatusBar(plugin, mdEl, md);
+  assert(mdEl.querySelector('.wm-bb-count').textContent === '11 字', 'Markdown 模式也是 11 字：' + mdEl.querySelector('.wm-bb-count').textContent);
+  plugin.settings.countMethod = 'word';
+  bar.remove(); mdEl.remove(); md.containerEl.remove();
 }
 
 // ======== 查看文件屬性：功能區與狀態列的按鈕打開小視窗 ========

@@ -32,7 +32,7 @@ Chỉnh sửa ghi chú [Obsidian](https://obsidian.md) giống như trong Word: 
 - **Tùy chỉnh theo ý bạn**: hiện các tab dưới dạng chữ, biểu tượng hoặc cả hai, gộp chúng vào một nút menu, và đổi tên chúng. Đổi tên, sắp xếp lại, ẩn hoặc chuyển các nhóm nút sang tab khác.
 - **Cùng một thanh công cụ trong chế độ Markdown và chế độ đọc**, với cùng bố cục, nên không có gì bị nhảy khi bạn chuyển chế độ. Bạn có thể hiện nó ở cả hai, ở một trong hai, hoặc không hiện ở đâu cả.
 - **Gợi ý chi tiết**: di chuột lên một nút sẽ thấy lời giải thích kèm một hoạt ảnh ngắn, kể cả các nút chế độ xem và các nút trên thanh trạng thái. Gợi ý được bật sẵn; bạn có thể tắt trong phần cài đặt hoặc trong danh sách phím tắt.
-- **Thanh trạng thái** với số từ, trạng thái lưu, các nút chuyển giữa chế độ Word, Markdown và chế độ đọc, xem thuộc tính và thu phóng. Chế độ Markdown và chế độ đọc giữ nguyên các nút này và đếm từ theo cùng một cách. Bạn có thể tắt tính năng này trong cài đặt.
+- **Thanh trạng thái** với số từ, trạng thái lưu, các nút chuyển giữa chế độ Word, Markdown và chế độ đọc, xem thuộc tính và thu phóng. Chế độ Markdown và chế độ đọc giữ nguyên các nút này và đếm từ theo cùng một cách. Bạn có thể tắt tính năng này trong cài đặt. Thanh trạng thái chỉ hiện số từ, không tính ký hiệu Markdown và địa chỉ liên kết; số ký tự và thời gian đọc ước tính nằm trong chú thích. Muốn có cùng con số với bộ đếm từ có sẵn của Obsidian, hãy đổi “Cách đếm từ” trong cài đặt.
 
 ### Bảng
 

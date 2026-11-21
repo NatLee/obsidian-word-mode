@@ -481,6 +481,13 @@ export default class WordModePlugin extends Plugin {
     this.barView = null; this.mdStatusKey = null; this.mdStatus = null;
   }
 
+  // 換了字數的算法：重算每個 Word 模式分頁與狀態列的字數
+  refreshCounts(): void {
+    for (const v of this.views()) v.updateCount();
+    this.hideMdStatus();
+    this.updateStatus(null);
+  }
+
   // 切換 Obsidian 的 Markdown 編輯／閱讀模式
   async setMarkdownMode(view: MarkdownView, mode: MarkdownViewModeType): Promise<void> {
     const st = view.getState() as Record<string, unknown>;

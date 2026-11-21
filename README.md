@@ -30,7 +30,7 @@ Shown in the animation at the top. Start a paragraph with `# `, `- `, `1. `, `> 
 - **Make it yours**: show the tabs as text, icons, or both, collapse them into one menu button, and rename them. Rename, reorder, hide, or move button groups to another tab.
 - **The same toolbar in Markdown and reading mode**, with the same layout, so nothing jumps when you switch. You can show it in both, in one of them, or in neither.
 - **Detailed tooltips**: hovering a button explains it with a short animation, including the view mode buttons and the status bar buttons. They are on by default; turn them off in settings or in the shortcut list.
-- **Status bar** with the word count, save status, buttons to switch between Word mode, Markdown and reading view, view properties, and zoom. Markdown and reading view keep the same buttons and count words the same way. You can turn this off in settings.
+- **Status bar** with the word count, save status, buttons to switch between Word mode, Markdown and reading view, view properties, and zoom. Markdown and reading view keep the same buttons and count words the same way. You can turn this off in settings. The status bar shows only the word count; Markdown symbols and link addresses are not counted, and the character count and reading time are in its tooltip. To get the same numbers as Obsidian's built-in word count, change "Word count method" in settings.
 
 ### Tables
 

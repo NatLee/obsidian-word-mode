@@ -32,7 +32,7 @@ C'est ce que montre l'animation du haut. Commencez un paragraphe par `# `, `- `,
 - **À votre goût** : affichez les onglets en texte, en icônes ou les deux, regroupez-les dans un seul bouton de menu et renommez-les. Renommez, réordonnez, masquez ou déplacez les groupes de boutons vers un autre onglet.
 - **La même barre d'outils en mode Markdown et lecture**, avec la même disposition, pour que rien ne saute quand vous changez de mode. Vous pouvez l'afficher dans les deux, dans un seul ou dans aucun.
 - **Info-bulles détaillées** : survoler un bouton l'explique avec une courte animation, y compris pour les boutons de vue et ceux de la barre d'état. Elles sont activées par défaut ; vous pouvez les désactiver dans les paramètres ou dans la liste des raccourcis.
-- **Barre d'état** avec le nombre de mots, l'état de l'enregistrement, des boutons pour passer du mode Word au Markdown ou au mode lecture, l'affichage des propriétés et le zoom. Les modes Markdown et lecture gardent les mêmes boutons et comptent les mots de la même façon. Vous pouvez désactiver cela dans les paramètres.
+- **Barre d'état** avec le nombre de mots, l'état de l'enregistrement, des boutons pour passer du mode Word au Markdown ou au mode lecture, l'affichage des propriétés et le zoom. Les modes Markdown et lecture gardent les mêmes boutons et comptent les mots de la même façon. Vous pouvez désactiver cela dans les paramètres. Elle n'affiche que le nombre de mots, sans compter les symboles Markdown ni les adresses des liens ; le nombre de caractères et le temps de lecture sont dans son info-bulle. Pour obtenir les mêmes nombres que le compteur intégré d'Obsidian, changez « Méthode de comptage des mots » dans les paramètres.
 
 ### Tableaux
 

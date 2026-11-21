@@ -33,9 +33,9 @@ import { renderEmbed, mediaKind } from './embeds.js';
 import { foldKey } from './fold.js';
 import { suggestPlugin } from './suggest.js';
 import { suggestContext } from './complete.js';
-import { SourceModal, PromptModal, LinkDialog, FilePicker, ShortcutModal, EquationModal, CleanupModal, WordCountModal, wordCountRows } from './dialogs.js';
-import { countText, docText, docStats } from './textstats.js';
-import { buildStatusBar, renderSaveStatus, renderCount, showZoom } from './statusbar.js';
+import { SourceModal, PromptModal, LinkDialog, FilePicker, ShortcutModal, EquationModal, CleanupModal } from './dialogs.js';
+import { countSource, countText, docText, docStats } from './textstats.js';
+import { buildStatusBar, renderSaveStatus, renderCount, showWordCount, showZoom } from './statusbar.js';
 import { openPropsPeek, propertyWidget, fillPropsPeek, fillPinSummary, markOverflow } from './propview.js';
 import { isRtl } from './dom.js';
 import { frontmatterBody, peekData } from './props.js';
@@ -356,10 +356,13 @@ export class WordModeView extends TextFileView {
     this.loadDoc(data, clear);
   }
 
-  getViewData(): string {
+  getViewData(): string { return this.markdown(true); }
+
+  // 編輯中的文件轉成 Markdown。Obsidian 存檔與合併時會連續呼叫好幾次，字數用「跟 Obsidian 一樣」的算法時每次改字也會呼叫：
+  // 文件沒變就用上一次的結果。loud：轉換失敗時提示（存檔時）；算字數時不提示，沿用上一次的結果
+  markdown(loud = false): string {
     if (!this.pm || !this.changed) return this.lastOut;
     const doc = this.pm.state.doc;
-    // Obsidian 存檔與合併時會連續呼叫好幾次；文件沒變就用上一次的結果
     if (doc === this.outDoc) return this.lastOut;
     try {
       const out = this.plugin.converter.serialize(doc, this.meta!);
@@ -367,8 +370,10 @@ export class WordModeView extends TextFileView {
       this.outDoc = doc;
       return out;
     } catch (e) {
-      console.error('[Word 模式] 輸出 Markdown 失敗', e);
-      new Notice(t('Word 模式：存檔時轉換失敗，已保留原本內容。請改用 Markdown 編輯。'));
+      if (loud) {
+        console.error('[Word 模式] 輸出 Markdown 失敗', e);
+        new Notice(t('Word 模式：存檔時轉換失敗，已保留原本內容。請改用 Markdown 編輯。'));
+      }
       return this.lastOut;
     }
   }
@@ -546,8 +551,11 @@ export class WordModeView extends TextFileView {
   updateCount(): void {
     if (!this.pm || !this.countEl) return;
     const st = this.pm.state;
-    const all = countText(docText(st.doc));
-    renderCount(this.countEl, all, st.selection.empty ? null : countText(docText(st.doc, st.selection.from, st.selection.to)));
+    const method = this.plugin.settings.countMethod;
+    const { from, to, empty } = st.selection;
+    const all = method === 'obsidian' ? countSource(this.markdown()) : countText(docText(st.doc));
+    const sel = empty ? null : method === 'obsidian' ? countSource(this.selectionMarkdown(), true) : countText(docText(st.doc, from, to));
+    renderCount(this.countEl, all, sel, method);
   }
 
   // ---------------------------------------------------------- 編輯器外掛
@@ -652,7 +660,8 @@ export class WordModeView extends TextFileView {
   openWordCount(): void {
     if (!this.pm) return;
     const st = this.pm.state;
-    new WordCountModal(this.app, wordCountRows(docStats(st.doc), st.selection.empty ? null : docStats(st.doc, st.selection.from, st.selection.to))).open();
+    const { from, to, empty } = st.selection;
+    showWordCount(this.app, this.plugin.settings.countMethod, docStats(st.doc), empty ? null : docStats(st.doc, from, to), () => this.markdown(), () => this.selectionMarkdown());
   }
 
   insertComment(): void {

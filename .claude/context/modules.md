@@ -15,7 +15,7 @@
 | 右鍵選單、快速鍵、貼上、拖放 | 右鍵選單在 `contextmenu.ts` 的 `openContextMenu`（`view.ts` 的 `onContextMenu` 呼叫它）；其餘在 `view.ts` 的 `onOpen`（scope 的快速鍵）、`onKeyDown`、`onPaste`、`onDrop` |
 | 連結、圖片、程式碼區塊、表格、提示框、文件屬性的畫面 | `nodeviews.ts`（每種節點一個 NodeView；需要 Obsidian 的功能由 `NodeViewContext` 傳入，在 `view.ts` 的 `nodeViewContext()`） |
 | 連結／圖片上的浮動小工具列 | `bubble.ts` |
-| 右下角的狀態列（字數、存檔狀態、檢視切換、查看文件屬性、縮放） | `statusbar.ts` 的 `buildStatusBar`：Word 模式（`view.ts` 的 `buildBottomBar`）與 Markdown／閱讀模式（`MdStatusBar`，由 `main.ts` 的 `updateStatus` 建立）共用，兩邊的版面要一樣 |
+| 右下角的狀態列（字數、存檔狀態、檢視切換、查看文件屬性、縮放） | `statusbar.ts` 的 `buildStatusBar`：Word 模式（`view.ts` 的 `buildBottomBar`）與 Markdown／閱讀模式（`MdStatusBar`，由 `main.ts` 的 `updateStatus` 建立）共用，兩邊的版面要一樣。字數的兩種算法（設定 `countMethod`）在 `textstats.ts`：`countText` 只算看得到的文字、`countSource` 跟 Obsidian 內建的字數一樣（逐字比對過 Obsidian 1.15.1 的 regex）。狀態列有字數時，`main.ts` 的 `hideBuiltinCount` 藏起 Obsidian 內建的字數（它在 Word 模式也會出現） |
 | 查看文件屬性的小視窗、固定在上方的屬性列 | `propview.ts`（`openPropsPeek`、`fillPropsPeek`、`fillPinSummary`）；資料由 `props.ts` 的 `peekData` 整理。Word 模式的屬性列在 `view.ts` 的 `updatePin`，Markdown 模式讀原文在 `mdbar.ts` 的 `openMarkdownPeek` |
 | 對話框（連結、方程式、快速鍵、清理符號、字數） | `dialogs.ts`；方程式的格子編輯在 `mathvisual.ts`（`MathField`） |
 | 圖表編輯器 | `mermaid.ts`（對話框、表單、圖上編輯）、`diagrams.ts`（十一種圖表的描述、圖表外觀、欄位種類）、`flowchart.ts`（流程圖的解析與範本 `MERMAID_TEMPLATES`） |

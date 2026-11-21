@@ -32,7 +32,7 @@ Zu sehen in der Animation oben. Beginnen Sie einen Absatz mit `# `, `- `, `1. `,
 - **Ganz nach Ihren Wünschen**: Registerkarten als Text, Symbole oder beides anzeigen, in eine einzige Menüschaltfläche zusammenfassen und umbenennen. Schaltflächengruppen umbenennen, umsortieren, ausblenden oder auf eine andere Registerkarte verschieben.
 - **Dieselbe Symbolleiste in der Markdown- und Leseansicht**, mit demselben Layout, sodass beim Wechseln nichts springt. Sie lässt sich in beiden, in einer davon oder in keiner anzeigen.
 - **Ausführliche Tooltips**: Das Überfahren einer Schaltfläche erklärt sie mit einer kurzen Animation, auch bei den Schaltflächen für die Ansichtsmodi und in der Statusleiste. Sie sind standardmäßig eingeschaltet und lassen sich in den Einstellungen oder in der Liste der Tastenkürzel ausschalten.
-- **Statusleiste** mit Wortanzahl, Speicherstatus, Schaltflächen zum Wechseln zwischen Word-Modus, Markdown und Leseansicht, „Eigenschaften anzeigen“ und Zoom. Markdown- und Leseansicht behalten dieselben Schaltflächen und zählen Wörter auf dieselbe Weise. Das lässt sich in den Einstellungen abschalten.
+- **Statusleiste** mit Wortanzahl, Speicherstatus, Schaltflächen zum Wechseln zwischen Word-Modus, Markdown und Leseansicht, „Eigenschaften anzeigen“ und Zoom. Markdown- und Leseansicht behalten dieselben Schaltflächen und zählen Wörter auf dieselbe Weise. Das lässt sich in den Einstellungen abschalten. Angezeigt wird nur die Wortanzahl, ohne Markdown-Symbole und Linkadressen; Zeichenanzahl und Lesezeit stehen im Tooltip. Für dieselben Zahlen wie die integrierte Wortanzahl von Obsidian lässt sich in den Einstellungen die „Zählweise der Wörter“ umstellen.
 
 ### Tabellen
 
