@@ -57,6 +57,12 @@ interface ResizableItem {
   setDimension?(percent: number): void;
 }
 
+// 狀態列有這個外掛的字數時，藏起 Obsidian 內建的字數（核心外掛「字數統計」，CSS 在 styles/word-mode.css）。
+// 它只要目前的分頁是 .md 檔就會顯示，Word 模式也一樣；它算 Markdown 原文，數字跟這裡不同，兩組數字並排看不出哪個對
+function hideBuiltinCount(statusEl: HTMLElement, hide: boolean): void {
+  statusEl.ownerDocument.body.classList.toggle('wm-own-count', hide);
+}
+
 export default class WordModePlugin extends Plugin {
   declare settings: Settings;
   declare converter: MarkdownConverter;
@@ -239,7 +245,7 @@ export default class WordModePlugin extends Plugin {
     // 縮放剛調完、還沒存就停用外掛：現在存
     if (this.zoomSave != null) { window.clearTimeout(this.zoomSave); this.zoomSave = undefined; void this.saveSettings(); }
     closePropsPeek();
-    if (this.statusEl) this.statusEl.ownerDocument.body.classList.remove('wm-md-status');
+    if (this.statusEl) hideBuiltinCount(this.statusEl, false);
     for (const b of this.mdBars.values()) b.destroy();
     this.mdBars.clear();
     for (const [, btn] of this.mdActions) btn.remove();
@@ -452,7 +458,7 @@ export default class WordModePlugin extends Plugin {
         active.buildBottomBar(el, true);
         this.barView = active;
       } else active.renderStatus();
-      el.ownerDocument.body.classList.remove('wm-md-status');
+      hideBuiltinCount(el, true);
       this.mdStatusKey = null; this.mdStatus = null;
       return;
     }
@@ -462,8 +468,7 @@ export default class WordModePlugin extends Plugin {
     const mode = md.getMode && md.getMode() === 'preview' ? 'preview' : 'source';
     const stamp = md.file.path + '|' + mode;
     el.show();
-    // Obsidian 內建的字數（只在 Markdown 編輯器有）跟這裡的字數重複，先藏起來
-    el.ownerDocument.body.classList.add('wm-md-status');
+    hideBuiltinCount(el, true);
     if (this.barView === md && this.mdStatusKey === stamp && this.mdStatus && el.childElementCount) { this.mdStatus.update(); return; }
     this.barView = md;
     this.mdStatusKey = stamp;
@@ -472,7 +477,7 @@ export default class WordModePlugin extends Plugin {
 
   // 狀態列不再顯示 Markdown 檢視的內容（換到 Word 模式、其他檢視，或關掉設定）
   hideMdStatus(): void {
-    if (this.statusEl) this.statusEl.ownerDocument.body.classList.remove('wm-md-status');
+    if (this.statusEl) hideBuiltinCount(this.statusEl, false);
     this.barView = null; this.mdStatusKey = null; this.mdStatus = null;
   }
 

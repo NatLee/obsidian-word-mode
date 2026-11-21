@@ -1476,8 +1476,9 @@ body:not(.is-phone) .modal.wm-eq-modal, body:not(.is-phone) .modal.wm-mmd-modal 
 .wm-bb-zoom.is-disabled { opacity: var(--wm-disabled-opacity); }
 :is(.wm-bottombar, .wm-statusbar) .wm-bb-zoom.is-disabled button { cursor: default; }
 :is(.wm-bottombar, .wm-statusbar) .wm-bb-zoom.is-disabled button:hover { background: transparent; color: var(--text-muted); }
-/* Markdown 編輯時 Obsidian 內建的字數跟狀態列的字數重複，藏起來（關掉「保留狀態列」就恢復） */
-body.wm-md-status .status-bar-item.plugin-word-count { display: none; }
+/* 狀態列有 Word 模式的字數時（Word 模式，以及開著「保留狀態列」的 Markdown／閱讀模式），藏起 Obsidian 內建的字數：
+   它在 Word 模式也會出現，算法不同，兩組數字並排看不出哪個對 */
+body.wm-own-count .status-bar-item.plugin-word-count { display: none; }
 
 /* ===== 文件屬性 =====
    同一份資料畫在三個地方：文件裡的屬性區塊（.wm-props）、「查看文件屬性」小視窗（.wm-peek）、固定在上方的屬性列（.wm-pin）。
