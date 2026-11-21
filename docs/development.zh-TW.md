@@ -124,6 +124,7 @@ Word 模式的功能區（`src/toolbar.ts`）與 Markdown、閱讀模式的功�
 | `src/statusbar.ts` | 狀態列的內容（字數、存檔狀態、檢視切換、文件屬性、縮放），Word 模式與 Markdown、閱讀模式共用。 |
 | `src/props.ts`、`src/propview.ts` | 文件屬性的值（類型、轉換、讀出文件屬性），以及查看文件屬性的小視窗與固定在上方的屬性列。 |
 | `src/bubble.ts` | 連結與圖片的浮動工具列。 |
+| `src/tablegrips.ts` | 游標所在表格的列與欄把手（選取整列或整欄並開選單）。 |
 | `src/nodeviews.ts` | 連結、圖片、表格、原文區塊的畫面。 |
 | `src/links.ts` | 連結與圖片的辨識。 |
 | `src/paste.ts` | 貼上試算表與 Markdown 文字。 |

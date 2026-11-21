@@ -41,6 +41,9 @@ Es lo que se ve en la animación del principio. Empieza un párrafo con `# `, `-
 - Elige un tamaño en la cuadrícula, escribe y pulsa Tab para pasar a la celda siguiente. Tab en la última celda añade una fila.
 - Haz clic derecho en una celda para añadir, quitar o mover filas y columnas, ordenar por una columna o definir la alineación de una columna.
 - Pega celdas copiadas de una hoja de cálculo y se convertirán en una tabla.
+- Cuando el cursor está en una tabla, aparece la pestaña **Tabla** en la cinta. Los controles de los bordes de la tabla seleccionan una fila o columna entera y abren su menú, también en el teléfono.
+- Selecciona filas, columnas o la tabla enteras y pulsa Backspace para eliminarlas; Delete solo borra el contenido. Los botones junto a la tabla la copian como Markdown o la eliminan con un clic.
+- Convierte en tabla unas líneas separadas por tabulaciones, `|` o comas, o vuelve a convertir una tabla en texto. Ctrl+Enter sale de la tabla y empieza un párrafo debajo. Una tabla copiada se pega en una hoja de cálculo en columnas.
 
 ### Ecuaciones
 

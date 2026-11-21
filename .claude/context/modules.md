@@ -9,12 +9,13 @@
 | Markdown ⇄ 文件的轉換、哪些語法認得 | `markdown.ts`（切段、markdown-it 規則、序列化）、`schema.ts`（節點與 mark） |
 | 編輯指令（粗體、清單、表格、對齊、排序…） | `commands.ts`。表格指令在 `table` 物件；`inCode`／`codeBlocked` 判斷程式碼區塊 |
 | 功能區按鈕 | 兩條功能區都有的按鈕，外觀（圖示、名稱、文字、快速鍵、說明、動畫）在 `ribbon.ts` 的 `ACTIONS`；按下去做什麼在 `toolbar.ts` 的 `buildHome`／`buildInsert`／`buildReview`／`buildView`（Word 模式）與 `mdbar.ts` 的 `render()`（Markdown／閱讀模式）。只有 Word 模式有的按鈕，外觀直接寫在 `toolbar.ts` |
-| 功能區的外殼（分頁列、收成選單的按鈕、面板、群組、按鈕的 DOM、提示） | `ribbon.ts` 的 `RibbonShell`，兩條功能區各建一個。兩邊還留著的差別（都只在 Word 模式有）：群組元素的 `data-group`、停用按鈕的 `aria-disabled`、詳細提示模式下 `.wm-sr` 文字裡的停用原因、沒有按鈕的分頁面板留著標成 `is-empty`（表格工具放在「常用」的面板） |
+| 功能區的外殼（分頁列、收成選單的按鈕、面板、群組、按鈕的 DOM、提示） | `ribbon.ts` 的 `RibbonShell`，兩條功能區各建一個。兩邊還留著的差別（都只在 Word 模式有）：群組元素的 `data-group`、停用按鈕的 `aria-disabled`、詳細提示模式下 `.wm-sr` 文字裡的停用原因 |
 | 功能區的分頁與群組（哪個群組在哪個分頁、順序、名稱） | `ribbon.ts` 的 `TABS`、`GROUPS` 是預設值；`groupLayout(settings)` 套用使用者的自訂（`groupNames`、`groupTabs`、`groupOrder`），兩條功能區與設定頁的清單（`groupsettings.ts`）都用它，不要直接讀 `GROUPS` 排版 |
 | 色彩面板 | `colorpicker.ts`（`buildColorPanel`）；由 `toolbar.ts` 的 `openColorPopup`／`openHighlightPopup` 開啟 |
 | 右鍵選單、快速鍵、貼上、拖放 | 右鍵選單在 `contextmenu.ts` 的 `openContextMenu`（`view.ts` 的 `onContextMenu` 呼叫它）；其餘在 `view.ts` 的 `onOpen`（scope 的快速鍵）、`onKeyDown`、`onPaste`、`onDrop` |
 | 連結、圖片、程式碼區塊、表格、提示框、文件屬性的畫面 | `nodeviews.ts`（每種節點一個 NodeView；需要 Obsidian 的功能由 `NodeViewContext` 傳入，在 `view.ts` 的 `nodeViewContext()`） |
 | 連結／圖片上的浮動小工具列 | `bubble.ts` |
+| 表格的列與欄把手、右上角的按鈕、「表格」情境分頁 | 把手在 `tablegrips.ts`（裝飾，也替游標所在的表格加 `is-active`）；右上角的按鈕在 `nodeviews.ts` 的 `WordTableView`；把手與「表格選項」的選單在 `contextmenu.ts` 的 `openTableMenu`；情境分頁由 `ribbon.ts` 的 `contextTab`／`setContextTab` 建立，按鈕在 `toolbar.ts` 的 `buildTable`。`prosemirror-tables` 會把整張表的節點選取換成所有儲存格的選取，所以「整張表被選取」看的是 `CellSelection` 的 `isRowSelection() && isColSelection()` |
 | 右下角的狀態列（字數、存檔狀態、檢視切換、查看文件屬性、縮放） | `statusbar.ts` 的 `buildStatusBar`：Word 模式（`view.ts` 的 `buildBottomBar`）與 Markdown／閱讀模式（`MdStatusBar`，由 `main.ts` 的 `updateStatus` 建立）共用，兩邊的版面要一樣。字數的兩種算法（設定 `countMethod`）在 `textstats.ts`：`countText` 只算看得到的文字、`countSource` 跟 Obsidian 內建的字數一樣（逐字比對過 Obsidian 1.15.1 的 regex）。狀態列有字數時，`main.ts` 的 `hideBuiltinCount` 藏起 Obsidian 內建的字數（它在 Word 模式也會出現） |
 | 查看文件屬性的小視窗、固定在上方的屬性列 | `propview.ts`（`openPropsPeek`、`fillPropsPeek`、`fillPinSummary`）；資料由 `props.ts` 的 `peekData` 整理。Word 模式的屬性列在 `view.ts` 的 `updatePin`，Markdown 模式讀原文在 `mdbar.ts` 的 `openMarkdownPeek` |
 | 對話框（連結、方程式、快速鍵、清理符號、字數） | `dialogs.ts`；方程式的格子編輯在 `mathvisual.ts`（`MathField`） |
