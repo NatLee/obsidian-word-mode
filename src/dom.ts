@@ -22,6 +22,18 @@ export function popupLeft(anchor: { left: number; right: number }, w: number, vw
   return Math.max(margin, Math.min(rtl ? anchor.right - w : anchor.left, vw - w - margin));
 }
 
+// 畫面上實際看得到的範圍的下緣（視窗座標）。iOS 的螢幕鍵盤彈出來時 innerHeight 不變，只有 visualViewport 變矮；
+// 浮動面板、功能區要以這個為準，不然會放到鍵盤後面
+export function visibleBottom(win: Window): number {
+  const vv = win.visualViewport;
+  return vv ? Math.min(win.innerHeight, vv.offsetTop + vv.height) : win.innerHeight;
+}
+
+// 下緣在 bottom 的元素有多少像素被擋在看得到的範圍外面（螢幕鍵盤後面）
+export function hiddenBelow(bottom: number, visible: number): number {
+  return Math.max(0, Math.round(bottom - visible));
+}
+
 // 按鈕按下時不搶走輸入位置的焦點（編輯區、方程式的格子、圖上的輸入框）。
 // 觸控裝置要連 pointerdown 一起擋，螢幕鍵盤才不會收起來
 export function keepFocus(b: HTMLElement): void {

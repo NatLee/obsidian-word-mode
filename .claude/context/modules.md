@@ -63,6 +63,8 @@
 - CSS 用 Obsidian 加在 body 上的 `.is-mobile`、`.is-phone`、`.is-tablet`（對話框、彈出面板不在 `.wm-view` 裡，吃不到 `.wm-mobile`）。
 - 手機上輸入框的字要 16px 以上，iOS 才不會在取得焦點時放大畫面。
 - 按鈕不能搶走輸入位置的焦點：用 `dom.ts` 的 `keepFocus()`（連 pointerdown 一起擋，螢幕鍵盤才不會收起來）。
+- 螢幕鍵盤的高度不要相信 Obsidian 的 `--keyboard-height`（iPhone 17 Pro、iOS 26 的注音鍵盤實測少了約 100pt）：`view.ts` 的 `watchKeyboard`／`syncKeyboard` 用 `visualViewport` 量檢視被蓋住多少，寫進 `--wm-kb-inset` 並加上 `wm-kb-open`。浮動面板定位用 `dom.ts` 的 `visibleBottom()`，不要用 `innerHeight`。
+- 手機的導覽列是浮動的時候（`is-floating-nav`）蓋在檢視上面，檢視下方留 `--view-bottom-spacing`（Obsidian 的變數）。
 - 螢幕鍵盤常常沒有按鍵事件（`^`、Backspace 的 keydown 收不到）、也沒有方向鍵與 Tab：要靠 `input` 事件判斷打了什麼，並提供對應的按鈕。
 
 ## README 與文件

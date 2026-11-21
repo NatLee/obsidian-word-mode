@@ -38,7 +38,7 @@ import { SourceModal, PromptModal, LinkDialog, FilePicker, ShortcutModal, Equati
 import { countSource, countText, docText, docStats } from './textstats.js';
 import { buildStatusBar, renderSaveStatus, renderCount, showWordCount, showZoom } from './statusbar.js';
 import { openPropsPeek, propertyWidget, fillPropsPeek, fillPinSummary, markOverflow } from './propview.js';
-import { isRtl } from './dom.js';
+import { isRtl, visibleBottom, hiddenBelow } from './dom.js';
 import { frontmatterBody, peekData } from './props.js';
 import { t, key, withKey } from './i18n.js';
 import type { Modifier, TAbstractFile, WorkspaceLeaf } from 'obsidian';
@@ -183,6 +183,10 @@ export class WordModeView extends TextFileView {
   declare pendingEState: EphemeralState | null | undefined;
   declare pasteChip: PasteChip | null | undefined;
   declare countTimer: number | undefined;
+  // 螢幕鍵盤（見 watchKeyboard）：kbInset 是檢視下方目前留給鍵盤的高度；kbEvent 是 Obsidian 最後一次通知鍵盤升起（true）
+  // 或收起（false），沒收過通知是 null
+  declare kbInset: number;
+  declare kbEvent: boolean | null;
 
   constructor(leaf: WorkspaceLeaf, plugin: WordModePlugin) {
     super(leaf);
@@ -194,6 +198,8 @@ export class WordModeView extends TextFileView {
     this.outDoc = null;
     this.editRev = 0;
     this.savedRev = 0;
+    this.kbInset = 0;
+    this.kbEvent = null;
   }
 
   // 有還沒寫進檔案的修改
@@ -228,6 +234,7 @@ export class WordModeView extends TextFileView {
     this.status = 'saved';
     // 手機沒有 Obsidian 狀態列：在畫面下方放自己的狀態列；桌機則整合進 Obsidian 右下角的狀態列
     if (Platform.isMobile) this.buildBottomBar(this.contentEl.createDiv('wm-bottombar'), false);
+    this.watchKeyboard();
     this.applyZoom();
     this.applyPropsLook();
     this.applyPropsSticky();
@@ -347,6 +354,69 @@ export class WordModeView extends TextFileView {
   onPaneMenu(menu: Menu, source: string): void {
     menu.addItem(i => i.setTitle(withKey('切換到 Markdown 編輯', 'Mod+E')).setIcon('code-2').setSection('pane').onClick(() => this.plugin.switchToMarkdown(this.leaf)));
     super.onPaneMenu(menu, source);
+  }
+
+  // ---------------------------------------------------------- 螢幕鍵盤（手機、平板）
+
+  // Obsidian 靠原生端給的 --keyboard-height 把整個 app 縮到鍵盤上方，但這個值不一定等於鍵盤實際佔的高度
+  // （iPhone 17 Pro、iOS 26 的注音鍵盤實測少了一截），檢視的下半段、也就是放在下方的功能區就落在鍵盤後面。
+  // 所以自己量：檢視的下緣超出看得到的範圍多少，就在檢視下方留多少（syncKeyboard），功能區剛好貼在鍵盤上方
+  watchKeyboard(): void {
+    const doc = this.contentEl.ownerDocument;
+    const win = doc.defaultView || window;
+    const vv = win.visualViewport;
+    if (!Platform.isMobile || !vv) return;
+    let timers: number[] = [];
+    // 鍵盤升起有動畫，Obsidian 也在途中改 app 的高度：馬上量一次，動畫途中與結束後再量
+    const soon = () => {
+      timers.forEach(id => win.clearTimeout(id));
+      timers = [0, 120, 350, 700].map(ms => win.setTimeout(() => this.syncKeyboard(), ms));
+    };
+    // Obsidian 的 app 在鍵盤升起、收起時送到 window 的事件（不在 DOM 的型別裡）
+    const shown = () => { this.kbEvent = true; soon(); };
+    const hidden = () => { this.kbEvent = false; soon(); };
+    vv.addEventListener('resize', soon);
+    vv.addEventListener('scroll', soon);
+    win.addEventListener('keyboardWillShow', shown);
+    win.addEventListener('keyboardDidShow', shown);
+    win.addEventListener('keyboardWillHide', hidden);
+    win.addEventListener('keyboardDidHide', hidden);
+    this.registerDomEvent(doc, 'focusin', soon);
+    this.registerDomEvent(doc, 'focusout', soon);
+    this.register(() => {
+      timers.forEach(id => win.clearTimeout(id));
+      vv.removeEventListener('resize', soon);
+      vv.removeEventListener('scroll', soon);
+      win.removeEventListener('keyboardWillShow', shown);
+      win.removeEventListener('keyboardDidShow', shown);
+      win.removeEventListener('keyboardWillHide', hidden);
+      win.removeEventListener('keyboardDidHide', hidden);
+    });
+  }
+
+  // 依鍵盤現在的狀態調整檢視：wm-kb-open（鍵盤開著，手機把狀態列收起來，多一點地方打字）、
+  // --wm-kb-inset（檢視下方被鍵盤蓋住的高度）
+  syncKeyboard(): void {
+    const doc = this.contentEl.ownerDocument;
+    const win = doc.defaultView || window;
+    const a = doc.activeElement;
+    // 沒有在輸入就當作鍵盤收起來了：iOS 收起鍵盤之後 visualViewport 有時不會馬上恢復，只看它會留下一塊空白
+    const typing = !!a && ((a as HTMLElement).isContentEditable || a.matches('input, textarea, select, [contenteditable="true"]'));
+    const visible = visibleBottom(win);
+    const open = typing && (this.kbEvent ?? win.innerHeight - visible > 80);
+    const inset = open ? hiddenBelow(this.contentEl.getBoundingClientRect().bottom, visible) : 0;
+    this.contentEl.toggleClass('wm-kb-open', open);
+    if (inset === this.kbInset) return;
+    this.kbInset = inset;
+    this.contentEl.style.setProperty('--wm-kb-inset', inset + 'px');
+    if (!inset) return;
+    win.requestAnimationFrame(() => {
+      // 編輯區變矮了，游標要留在看得到的地方
+      if (this.pm && this.pm.hasFocus()) this.pm.dispatch(this.pm.state.tr.scrollIntoView());
+      // iOS 為了露出游標會把整個畫面往上推，檢視的上半段跑出畫面；下方已經讓出來了，推回原位
+      const vv = win.visualViewport;
+      if (vv && vv.offsetTop > 0) win.scrollTo(0, 0);
+    });
   }
 
   // ---------------------------------------------------------- 資料進出
