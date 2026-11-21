@@ -21,6 +21,9 @@ body {
 }
 /* 蓋過 Obsidian 給檢視內容的留白與捲動 */
 .wm-view.wm-view.wm-view { padding: 0; overflow: hidden; }
+/* 手機：Obsidian 的導覽列是浮動的時候（is-floating-nav、auto-full-screen）蓋在檢視上面，下方要留 --view-bottom-spacing
+   給它，放在下方的功能區與狀態列才不會被蓋住；導覽列不是浮動的時候這個值是 0 */
+.is-phone .wm-view.wm-view.wm-view { padding-bottom: var(--view-bottom-spacing, 0px); }
 /* 螢幕鍵盤開著：Obsidian 縮小 app 之後還被鍵盤蓋住的高度（view.ts 的 syncKeyboard 量出來的）留在檢視下方，
    功能區就貼在鍵盤上方；手機把狀態列收起來，多一點地方打字 */
 .wm-view.wm-view.wm-view.wm-kb-open { padding-bottom: var(--wm-kb-inset, 0px); }
