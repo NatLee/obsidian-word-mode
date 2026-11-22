@@ -1183,7 +1183,8 @@ await fresh('---\ntags:\n  - 會議\n  - 專案\ndate: 2026-11-16\ndone: false\n
   vv.height = 400; vv.offsetTop = 30;
   kb.measure();
   await sleep(30);
-  assert(inset() === '90px' && scrolls.length === 1 && scrolls[0][1] === 0, 'iOS 把畫面往上推了 30：只留 90，並把畫面推回原位');
+  // 鍵盤一樣蓋住 368（版面高度減掉看得到的高度，跟推了多少無關），推回原位之後檢視要留的就是 120，一次到位不再跳第二次
+  assert(cover() === '368px' && inset() === '120px' && scrolls.length === 1 && scrolls[0][1] === 0, 'iOS 把畫面往上推了 30：鍵盤高度不變、留 120，並把畫面推回原位，得到 ' + cover() + '、' + inset());
   vv.offsetTop = 0;
   input.blur();
   kb.measure();
