@@ -1947,3 +1947,20 @@ mark.wm-set-find-hl { padding: 0 1px; border-radius: 3px; background: hsla(var(-
 .wm-kb-compact .wm-btn-label { display: none; }
 .wm-kb-compact.wm-kb-compact.wm-kb-compact .wm-btn.has-label { min-width: 38px; min-height: 38px; }
 .wm-kb-compact.wm-kb-compact.wm-kb-compact .wm-btn.has-label svg { width: 19px; height: 19px; }
+
+/* ===== 手機：功能區的下拉面板改成底部抽屜 =====
+   toolbar.ts 的 openPopup 在手機加上 is-sheet：面板不跟著按鈕，從畫面下方滑上來、左右貼齊，跟 Obsidian 手機版自己的選單一樣；
+   螢幕鍵盤開著時貼在鍵盤上方（body 的 --wm-kb-cover），高度不超過看得到的範圍的八成，內容多就在抽屜裡捲 */
+.wm-sheet-backdrop { position: fixed; inset: 0; z-index: var(--layer-menu, 60); background: var(--background-modifier-cover); animation: wm-sheet-fade .16s ease-out; }
+.wm-popup.is-mobile.is-sheet { left: 0; right: 0; top: auto; bottom: var(--wm-kb-cover, 0px); width: auto; max-width: none; max-height: calc((100vh - var(--wm-kb-cover, 0px)) * .8); overflow-y: auto; overscroll-behavior: contain; padding: 8px 12px calc(12px + var(--safe-area-inset-bottom, 0px)); border-width: 1px 0 0; border-radius: 16px 16px 0 0; box-shadow: var(--wm-shadow-float); animation: wm-sheet-up .18s ease-out; }
+/* 鍵盤開著時抽屜的下緣是鍵盤，不用再讓出主畫面橫條的高度 */
+.wm-kb-up .wm-popup.is-mobile.is-sheet { padding-bottom: 12px; }
+/* 抽屜上緣的小橫條，看得出是可以關掉的抽屜 */
+.wm-popup.is-sheet::before { content: ''; display: block; width: 36px; height: 4px; margin: 0 auto 8px; border-radius: 2px; background: var(--background-modifier-border-hover); }
+/* 固定寬度的內容（符號、插入表格的格子）在抽屜裡置中；選單項目撐滿整列 */
+.wm-popup.is-sheet .wm-symbol-grid, .wm-popup.is-sheet .wm-table-grid { justify-content: center; margin-inline: auto; }
+.wm-popup.is-sheet button.wm-menu-item, .wm-popup.is-sheet button.wm-style-item { width: 100%; }
+@keyframes wm-sheet-up { from { transform: translateY(100%); } }
+@keyframes wm-sheet-fade { from { opacity: 0; } }
+/* 手機沒有實體鍵盤，樣式清單的快速鍵提示不用顯示 */
+.wm-popup.is-sheet .wm-style-key { display: none; }

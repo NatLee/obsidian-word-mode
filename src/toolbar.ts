@@ -157,6 +157,8 @@ export class Toolbar {
   declare onDocDown: (e: PointerEvent) => void;
   declare popup: HTMLDivElement | null | undefined;
   declare popupOwner: HTMLElement | null | undefined;
+  // 手機的抽屜後面那層變暗的底（openPopup）
+  declare popupBackdrop: HTMLElement | null | undefined;
   declare painterBtn: HTMLButtonElement | null;
   declare styleBtn: HTMLButtonElement | null;
   declare hlBtn: HTMLButtonElement | null;
@@ -549,6 +551,15 @@ export class Toolbar {
       const v = this.view;
       if (v) v.focus();
     });
+    // 手機（body 的 is-phone）：不跟著按鈕，改成從畫面下方滑上來的抽屜，後面蓋一層變暗的底；位置與大小都在樣式表
+    // （.wm-popup.is-sheet），鍵盤開著時貼在鍵盤上方。按底的任何地方就關掉（onDocDown），不搶走編輯區的焦點
+    if (owner.ownerDocument.body.classList.contains('is-phone')) {
+      p.classList.add('is-sheet');
+      this.popupBackdrop = el('div', 'wm-sheet-backdrop');
+      keepFocus(this.popupBackdrop);
+      p.before(this.popupBackdrop);
+      return;
+    }
     // 放在按鈕下方；超出畫面時改放上方或往旁邊移（手機的工具列在畫面下方）。介面由右到左時對齊按鈕的右緣、往左展開。
     // 視窗大小看按鈕所在的那個視窗：筆記拉到獨立視窗之後，全域的 window 還是主視窗
     const r = owner.getBoundingClientRect();
@@ -561,7 +572,8 @@ export class Toolbar {
 
   closePopup(): void {
     if (this.popup) this.popup.remove();
-    this.popup = null; this.popupOwner = null;
+    if (this.popupBackdrop) this.popupBackdrop.remove();
+    this.popup = null; this.popupOwner = null; this.popupBackdrop = null;
   }
 
   openMenu(owner: HTMLElement, items: readonly MenuItem[]): void {
