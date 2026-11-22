@@ -1,6 +1,7 @@
 // Word 模式的右鍵選單：先放游標所在內容的專屬功能（連結、方程式、表格…），
 // 再放剪貼簿、格式、段落、插入、工具（可在設定中關閉）
-import { Menu, Platform } from 'obsidian';
+import { Menu, Platform, requireApiVersion } from 'obsidian';
+import { iconId } from './icons.js';
 import { TextSelection, NodeSelection } from 'prosemirror-state';
 import * as C from './commands.js';
 import { schema } from './schema.js';
@@ -67,7 +68,7 @@ export function openContextMenu(view: WordModeView, e: ElementEvent): boolean {
     bucket = null;
     if (!entries.length) return;
     section = true;
-    m.addItem(i => { i.setTitle(title).setIcon(icon); const sm = i.setSubmenu!(); for (const e of entries) put(sm, e); });
+    m.addItem(i => { i.setTitle(title).setIcon(iconId(icon)); const sm = i.setSubmenu!(); for (const e of entries) put(sm, e); });
   };
   const cmd = (title: string, icon: string, c: Command, check = true) => item(title, icon, () => { c(view.pm!.state, v => view.pm!.dispatch(v), view.pm!); view.pm!.focus(); }, check ? !!c(st) : true);
 
@@ -222,10 +223,24 @@ export function openTableMenu(view: WordModeView, kind: 'row' | 'col' | 'table',
   const st = pm.state;
   const T = C.table;
   const m = new Menu();
-  const cmd = (title: I18nKey, icon: string, c: Command) => m.addItem(i => {
-    i.setTitle(t(title)).setIcon(icon).onClick(() => { c(pm.state, tr => pm.dispatch(tr), pm); pm.focus(); });
+  // 加進哪個選單：平常是主選單，group() 裡面是子選單
+  let into = m;
+  const cmd = (title: I18nKey, icon: string, c: Command) => into.addItem(i => {
+    i.setTitle(t(title)).setIcon(iconId(icon)).onClick(() => { c(pm.state, tr => pm.dispatch(tr), pm); pm.focus(); });
     if (!c(st)) i.setDisabled(true);
   });
+  // 手機的選單是從下面滑上來的面板，項目一多就蓋住整張表格還要捲：對齊、排序各收成一項，點進去再選
+  // （Obsidian 內建的表格選單也是這樣）。子選單在面板裡換頁是 1.11 的新版手機介面才有的，舊版照舊全部列出來
+  const fold = Platform.isMobile && canSubmenu() && requireApiVersion('1.11.0');
+  const group = (title: I18nKey, icon: string, fill: () => void) => {
+    if (!fold) { fill(); return; }
+    m.addItem(i => {
+      i.setTitle(t(title)).setIcon(iconId(icon));
+      into = i.setSubmenu!();
+      fill();
+      into = m;
+    });
+  };
   if (kind === 'row') {
     cmd('在上方插入列', 'arrow-up-to-line', T.addRowBefore);
     cmd('在下方插入列', 'arrow-down-to-line', T.addRowAfter);
@@ -242,12 +257,16 @@ export function openTableMenu(view: WordModeView, kind: 'row' | 'col' | 'table',
     cmd('欄左移', 'arrow-left', C.moveTableColumn(-1));
     cmd('欄右移', 'arrow-right', C.moveTableColumn(1));
     m.addSeparator();
-    cmd('整欄靠左', 'align-left', T.alignColumn('left'));
-    cmd('整欄置中', 'align-center', T.alignColumn('center'));
-    cmd('整欄靠右', 'align-right', T.alignColumn('right'));
-    m.addSeparator();
-    cmd('依此欄排序（遞增）', 'arrow-down-a-z', C.sortTableByColumn(1));
-    cmd('依此欄排序（遞減）', 'arrow-up-z-a', C.sortTableByColumn(-1));
+    group('對齊', 'align-left', () => {
+      cmd('整欄靠左', 'align-left', T.alignColumn('left'));
+      cmd('整欄置中', 'align-center', T.alignColumn('center'));
+      cmd('整欄靠右', 'align-right', T.alignColumn('right'));
+    });
+    if (!fold) m.addSeparator();
+    group('依此欄排序', 'arrow-down-a-z', () => {
+      cmd('依此欄排序（遞增）', 'arrow-down-a-z', C.sortTableByColumn(1));
+      cmd('依此欄排序（遞減）', 'arrow-up-z-a', C.sortTableByColumn(-1));
+    });
     m.addSeparator();
     cmd('清除內容', 'eraser', T.clearCells);
     cmd('刪除欄', 'trash-2', T.deleteColumn);

@@ -1919,5 +1919,8 @@ mark.wm-set-find-hl { padding: 0 1px; border-radius: 3px; background: hsla(var(-
    都在鍵盤後面。上緣留在原位（平常是置中，上方空出安全區域的一半），下緣收到鍵盤上方 */
 .is-phone.wm-kb-up .modal-container .modal:is(.wm-eq-modal, .wm-mmd-modal) { align-self: flex-start; margin-top: calc(var(--safe-area-inset-top, 0px) / 2); max-height: calc(100vh - var(--safe-area-inset-top, 0px) / 2 - var(--wm-kb-cover, 0px)); }
 .is-phone.wm-kb-up .modal:is(.wm-eq-modal, .wm-mmd-modal) > .modal-button-container { margin-bottom: 0; }
+/* 引言區塊裡的表格：Obsidian 的 .callout-content 會裁掉超出去的部分，表格外框往左讓給列把手的 8px 被切掉一半。
+   在引言區塊裡不往左讓，把手留在外框自己的留白裡 */
+.wm-editor .callout-content .tableWrapper { margin-inline-start: 0; }
 /* 鍵盤開著時畫面只剩一半：圖表的預覽縮矮，留位置給正在填的欄位 */
 .is-phone.wm-kb-up .wm-mmd-stage .wm-mmd-preview { min-height: 72px; max-height: 110px; }
