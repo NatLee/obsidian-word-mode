@@ -71,6 +71,12 @@ export type EquationEditMode = 'visual' | 'latex';
 // 字數統計的一列：名稱、整份文件、選取範圍（沒有選取時為 null）
 export type WordCountRow = [label: string, all: string, sel: string | null];
 
+// 對話框最下面的按鈕列。手機的對話框內容是捲動區（Obsidian 的 .modal-content）：按鈕列放在它外面，
+// 跟 Obsidian 自己的對話框一樣固定在最下面，表單再長也不用捲到底才按得到
+export function buttonBar(modal: Modal): HTMLDivElement {
+  return (Platform.isPhone ? modal.modalEl : modal.contentEl).createDiv('modal-button-container');
+}
+
 export class SourceModal extends EditingModal {
   declare titleText: string;
   declare value: string;
@@ -515,7 +521,7 @@ export class EquationModal extends EditingModal {
     }
     this.prev = pvBox.createDiv('wm-eq-preview');
 
-    const bar = c.createDiv('modal-button-container');
+    const bar = buttonBar(this);
     if (this.init.existing && this.init.onDelete) {
       const del = bar.createEl('button', { text: t('刪除方程式'), cls: 'mod-warning' });
       del.addEventListener('click', () => { this.closeNow(); this.init.onDelete!(); });
