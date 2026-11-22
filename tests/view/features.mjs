@@ -1159,6 +1159,14 @@ await fresh('---\ntags:\n  - 會議\n  - 專案\ndate: 2026-11-16\ndone: false\n
   kb.measure();
   assert(el.classList.contains('wm-kb-open') && inset() === '120px', '鍵盤升起，檢視下方有 120 被蓋住：留 120，得到 ' + inset());
   assert(document.body.classList.contains('wm-kb-up') && cover() === '368px', 'body 記下鍵盤蓋住的高度，對話框用它避開鍵盤：' + cover());
+  // 打字時精簡功能區：只切換樣式，不重建功能區（重建會搶走焦點、收起鍵盤）
+  const tbDom = view.toolbar.dom;
+  assert(el.classList.contains('wm-kb-compact') && view.toolbar.dom === tbDom && view.toolbar.tabSwitch.classList.contains('is-compact-only'), '鍵盤開著：功能區精簡成一列（wm-kb-compact），分頁改用選單按鈕');
+  plugin.settings.compactOnKeyboard = false;
+  view.syncKeyboard();
+  assert(!el.classList.contains('wm-kb-compact') && el.classList.contains('wm-kb-open'), '關掉「打字時精簡工具列」：鍵盤開著也維持完整的功能區');
+  plugin.settings.compactOnKeyboard = true;
+  view.syncKeyboard();
   await sleep(30);
   assert(!scrolls.length, '畫面沒有被往上推：不去動它');
   vv.height = 600;
@@ -1176,7 +1184,7 @@ await fresh('---\ntags:\n  - 會議\n  - 專案\ndate: 2026-11-16\ndone: false\n
   window.dispatchEvent(new Event('keyboardDidHide'));
   document.documentElement.style.removeProperty('--keyboard-height');
   kb.measure();
-  assert(cover() === '0px' && !el.classList.contains('wm-kb-open'), '鍵盤收起來：不留空間');
+  assert(cover() === '0px' && !el.classList.contains('wm-kb-open') && !el.classList.contains('wm-kb-compact'), '鍵盤收起來：不留空間，功能區恢復完整');
   // iOS 把畫面往上推
   await sleep(30);
   scrolls.length = 0;

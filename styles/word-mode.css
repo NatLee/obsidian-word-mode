@@ -1934,3 +1934,14 @@ mark.wm-set-find-hl { padding: 0 1px; border-radius: 3px; background: hsla(var(-
 .wm-mobile .wm-editor .callout-content > .wm-table:first-child { margin-top: 24px; }
 /* 鍵盤開著時畫面只剩一半：圖表的預覽縮矮，留位置給正在填的欄位 */
 .is-phone.wm-kb-up .wm-mmd-stage .wm-mmd-preview { min-height: 72px; max-height: 110px; }
+
+/* ===== 打字時精簡功能區 =====
+   螢幕鍵盤開著時（view.ts 的 syncKeyboard 加上 wm-kb-compact）功能區只剩一列：分頁列不佔一列，改用按鈕列最前面的
+   選單按鈕選分頁（ribbon.ts 先建好、平常藏起來的 is-compact-only）；按鈕的名稱藏起來，有名稱的大按鈕縮成一般大小。
+   分頁列上的快速按鈕（尋找、說明、切換到 Markdown）跟著分頁列藏起來，鍵盤收起來就恢復 */
+.wm-toolbar button.wm-tab-switch.is-compact-only { display: none; }
+.wm-kb-compact .wm-toolbar button.wm-tab-switch.is-compact-only { display: inline-flex; }
+.wm-kb-compact .wm-ribbon .wm-tabs { display: none; }
+.wm-kb-compact .wm-btn-label { display: none; }
+.wm-kb-compact.wm-kb-compact.wm-kb-compact .wm-btn.has-label { min-width: 38px; min-height: 38px; }
+.wm-kb-compact.wm-kb-compact.wm-kb-compact .wm-btn.has-label svg { width: 19px; height: 19px; }

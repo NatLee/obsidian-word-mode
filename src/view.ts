@@ -368,6 +368,8 @@ export class WordModeView extends TextFileView {
     const layout = win.document.documentElement.clientHeight || win.innerHeight;
     const inset = kb.open ? hiddenBelow(this.contentEl.getBoundingClientRect().bottom + win.scrollY, layout - kb.cover) : 0;
     this.contentEl.toggleClass('wm-kb-open', kb.open);
+    // 打字時精簡功能區：分頁列收成選單、按鈕只顯示圖示（樣式表的 wm-kb-compact），鍵盤收起來就恢復
+    this.contentEl.toggleClass('wm-kb-compact', kb.open && this.plugin.settings.compactOnKeyboard !== false);
     if (inset === this.kbInset) return;
     this.kbInset = inset;
     this.contentEl.style.setProperty('--wm-kb-inset', inset + 'px');

@@ -140,6 +140,7 @@ function settingSections(settingTab: WordModeSettings): SettingSection[] {
       row(t('分頁列的樣式'), t('「常用／插入／校閱／檢視」這一列的顯示方式。「只顯示圖示」最省空間；「收成選單」不佔一列，改成按鈕列最前面的一個按鈕，按下去選分頁。版面是「分頁」時才有作用。'),
         s => s.addDropdown(d => d.addOptions({ text: t('文字'), icon: t('只顯示圖示'), both: t('圖示加文字'), menu: t('收成選單（不佔一列）') })
           .setValue(S.tabStyle || 'text').onChange(async v => { S.tabStyle = v as TabStyle; await rebuild(); }))),
+      toggleRow(t('打字時精簡工具列'), t('手機、平板的螢幕鍵盤開著時，工具列只留一列：分頁收成最前面的選單按鈕，按鈕只顯示圖示，多留一點地方打字。鍵盤收起來就恢復。'), 'compactOnKeyboard'),
       { kind: 'grid', name: t('分頁名稱'), desc: t('可以把分頁改成自己習慣的名稱；留白就用預設名稱。'), cls: 'wm-settings-groups wm-settings-tabnames', fill: box => {
         for (const [tab, tabLabel] of TABS) {
           const l = box.createEl('label', { cls: 'wm-settings-tabname' });

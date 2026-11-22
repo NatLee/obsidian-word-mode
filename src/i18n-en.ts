@@ -906,6 +906,8 @@ export default {
  "程式碼區塊裡只能放純文字，不能使用這個功能。請先把游標移到區塊外面。": "Code blocks hold plain text only, so this is not available here. Move the cursor outside the block first.",
  "分頁列的樣式": "Tab bar style",
  "「常用／插入／校閱／檢視」這一列的顯示方式。「只顯示圖示」最省空間；「收成選單」不佔一列，改成按鈕列最前面的一個按鈕，按下去選分頁。版面是「分頁」時才有作用。": "How the Home, Insert, Review and View row is shown. Icons only takes the least space. Menu removes the row and puts one button at the start of the toolbar that opens the list of tabs. Applies when the layout is Tabs.",
+ "打字時精簡工具列": "Compact toolbar while typing",
+ "手機、平板的螢幕鍵盤開著時，工具列只留一列：分頁收成最前面的選單按鈕，按鈕只顯示圖示，多留一點地方打字。鍵盤收起來就恢復。": "While the on-screen keyboard is open on a phone or tablet, the toolbar shrinks to one row: the tabs fold into a menu button at the start and buttons show icons only, leaving more room to type. It returns to normal when the keyboard closes.",
  "收成選單（不佔一列）": "Menu (no separate row)",
  "分頁名稱": "Tab names",
  "可以把分頁改成自己習慣的名稱；留白就用預設名稱。": "Rename the tabs to whatever you prefer. Leave a box empty to keep the default name.",

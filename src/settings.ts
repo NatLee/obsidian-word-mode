@@ -70,6 +70,8 @@ export interface Settings {
   // 分頁列的樣式（文字、圖示、圖示加文字、收成選單）與自訂的分頁名稱（分頁 id → 名稱）
   tabStyle: TabStyle;
   tabLabels: Partial<Record<TabId, string>>;
+  // 手機、平板的螢幕鍵盤開著時把功能區精簡成一列（分頁列收成選單、按鈕只顯示圖示），鍵盤收起來就恢復
+  compactOnKeyboard: boolean;
   // 上次選的字型色彩（CSS 色碼）
   lastFontColor?: string;
   // 上次選的醒目提示色彩（CSS 色碼）；空字串＝預設黃色
@@ -143,6 +145,7 @@ export const DEFAULTS: Settings = {
   groupOrder: [],
   tabStyle: 'text',
   tabLabels: {},
+  compactOnKeyboard: true,
   richHints: true,
   mdToolbar: 'both',
   mdStatusBar: true,

@@ -906,6 +906,8 @@ export default {
  "程式碼區塊裡只能放純文字，不能使用這個功能。請先把游標移到區塊外面。": "Les blocs de code ne contiennent que du texte brut, cette fonction n'est donc pas disponible ici. Déplacez d'abord le curseur hors du bloc.",
  "分頁列的樣式": "Style de la barre d'onglets",
  "「常用／插入／校閱／檢視」這一列的顯示方式。「只顯示圖示」最省空間；「收成選單」不佔一列，改成按鈕列最前面的一個按鈕，按下去選分頁。版面是「分頁」時才有作用。": "Affichage de la ligne Accueil, Insérer, Révision et Affichage. « Icônes seules » prend le moins de place. « Menu » supprime la ligne et place au début de la barre d'outils un bouton qui ouvre la liste des onglets. S'applique quand la disposition est « Onglets ».",
+ "打字時精簡工具列": "Barre d'outils compacte pendant la saisie",
+ "手機、平板的螢幕鍵盤開著時，工具列只留一列：分頁收成最前面的選單按鈕，按鈕只顯示圖示，多留一點地方打字。鍵盤收起來就恢復。": "Quand le clavier à l'écran est ouvert sur un téléphone ou une tablette, la barre d'outils tient sur une seule ligne : les onglets passent dans un bouton de menu au début et les boutons n'affichent que leur icône, pour laisser plus de place à la saisie. Elle revient à la normale quand le clavier se ferme.",
  "收成選單（不佔一列）": "Menu (pas de ligne séparée)",
  "分頁名稱": "Noms des onglets",
  "可以把分頁改成自己習慣的名稱；留白就用預設名稱。": "Renommez les onglets comme vous le souhaitez. Laissez une case vide pour garder le nom par défaut.",
