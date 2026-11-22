@@ -29,6 +29,14 @@ export function visibleBottom(win: Window): number {
   return vv ? Math.min(win.innerHeight, vv.offsetTop + vv.height) : win.innerHeight;
 }
 
+// 版面（還沒被螢幕鍵盤、iOS 往上推影響時）的高度。innerHeight 與 documentElement.clientHeight 各有不準的時候：
+// 一般的 WKWebView 裡 iOS 往上推畫面時 innerHeight 會少掉推上去的那一段、clientHeight 不變；Obsidian 手機版把 app 縮到
+// 鍵盤上方之後 clientHeight 可能跟著變矮、innerHeight 不變（實機上只用 clientHeight 會把鍵盤扣兩次，功能區與鍵盤之間空一大塊）。
+// 兩個都只會偏小，取大的
+export function layoutHeight(win: Window): number {
+  return Math.max(win.document.documentElement.clientHeight || 0, win.innerHeight || 0);
+}
+
 // 下緣在 bottom 的元素有多少像素被擋在看得到的範圍外面（螢幕鍵盤後面）
 export function hiddenBelow(bottom: number, visible: number): number {
   return Math.max(0, Math.round(bottom - visible));
