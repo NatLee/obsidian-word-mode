@@ -249,9 +249,11 @@ body {
 /* 下方留 45vh 的空白，最後一段也能捲到畫面中間。空白放在內容最後（::after），不放在捲動區的 padding：
    padding 不會縮，捲動區就不能比 45vh 矮，鍵盤開著時功能區被擠到鍵盤後面，iOS 為了露出游標一直推畫面而抖動。
    頁面的最小高度扣掉這段空白，內容短的時候跟以前一樣不用捲 */
-.wm-mobile .wm-scroller { padding: 0; -webkit-overflow-scrolling: touch; }
-.wm-mobile .wm-scroller::after { content: ''; display: block; height: 45vh; }
-.wm-mobile .wm-page { max-width: none; min-height: calc(100% - 45vh); box-shadow: none; border-radius: 0; padding: 16px 18px; }
+/* 螢幕鍵盤開著時畫面只剩上半，45vh 的空白比捲動區還高，一捲就整頁空白：空白扣掉鍵盤蓋住的高度
+   （body 的 --wm-kb-cover，keyboard.ts 量的），至少留 40px 讓最後一行不貼著功能區 */
+.wm-mobile .wm-scroller { --wm-tail: max(40px, 45vh - var(--wm-kb-cover, 0px)); padding: 0; -webkit-overflow-scrolling: touch; }
+.wm-mobile .wm-scroller::after { content: ''; display: block; height: var(--wm-tail); }
+.wm-mobile .wm-page { max-width: none; min-height: calc(100% - var(--wm-tail)); box-shadow: none; border-radius: 0; padding: 16px 18px; }
 .wm-mobile .wm-toolbar {
   overflow-y: hidden; -webkit-overflow-scrolling: touch;
   gap: 0 4px; padding: 4px 6px;
