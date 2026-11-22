@@ -1922,5 +1922,11 @@ mark.wm-set-find-hl { padding: 0 1px; border-radius: 3px; background: hsla(var(-
 /* 引言區塊裡的表格：Obsidian 的 .callout-content 會裁掉超出去的部分，表格外框往左讓給列把手的 8px 被切掉一半。
    在引言區塊裡不往左讓，把手留在外框自己的留白裡 */
 .wm-editor .callout-content .tableWrapper { margin-inline-start: 0; }
+/* 表格的按鈕（複製、更多、刪除）也一樣：.callout 與 .callout-content 都會裁切，桌機放在左邊頁面留白裡會整個看不到，
+   手機放在表格上方，表格是引言內容的第一塊時被切掉一半。在引言區塊裡一律橫排在表格上方的結尾那一邊，
+   表格在最上面時先留出按鈕超出表格的高度（按鈕高度減掉壓在表格上的 8px：桌機 22px、手機 32px） */
+.wm-editor .callout-content .wm-table .wm-table-corner { top: auto; bottom: calc(100% - 8px); inset-inline-end: 0; flex-direction: row; }
+.wm-editor .callout-content > .wm-table:first-child { margin-top: 14px; }
+.wm-mobile .wm-editor .callout-content > .wm-table:first-child { margin-top: 24px; }
 /* 鍵盤開著時畫面只剩一半：圖表的預覽縮矮，留位置給正在填的欄位 */
 .is-phone.wm-kb-up .wm-mmd-stage .wm-mmd-preview { min-height: 72px; max-height: 110px; }
