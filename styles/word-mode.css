@@ -246,8 +246,12 @@ body {
 .wm-raw-inline.is-comment svg { width: 14px; height: 14px; vertical-align: -2px; }
 
 /* ===== 手機、平板 ===== */
-.wm-mobile .wm-scroller { padding: 0 0 45vh; -webkit-overflow-scrolling: touch; }
-.wm-mobile .wm-page { max-width: none; min-height: 100%; box-shadow: none; border-radius: 0; padding: 16px 18px; }
+/* 下方留 45vh 的空白，最後一段也能捲到畫面中間。空白放在內容最後（::after），不放在捲動區的 padding：
+   padding 不會縮，捲動區就不能比 45vh 矮，鍵盤開著時功能區被擠到鍵盤後面，iOS 為了露出游標一直推畫面而抖動。
+   頁面的最小高度扣掉這段空白，內容短的時候跟以前一樣不用捲 */
+.wm-mobile .wm-scroller { padding: 0; -webkit-overflow-scrolling: touch; }
+.wm-mobile .wm-scroller::after { content: ''; display: block; height: 45vh; }
+.wm-mobile .wm-page { max-width: none; min-height: calc(100% - 45vh); box-shadow: none; border-radius: 0; padding: 16px 18px; }
 .wm-mobile .wm-toolbar {
   overflow-y: hidden; -webkit-overflow-scrolling: touch;
   gap: 0 4px; padding: 4px 6px;

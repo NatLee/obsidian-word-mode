@@ -80,7 +80,12 @@ export class KeyboardWatch {
     const { win } = this;
     // 沒有在打字就當作鍵盤收起來了：iOS 收起鍵盤之後 visualViewport 有時不會馬上恢復，只看它會留下一塊空白
     const typing = isTypingTarget(win.document.activeElement);
-    const gap = Math.max(0, Math.round(win.innerHeight - visibleBottom(win)));
+    // 鍵盤從版面下緣往上蓋住多少：版面的高度減掉看得到的高度。iOS 為了露出游標會先把整個畫面往上推，推的時候
+    // innerHeight 與看得到的下緣都少了推上去的那一段，用它們算會把鍵盤算矮，功能區先跳到錯的位置、推回來之後再跳一次。
+    // 版面的高度（documentElement.clientHeight）不受影響；放大檢視時看得到的高度要乘回縮放比例，不然會當成鍵盤
+    const vv = win.visualViewport;
+    const layout = win.document.documentElement.clientHeight || win.innerHeight;
+    const gap = Math.max(0, Math.round(vv ? layout - vv.height * (vv.scale || 1) : win.innerHeight - visibleBottom(win)));
     const cover = typing ? Math.max(gap, Math.round(this.cssHeight()), this.shown ? Math.round(this.eventHeight) : 0) : 0;
     // 外接鍵盤時也有焦點，但只會有一條很矮的輔助列：夠高才算螢幕鍵盤開著
     this.apply(cover, typing && (cover > 80 || this.shown === true));

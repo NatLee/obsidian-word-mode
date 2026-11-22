@@ -363,18 +363,21 @@ export class WordModeView extends TextFileView {
     const kb = this.plugin.keyboard;
     if (!kb) return;
     const win = this.contentEl.ownerDocument.defaultView || window;
-    const inset = kb.open ? hiddenBelow(this.contentEl.getBoundingClientRect().bottom, win.innerHeight - kb.cover) : 0;
+    // 用版面（沒被 iOS 往上推時）的座標比：檢視的下緣加回推上去的 scrollY，鍵盤上緣是版面高度減掉鍵盤。
+    // 推的過程中 innerHeight 與 scrollY 不是同一個畫格更新，用 innerHeight 比會在中間算錯一次
+    const layout = win.document.documentElement.clientHeight || win.innerHeight;
+    const inset = kb.open ? hiddenBelow(this.contentEl.getBoundingClientRect().bottom + win.scrollY, layout - kb.cover) : 0;
     this.contentEl.toggleClass('wm-kb-open', kb.open);
     if (inset === this.kbInset) return;
     this.kbInset = inset;
     this.contentEl.style.setProperty('--wm-kb-inset', inset + 'px');
     if (!inset) return;
+    // iOS 為了露出游標會把整個畫面往上推，檢視的上半段跑出畫面；下方已經讓出來了，馬上推回原位（等下一個畫格會多閃一下）
+    const vv = win.visualViewport;
+    if (vv && vv.offsetTop > 0) win.scrollTo(0, 0);
     win.requestAnimationFrame(() => {
       // 編輯區變矮了，游標要留在看得到的地方
       if (this.pm && this.pm.hasFocus()) this.pm.dispatch(this.pm.state.tr.scrollIntoView());
-      // iOS 為了露出游標會把整個畫面往上推，檢視的上半段跑出畫面；下方已經讓出來了，推回原位
-      const vv = win.visualViewport;
-      if (vv && vv.offsetTop > 0) win.scrollTo(0, 0);
     });
   }
 
