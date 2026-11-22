@@ -20,3 +20,4 @@ export { MdStatusBar, buildStatusBar, VIEW_BUTTONS } from '../../src/statusbar.j
 export * as PEEK from '../../src/propview.js';
 export { openMarkdownPeek } from '../../src/mdbar.js';
 export { buildDemo } from '../../src/hints.js';
+export { KeyboardWatch } from '../../src/keyboard.js';

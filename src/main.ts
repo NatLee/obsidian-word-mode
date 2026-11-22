@@ -1,5 +1,5 @@
 // Word 模式：把 Obsidian 筆記變成像 Office Word 一樣編輯
-import { Plugin, WorkspaceLeaf, MarkdownView, TFile, Notice, Platform } from 'obsidian';
+import { Plugin, WorkspaceLeaf, MarkdownView, TFile, Notice, Platform, apiVersion } from 'obsidian';
 import { DEFAULTS } from './settings.js';
 import { WordModeSettings } from './settingstab.js';
 import type { Settings, LanguageSetting } from './settings.js';
@@ -10,6 +10,7 @@ import { MarkdownConverter } from './markdown.js';
 import { WordModeView, VIEW_TYPE } from './view.js';
 import { OutlineView, OUTLINE_TYPE } from './outline.js';
 import { MarkdownBar, mdToolbarMode, wantsMdBar } from './mdbar.js';
+import { KeyboardWatch } from './keyboard.js';
 import { MdStatusBar } from './statusbar.js';
 import { closePropsPeek } from './propview.js';
 import { cleanTemplates } from './templates.js';
@@ -65,6 +66,8 @@ function hideBuiltinCount(statusEl: HTMLElement, hide: boolean): void {
 
 export default class WordModePlugin extends Plugin {
   declare settings: Settings;
+  // 螢幕鍵盤蓋住多少（只有手機、平板有）
+  declare keyboard?: KeyboardWatch;
   declare converter: MarkdownConverter;
   declare forceMarkdown: WeakMap<WorkspaceLeaf, string>;
   declare mdActions: Map<MarkdownView, HTMLElement>;
@@ -101,6 +104,21 @@ export default class WordModePlugin extends Plugin {
     this.forceMarkdown = new WeakMap(); // leaf -> 使用者手動切回 Markdown 的檔案路徑
     this.mdActions = new Map();
     this.history = new Map(); // 檔案路徑 → 編輯狀態（切換模式時保留復原紀錄）
+    // 手機、平板：量螢幕鍵盤蓋住多少，檢視與對話框依此讓出位置。各家裝置、輸入法回報的高度不一樣，
+    // 版面不對時要有實際的數字才查得出來，所以附一個把量到的數字複製出來的指令
+    if (Platform.isMobile) {
+      const kb = new KeyboardWatch(window);
+      this.keyboard = kb;
+      this.register(kb.start());
+      this.addCommand({
+        id: 'copy-keyboard-report', name: t('複製螢幕鍵盤的診斷資訊'),
+        callback: () => {
+          const device = (Platform.isIosApp ? 'iOS' : Platform.isAndroidApp ? 'Android' : 'other') + (Platform.isPhone ? ' phone' : ' tablet');
+          const text = kb.report(['Word Mode ' + this.manifest.version + ' / Obsidian ' + apiVersion + ' / ' + device]);
+          if (navigator.clipboard) void navigator.clipboard.writeText(text).then(() => new Notice(t('已複製診斷資訊，可以貼到問題回報裡')));
+        },
+      });
+    }
 
     this.registerView(VIEW_TYPE, leaf => new WordModeView(leaf, this));
     this.registerView(OUTLINE_TYPE, leaf => new OutlineView(leaf, this));

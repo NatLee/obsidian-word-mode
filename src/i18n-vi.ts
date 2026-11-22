@@ -1221,5 +1221,7 @@ export default {
  "轉成文字": "Thành văn bản",
  "選取整列、整欄或整張表時：刪掉它們（Delete 只清空內容）": "Khi chọn cả hàng, cả cột hoặc cả bảng: xóa chúng (Delete chỉ xóa nội dung)",
  "選取游標所在的儲存格、整列、整欄或整張表。選取整列、整欄或整張表後按 Backspace 會刪掉它們。": "Chọn ô, hàng, cột hoặc cả bảng tại con trỏ. Chọn cả hàng, cột hoặc bảng rồi nhấn Backspace để xóa chúng.",
- "表格下方的段落開頭按 Backspace": "Backspace ở đầu đoạn văn bên dưới bảng"
+ "表格下方的段落開頭按 Backspace": "Backspace ở đầu đoạn văn bên dưới bảng",
+ "複製螢幕鍵盤的診斷資訊": "Sao chép thông tin chẩn đoán bàn phím ảo",
+ "已複製診斷資訊，可以貼到問題回報裡": "Đã sao chép thông tin chẩn đoán. Hãy dán vào báo cáo lỗi."
 };
