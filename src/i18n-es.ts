@@ -906,6 +906,8 @@ export default {
  "程式碼區塊裡只能放純文字，不能使用這個功能。請先把游標移到區塊外面。": "Los bloques de código solo admiten texto sin formato, así que esta función no está disponible aquí. Mueve primero el cursor fuera del bloque.",
  "分頁列的樣式": "Estilo de la barra de pestañas",
  "「常用／插入／校閱／檢視」這一列的顯示方式。「只顯示圖示」最省空間；「收成選單」不佔一列，改成按鈕列最前面的一個按鈕，按下去選分頁。版面是「分頁」時才有作用。": "Cómo se muestra la fila Inicio, Insertar, Revisar y Vista. \"Solo iconos\" ocupa el menor espacio. \"Menú\" quita la fila y pone al principio de la barra de herramientas un botón que abre la lista de pestañas. Se aplica cuando el diseño es \"Pestañas\".",
+ "打字時精簡工具列": "Barra de herramientas compacta al escribir",
+ "手機、平板的螢幕鍵盤開著時，工具列只留一列：分頁收成最前面的選單按鈕，按鈕只顯示圖示，多留一點地方打字。鍵盤收起來就恢復。": "Mientras el teclado en pantalla está abierto en un teléfono o una tableta, la barra de herramientas ocupa una sola fila: las pestañas pasan a un botón de menú al principio y los botones muestran solo el icono, para dejar más espacio para escribir. Vuelve a la normalidad al cerrar el teclado.",
  "收成選單（不佔一列）": "Menú (sin fila propia)",
  "分頁名稱": "Nombres de las pestañas",
  "可以把分頁改成自己習慣的名稱；留白就用預設名稱。": "Cambia el nombre de las pestañas como prefieras. Deja una casilla vacía para mantener el nombre predeterminado.",

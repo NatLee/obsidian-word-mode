@@ -906,6 +906,8 @@ export default {
  "程式碼區塊裡只能放純文字，不能使用這個功能。請先把游標移到區塊外面。": "Codeblöcke enthalten nur reinen Text, daher ist diese Funktion hier nicht verfügbar. Zuerst den Cursor außerhalb des Blocks setzen.",
  "分頁列的樣式": "Stil der Registerkartenleiste",
  "「常用／插入／校閱／檢視」這一列的顯示方式。「只顯示圖示」最省空間；「收成選單」不佔一列，改成按鈕列最前面的一個按鈕，按下去選分頁。版面是「分頁」時才有作用。": "Wie die Zeile mit Start, Einfügen, Überprüfen und Ansicht angezeigt wird. „Nur Symbole“ braucht am wenigsten Platz. „Menü“ entfernt die Zeile und setzt an den Anfang der Symbolleiste eine Schaltfläche, die die Liste der Registerkarten öffnet. Gilt, wenn das Layout „Registerkarten“ ist.",
+ "打字時精簡工具列": "Kompakte Symbolleiste beim Tippen",
+ "手機、平板的螢幕鍵盤開著時，工具列只留一列：分頁收成最前面的選單按鈕，按鈕只顯示圖示，多留一點地方打字。鍵盤收起來就恢復。": "Solange die Bildschirmtastatur auf einem Smartphone oder Tablet offen ist, schrumpft die Symbolleiste auf eine Zeile: Die Registerkarten wandern in eine Menüschaltfläche am Anfang, und Schaltflächen zeigen nur Symbole, damit mehr Platz zum Schreiben bleibt. Wird die Tastatur geschlossen, ist alles wieder wie vorher.",
  "收成選單（不佔一列）": "Menü (keine eigene Zeile)",
  "分頁名稱": "Namen der Registerkarten",
  "可以把分頁改成自己習慣的名稱；留白就用預設名稱。": "Registerkarten nach Belieben umbenennen. Ein Feld leer lassen, um den Standardnamen zu behalten.",

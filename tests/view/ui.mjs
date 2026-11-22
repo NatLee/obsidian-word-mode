@@ -77,7 +77,8 @@ await fresh('| 甲 | 乙 |\n| --- | --- |\n| a1 | b1 |\n');
   plugin.settings.tabStyle = 'text';
   plugin.settings.tabLabels = {};
   view.buildToolbar();
-  assert(view.toolbar.dom.querySelectorAll('.wm-tab').length === 4 && !view.toolbar.tabSwitch, '改回文字的分頁列');
+  // 選單按鈕還在，但只在打字時精簡功能區（wm-kb-compact）才出現
+  assert(view.toolbar.dom.querySelectorAll('.wm-tab').length === 4 && view.toolbar.tabSwitch && view.toolbar.tabSwitch.classList.contains('is-compact-only'), '改回文字的分頁列');
 }
 
 // ======== 色彩面板：醒目提示可以自訂色彩 ========

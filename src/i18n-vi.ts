@@ -906,6 +906,8 @@ export default {
  "程式碼區塊裡只能放純文字，不能使用這個功能。請先把游標移到區塊外面。": "Khối mã chỉ chứa văn bản thuần nên không dùng được tính năng này ở đây. Hãy di chuyển con trỏ ra ngoài khối trước.",
  "分頁列的樣式": "Kiểu thanh tab",
  "「常用／插入／校閱／檢視」這一列的顯示方式。「只顯示圖示」最省空間；「收成選單」不佔一列，改成按鈕列最前面的一個按鈕，按下去選分頁。版面是「分頁」時才有作用。": "Cách hiển thị hàng Trang đầu, Chèn, Xem lại và Xem. “Chỉ biểu tượng” tốn ít chỗ nhất. “Menu” bỏ hàng này và đặt một nút ở đầu thanh công cụ để mở danh sách tab. Chỉ có tác dụng khi bố cục là “Tab”.",
+ "打字時精簡工具列": "Thu gọn thanh công cụ khi gõ",
+ "手機、平板的螢幕鍵盤開著時，工具列只留一列：分頁收成最前面的選單按鈕，按鈕只顯示圖示，多留一點地方打字。鍵盤收起來就恢復。": "Khi bàn phím ảo đang mở trên điện thoại hoặc máy tính bảng, thanh công cụ chỉ còn một hàng: các tab gộp vào nút menu ở đầu và các nút chỉ hiện biểu tượng, để có thêm chỗ gõ. Đóng bàn phím thì trở lại như cũ.",
  "收成選單（不佔一列）": "Menu (không chiếm hàng riêng)",
  "分頁名稱": "Tên tab",
  "可以把分頁改成自己習慣的名稱；留白就用預設名稱。": "Đổi tên tab theo ý bạn. Để trống ô nào thì giữ tên mặc định cho tab đó.",

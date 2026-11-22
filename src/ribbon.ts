@@ -319,17 +319,17 @@ export class RibbonShell {
     this.seen = new Set();
     if (this.layout === 'tabs') {
       const menuTabs = this.tabStyle === 'menu';
-      // 收成選單：分頁列不佔一列，改成按鈕列最前面的一個按鈕，按下去選分頁
-      if (menuTabs) {
-        const sw = el('button', 'wm-tab-switch', this.bar);
-        sw.type = 'button';
-        el('span', 'wm-tab-switch-label', sw);
-        this.icon(el('span', 'wm-tab-switch-arrow', sw), 'chevron-down', '▾');
-        keepFocus(sw);
-        sw.addEventListener('click', () => o.openMenu(sw, [...TABS.map(([id]) => id), ...CONTEXT_TABS].filter(id => this.tabNames[id] != null)
-          .map(id => ({ title: this.tabNames[id]!, icon: TAB_ICONS[id], run: () => o.pickTab(id) }))));
-        this.tabSwitch = sw;
-      }
+      // 收成選單：分頁列不佔一列，改成按鈕列最前面的一個按鈕，按下去選分頁。
+      // 其他分頁列樣式也先建好這個按鈕但藏起來（is-compact-only）：螢幕鍵盤開著、功能區精簡成一列時
+      // （檢視加上 wm-kb-compact）只靠樣式切換，不重建功能區，打字的焦點與鍵盤才不會被打斷
+      const sw = el('button', 'wm-tab-switch' + (menuTabs ? '' : ' is-compact-only'), this.bar);
+      sw.type = 'button';
+      el('span', 'wm-tab-switch-label', sw);
+      this.icon(el('span', 'wm-tab-switch-arrow', sw), 'chevron-down', '▾');
+      keepFocus(sw);
+      sw.addEventListener('click', () => o.openMenu(sw, [...TABS.map(([id]) => id), ...CONTEXT_TABS].filter(id => this.tabNames[id] != null)
+        .map(id => ({ title: this.tabNames[id]!, icon: TAB_ICONS[id], run: () => o.pickTab(id) }))));
+      this.tabSwitch = sw;
       for (const [id, label] of TABS) {
         const panel = el('div', 'wm-panel', this.bar);
         this.panels[id] = panel;
