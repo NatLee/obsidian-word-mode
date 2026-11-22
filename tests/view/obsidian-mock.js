@@ -47,6 +47,9 @@ export function renderMath(src) { const s = document.createElement('span'); s.cl
 export function finishRenderMath() {}
 export async function loadMathJax() {}
 export function setIcon(el, name) { el.dataset.icon = name; }
+export function getIcon() { return null; }
+export const apiVersion = '1.5.7';
+export function requireApiVersion() { return true; }
 export function normalizePath(p) { return p.replace(/\/+/g, '/').replace(/^\/|\/$/g, ''); }
 export const Platform = { isMobile: false };
 export class MenuItem {}

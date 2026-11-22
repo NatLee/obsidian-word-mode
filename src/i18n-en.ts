@@ -1221,5 +1221,7 @@ export default {
  "轉成文字": "To text",
  "選取整列、整欄或整張表時：刪掉它們（Delete 只清空內容）": "With whole rows, columns or the table selected: delete them (Delete only clears the contents)",
  "選取游標所在的儲存格、整列、整欄或整張表。選取整列、整欄或整張表後按 Backspace 會刪掉它們。": "Select the cell, row, column or whole table at the cursor. Press Backspace with whole rows, columns or the table selected to delete them.",
- "表格下方的段落開頭按 Backspace": "Backspace at the start of the paragraph below a table"
+ "表格下方的段落開頭按 Backspace": "Backspace at the start of the paragraph below a table",
+ "複製螢幕鍵盤的診斷資訊": "Copy on-screen keyboard diagnostics",
+ "已複製診斷資訊，可以貼到問題回報裡": "Diagnostics copied. Paste them into your bug report."
 };

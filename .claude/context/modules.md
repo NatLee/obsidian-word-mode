@@ -63,7 +63,9 @@
 - CSS 用 Obsidian 加在 body 上的 `.is-mobile`、`.is-phone`、`.is-tablet`（對話框、彈出面板不在 `.wm-view` 裡，吃不到 `.wm-mobile`）。
 - 手機上輸入框的字要 16px 以上，iOS 才不會在取得焦點時放大畫面。
 - 按鈕不能搶走輸入位置的焦點：用 `dom.ts` 的 `keepFocus()`（連 pointerdown 一起擋，螢幕鍵盤才不會收起來）。
-- 螢幕鍵盤的高度不要相信 Obsidian 的 `--keyboard-height`（iPhone 17 Pro、iOS 26 的注音鍵盤實測少了約 100pt）：`view.ts` 的 `watchKeyboard`／`syncKeyboard` 用 `visualViewport` 量檢視被蓋住多少，寫進 `--wm-kb-inset` 並加上 `wm-kb-open`。浮動面板定位用 `dom.ts` 的 `visibleBottom()`，不要用 `innerHeight`。
+- 螢幕鍵盤蓋住多少由 `keyboard.ts` 的 `KeyboardWatch`（`plugin.keyboard`，只有手機、平板有）量：`visualViewport`、Obsidian 的 `--keyboard-height`、鍵盤事件帶的高度三個取最大，寫在 body 的 `--wm-kb-cover` 與 `wm-kb-up`。不要只相信其中一個（iPhone 17 Pro、iOS 26 的注音鍵盤，Obsidian 縮的量少了約 100pt）。檢視用 `syncKeyboard` 讓出下方（`--wm-kb-inset`、`wm-kb-open`）；浮動面板定位用 `dom.ts` 的 `visibleBottom()`，不要用 `innerHeight`。版面不對時請使用者執行指令「複製螢幕鍵盤的診斷資訊」，貼回來的數字才是依據，不要用截圖猜。
+- 手機的對話框：Obsidian 的 `.modal-content` 是 flex 直欄的捲動區，而且完全不避開鍵盤。內容的每一塊要 `flex-shrink: 0`；長表單的按鈕列用 `dialogs.ts` 的 `buttonBar()` 放在捲動區外面；鍵盤開著時用 `wm-kb-up` 把對話框收到鍵盤上方（樣式表最後的「手機的方程式、圖表編輯器」）。
+- 手機的選單是從下面滑上來的面板：項目多的用子選單（`contextmenu.ts` 的 `openTableMenu`）。Menu 的圖示名稱經過 `icons.ts` 的 `iconId()`，Lucide 改過名字的才不會變空白。
 - 手機的導覽列是浮動的時候（`is-floating-nav`）蓋在檢視上面，檢視下方留 `--view-bottom-spacing`（Obsidian 的變數）。
 - 螢幕鍵盤常常沒有按鍵事件（`^`、Backspace 的 keydown 收不到）、也沒有方向鍵與 Tab：要靠 `input` 事件判斷打了什麼，並提供對應的按鈕。
 

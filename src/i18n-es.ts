@@ -1221,5 +1221,7 @@ export default {
  "轉成文字": "A texto",
  "選取整列、整欄或整張表時：刪掉它們（Delete 只清空內容）": "Con filas, columnas o la tabla enteras seleccionadas: eliminarlas (Delete solo borra el contenido)",
  "選取游標所在的儲存格、整列、整欄或整張表。選取整列、整欄或整張表後按 Backspace 會刪掉它們。": "Selecciona la celda, la fila, la columna o toda la tabla donde está el cursor. Con filas, columnas o la tabla enteras seleccionadas, Backspace las elimina.",
- "表格下方的段落開頭按 Backspace": "Backspace al inicio del párrafo debajo de una tabla"
+ "表格下方的段落開頭按 Backspace": "Backspace al inicio del párrafo debajo de una tabla",
+ "複製螢幕鍵盤的診斷資訊": "Copiar el diagnóstico del teclado en pantalla",
+ "已複製診斷資訊，可以貼到問題回報裡": "Diagnóstico copiado. Pégalo en tu informe de error."
 };

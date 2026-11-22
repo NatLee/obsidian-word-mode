@@ -5,6 +5,7 @@
 import { Notice, setIcon } from 'obsidian';
 import { t, key } from './i18n.js';
 import { keepFocus } from './dom.js';
+import { buttonBar } from './dialogs.js';
 import { EditingModal } from './confirmclose.js';
 import { DIAGRAM_KINDS, DIAGRAM_REASONS, COMMON_OPTS, editableDiagram, generateDiagram, detectKind, textSlots, findSlot, setValue, restoreName, dropRefs, squash, sameSlot, slotNth, rowSlot } from './diagrams.js';
 import { uniqueName } from './templates.js';
@@ -286,7 +287,7 @@ export class MermaidModal extends EditingModal {
       this.setZoom(this.zoom + (e.deltaY < 0 ? 0.25 : -0.25));
     }, { passive: false });
 
-    const bar = c.createDiv('modal-button-container');
+    const bar = buttonBar(this);
     bar.createEl('button', { text: t('取消') }).addEventListener('click', () => { this.closeInline(); this.closeNow(); });
     this.ok = bar.createEl('button', { text: this.opts.existing ? t('套用') : t('插入'), cls: 'mod-cta' });
     this.ok.addEventListener('click', () => this.submit());
