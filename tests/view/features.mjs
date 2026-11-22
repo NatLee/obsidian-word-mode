@@ -1214,6 +1214,14 @@ await fresh('---\ntags:\n  - 會議\n  - 專案\ndate: 2026-11-16\ndone: false\n
   view.toolbar.openPopup(owner, p => { p.textContent = '選單'; });
   assert(parseFloat(view.toolbar.popup.style.top) < 360, '功能區在鍵盤上方時，選單往上開（不放到鍵盤後面）：top = ' + view.toolbar.popup.style.top);
   view.toolbar.closePopup();
+  // 手機（body 有 is-phone）：面板改成底部抽屜，不跟著按鈕定位，後面有一層底；關掉時一起拿掉
+  document.body.classList.add('is-phone');
+  view.toolbar.openPopup(owner, p => { p.textContent = '選單'; });
+  const sheet = view.toolbar.popup;
+  assert(sheet.classList.contains('is-sheet') && !sheet.style.top && !sheet.style.left && document.querySelector('.wm-sheet-backdrop'), '手機：下拉面板是底部抽屜（is-sheet），位置交給樣式表，並有變暗的底');
+  view.toolbar.closePopup();
+  assert(!document.querySelector('.wm-sheet-backdrop') && !document.querySelector('.wm-popup'), '關掉抽屜：面板與底都拿掉');
+  document.body.classList.remove('is-phone');
   owner.getBoundingClientRect = ownerRect;
   input.remove();
   unsub();
