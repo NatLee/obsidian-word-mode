@@ -38,7 +38,7 @@ import { SourceModal, PromptModal, LinkDialog, FilePicker, ShortcutModal, Equati
 import { countSource, countText, docText, docStats } from './textstats.js';
 import { buildStatusBar, renderSaveStatus, renderCount, showWordCount, showZoom } from './statusbar.js';
 import { openPropsPeek, propertyWidget, fillPropsPeek, fillPinSummary, markOverflow } from './propview.js';
-import { isRtl, hiddenBelow } from './dom.js';
+import { isRtl, hiddenBelow, layoutHeight } from './dom.js';
 import { frontmatterBody, peekData } from './props.js';
 import { t, key, withKey } from './i18n.js';
 import type { Modifier, TAbstractFile, WorkspaceLeaf } from 'obsidian';
@@ -365,7 +365,7 @@ export class WordModeView extends TextFileView {
     const win = this.contentEl.ownerDocument.defaultView || window;
     // 用版面（沒被 iOS 往上推時）的座標比：檢視的下緣加回推上去的 scrollY，鍵盤上緣是版面高度減掉鍵盤。
     // 推的過程中 innerHeight 與 scrollY 不是同一個畫格更新，用 innerHeight 比會在中間算錯一次
-    const layout = win.document.documentElement.clientHeight || win.innerHeight;
+    const layout = layoutHeight(win);
     const inset = kb.open ? hiddenBelow(this.contentEl.getBoundingClientRect().bottom + win.scrollY, layout - kb.cover) : 0;
     this.contentEl.toggleClass('wm-kb-open', kb.open);
     // 打字時精簡功能區：分頁列收成選單、按鈕只顯示圖示（樣式表的 wm-kb-compact），鍵盤收起來就恢復

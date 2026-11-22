@@ -1177,6 +1177,17 @@ await fresh('---\ntags:\n  - 會議\n  - 專案\ndate: 2026-11-16\ndone: false\n
   document.documentElement.style.setProperty('--keyboard-height', '300px');
   kb.measure();
   assert(cover() === '300px' && inset() === '52px', '只有 --keyboard-height 有值：用它，檢視留 52，得到 ' + cover() + '、' + inset());
+  // Obsidian 手機版把 app 縮到鍵盤上方之後，documentElement.clientHeight 跟著變矮、innerHeight 不變：
+  // 版面高度要取大的那個，只看 clientHeight 會把鍵盤扣兩次（實機上功能區與鍵盤之間空了一整個鍵盤的高度）
+  Object.defineProperty(document.documentElement, 'clientHeight', { value: 468, configurable: true });
+  vv.height = 468;
+  view.kbInset = -1;
+  kb.measure();
+  view.syncKeyboard();
+  assert(cover() === '300px' && inset() === '52px', 'clientHeight 已經扣掉鍵盤（468）：鍵盤還是 300、檢視只留 52，不重複扣，得到 ' + cover() + '、' + inset());
+  delete document.documentElement.clientHeight;
+  vv.height = 768;
+  kb.measure();
   // 鍵盤事件帶的高度比另外兩個大：取最大的
   window.dispatchEvent(Object.assign(new Event('keyboardWillShow'), { keyboardHeight: 340 }));
   kb.measure();
