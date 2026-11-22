@@ -1,7 +1,7 @@
 {
   "id": "natlee-word-mode",
   "name": "Word Mode",
-  "version": "1.21.0",
+  "version": "1.21.1",
   "minAppVersion": "1.5.7",
   "description": "Edit Markdown notes like a Word document, with a ribbon toolbar, tables, and images. Notes are still saved as clean Markdown.",
   "author": "NatLee",
