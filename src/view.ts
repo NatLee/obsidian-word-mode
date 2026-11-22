@@ -9,7 +9,7 @@ import { loadPrism } from 'obsidian';
 import { TextSelection, NodeSelection } from 'prosemirror-state';
 import { linkContext, isExternal, isUrl } from './links.js';
 import { iconOr } from './icons.js';
-import { openContextMenu, openTableMenu } from './contextmenu.js';
+import { openContextMenu, openTableMenu, hideKeyboardForMenu } from './contextmenu.js';
 import { tableGripsPlugin } from './tablegrips.js';
 import { renderMathInto } from './mathrender.js';
 import type { IconFn } from './icons.js';
@@ -1208,7 +1208,7 @@ export class WordModeView extends TextFileView {
       evt.preventDefault();
       const m = new Menu();
       for (const it of items) m.addItem(i => { i.setTitle(it.title); if (it.icon) i.setIcon(it.icon); i.onClick(it.run); });
-      m.showAtMouseEvent(evt);
+      hideKeyboardForMenu(this); m.showAtMouseEvent(evt);
     };
     return {
       icon: iconOr,
@@ -1586,7 +1586,7 @@ export class WordModeView extends TextFileView {
       }));
     }
     const r = btn ? btn.getBoundingClientRect() : { left: 200, bottom: 120 };
-    m.showAtPosition({ x: r.left, y: r.bottom + 4 });
+    hideKeyboardForMenu(this); m.showAtPosition({ x: r.left, y: r.bottom + 4 });
   }
 
   unwrapCallout(pos: number | null | undefined): void {
@@ -1791,7 +1791,7 @@ export class WordModeView extends TextFileView {
     m.addItem(i => i.setTitle(t('更換圖片…')).setIcon('replace').onClick(() => this.openImageMenu(null, pos, evt)));
     m.addItem(i => i.setTitle(t('在新分頁開啟圖片')).setIcon('external-link').onClick(() => this.openImage(n.attrs)));
     m.addItem(i => i.setTitle(t('刪除圖片')).setIcon('trash-2').onClick(() => { this.pm!.dispatch(this.pm!.state.tr.delete(pos, pos + n.nodeSize)); }));
-    m.showAtMouseEvent(evt);
+    hideKeyboardForMenu(this); m.showAtMouseEvent(evt);
   }
 
   // 依照保管庫的連結設定（Wiki 或 Markdown 連結、相對路徑）產生連結
@@ -1929,9 +1929,9 @@ export class WordModeView extends TextFileView {
         this.insertImageAttrs({ src: url, alt: null, wiki: false }, replacePos);
       }).open();
     }));
-    if (evt) { m.showAtMouseEvent(evt); return; }
+    if (evt) { hideKeyboardForMenu(this); m.showAtMouseEvent(evt); return; }
     const r = btn ? btn.getBoundingClientRect() : { left: 200, bottom: 120 };
-    m.showAtPosition({ x: r.left, y: r.bottom + 4 });
+    hideKeyboardForMenu(this); m.showAtPosition({ x: r.left, y: r.bottom + 4 });
   }
 
   async insertUploadedImages(files: File[], replacePos?: number | null): Promise<void> {

@@ -18,6 +18,14 @@ import type { WordModeView, ElementEvent } from './view.js';
 // 右鍵選單的一個項目
 interface MenuEntry { title: string; icon: string; run: () => void; enabled: boolean; }
 
+// 手機、平板的螢幕鍵盤開著時，Obsidian 的選單是照整個畫面的高度擺的（手機是從下面滑上來的面板），下半段會在鍵盤後面、
+// 看不到也按不到：開選單之前先收起鍵盤。選單的項目執行完都會把焦點放回編輯區，鍵盤跟著回來
+export function hideKeyboardForMenu(view: WordModeView): void {
+  if (!Platform.isMobile || !view.pm) return;
+  const a = view.pm.dom.ownerDocument.activeElement as HTMLElement | null;
+  if (a && view.pm.dom.contains(a) && typeof a.blur === 'function') a.blur();
+}
+
 // Obsidian 的選單能不能放子選單（MenuItem.setSubmenu 不是公開 API，舊版可能沒有）；只檢查一次
 let submenuSupport: boolean | null = null;
 function canSubmenu(): boolean {
@@ -210,6 +218,7 @@ export function openContextMenu(view: WordModeView, e: ElementEvent): boolean {
     item(marksOn(st) ? t('隱藏編輯標記') : t('顯示編輯標記'), 'pilcrow', () => view.setMarks(!marksOn(view.pm!.state)));
     if (inTable) cmd(t('表格轉成文字'), 'text', C.table.toText);
   }, inTable);
+  hideKeyboardForMenu(view);
   m.showAtMouseEvent(e);
   e.preventDefault();
   return true;
@@ -278,5 +287,6 @@ export function openTableMenu(view: WordModeView, kind: 'row' | 'col' | 'table',
     cmd('清除內容', 'eraser', T.clearCells);
     cmd('刪除表格', 'trash-2', T.deleteTable);
   }
+  hideKeyboardForMenu(view);
   m.showAtPosition(at);
 }
