@@ -2,6 +2,7 @@
 // 何時顯示成作用中或停用，以及自己的下拉面板；分頁、群組、按鈕的 DOM 與兩條功能區共用的按鈕外觀在 ribbon.ts。
 // 版面可在設定中調整：分頁、全部排成一行（可左右捲動）、全部自動換行；按鈕可只顯示圖示或加上文字；分頁與群組可隱藏
 import * as C from './commands.js';
+import { Loupe } from './loupe.js';
 import { undo, redo } from 'prosemirror-history';
 import { schema } from './schema.js';
 import { t, key } from './i18n.js';
@@ -553,6 +554,8 @@ export class Toolbar {
   caretPad(b: HTMLElement): void {
     const START = 8; const STEP_X = 12; const STEP_Y = 26;
     let id = -1; let x = 0; let y = 0; let active = false;
+    // 拖曳期間游標上方的放大預覽（loupe.ts）
+    let loupe: Loupe | null = null;
     b.addEventListener('pointerdown', e => {
       if (e.pointerType === 'mouse') return;
       id = e.pointerId; x = e.clientX; y = e.clientY; active = false; this.padMoved = false;
@@ -569,14 +572,17 @@ export class Toolbar {
         b.classList.add('is-caret-pad');
         try { b.setPointerCapture(id); } catch { /* 舊環境 */ }
         this.closePopup();
+        loupe = new Loupe(v);
       }
       const nx = Math.trunc(dx / STEP_X); const ny = Math.trunc(dy / STEP_Y);
       if (nx) { x += nx * STEP_X; this.run(C.moveCaretBy(nx)); }
       if (ny) { y += ny * STEP_Y; this.moveCaretLines(ny); }
+      if ((nx || ny) && loupe) loupe.update();
     });
     const end = (e: PointerEvent) => {
       if (e.pointerId !== id) return;
       id = -1; active = false;
+      if (loupe) { loupe.destroy(); loupe = null; }
       b.classList.remove('is-caret-pad');
     };
     b.addEventListener('pointerup', end);

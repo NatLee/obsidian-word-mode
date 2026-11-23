@@ -64,7 +64,7 @@
 - 手機上輸入框的字要 16px 以上，iOS 才不會在取得焦點時放大畫面。
 - 按鈕不能搶走輸入位置的焦點：用 `dom.ts` 的 `keepFocus()`（連 pointerdown 一起擋，螢幕鍵盤才不會收起來）。
 - 螢幕鍵盤蓋住多少由 `keyboard.ts` 的 `KeyboardWatch`（`plugin.keyboard`，只有手機、平板有）量：`visualViewport`、Obsidian 的 `--keyboard-height`、鍵盤事件帶的高度三個取最大，寫在 body 的 `--wm-kb-cover` 與 `wm-kb-up`。不要只相信其中一個（iPhone 17 Pro、iOS 26 的注音鍵盤，Obsidian 縮的量少了約 100pt）。檢視用 `syncKeyboard` 讓出下方（`--wm-kb-inset`、`wm-kb-open`）；浮動面板定位用 `dom.ts` 的 `visibleBottom()`，不要用 `innerHeight`。版面不對時請使用者執行指令「複製螢幕鍵盤的診斷資訊」，貼回來的數字才是依據，不要用截圖猜。
-- 編輯區的觸控手勢在 `touch.ts`（`installTouch`，view.ts 只在行動裝置安裝）：編輯中點表格儲存格自己放游標（擋掉 iOS 的剪下／貼上選單）、兩指點一下選整段。功能區按鈕「往上滑＝另一個功能」在 `ribbon.ts` 的 `swipeKeys`，配對寫在 `ACTIONS` 的 `swipe`。表格的最小寬度由 `WordTableView.looseMinWidth` 搬到 `--wm-min-width`，手機上最多撐到容器寬。
+- 編輯區的觸控手勢在 `touch.ts`（`installTouch`，view.ts 只在行動裝置安裝）：編輯中點表格儲存格自己放游標（擋掉 iOS 的剪下／貼上選單）、兩指點一下選整段。拖曳移動游標時的放大預覽在 `loupe.ts`（複製游標那一段、用 transform 對位）。功能區按鈕「往上滑＝另一個功能」在 `ribbon.ts` 的 `swipeKeys`，配對寫在 `ACTIONS` 的 `swipe`。表格的最小寬度由 `WordTableView.looseMinWidth` 搬到 `--wm-min-width`，手機上最多撐到容器寬。
 - 手機的對話框：Obsidian 的 `.modal-content` 是 flex 直欄的捲動區，而且完全不避開鍵盤。內容的每一塊要 `flex-shrink: 0`；長表單的按鈕列用 `dialogs.ts` 的 `buttonBar()` 放在捲動區外面；鍵盤開著時用 `wm-kb-up` 把對話框收到鍵盤上方（樣式表最後的「手機的方程式、圖表編輯器」）。
 - 手機的選單是從下面滑上來的面板：項目多的用子選單（`contextmenu.ts` 的 `openTableMenu`）。Menu 的圖示名稱經過 `icons.ts` 的 `iconId()`，Lucide 改過名字的才不會變空白。
 - 手機的導覽列是浮動的時候（`is-floating-nav`）蓋在檢視上面，檢視下方留 `--view-bottom-spacing`（Obsidian 的變數）。
