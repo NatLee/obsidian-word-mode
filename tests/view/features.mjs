@@ -1228,6 +1228,16 @@ await fresh('---\ntags:\n  - 會議\n  - 專案\ndate: 2026-11-16\ndone: false\n
   assert(cover() === '0px', '焦點在核取方塊上不會叫出鍵盤：不留空間');
   box.remove();
   assert(/inner=\d+x768/.test(kb.report(['x'])) && kb.log.length > 3, '診斷資訊有視窗大小與最近幾次量到的數字');
+  // Obsidian 手機版在手指碰到時會加上 mobile-tap：編輯器外層有 tappable 接住它；直接加在編輯器內容上的（連結、按鈕）在同一個 touchstart 裡拿掉
+  {
+    assert(view.page.classList.contains('tappable') && view.pm.dom.closest('.tappable') === view.page, '編輯器外層有 tappable：Obsidian 的 mobile-tap 落在外層，不會改到段落');
+    const para = view.pm.dom.querySelector('p');
+    para.classList.add('mobile-tap');
+    view.page.dispatchEvent(new Event('touchstart', { bubbles: true }));
+    assert(!view.pm.dom.querySelector('.mobile-tap'), '編輯器內容上的 mobile-tap 在 touchstart 當下就被拿掉');
+    await sleep(20);
+    assert(view.pm.dom.querySelector('p') === para, '段落沒有被重畫（還是同一個元素）');
+  }
   // 手機：在分頁選單按鈕上拖曳移動游標（一格 12px）；沒拖動就放開還是一般的點擊
   {
     const pm = view.pm;
