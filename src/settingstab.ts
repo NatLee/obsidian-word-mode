@@ -280,7 +280,7 @@ function settingSections(settingTab: WordModeSettings): SettingSection[] {
         s => s.addDropdown(d => d.addOptions({ ask: t('每次詢問（建議）'), both: t('自動兩份都保留（另存我的版本）') })
           .setValue(S.conflict || 'ask').onChange(async v => { S.conflict = v as ConflictMode; await save(); }))),
       row(t('檔案大小上限（MB）'), t('超過這個大小的筆記一律用 Markdown 開啟，避免太大的檔案讓編輯變慢。'),
-        s => s.addText(tx => { tx.inputEl.type = 'number'; tx.setValue(String(S.maxSizeMB || 2)).onChange(async v => { const n = parseFloat(v); if (n > 0) { S.maxSizeMB = n; await save(); } }); })),
+        s => s.addText(tx => { tx.inputEl.type = 'number'; tx.inputEl.setAttribute('inputmode', 'decimal'); tx.setValue(String(S.maxSizeMB || 2)).onChange(async v => { const n = parseFloat(v); if (n > 0) { S.maxSizeMB = n; await save(); } }); })),
       { kind: 'note', desc: t('在 frontmatter 加上「word-mode: false」可讓單一筆記不使用 Word 模式。') },
     ] },
 

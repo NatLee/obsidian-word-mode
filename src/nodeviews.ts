@@ -2,7 +2,7 @@ import { TableView } from 'prosemirror-tables';
 import { CALLOUT_TYPES, calloutIcon, CODE_LANGUAGES, deleteTableAt } from './commands.js';
 import { t, key } from './i18n.js';
 import { FOOTNOTE_DEF, FOOTNOTE_REF, footnoteBody, footnoteText, removeFootnote } from './footnotes.js';
-import { el, whenVisible, onPress, onKeyPress, keepFocus } from './dom.js';
+import { el, whenVisible, onPress, onKeyPress, keepFocus, keyboardHints } from './dom.js';
 import { propType, isTagKey, summarize, propLink, convertProp, renameProp, propsSummary, PROP_ICONS as TYPE_ICON, frontmatterBody } from './props.js';
 import type { PropType } from './props.js';
 import type { Attrs, Node as PMNode } from 'prosemirror-model';
@@ -705,6 +705,9 @@ class FrontmatterView extends SelectableAtomView<FrontmatterDom> {
       });
       const inp = keep('value', el('input', 'wm-prop-input wm-chip-input', v));
       inp.placeholder = t('新增…');
+      // 標籤、別名：不自動大寫；Enter 是「加入這一項」
+      inp.setAttribute('autocapitalize', 'off');
+      keyboardHints(inp, { enter: 'done' });
       const add = () => {
         const tv = inp.value.trim().replace(/^#/, '');
         if (!tv) return;
@@ -724,6 +727,7 @@ class FrontmatterView extends SelectableAtomView<FrontmatterDom> {
     } else {
       const inp = keep('value', el('input', 'wm-prop-input', v));
       inp.type = type === 'number' ? 'number' : type === 'date' ? 'date' : type === 'datetime' ? 'datetime-local' : 'text';
+      if (type === 'number') keyboardHints(inp, { mode: 'decimal' });
       // 文字、數字、日期欄位的值是 YAML 的純量（文字、數字或布林）
       const scalar = value as string | number | boolean | null | undefined;
       inp.value = scalar == null ? '' : String(scalar).slice(0, type === 'datetime' ? 16 : undefined);
@@ -798,6 +802,7 @@ class FrontmatterView extends SelectableAtomView<FrontmatterDom> {
     const r = el('div', 'wm-prop wm-prop-add', body);
     // 名稱不跟各列的（種類＋換行＋屬性名稱）撞在一起：這三個沒有換行
     const k = this.keeper.keep('new-name', el('input', 'wm-prop-input', r)); k.placeholder = t('＋ 新增屬性名稱');
+    keyboardHints(k, { plain: true, enter: 'done' });
     const tv = this.keeper.keep('new-type', el('select', 'wm-prop-type dropdown', r));
     // TYPE_LABEL 的值是載入時 t() 的結果，不一定是鍵；再翻一次，找不到時 t() 原樣回傳
     for (const [val, label] of Object.entries(TYPE_LABEL)) { if (val === 'object') continue; const o = el('option', null, tv, t(label as I18nKey)); o.value = val; }

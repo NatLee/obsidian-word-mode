@@ -2,7 +2,7 @@
 import { Plugin, PluginKey, TextSelection } from 'prosemirror-state';
 import { t, withKey } from './i18n.js';
 import { Decoration, DecorationSet } from 'prosemirror-view';
-import { el } from './dom.js';
+import { el, keyboardHints } from './dom.js';
 import type { Node as PMNode } from 'prosemirror-model';
 import type { EditorView } from 'prosemirror-view';
 
@@ -188,6 +188,8 @@ export class FindBar {
     this.input = el('input', 'wm-find-input', row1);
     this.input.type = 'text';
     this.input.placeholder = t('尋找…');
+    // 要找的字照打的找：不自動大寫、不自動修正；右下角顯示「搜尋」
+    keyboardHints(this.input, { plain: true, enter: 'search' });
     this.count = el('span', 'wm-find-count', row1);
     this.btn(row1, 'arrow-up', t('上一個 (Shift+Enter)'), () => this.step(-1));
     this.btn(row1, 'arrow-down', t('下一個 (Enter)'), () => this.step(1));
@@ -200,6 +202,7 @@ export class FindBar {
     this.replInput = el('input', 'wm-find-input', this.row2);
     this.replInput.type = 'text';
     this.replInput.placeholder = t('取代為…');
+    keyboardHints(this.replInput, { plain: true, enter: 'done' });
     const b1 = el('button', 'wm-find-textbtn', this.row2, t('取代'));
     b1.type = 'button';
     b1.addEventListener('click', () => this.replaceOne());

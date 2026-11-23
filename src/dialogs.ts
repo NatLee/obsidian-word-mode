@@ -4,7 +4,7 @@ import { countWeird, cleanWeird, WEIRD_KINDS } from './marks.js';
 import { MathField } from './mathvisual.js';
 import { saveTemplate, uniqueName } from './templates.js';
 import type { SavedTemplate } from './templates.js';
-import { keepFocus, keyboardHideButton } from './dom.js';
+import { keepFocus, keyboardHideButton, keyboardHints } from './dom.js';
 import { iconOr } from './icons.js';
 import { buildDemo } from './hints.js';
 import { t, key, isMac } from './i18n.js';
@@ -111,7 +111,7 @@ export class PromptModal extends Modal {
   constructor(app: App, title: string, value: string, placeholder: string, onSave: TextCallback) { super(app); this.titleText = title; this.value = value; this.placeholder = placeholder; this.onSave = onSave; }
   onOpen(): void {
     this.titleEl.setText(this.titleText);
-    const i = this.contentEl.createEl('input', { type: 'text', cls: 'wm-prompt-input' });
+    const i = keyboardHints(this.contentEl.createEl('input', { type: 'text', cls: 'wm-prompt-input' }), { enter: 'done' });
     i.value = this.value || '';
     i.placeholder = this.placeholder || '';
     const bar = this.contentEl.createDiv('modal-button-container');
@@ -157,7 +157,7 @@ export class LinkDialog extends Modal {
     c.addClass('wm-link-dialog');
     this.titleEl.setText(this.init.existing ? t('編輯超連結') : t('插入超連結'));
     const row = (label: string) => { const d = c.createDiv('wm-form-row'); d.createEl('label', { text: label }); return d; };
-    this.text = row(t('顯示文字')).createEl('input', { type: 'text' });
+    this.text = keyboardHints(row(t('顯示文字')).createEl('input', { type: 'text' }), { enter: 'done' });
     this.text.value = this.init.text || '';
     this.text.placeholder = t('（留白則顯示網址或筆記名稱）');
 
@@ -174,13 +174,13 @@ export class LinkDialog extends Modal {
     this.tabFile.addEventListener('click', () => this.setMode('file'));
 
     this.urlPane = c.createDiv('wm-link-pane');
-    this.href = this.urlPane.createEl('input', { type: 'text', cls: 'wm-link-href' });
+    this.href = keyboardHints(this.urlPane.createEl('input', { type: 'text', cls: 'wm-link-href' }), { plain: true, mode: 'url', enter: 'done' });
     this.href.placeholder = 'https://…';
     this.href.value = this.mode === 'url' ? (this.init.href || '') : '';
     this.urlPane.createDiv({ cls: 'wm-link-hint', text: t('貼上網址，例如 https://www.example.com') });
 
     this.filePane = c.createDiv('wm-link-pane');
-    this.query = this.filePane.createEl('input', { type: 'text', cls: 'wm-link-query' });
+    this.query = keyboardHints(this.filePane.createEl('input', { type: 'text', cls: 'wm-link-query' }), { plain: true, enter: 'search' });
     this.query.placeholder = t('輸入筆記或檔案名稱搜尋…');
     this.query.value = this.selected ? this.selected.basename : (this.mode === 'file' ? (this.init.query || '') : '');
     this.list = this.filePane.createDiv('wm-link-results');
@@ -462,7 +462,7 @@ export class EquationModal extends EditingModal {
       onHistory: (canUndo, canRedo) => { this.undoBtn.disabled = !canUndo; this.redoBtn.disabled = !canRedo; },
     });
     this.fieldHost.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); ok.click(); } });
-    this.ta = editor.createEl('textarea', { cls: 'wm-eq-input' });
+    this.ta = keyboardHints(editor.createEl('textarea', { cls: 'wm-eq-input' }), { plain: true });
     this.ta.value = this.init.src || '';
     this.ta.rows = 3;
     this.ta.spellcheck = false;
@@ -628,7 +628,7 @@ export class ShortcutModal extends Modal {
     const head = c.createDiv('wm-sc-head');
     const box = head.createDiv('wm-sc-searchbox');
     setIcon(box.createSpan('wm-sc-search-icon'), 'search');
-    const search = box.createEl('input', { type: 'search', cls: 'wm-sc-search' });
+    const search = keyboardHints(box.createEl('input', { type: 'search', cls: 'wm-sc-search' }), { plain: true, enter: 'search' });
     search.placeholder = t('搜尋快速鍵或功能…');
     const count = head.createSpan('wm-sc-count');
 

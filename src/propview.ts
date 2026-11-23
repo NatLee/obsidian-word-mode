@@ -2,7 +2,7 @@
 // Word 模式讀編輯中的文件，Markdown／閱讀模式讀原文（mdbar.ts 的 openMarkdownPeek），畫面相同。
 // 屬性很多時：上方有篩選框、清單在框內捲動；很長的值先顯示三行，點一下看全部
 import { t } from './i18n.js';
-import { el, isRtl, popupLeft, visibleBottom } from './dom.js';
+import { el, isRtl, popupLeft, visibleBottom, keyboardHints } from './dom.js';
 import { hideHint } from './hints.js';
 import { propType, summarize, isTagKey, PROP_ICONS } from './props.js';
 import type { PropsPeekData } from './props.js';
@@ -95,6 +95,7 @@ export function fillPropsPeek(p: HTMLElement, data: PropsPeekData, o: PropsPeekO
     if (keys.length > PEEK_FILTER_MIN) {
       filter = el('input', 'wm-peek-filter', p);
       filter.type = 'search';
+      keyboardHints(filter, { plain: true, enter: 'search' });
       filter.placeholder = t('篩選屬性…');
     }
     const list = el('div', 'wm-peek-list', p);

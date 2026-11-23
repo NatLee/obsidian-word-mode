@@ -1,4 +1,5 @@
 // 大綱側邊欄：列出目前筆記（Word 模式或 Markdown）的標題，點一下跳過去，可收合、篩選
+import { keyboardHints } from './dom.js';
 import { ItemView, MarkdownView, setIcon } from 'obsidian';
 import { t } from './i18n.js';
 import type { WorkspaceLeaf } from 'obsidian';
@@ -68,7 +69,7 @@ export class OutlineView extends ItemView {
     };
     btn('chevrons-down-up', '全部收合', () => { for (const h of this.heads || []) if (h.hasChildren) this.collapsed.add(h.key); this.render(); });
     btn('chevrons-up-down', '全部展開', () => { this.collapsed.clear(); this.render(); });
-    this.search = c.createEl('input', { type: 'search', cls: 'wm-ov-search' });
+    this.search = keyboardHints(c.createEl('input', { type: 'search', cls: 'wm-ov-search' }), { plain: true, enter: 'search' });
     this.search.placeholder = t('篩選標題…');
     this.search.addEventListener('input', () => { this.filter = this.search.value.trim().toLowerCase(); this.render(); });
     this.list = c.createDiv('wm-ov-list');

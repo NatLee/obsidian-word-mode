@@ -809,6 +809,13 @@ export function insertText(text: string, marks?: readonly Mark[] | null): Comman
   };
 }
 
+// 接下來打的字是不是程式碼（游標在程式碼區塊裡，或行內程式碼裡）。跟上面的 inCode 不同：那個只看區塊，這個連行內的也算
+export function typingCode(state: EditorState): boolean {
+  const { $from } = state.selection;
+  if ($from.parent.type.spec.code) return true;
+  return !!M.code.isInSet(state.storedMarks || $from.marks());
+}
+
 // 用一對括號或引號把選取的內容包起來，選取範圍留在裡面；沒有選取時插入一對，游標停在中間
 export function wrapPair(open: string, close: string): Command {
   return (state, dispatch) => {

@@ -1,4 +1,4 @@
-import { el } from './dom.js';
+import { el, keyboardHints } from './dom.js';
 import type { I18nKey } from './i18n.js';
 // 方程式的簡易視覺化編輯：把 LaTeX 拆成「看得到的結構」（分數上下兩格、根號、上下標、括號、矩陣…），
 // 每一格都可以直接點進去打字，符號顯示成真正的符號（α、≤、∑）。存檔仍是 LaTeX。
@@ -993,7 +993,8 @@ export class MathField {
     const plain = inPlain || !!it.raw;
     const span = el('span', 'wm-mv-text');
     span.contentEditable = 'true';
-    span.spellcheck = false;
+    // 式子裡的字母不能被鍵盤自動改成大寫或「修正」成別的字
+    keyboardHints(span, { plain: true });
     if (plain) span.dataset.plain = '1';
     // 照原文顯示的格子不用段落：畫面上的字就是原文
     const segs = plain ? [] : displaySegs(it.v);

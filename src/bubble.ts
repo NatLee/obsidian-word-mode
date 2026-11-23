@@ -2,7 +2,7 @@
 import { Plugin } from 'prosemirror-state';
 import { t, withKey, key } from './i18n.js';
 import { linkContext } from './links.js';
-import { el, isRtl } from './dom.js';
+import { el, isRtl, keyboardHints } from './dom.js';
 import type { EditorState } from 'prosemirror-state';
 import type { EditorView } from 'prosemirror-view';
 import type { Attrs } from 'prosemirror-model';
@@ -167,6 +167,7 @@ class Bubble {
     orig.addEventListener('click', e => { e.preventDefault(); if (this.info) c.setWidth(this.info as ImageContext, null); });
     const input = el('input', 'wm-bubble-width', this.dom);
     input.type = 'number'; input.min = '20'; input.step = '10';
+    keyboardHints(input, { mode: 'numeric', enter: 'done' });
     input.placeholder = 'px';
     input.value = cur ? String(cur) : '';
     input.setAttribute('aria-label', t('自訂寬度（像素），按 Enter 套用'));

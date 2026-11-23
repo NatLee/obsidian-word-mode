@@ -1331,6 +1331,20 @@ await fresh('---\ntags:\n  - 會議\n  - 專案\ndate: 2026-11-16\ndone: false\n
     const up = touch(para, 'touchend', two);
     assert(up.defaultPrevented && pm.state.selection.from === 1 && pm.state.doc.textBetween(pm.state.selection.from, pm.state.selection.to) === pm.state.doc.firstChild.textContent, '兩指點一下：選取那一整段');
     pm.posAtCoords = realPosAt;
+    // 螢幕鍵盤的提示：程式碼、搜尋這類欄位不自動大寫、不自動修正；右下角的鍵顯示對的字
+    {
+      const fi = view.findBar.input;
+      assert(fi.getAttribute('enterkeyhint') === 'search' && fi.getAttribute('autocapitalize') === 'off' && fi.getAttribute('autocorrect') === 'off', '尋找列：鍵盤右下角顯示「搜尋」，不自動大寫、不自動修正');
+      assert(view.findBar.replInput.getAttribute('enterkeyhint') === 'done', '取代欄位：鍵盤右下角顯示「完成」');
+      await view.loadFile(view.file, '一般段落 `行內` 文字\n\n```js\nprint(1)\n```\n');
+      const at = text => { let p = 0; pm.state.doc.descendants((n, pos) => { if (n.isText && n.text.includes(text)) p = pos + n.text.indexOf(text) + 1; }); pm.dispatch(pm.state.tr.setSelection(B.TextSelection.create(pm.state.doc, p))); };
+      at('一般');
+      assert(!B.C.typingCode(pm.state), 'typingCode：一般段落不是程式碼');
+      at('行內');
+      assert(B.C.typingCode(pm.state), 'typingCode：游標在行內程式碼裡');
+      at('print');
+      assert(B.C.typingCode(pm.state), 'typingCode：游標在程式碼區塊裡');
+    }
     // 往上滑的按鍵：行動裝置的功能區才有；點一下是原本的功能，往上滑再放開是另一個
     {
       const host = document.body.appendChild(document.createElement('div'));
