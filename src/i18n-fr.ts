@@ -181,6 +181,7 @@ export default {
  "淺藍": "Bleu clair",
  "常用": "Accueil",
  "中文標點": "Ponctuation CJK",
+ "按鍵樣式": "Style touche",
  "收起鍵盤": "Masquer le clavier",
  "成對（包住選取的文字）": "Paires (entourer la sélection)",
  "箭頭": "Flèches",

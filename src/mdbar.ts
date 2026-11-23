@@ -105,13 +105,21 @@ export class MarkdownBar {
   declare mode: MarkdownViewModeType | null;
   // 跟著工具列高度更新 --wm-mdbar-height；環境沒有 ResizeObserver 時是 null
   declare sizer: ResizeObserver | null;
+  // 取消訂閱螢幕鍵盤的狀態；桌機沒有鍵盤偵測時是 null
+  declare offKeyboard: (() => void) | null;
 
   constructor(plugin: WordModePlugin, view: MarkdownView) {
     this.plugin = plugin;
     this.view = view;
     this.app = plugin.app;
-    this.dom = el('div', 'wm-ribbon wm-mdbar ' + ribbonClass(plugin.settings) + (Platform.isMobile ? ' wm-mobile' : ''));
-    view.containerEl.insertBefore(this.dom, view.contentEl);
+    // 位置跟 Word 模式的功能區一樣（設定的「工具列位置」；自動時手機在下方）：切換編輯模式時工具列不會從下面跳到最上面
+    const pos = plugin.settings.toolbarPosition || 'auto';
+    const bottom = pos === 'bottom' || (pos === 'auto' && !!Platform.isPhone);
+    this.dom = el('div', 'wm-ribbon wm-mdbar ' + ribbonClass(plugin.settings) + (Platform.isMobile ? ' wm-mobile' : '') + (bottom ? ' wm-mdbar-bottom' : ''));
+    view.containerEl.insertBefore(this.dom, bottom ? view.contentEl.nextSibling : view.contentEl);
+    // 螢幕鍵盤開著時跟 Word 模式一樣精簡成一列（樣式表的 wm-kb-compact，掛在這個檢視的外框上）
+    this.offKeyboard = plugin.keyboard ? plugin.keyboard.subscribe(() => this.syncKeyboard()) : null;
+    this.syncKeyboard();
     this.items = [];
     this.mode = null;
     this.render();
@@ -124,12 +132,19 @@ export class MarkdownBar {
     if (this.sizer) this.sizer.observe(this.dom);
   }
 
+  syncKeyboard(): void {
+    const kb = this.plugin.keyboard;
+    this.view.containerEl.toggleClass('wm-kb-compact', !!kb && kb.open && this.plugin.settings.compactOnKeyboard !== false);
+  }
+
   syncHeight(): void { this.view.containerEl.style.setProperty('--wm-mdbar-height', this.dom.offsetHeight + 'px'); }
 
   destroy(): void {
     hideHint();
     closePropsPeek();
     if (this.sizer) this.sizer.disconnect();
+    if (this.offKeyboard) this.offKeyboard();
+    this.view.containerEl.removeClass('wm-kb-compact');
     this.view.containerEl.style.removeProperty('--wm-mdbar-height');
     this.dom.remove();
   }

@@ -435,7 +435,9 @@ export class Toolbar {
     // 選單的 label 多半是不翻譯的語言名稱；只有 lang 是空字串時才是介面文字「純文字」，型別分不出來所以轉型
     this.menuButton(g, A.codeBlock,
       () => C.CODE_LANGUAGES.map(([lang, label]) => ({ title: lang ? label : t(label as I18nKey), run: () => this.run(C.insertCodeBlock(lang)) })));
-    this.button(g, { icon: 'keyboard', title: '鍵盤按鍵', text: '⌨', label: '按鍵', big: true, demo: 'kbd', desc: '把文字標成鍵盤按鍵的樣子，例如 Ctrl。' }, { cmd: C.toggleKbd, active: s => C.markActive(s, M.kbd), ...NO_CODE });
+    // 沒有圖示：按鈕本身就畫成一顆鍵帽（樣式表的 wm-btn-kbd），看樣子就知道是「把字變成這樣」。
+    // 原本是鍵盤圖示加「按鍵」兩個字，手機上沒有提示可看，會以為跟螢幕鍵盤有關
+    this.button(g, { title: '鍵盤按鍵', text: 'Ctrl', label: '按鍵樣式', big: true, cls: 'wm-btn-kbd', demo: 'kbd', desc: '把文字標成鍵盤按鍵的樣子，例如 Ctrl。' }, { cmd: C.toggleKbd, active: s => C.markActive(s, M.kbd), ...NO_CODE });
     g = G.text;
     this.button(g, A.callout, { onClick: (e, b) => this.d.callout(b), ...NO_CODE });
     this.button(g, A.comment, this.commentHandler());
@@ -556,13 +558,19 @@ export class Toolbar {
     let id = -1; let x = 0; let y = 0; let active = false;
     // 拖曳期間游標上方的放大預覽（loupe.ts）
     let loupe: Loupe | null = null;
-    b.addEventListener('pointerdown', e => {
-      if (e.pointerType === 'mouse') return;
-      id = e.pointerId; x = e.clientX; y = e.clientY; active = false; this.padMoved = false;
-    });
-    b.addEventListener('pointermove', e => {
-      if (e.pointerId !== id) return;
-      const dx = e.clientX - x; const dy = e.clientY - y;
+    // 用觸控事件而不是指標事件：拖曳中每一下 touchmove 都擋掉預設行為，iOS 才不會中途把這次觸控收走去做別的
+    // （捲動、系統手勢），指標事件被收走時只會收到 pointercancel、放大鏡跟著不見。
+    // Obsidian 自己的滑動手勢由功能區的 data-ignore-swipe 擋掉（見 ribbon.ts）
+    const find = (e: TouchEvent) => { for (const t of Array.from(e.changedTouches)) if (t.identifier === id) return t; return null; };
+    b.addEventListener('touchstart', e => {
+      if (e.touches.length !== 1) { id = -1; return; }
+      const t = e.touches[0];
+      id = t.identifier; x = t.clientX; y = t.clientY; active = false; this.padMoved = false;
+    }, { passive: true });
+    b.addEventListener('touchmove', e => {
+      const t = find(e);
+      if (!t) return;
+      const dx = t.clientX - x; const dy = t.clientY - y;
       if (!active) {
         if (Math.abs(dx) < START && Math.abs(dy) < START) return;
         // 編輯區沒有焦點（鍵盤沒開）時不啟動：移動游標會把焦點放回去、叫出鍵盤，畫面一重排手指的相對位置就跳掉，游標亂跑
@@ -570,23 +578,25 @@ export class Toolbar {
         if (!v || !v.hasFocus()) { id = -1; return; }
         active = true; this.padMoved = true;
         b.classList.add('is-caret-pad');
-        try { b.setPointerCapture(id); } catch { /* 舊環境 */ }
         this.closePopup();
         loupe = new Loupe(v);
       }
+      if (e.cancelable) e.preventDefault();
       const nx = Math.trunc(dx / STEP_X); const ny = Math.trunc(dy / STEP_Y);
       if (nx) { x += nx * STEP_X; this.run(C.moveCaretBy(nx)); }
       if (ny) { y += ny * STEP_Y; this.moveCaretLines(ny); }
       if ((nx || ny) && loupe) loupe.update();
-    });
-    const end = (e: PointerEvent) => {
-      if (e.pointerId !== id) return;
+    }, { passive: false });
+    const end = (e: TouchEvent) => {
+      if (!find(e)) return;
+      // 拖曳過：擋掉放開之後的那一下點擊，不然會打開分頁選單
+      if (active && e.cancelable) e.preventDefault();
       id = -1; active = false;
       if (loupe) { loupe.destroy(); loupe = null; }
       b.classList.remove('is-caret-pad');
     };
-    b.addEventListener('pointerup', end);
-    b.addEventListener('pointercancel', end);
+    b.addEventListener('touchend', end);
+    b.addEventListener('touchcancel', end);
   }
 
   // 游標往上（n < 0）或往下移 |n| 行：照畫面上的位置找上一行、下一行同一個水平位置的地方
@@ -619,6 +629,8 @@ export class Toolbar {
     this.closePopup();
     hideHint();
     const p = el('div', 'wm-popup' + (this.ctx.isMobile ? ' is-mobile' : ''), this.dom.ownerDocument.body);
+    // 面板裡左右滑（符號、色票）不要把 Obsidian 的側邊欄拉出來（見 ribbon.ts）
+    if (this.ctx.isMobile) p.dataset.ignoreSwipe = 'true';
     this.popup = p; this.popupOwner = owner;
     build(p);
     // 焦點在面板裡（色碼的輸入框）時按 Esc：關掉面板，回到編輯區。焦點在編輯區時由 view 的按鍵處理呼叫 closePopup()
@@ -633,9 +645,13 @@ export class Toolbar {
     // （.wm-popup.is-sheet），鍵盤開著時貼在鍵盤上方。按底的任何地方就關掉（onDocDown），不搶走編輯區的焦點
     if (owner.ownerDocument.body.classList.contains('is-phone')) {
       p.classList.add('is-sheet');
+      // 抽屜最上面放標題（開它的那顆按鈕的名稱，去掉括號裡的快速鍵）：手機上沒有提示可看，抽屜一開要知道這是在選什麼
+      const label = (owner.getAttribute('aria-label') || '').split('\n')[0].replace(/\s*[（(][^（()）]*[)）]\s*$/, '');
+      if (label) p.prepend(el('div', 'wm-sheet-title', null, label));
       this.popupBackdrop = el('div', 'wm-sheet-backdrop');
       keepFocus(this.popupBackdrop);
       p.before(this.popupBackdrop);
+      this.sheetDrag(p);
       return;
     }
     // 放在按鈕下方；超出畫面時改放上方或往旁邊移（手機的工具列在畫面下方）。介面由右到左時對齊按鈕的右緣、往左展開。
@@ -646,6 +662,37 @@ export class Toolbar {
     const w = p.offsetWidth || 200; const h = p.offsetHeight || 200;
     p.style.left = popupLeft(r, w, vw, isRtl(owner)) + 'px';
     p.style.top = Math.max(4, r.bottom + 4 + h > vh && r.top - h - 4 > 0 ? r.top - h - 4 : r.bottom + 4) + 'px';
+  }
+
+  // 抽屜可以往下拖掉（iOS 的抽屜都這樣）：內容捲在最上面時手指往下拖，抽屜跟著手指走；拖超過 CLOSE 放開就關掉，
+  // 不夠就彈回去。位移寫在 --wm-sheet-drag，轉場在樣式表
+  sheetDrag(p: HTMLElement): void {
+    const CLOSE = 70;
+    let y = 0; let dy = 0; let on = false;
+    p.addEventListener('touchstart', e => {
+      on = e.touches.length === 1 && p.scrollTop <= 0;
+      y = on ? e.touches[0].clientY : 0; dy = 0;
+    }, { passive: true });
+    p.addEventListener('touchmove', e => {
+      if (!on) return;
+      dy = e.touches[0].clientY - y;
+      // 往上是捲內容：這次觸控就不當成拖抽屜
+      if (dy < 0 && !p.classList.contains('is-dragging')) { on = false; return; }
+      if (dy < 6) return;
+      p.classList.add('is-dragging');
+      p.style.setProperty('--wm-sheet-drag', Math.max(0, dy).toFixed(0) + 'px');
+      if (e.cancelable) e.preventDefault();
+    }, { passive: false });
+    const end = (e: TouchEvent) => {
+      if (!p.classList.contains('is-dragging')) return;
+      p.classList.remove('is-dragging');
+      // 拖過了：擋掉放開之後的點擊，手指底下的選項不要被選到
+      if (e.cancelable) e.preventDefault();
+      if (dy > CLOSE && e.type === 'touchend') { this.closePopup(); return; }
+      p.style.setProperty('--wm-sheet-drag', '0px');
+    };
+    p.addEventListener('touchend', end);
+    p.addEventListener('touchcancel', end);
   }
 
   closePopup(): void {
