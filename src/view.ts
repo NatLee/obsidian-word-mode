@@ -218,7 +218,15 @@ export class WordModeView extends TextFileView {
     this.pinHost = this.contentEl.createDiv('wm-pin-host');
     this.pin = null; this.pinNode = null;
     this.scroller = this.contentEl.createDiv('wm-scroller');
-    this.page = this.scroller.createDiv('wm-page');
+    // tappable：Obsidian 手機版在手指碰到畫面時，會在被碰的元素（或它最近的「可點擊」上層）加上 mobile-tap 類別做按下的回饋。
+    // 沒有這個類別的話，被加上的就是編輯器裡的段落；ProseMirror 發現自己的內容被外部改了屬性會把那一段重畫，
+    // 手指底下的元素被換掉，iOS 就把這一下點擊丟掉：點文字完全沒反應，要長按才進得去。
+    // 加在編輯器外層，mobile-tap 就落在這裡；tappable 在 Obsidian 的樣式裡沒有外觀
+    this.page = this.scroller.createDiv('wm-page tappable');
+    // 保險：連結、按鈕本身就是「可點擊」的，mobile-tap 還是會直接加在它們身上（不會往上找到 tappable）。
+    // Obsidian 的處理掛在 document 的捕獲階段，比這裡早跑；輪到這裡時把編輯器裡的 mobile-tap 拿掉，
+    // 並把這兩筆屬性變動從 ProseMirror 的監看器裡清掉，它就不會重畫
+    this.page.addEventListener('touchstart', () => this.dropTapMark(), true);
     this.buildToolbar();
     this.findBar = new FindBar(this.findHost, { getView: () => this.pm, icon: iconOr, onChange: () => this.toolbar && this.toolbar.refresh() });
     this.bubble = bubblePlugin(this.bubbleContext());
@@ -352,6 +360,18 @@ export class WordModeView extends TextFileView {
   onPaneMenu(menu: Menu, source: string): void {
     menu.addItem(i => i.setTitle(withKey('切換到 Markdown 編輯', 'Mod+E')).setIcon('code-2').setSection('pane').onClick(() => this.plugin.switchToMarkdown(this.leaf)));
     super.onPaneMenu(menu, source);
+  }
+
+  // 拿掉 Obsidian 手機版加在編輯器內容上的 mobile-tap（見建立 this.page 的地方）
+  dropTapMark(): void {
+    const pm = this.pm;
+    if (!pm) return;
+    const marked = pm.dom.querySelectorAll('.mobile-tap');
+    if (!marked.length) return;
+    marked.forEach(e => e.classList.remove('mobile-tap'));
+    // domObserver 不是公開的 API：沒有就算了，少這道保險而已
+    const obs = (pm as unknown as { domObserver?: { observer?: MutationObserver | null } }).domObserver;
+    if (obs && obs.observer && typeof obs.observer.takeRecords === 'function') obs.observer.takeRecords();
   }
 
   // ---------------------------------------------------------- 螢幕鍵盤（手機、平板）
