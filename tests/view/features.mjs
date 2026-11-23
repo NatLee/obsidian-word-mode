@@ -1264,11 +1264,14 @@ await fresh('---\ntags:\n  - 會議\n  - 專案\ndate: 2026-11-16\ndone: false\n
     assert(!view.toolbar.padMoved && pm.state.selection.head === start, '手指只動了一點點：不算拖曳，游標不動');
     ev('pointermove', 137);
     assert(view.toolbar.padMoved && pad.classList.contains('is-caret-pad') && pm.state.selection.head > start, '往右拖 37px：游標往後移（3 格），按鈕標成拖曳中');
+    const lens = document.querySelector('.wm-loupe');
+    assert(lens && lens.classList.contains('is-shown') && lens.querySelector('.wm-loupe-body').textContent === pm.state.selection.$head.parent.textContent && !lens.querySelector('[contenteditable]'), '拖曳時游標上方有放大的預覽，內容是游標那一段的複本');
     const after = pm.state.selection.head;
     ev('pointermove', 113);
     assert(pm.state.selection.head < after, '往回拖：游標往前移');
     ev('pointerup', 113);
     assert(!pad.classList.contains('is-caret-pad') && view.toolbar.padMoved, '放開：結束拖曳，接下來那一下點擊不開選單');
+    assert(!document.querySelector('.wm-loupe'), '放開：放大的預覽收掉');
     pad.remove();
     view.toolbar.padMoved = false;
   }

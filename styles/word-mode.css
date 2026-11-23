@@ -2003,3 +2003,12 @@ mark.wm-set-find-hl { padding: 0 1px; border-radius: 3px; background: hsla(var(-
 .wm-symbol-grid.wm-pair-grid button.wm-symbol { width: 44px; }
 .wm-popup.is-mobile .wm-symbol-grid.wm-pair-grid { grid-template-columns: repeat(6, 48px); }
 .wm-popup.is-mobile .wm-pair-grid button.wm-symbol { width: 48px; }
+
+/* 拖曳移動游標時的放大預覽（loupe.ts）：固定大小的鏡片，裡面是游標那一段放大的複本，位置都用 transform 給。
+   同一段裡移動有很短的轉場，看起來是滑過去的；換段時（is-jump）不要轉場 */
+.wm-loupe { position: fixed; left: 0; top: 0; z-index: var(--layer-popover, 30); overflow: hidden; border-radius: 14px; background: var(--background-primary); border: 1px solid var(--background-modifier-border-hover); box-shadow: 0 6px 22px rgba(0, 0, 0, .22); pointer-events: none; opacity: 0; transition: transform .09s ease-out, opacity .12s ease-out; will-change: transform; }
+.wm-loupe.is-shown { opacity: 1; }
+.wm-loupe .wm-loupe-body { position: absolute; left: 0; top: 0; transform-origin: 0 0; transition: transform .09s ease-out; will-change: transform; min-height: 0; padding: 0; }
+.wm-loupe .wm-loupe-body > * { margin: 0; }
+.wm-loupe .wm-loupe-caret { position: absolute; left: -1px; top: 9px; width: 2px; border-radius: 1px; background: var(--interactive-accent); transition: transform .09s ease-out; }
+.wm-loupe.is-jump, .wm-loupe.is-jump .wm-loupe-body, .wm-loupe.is-jump .wm-loupe-caret { transition: none; }
