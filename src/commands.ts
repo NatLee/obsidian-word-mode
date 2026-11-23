@@ -809,6 +809,31 @@ export function insertText(text: string, marks?: readonly Mark[] | null): Comman
   };
 }
 
+// 用一對括號或引號把選取的內容包起來，選取範圍留在裡面；沒有選取時插入一對，游標停在中間
+export function wrapPair(open: string, close: string): Command {
+  return (state, dispatch) => {
+    const { from, to, $from, $to } = state.selection;
+    // 兩端要在同一個可以打字的區塊裡（跨段落包起來會變成前一段多一個開頭、後一段多一個結尾，通常不是使用者要的）
+    if (!$from.parent.isTextblock || !$from.sameParent($to)) return false;
+    if (dispatch) {
+      const tr = state.tr.insertText(close, to).insertText(open, from);
+      tr.setSelection(TextSelection.create(tr.doc, from + open.length, to + open.length));
+      dispatch(tr.scrollIntoView());
+    }
+    return true;
+  };
+}
+
+// 選取 pos 所在的整個段落（標題、清單項目裡的段落、表格儲存格裡的段落也算）
+export function selectBlockAt(pos: number): Command {
+  return (state, dispatch) => {
+    const $p = state.doc.resolve(Math.max(0, Math.min(pos, state.doc.content.size)));
+    if (!$p.parent.isTextblock || !$p.parent.content.size) return false;
+    if (dispatch) dispatch(state.tr.setSelection(TextSelection.create(state.doc, $p.start(), $p.end())));
+    return true;
+  };
+}
+
 // 游標所在連結的範圍、連結的 mark 與連結文字
 export interface LinkRange extends TextRange { mark: Mark; text: string; }
 

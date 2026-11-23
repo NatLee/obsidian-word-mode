@@ -21,3 +21,5 @@ export * as PEEK from '../../src/propview.js';
 export { openMarkdownPeek } from '../../src/mdbar.js';
 export { buildDemo } from '../../src/hints.js';
 export { KeyboardWatch } from '../../src/keyboard.js';
+export { installTouch } from '../../src/touch.js';
+export { RibbonShell, ACTIONS } from '../../src/ribbon.js';

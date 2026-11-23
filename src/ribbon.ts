@@ -143,6 +143,8 @@ export interface ButtonLook {
   cls?: string;
   // 分割按鈕的箭頭：全部排在一起的版面也不去除重複
   split?: boolean;
+  // 觸控：在按鈕上往上滑要執行的另一個功能（它的 title）。那個功能的按鈕不在功能區上時沒有作用
+  swipe?: I18nKey;
 }
 
 // 哪一條功能區：Word 模式、Markdown／閱讀模式
@@ -165,8 +167,8 @@ const replace: RibbonAction = { icon: 'replace', title: '取代', keys: 'Mod+H',
 // Markdown 功能區就不顯示說明
 export const ACTIONS = {
   // ---- 常用
-  undo: { icon: 'undo-2', title: '復原', keys: 'Mod+Z', demo: 'undo', word: { desc: '取消上一個動作。切到 Markdown 再切回來也能復原。' } },
-  redo: { icon: 'redo-2', title: '取消復原', keys: 'Mod+Y', demo: 'redo', desc: '把剛剛復原的動作做回來。' },
+  undo: { icon: 'undo-2', title: '復原', keys: 'Mod+Z', demo: 'undo', swipe: '取消復原', word: { desc: '取消上一個動作。切到 Markdown 再切回來也能復原。' } },
+  redo: { icon: 'redo-2', title: '取消復原', keys: 'Mod+Y', demo: 'redo', swipe: '復原', desc: '把剛剛復原的動作做回來。' },
   // Word 模式的按鈕直接顯示目前的樣式名稱（沒有圖示）；Markdown 只改這一行的 # 記號，沒有「程式碼」
   style: { title: '段落樣式', demo: 'style', desc: '把段落改成標題 1～6、內文或程式碼。', md: { icon: 'heading', desc: '把這一行改成標題 1～6 或內文。' } },
   bold: { icon: 'bold', title: '粗體', keys: 'Mod+B', text: 'B', demo: 'bold', word: { desc: '把選取的文字（或游標所在的詞）變粗體。' } },
@@ -179,8 +181,8 @@ export const ACTIONS = {
   bullet: { icon: 'list', title: '項目符號', text: '•', demo: 'bullet', desc: '把段落變成項目符號清單。' },
   ordered: { icon: 'list-ordered', title: '編號', text: '1.', demo: 'ordered', desc: '把段落變成 1. 2. 3. 編號清單。' },
   task: { icon: 'list-checks', title: '核取清單', text: '☐', demo: 'task', desc: '變成可以打勾的待辦清單。' },
-  outdent: { icon: 'indent-decrease', title: '減少縮排', text: '←', demo: 'outdent', word: { keys: 'Shift+Tab', desc: '整段往左移；清單往上一層。' } },
-  indent: { icon: 'indent-increase', title: '增加縮排', text: '→', demo: 'indent', word: { desc: '整段往右移；清單變成下一層。' } },
+  outdent: { icon: 'indent-decrease', title: '減少縮排', text: '←', demo: 'outdent', swipe: '增加縮排', word: { keys: 'Shift+Tab', desc: '整段往左移；清單往上一層。' } },
+  indent: { icon: 'indent-increase', title: '增加縮排', text: '→', demo: 'indent', swipe: '減少縮排', word: { desc: '整段往右移；清單變成下一層。' } },
   quote: { icon: 'quote', title: '引文', text: '❝', demo: 'quote', desc: '把段落變成引用（左邊有一條線）。' },
   find,
   replace,
@@ -294,6 +296,8 @@ export class RibbonShell {
   declare seen: Set<string>;
   // 使用者選了分頁（建構時傳入的 pickTab；情境分頁的按鈕也用它）
   declare pickTab: (id: AnyTabId) => void;
+  // 觸控裝置：功能（按鈕的 title）→ 按鈕，給「往上滑」找另一個功能的按鈕用；桌機是 null
+  declare byTitle: Map<string, HTMLButtonElement> | null;
 
   constructor(root: HTMLElement, o: ShellOptions) {
     const S = o.settings;
@@ -317,6 +321,8 @@ export class RibbonShell {
     this.tabSwitch = null;
     this.groups = {};
     this.seen = new Set();
+    this.byTitle = o.isMobile ? new Map() : null;
+    if (o.isMobile) this.swipeKeys();
     if (this.layout === 'tabs') {
       const menuTabs = this.tabStyle === 'menu';
       // 收成選單：分頁列不佔一列，改成按鈕列最前面的一個按鈕，按下去選分頁。
@@ -430,6 +436,10 @@ export class RibbonShell {
     else el('span', 'wm-btn-text', b, look.text);
     if (showLabel && look.label) el('span', 'wm-btn-label', b, t(look.label));
     keepFocus(b);
+    if (this.byTitle) {
+      if (!this.byTitle.has(look.title)) this.byTitle.set(look.title, b);
+      if (look.swipe) { b.classList.add('has-swipe'); b.dataset.wmSwipe = look.swipe; }
+    }
     b.addEventListener('click', e => {
       e.preventDefault();
       hideHint();
@@ -445,6 +455,50 @@ export class RibbonShell {
       }));
     }
     return made;
+  }
+
+  // 往上滑的按鍵（手機、平板；Editorial 鍵盤上方那一列的做法）：有 swipe 的按鈕點一下是原本的功能，按住往上滑再放開
+  // 執行另一個功能（復原 ⇄ 取消復原、增加 ⇄ 減少縮排），不用左右捲去找另一顆。按鈕列只會左右捲，往上的方向本來就沒有用到。
+  // 滑過門檻時在按鈕上方顯示另一個功能的名稱，滑回來就取消
+  swipeKeys(): void {
+    const UP = 20;
+    let from: HTMLButtonElement | null = null; let to: HTMLButtonElement | null = null;
+    let x = 0; let y = 0; let tip: HTMLElement | null = null;
+    const disarm = () => {
+      if (from) from.classList.remove('is-swiped');
+      if (tip) { tip.remove(); tip = null; }
+    };
+    this.bar.addEventListener('touchstart', e => {
+      disarm(); from = null;
+      // 不用 instanceof：彈出視窗有自己的一份 Element
+      const target = e.target as Element | null;
+      const hit = e.touches.length === 1 && target && target.nodeType === 1 ? target.closest<HTMLButtonElement>('.wm-btn.has-swipe') : null;
+      const other = hit && this.byTitle ? this.byTitle.get(hit.dataset.wmSwipe || '') : null;
+      if (!hit || !other || !other.isConnected) return;
+      from = hit; to = other; x = e.touches[0].clientX; y = e.touches[0].clientY;
+    }, { passive: true });
+    this.bar.addEventListener('touchmove', e => {
+      if (!from || !e.touches.length) return;
+      const dx = e.touches[0].clientX - x; const dy = e.touches[0].clientY - y;
+      const on = dy < -UP && Math.abs(dx) < -dy;
+      if (on === !!tip) return;
+      disarm();
+      if (!on) return;
+      from.classList.add('is-swiped');
+      const r = from.getBoundingClientRect();
+      tip = el('div', 'wm-swipe-tip' + (to && to.classList.contains('is-disabled') ? ' is-disabled' : ''), from.ownerDocument.body, t(from.dataset.wmSwipe as I18nKey));
+      tip.style.left = Math.round(r.left + r.width / 2) + 'px';
+      tip.style.top = Math.round(r.top - 8) + 'px';
+    }, { passive: true });
+    this.bar.addEventListener('touchend', e => {
+      const go = !!tip; const other = to;
+      disarm(); from = null; to = null;
+      if (!go || !other) return;
+      // 擋掉這一下的點擊，不然放開之後原本的功能也會執行
+      if (e.cancelable) e.preventDefault();
+      other.click();
+    });
+    this.bar.addEventListener('touchcancel', () => { disarm(); from = null; to = null; });
   }
 
   // 按鈕的提示：一般模式用 Obsidian 的 aria-label；詳細提示模式改用自己的提示卡（有說明與動畫），兩者不會同時出現

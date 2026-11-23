@@ -771,7 +771,7 @@ view.pm.dispatch(view.pm.state.tr.setSelection(TextSelection.create(view.pm.stat
 view.insertComment();
 mock.Modal.last && mock.Modal.last.onSave ? mock.Modal.last.onSave('待確認') : null;
 view.toolbar.openSymbolPopup(view.toolbar.dom);
-document.querySelector('.wm-symbol').dispatchEvent(new MouseEvent('click', { bubbles: true }));
+document.querySelector('.wm-symbol:not(.wm-pair)').dispatchEvent(new MouseEvent('click', { bubbles: true }));
 assert(view.getViewData() === '內容%%待確認%%©\n', '插入註解與符號：' + JSON.stringify(view.getViewData()));
 
 // ======== 轉成程式碼不能遺失連結 ========

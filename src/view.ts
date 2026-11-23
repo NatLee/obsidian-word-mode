@@ -39,6 +39,7 @@ import { countSource, countText, docText, docStats } from './textstats.js';
 import { buildStatusBar, renderSaveStatus, renderCount, showWordCount, showZoom } from './statusbar.js';
 import { openPropsPeek, propertyWidget, fillPropsPeek, fillPinSummary, markOverflow } from './propview.js';
 import { isRtl, hiddenBelow, layoutHeight } from './dom.js';
+import { installTouch } from './touch.js';
 import { frontmatterBody, peekData } from './props.js';
 import { t, key, withKey } from './i18n.js';
 import type { Modifier, TAbstractFile, WorkspaceLeaf } from 'obsidian';
@@ -240,7 +241,18 @@ export class WordModeView extends TextFileView {
     // 手機沒有 Obsidian 狀態列：在畫面下方放自己的狀態列；桌機則整合進 Obsidian 右下角的狀態列
     if (Platform.isMobile) this.buildBottomBar(this.contentEl.createDiv('wm-bottombar'), false);
     // 螢幕鍵盤升起、收起時調整版面（keyboard.ts；桌機沒有這個）
-    if (this.plugin.keyboard) this.register(this.plugin.keyboard.subscribe(() => this.syncKeyboard()));
+    if (this.plugin.keyboard) {
+      this.register(this.plugin.keyboard.subscribe(() => this.syncKeyboard()));
+      // Obsidian 在鍵盤升起的途中把 app 縮到鍵盤上方，這時鍵盤的高度沒有變、不會有通知；等 keyboard.ts 下一次計時器才重算的話，
+      // 中間幾格畫面檢視的下方還留著整個鍵盤的高度，功能區被頂到畫面最上面再掉下來。外框的大小一變就重算（在畫出來之前）
+      if (typeof ResizeObserver !== 'undefined') {
+        const ro = new ResizeObserver(() => this.syncKeyboard());
+        ro.observe(this.containerEl);
+        this.register(() => ro.disconnect());
+      }
+    }
+    // 觸控手勢：表格儲存格自己放游標、兩指點一下選整段（touch.ts）
+    if (Platform.isMobile) installTouch(this.page, () => this.pm);
     this.applyZoom();
     this.applyPropsLook();
     this.applyPropsSticky();

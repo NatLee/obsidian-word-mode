@@ -181,6 +181,7 @@ export default {
  "淺藍": "Xanh nhạt",
  "常用": "Trang đầu",
  "中文標點": "Dấu câu CJK",
+ "成對（包住選取的文字）": "Cặp dấu (bao quanh phần đã chọn)",
  "箭頭": "Mũi tên",
  "數學": "Toán học",
  "希臘字母": "Chữ cái Hy Lạp",

@@ -181,6 +181,7 @@ export default {
  "淺藍": "Bleu clair",
  "常用": "Accueil",
  "中文標點": "Ponctuation CJK",
+ "成對（包住選取的文字）": "Paires (entourer la sélection)",
  "箭頭": "Flèches",
  "數學": "Maths",
  "希臘字母": "Lettres grecques",
