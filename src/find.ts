@@ -191,13 +191,15 @@ export class FindBar {
     // 要找的字照打的找：不自動大寫、不自動修正；右下角顯示「搜尋」
     keyboardHints(this.input, { plain: true, enter: 'search' });
     this.count = el('span', 'wm-find-count', row1);
-    this.btn(row1, 'arrow-up', t('上一個 (Shift+Enter)'), () => this.step(-1));
-    this.btn(row1, 'arrow-down', t('下一個 (Enter)'), () => this.step(1));
+    // 類別給手機的排法用（樣式表）：上一個、下一個、關閉留在輸入框那一列，選項排到下一列
+    this.btn(row1, 'arrow-up', t('上一個 (Shift+Enter)'), () => this.step(-1)).classList.add('wm-find-nav');
+    this.btn(row1, 'arrow-down', t('下一個 (Enter)'), () => this.step(1)).classList.add('wm-find-nav');
     this.caseBtn = this.btn(row1, 'case-sensitive', t('區分大小寫'), () => { if (this.view) this.setCase(!this.state().caseSensitive); }, 'Aa');
     this.wordBtn = this.btn(row1, 'whole-word', t('全字相符（前後不是字母或數字）'), () => { if (this.view) this.setOption('wholeWord', !this.state().wholeWord); }, 'ab');
     this.regexBtn = this.btn(row1, 'regex', t('使用正規表示式（取代時可用 $1、$2）'), () => { if (this.view) this.setOption('regex', !this.state().regex); }, '.*');
     this.replToggle = this.btn(row1, 'replace', withKey('取代', 'Mod+H'), () => this.showReplace(!this.replacing));
-    this.btn(row1, 'x', t('關閉 (Esc)'), () => this.close());
+    this.btn(row1, 'x', t('關閉 (Esc)'), () => this.close()).classList.add('wm-find-close');
+    for (const b of [this.caseBtn, this.wordBtn, this.regexBtn, this.replToggle]) b.classList.add('wm-find-opt');
     this.row2 = el('div', 'wm-find-row', this.dom);
     this.replInput = el('input', 'wm-find-input', this.row2);
     this.replInput.type = 'text';

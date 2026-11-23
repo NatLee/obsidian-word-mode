@@ -186,6 +186,8 @@ export class WordModeView extends TextFileView {
   declare countTimer: number | undefined;
   // 檢視下方目前留給螢幕鍵盤的高度（見 syncKeyboard）
   declare kbInset: number;
+  // 功能區上一次的位置（見 slideToolbar）；還沒量過是 null
+  declare barTop: number | null;
 
   constructor(leaf: WorkspaceLeaf, plugin: WordModePlugin) {
     super(leaf);
@@ -198,6 +200,7 @@ export class WordModeView extends TextFileView {
     this.editRev = 0;
     this.savedRev = 0;
     this.kbInset = 0;
+    this.barTop = null;
   }
 
   // 有還沒寫進檔案的修改
@@ -402,9 +405,10 @@ export class WordModeView extends TextFileView {
     this.contentEl.toggleClass('wm-kb-open', kb.open);
     // 打字時精簡功能區：分頁列收成選單、按鈕只顯示圖示（樣式表的 wm-kb-compact），鍵盤收起來就恢復
     this.contentEl.toggleClass('wm-kb-compact', kb.open && this.plugin.settings.compactOnKeyboard !== false);
+    if (inset !== this.kbInset) this.contentEl.style.setProperty('--wm-kb-inset', inset + 'px');
+    this.slideToolbar();
     if (inset === this.kbInset) return;
     this.kbInset = inset;
-    this.contentEl.style.setProperty('--wm-kb-inset', inset + 'px');
     if (!inset) return;
     // iOS 為了露出游標會把整個畫面往上推，檢視的上半段跑出畫面；下方已經讓出來了，馬上推回原位（等下一個畫格會多閃一下）
     const vv = win.visualViewport;
@@ -413,6 +417,32 @@ export class WordModeView extends TextFileView {
       // 編輯區變矮了，游標要留在看得到的地方
       if (this.pm && this.pm.hasFocus()) this.pm.dispatch(this.pm.state.tr.scrollIntoView());
     });
+  }
+
+  // 鍵盤升起、收起時功能區的位置是一格就換過去的（我們留的高度、Obsidian 把 app 縮到鍵盤上方都是瞬間的），看起來是用跳的。
+  // 位置一變就先用 transform 把它放回剛才看到的地方，再用轉場滑到新位置（FLIP）；編輯區的大小照樣立刻換，只有功能區在滑。
+  // barTop 是上一次量到的「沒有位移時」的上緣；轉場與位移都寫在樣式表（wm-bar-slide、--wm-bar-shift）
+  slideToolbar(): void {
+    const host = this.toolbarHost;
+    if (!host || !Platform.isMobile) return;
+    const win = host.ownerDocument.defaultView || window;
+    const shown = host.getBoundingClientRect().top;
+    host.removeClass('wm-bar-slide');
+    // 轉場跑到一半時畫面上的位置：用量到的位置反推目前實際的位移（屬性寫的是終點 0）
+    host.style.setProperty('--wm-bar-shift', '0px');
+    const top = host.getBoundingClientRect().top;
+    const moving = shown - top;
+    const prev = this.barTop;
+    this.barTop = top;
+    const jump = prev == null ? 0 : prev - top;
+    // 沒有換位置：轉場還在跑就讓它從目前的位置繼續跑完
+    const from = Math.abs(jump) < 8 ? moving : jump + moving;
+    if (Math.abs(from) < 2 || Math.abs(from) > win.innerHeight) return;
+    host.style.setProperty('--wm-bar-shift', from.toFixed(1) + 'px');
+    // 先讓起點那一格畫出來，再打開轉場滑到 0
+    void host.offsetHeight;
+    host.addClass('wm-bar-slide');
+    host.style.setProperty('--wm-bar-shift', '0px');
   }
 
   // ---------------------------------------------------------- 資料進出

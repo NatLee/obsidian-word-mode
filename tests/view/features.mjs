@@ -1253,7 +1253,7 @@ await fresh('---\ntags:\n  - 會議\n  - 專案\ndate: 2026-11-16\ndone: false\n
     assert(pm.state.selection.head <= 2 && !dispatchCmd(B.C.moveCaretBy(-1)), '到文件開頭就停，再往前回報不能執行');
     const pad = document.body.appendChild(document.createElement('button'));
     view.toolbar.caretPad(pad);
-    const ev = (type, x) => pad.dispatchEvent(Object.assign(new Event(type, { bubbles: true }), { pointerId: 7, pointerType: 'touch', clientX: x, clientY: 0 }));
+    const ev = (type, x) => { const pt = [{ identifier: 7, clientX: x, clientY: 0 }]; pad.dispatchEvent(Object.assign(new Event({ pointerdown: 'touchstart', pointermove: 'touchmove', pointerup: 'touchend' }[type], { bubbles: true, cancelable: true }), { touches: type === 'pointerup' ? [] : pt, changedTouches: pt })); };
     pm.dom.blur();
     const blurred = pm.state.selection.head;
     ev('pointerdown', 100); ev('pointermove', 160); ev('pointerup', 160);
@@ -1336,6 +1336,9 @@ await fresh('---\ntags:\n  - 會議\n  - 專案\ndate: 2026-11-16\ndone: false\n
       const fi = view.findBar.input;
       assert(fi.getAttribute('enterkeyhint') === 'search' && fi.getAttribute('autocapitalize') === 'off' && fi.getAttribute('autocorrect') === 'off', '尋找列：鍵盤右下角顯示「搜尋」，不自動大寫、不自動修正');
       assert(view.findBar.replInput.getAttribute('enterkeyhint') === 'done', '取代欄位：鍵盤右下角顯示「完成」');
+      assert(view.findBar.dom.querySelectorAll('.wm-find-nav').length === 2 && view.findBar.dom.querySelectorAll('.wm-find-close').length === 1 && view.findBar.dom.querySelectorAll('.wm-find-opt').length === 4, '尋找列的按鈕分成三類（上下一個、關閉、選項），手機的樣式用它排成兩列、關閉固定在最右邊');
+      const kbd = view.toolbar.dom.querySelector('.wm-btn-kbd');
+      assert(kbd && kbd.querySelector('.wm-btn-text').textContent === 'Ctrl' && !kbd.querySelector('svg'), '「按鍵樣式」按鈕畫成一顆鍵帽（Ctrl），不是鍵盤圖示');
       await view.loadFile(view.file, '一般段落 `行內` 文字\n\n```js\nprint(1)\n```\n');
       const at = text => { let p = 0; pm.state.doc.descendants((n, pos) => { if (n.isText && n.text.includes(text)) p = pos + n.text.indexOf(text) + 1; }); pm.dispatch(pm.state.tr.setSelection(B.TextSelection.create(pm.state.doc, p))); };
       at('一般');
@@ -1353,6 +1356,18 @@ await fresh('---\ntags:\n  - 會議\n  - 專案\ndate: 2026-11-16\ndone: false\n
       const u = shell.button(shell.groups.undo, B.ACTIONS.undo, () => hits.push('undo'));
       const r = shell.button(shell.groups.undo, B.ACTIONS.redo, () => hits.push('redo'));
       assert(u.dom.classList.contains('has-swipe') && r.dom.classList.contains('has-swipe'), '行動裝置：復原、取消復原標成可以往上滑');
+      assert(host.dataset.ignoreSwipe === 'true', '行動裝置的功能區標成 data-ignore-swipe：Obsidian 的滑動手勢不會被功能區上的滑動觸發');
+      // 在按鈕列上往下滑：收起鍵盤（鍵盤開著時才有作用）
+      {
+        const bar = host.querySelector('.wm-toolbar');
+        const br = u.dom.getBoundingClientRect();
+        pm.focus();
+        document.body.classList.add('wm-kb-up');
+        touch(u.dom, 'touchstart', [[br.left + 5, br.top + 5]]); touch(u.dom, 'touchmove', [[br.left + 6, br.top + 60]]);
+        const e0 = touch(u.dom, 'touchend', [[br.left + 6, br.top + 60]]);
+        assert(e0.defaultPrevented && !pm.hasFocus() && hits.length === 0 && !!bar, '鍵盤開著時在按鈕列上往下滑：收起鍵盤，起點那顆按鈕不會被按到');
+        document.body.classList.remove('wm-kb-up');
+      }
       const b = u.dom.getBoundingClientRect();
       const p0 = [b.left + 5, b.top + 5];
       touch(u.dom, 'touchstart', [p0]); touch(u.dom, 'touchmove', [[p0[0], p0[1] - 10]]);

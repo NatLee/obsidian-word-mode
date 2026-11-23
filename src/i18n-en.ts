@@ -181,6 +181,7 @@ export default {
  "淺藍": "Light blue",
  "常用": "Home",
  "中文標點": "CJK punctuation",
+ "按鍵樣式": "Key style",
  "收起鍵盤": "Hide keyboard",
  "成對（包住選取的文字）": "Pairs (wrap the selection)",
  "箭頭": "Arrows",

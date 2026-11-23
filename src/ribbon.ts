@@ -3,7 +3,7 @@
 // 這裡只管「長什麼樣子」；按下去做什麼、何時停用，由兩條功能區各自決定
 import { t, key } from './i18n.js';
 import { attachHint, hideHint } from './hints.js';
-import { el, keepFocus, keyboardHideButton } from './dom.js';
+import { el, keepFocus, keyboardHideButton, hideKeyboard } from './dom.js';
 import type { DemoName } from './hints.js';
 import type { IconFn } from './icons.js';
 import type { I18nKey } from './i18n.js';
@@ -323,6 +323,10 @@ export class RibbonShell {
     this.seen = new Set();
     this.byTitle = o.isMobile ? new Map() : null;
     if (o.isMobile) {
+      // Obsidian 手機版的滑動手勢（左右滑開側邊欄、上下拉）看到 data-ignore-swipe 就不接手。功能區的按鈕列本身是左右捲的，
+      // 捲到頭再滑一下就把側邊欄拉出來；在分頁按鈕上拖曳移動游標時也會被它搶走（往下拖一下放大鏡就不見）。
+      // 功能區上的滑動都是給功能區自己用的，整條標起來；筆記內容上的滑動不受影響，側邊欄照樣滑得出來
+      root.dataset.ignoreSwipe = 'true';
       this.swipeKeys();
       // 收起鍵盤：放在功能區最外層、疊在按鈕列的結尾（樣式表用 absolute），不跟著按鈕左右捲。
       // 放在按鈕列裡用 sticky 的話，按鈕列一捲它就跟著跑（面板本身比按鈕列寬，它的原位不在內容的最後面）
@@ -504,6 +508,27 @@ export class RibbonShell {
       other.click();
     });
     this.bar.addEventListener('touchcancel', () => { disarm(); from = null; to = null; });
+    // 在按鈕列上往下滑：收起鍵盤（像把鍵盤往下推回去）。分頁選單按鈕是移動游標用的觸控板，不算
+    const DOWN = 26;
+    let sx = 0; let sy = 0; let down = false; let tracking = false;
+    this.bar.addEventListener('touchstart', e => {
+      const target = e.target as Element | null;
+      tracking = e.touches.length === 1 && !!target && target.nodeType === 1 && !target.closest('.wm-tab-switch') && this.bar.ownerDocument.body.classList.contains('wm-kb-up');
+      down = false;
+      if (tracking) { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }
+    }, { passive: true });
+    this.bar.addEventListener('touchmove', e => {
+      if (!tracking || !e.touches.length) return;
+      const dx = e.touches[0].clientX - sx; const dy = e.touches[0].clientY - sy;
+      down = dy > DOWN && Math.abs(dx) < dy;
+    }, { passive: true });
+    this.bar.addEventListener('touchend', e => {
+      if (!tracking || !down) { tracking = false; return; }
+      tracking = false; down = false;
+      // 擋掉放開之後的點擊：手指起點的那顆按鈕不要被按到
+      if (e.cancelable) e.preventDefault();
+      hideKeyboard(this.bar.ownerDocument);
+    });
   }
 
   // 按鈕的提示：一般模式用 Obsidian 的 aria-label；詳細提示模式改用自己的提示卡（有說明與動畫），兩者不會同時出現

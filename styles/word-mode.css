@@ -2053,3 +2053,85 @@ button.wm-kb-hide { display: none; }
 .is-phone.wm-kb-up .wm-eq-palbox .wm-eq-items > * { flex: 0 0 auto; }
 .is-phone.wm-kb-up .wm-eq > .wm-eq-card { padding-block: 6px 8px; }
 .is-phone.wm-kb-up .wm-eq-card .wm-eq-preview { min-height: 36px; }
+
+/* Markdown／閱讀模式的工具列放在下方時（mdbar.ts 的 wm-mdbar-bottom）：跟 Word 模式一樣分頁列在按鈕列下面、框線在上緣；
+   貼在別的外掛按鈕列上方的修正（--wm-mdbar-height）只在工具列在上方時需要 */
+.wm-mdbar.wm-mdbar-bottom { display: flex; flex-direction: column-reverse; border-bottom: none; border-top: 1px solid var(--background-modifier-border); }
+.wm-mdbar.wm-mdbar-bottom .wm-tabs { border-bottom: none; border-top: 1px solid var(--background-modifier-border); }
+.wm-kb-up .wm-mdbar.wm-mdbar-bottom > button.wm-kb-hide { bottom: auto; top: 0; }
+
+/* 功能區跟著鍵盤滑動（view.ts 的 slideToolbar）：位移寫在 --wm-bar-shift，wm-bar-slide 開著時用轉場滑回 0。
+   曲線與時間照 iOS 鍵盤升起的樣子（前面快、後面慢，約四分之一秒） */
+.wm-mobile .wm-toolbar-host { transform: translate3d(0, var(--wm-bar-shift, 0px), 0); }
+.wm-mobile .wm-toolbar-host.wm-bar-slide { transition: transform .28s cubic-bezier(.17, .84, .44, 1); }
+@media (prefers-reduced-motion: reduce) { .wm-mobile .wm-toolbar-host.wm-bar-slide { transition: none; } }
+
+/* 手機上表格右上角的按鈕（複製、更多、刪除）原本壓在表格上緣 8px，正好蓋住最後一欄上方的欄把手「⋯」。
+   整排往上移到欄把手的上面（把手從表格上緣往上凸出約 10px），表格上方多留一點空間放它，才不會蓋到上一段的字 */
+.wm-mobile .wm-editor .wm-table .wm-table-corner,
+.wm-mobile .wm-editor .callout-content .wm-table .wm-table-corner { bottom: calc(100% + 2px); }
+.wm-mobile .wm-editor .wm-table { margin-top: 30px; }
+.wm-mobile .wm-editor .callout-content > .wm-table:first-child { margin-top: 36px; }
+
+/* 「按鍵樣式」按鈕：按鈕上的字畫成一顆鍵帽，跟套用之後的樣子一樣 */
+.wm-toolbar button.wm-btn.wm-btn-kbd .wm-btn-text { padding: 1px 5px; border: 1px solid var(--background-modifier-border-hover); border-bottom-width: 2px; border-radius: 4px; background: var(--background-secondary); font-family: var(--font-monospace); font-size: 11px; line-height: 1.4; }
+
+/* ===== 手機的尋找列 =====
+   原本所有按鈕接在輸入框後面自動換行，關閉鈕落在第二列的中間，找不到。手機上分成兩列：
+   第一列是輸入框、第幾個、上一個、下一個、關閉（固定在最右邊）；第二列是選項（大小寫、全字、正規表示式、取代）。
+   用 order 排順序，::after 佔滿一整列把選項擠到下一列（不用改 DOM，桌機維持原樣） */
+.wm-mobile .wm-findbar { padding: 8px 10px; gap: 8px; }
+.wm-mobile .wm-find-row { flex-wrap: wrap; gap: 4px 2px; }
+.wm-mobile .wm-find-row::after { content: ''; order: 6; flex: 0 0 100%; height: 0; }
+.wm-mobile .wm-find-row .wm-find-input { order: 1; flex: 1 1 0; min-width: 0; max-width: none; height: 38px; border-radius: 10px; padding-inline: 12px; font-size: 16px; }
+.wm-mobile .wm-find-row .wm-find-count { order: 2; min-width: 0; padding-inline: 4px; white-space: nowrap; }
+.wm-mobile .wm-find-row .wm-find-count:empty { display: none; }
+.wm-mobile .wm-find-row .wm-find-nav { order: 3; }
+.wm-mobile .wm-find-row .wm-find-close { order: 5; margin-inline-start: 2px; border-radius: 50%; background: var(--background-modifier-hover); }
+.wm-mobile .wm-find-row .wm-find-opt { order: 7; }
+.wm-mobile .wm-find-row .wm-find-textbtn { order: 3; height: 38px; }
+.wm-mobile .wm-findbar button.wm-find-btn { height: 38px; min-width: 38px; border-radius: 10px; }
+.wm-mobile .wm-findbar button.wm-find-btn svg { width: 19px; height: 19px; }
+/* 選項：開著的填滿底色，比只有一圈框線明顯 */
+.wm-mobile .wm-findbar button.wm-find-opt { height: 32px; min-width: 44px; background: var(--background-secondary); }
+.wm-mobile .wm-findbar button.wm-find-opt.is-active { background: hsla(var(--wm-accent-hsl), .18); border-color: transparent; color: var(--text-accent); }
+
+/* ===== 手機的抽屜：修飾 =====
+   圓角大一點、上緣一道細亮邊與柔和的陰影；最上面是把手與標題；目前選中的項目右邊打勾；可以往下拖掉 */
+.wm-popup.is-mobile.is-sheet { border-radius: 20px 20px 0 0; box-shadow: 0 -10px 34px rgba(0, 0, 0, .2); transform: translate3d(0, var(--wm-sheet-drag, 0px), 0); transition: transform .22s cubic-bezier(.2, .8, .2, 1); }
+.wm-popup.is-mobile.is-sheet.is-dragging { transition: none; }
+.wm-popup.is-sheet::before { width: 40px; height: 5px; margin: 2px auto 6px; border-radius: 3px; }
+.wm-popup.is-sheet .wm-sheet-title { margin: 0 4px 8px; padding-bottom: 8px; border-bottom: 1px solid var(--background-modifier-border); text-align: center; font-size: 15px; font-weight: 600; color: var(--text-normal); }
+.wm-popup.is-sheet button.wm-menu-item, .wm-popup.is-sheet button.wm-style-item { min-height: 48px; padding-inline: 14px; border-radius: 12px; }
+.wm-popup.is-sheet button.wm-menu-item .wm-menu-icon { margin-inline-end: 12px; color: var(--text-muted); }
+.wm-popup.is-sheet button.wm-style-item.is-active, .wm-popup.is-sheet button.wm-menu-item.is-active { position: relative; background: hsla(var(--wm-accent-hsl), .12); }
+.wm-popup.is-sheet button.wm-style-item.is-active::after, .wm-popup.is-sheet button.wm-menu-item.is-active::after { content: '✓'; position: absolute; inset-inline-end: 16px; top: 50%; transform: translateY(-50%); color: var(--text-accent); font-size: 17px; font-weight: 600; }
+.wm-popup.is-sheet .wm-popup-title { margin-top: 6px; }
+.wm-sheet-backdrop { background: rgba(0, 0, 0, .28); }
+@media (prefers-reduced-motion: reduce) { .wm-popup.is-mobile.is-sheet { transition: none; } }
+
+/* ===== 手機：區塊右上角的按鈕不要蓋住內容 =====
+   手機上沒有「滑鼠移上去才顯示」，程式碼與圖表區塊的按鈕（編輯、原始碼、複製、語言、刪除）一直都在，
+   原本疊在區塊的右上角，圖表的節點、程式碼第一行的後半段會被蓋住。手機上改成區塊上方自己的一列 */
+.wm-mobile .wm-codeblock .wm-code-head { position: static; justify-content: flex-end; padding: 2px 4px 0; background: transparent; }
+.wm-mobile .wm-codeblock.has-preview .wm-code-head { background: transparent; }
+/* 方程式、HTML 這類原文區塊的按鈕只有選取時才出現：移到區塊上方的外面（浮在上一段的下緣），不蓋住正在看的內容 */
+.wm-mobile .wm-raw-block .wm-block-tools { top: auto; bottom: calc(100% - 2px); box-shadow: var(--shadow-s); }
+
+/* 手機的方程式編輯器：結構那一頁的按鈕原本各自照內容的大小，每一列高低寬窄都不一樣。
+   統一高度，每一列撐滿左右兩邊（內容寬的自然佔多一點），看起來是整齊的磚塊 */
+.is-phone .wm-eq-palbox .wm-eq-items > .wm-eq-btn.is-struct { flex: 1 1 auto; min-width: 70px; max-width: 56%; height: 62px; }
+.is-phone.wm-kb-up .wm-eq-palbox .wm-eq-items > .wm-eq-btn.is-struct { flex: 0 0 auto; height: 64px; }
+
+/* 手機的圖表編輯器：欄位在 Obsidian 手機版是沒有外框、沒有底色的，表單裡分不出哪些字可以改。
+   每個欄位給底色、細框與圓角，正在填的那一格用強調色框起來；一列一列之間加一條細線 */
+.is-phone .wm-mmd :is(input[type="text"], input[type="search"], select, textarea),
+.is-phone .wm-eq :is(input[type="text"], textarea) { background-color: var(--background-primary); border: 1px solid var(--background-modifier-border); border-radius: 9px; padding-inline: 10px; box-shadow: none; }
+.is-phone .wm-mmd select { padding-inline-end: 26px; }
+.is-phone .wm-mmd-row .wm-mmd-text.is-xs { flex-basis: 62px; min-width: 56px; }
+.is-phone .wm-mmd-row .wm-mmd-text.is-s { min-width: 68px; }
+.is-phone .wm-mmd :is(input[type="text"], input[type="search"], select, textarea):focus,
+.is-phone .wm-eq :is(input[type="text"], textarea):focus { border-color: var(--interactive-accent); box-shadow: 0 0 0 2px hsla(var(--wm-accent-hsl), .2); }
+.is-phone .wm-mmd-row { border-radius: 0; border-color: transparent transparent var(--background-modifier-border); padding-block: 8px; }
+.is-phone .wm-mmd-row.is-current { border-radius: 10px; border-color: hsla(var(--wm-accent-hsl), .45); }
+.is-phone .wm-mmd-head .wm-mmd-opt { gap: 8px; }
