@@ -1228,6 +1228,40 @@ await fresh('---\ntags:\n  - 會議\n  - 專案\ndate: 2026-11-16\ndone: false\n
   assert(cover() === '0px', '焦點在核取方塊上不會叫出鍵盤：不留空間');
   box.remove();
   assert(/inner=\d+x768/.test(kb.report(['x'])) && kb.log.length > 3, '診斷資訊有視窗大小與最近幾次量到的數字');
+  // 手機：在分頁選單按鈕上拖曳移動游標（一格 12px）；沒拖動就放開還是一般的點擊
+  {
+    const pm = view.pm;
+    const dispatchCmd = cmd => cmd(pm.state, tr => pm.dispatch(tr));
+    // 這時的文件只有「一段」兩個字：先放三段夠長的文字，再把游標放在第一段的第一個字後面
+    await view.loadFile(view.file, '第一段有幾個字\n\n第二段也有幾個字\n\n第三段');
+    dispatchCmd(B.C.moveCaretBy(-99999)); dispatchCmd(B.C.moveCaretBy(1));
+    const head0 = pm.state.selection.head;
+    assert(dispatchCmd(B.C.moveCaretBy(1)) && pm.state.selection.empty && pm.state.selection.head > head0, 'moveCaretBy(1)：游標往後一格');
+    dispatchCmd(B.C.moveCaretBy(-1));
+    assert(pm.state.selection.head === head0, 'moveCaretBy(-1)：回到原位');
+    dispatchCmd(B.C.moveCaretBy(-99999));
+    assert(pm.state.selection.head <= 2 && !dispatchCmd(B.C.moveCaretBy(-1)), '到文件開頭就停，再往前回報不能執行');
+    const pad = document.body.appendChild(document.createElement('button'));
+    view.toolbar.caretPad(pad);
+    const ev = (type, x) => pad.dispatchEvent(Object.assign(new Event(type, { bubbles: true }), { pointerId: 7, pointerType: 'touch', clientX: x, clientY: 0 }));
+    pm.dom.blur();
+    const blurred = pm.state.selection.head;
+    ev('pointerdown', 100); ev('pointermove', 160); ev('pointerup', 160);
+    assert(!view.toolbar.padMoved && pm.state.selection.head === blurred, '編輯區沒有焦點：拖曳不作用（不叫出鍵盤），放開後還是一般的點擊');
+    pm.focus();
+    const start = pm.state.selection.head;
+    ev('pointerdown', 100); ev('pointermove', 104);
+    assert(!view.toolbar.padMoved && pm.state.selection.head === start, '手指只動了一點點：不算拖曳，游標不動');
+    ev('pointermove', 137);
+    assert(view.toolbar.padMoved && pad.classList.contains('is-caret-pad') && pm.state.selection.head > start, '往右拖 37px：游標往後移（3 格），按鈕標成拖曳中');
+    const after = pm.state.selection.head;
+    ev('pointermove', 113);
+    assert(pm.state.selection.head < after, '往回拖：游標往前移');
+    ev('pointerup', 113);
+    assert(!pad.classList.contains('is-caret-pad') && view.toolbar.padMoved, '放開：結束拖曳，接下來那一下點擊不開選單');
+    pad.remove();
+    view.toolbar.padMoved = false;
+  }
   // 彈出選單要放在看得到的範圍裡：按鈕在鍵盤正上方時往上開
   input.focus();
   kb.measure();

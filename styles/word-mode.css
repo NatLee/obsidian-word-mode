@@ -156,7 +156,11 @@ body {
 .wm-image-handle.is-left { left: -6px; cursor: nesw-resize; }
 .wm-image-badge { position: absolute; top: 6px; inset-inline-end: 6px; line-height: 1.4; font-size: 11px; padding: 1px 6px; border-radius: 3px; background: rgba(0, 0, 0, .65); color: #fff; display: none; pointer-events: none; }
 .wm-image.ProseMirror-selectednode { outline: 2px solid var(--interactive-accent); outline-offset: 1px; }
-.wm-image.ProseMirror-selectednode .wm-image-handle, .wm-image:hover .wm-image-handle { display: block; }
+/* 滑鼠移上來才顯示的東西（把手、按鈕、標籤）一律包在 @media (hover: hover)：iOS 點下去會先模擬滑鼠移上去，
+   畫面因此多出內容的話，那一下只算「移上去」，不送 mousedown 與 click，編輯區拿不到焦點、鍵盤不出來，要點第二下。
+   觸控裝置靠選取（ProseMirror-selectednode、is-active、is-current）或手機專用的規則顯示。新增這類樣式時照這個寫法 */
+.wm-image.ProseMirror-selectednode .wm-image-handle { display: block; }
+@media (hover: hover) { .wm-image:hover .wm-image-handle { display: block; } }
 .wm-image.is-resizing .wm-image-badge, .wm-image.ProseMirror-selectednode .wm-image-badge { display: block; }
 
 /* 沒有加格式的網址：顯示成連結（Ctrl+點擊開啟） */
@@ -214,7 +218,8 @@ body {
 .wm-raw-block { position: relative; margin: .6em 0; padding: 2px 8px; border: 1px dashed var(--background-modifier-border); border-radius: 4px; cursor: default; }
 .wm-raw-block:hover { border-color: var(--interactive-accent); }
 .wm-raw-label { display: none; position: absolute; top: -10px; inset-inline-end: 6px; font-size: 11px; line-height: 16px; padding: 0 6px; background: var(--background-primary); color: var(--text-muted); border: 1px solid var(--background-modifier-border); border-radius: 3px; }
-.wm-raw-block:hover .wm-raw-label, .wm-raw-block.ProseMirror-selectednode .wm-raw-label { display: block; }
+.wm-raw-block.ProseMirror-selectednode .wm-raw-label { display: block; }
+@media (hover: hover) { .wm-raw-block:hover .wm-raw-label { display: block; } }
 .wm-raw-block.ProseMirror-selectednode { outline: 2px solid var(--interactive-accent); }
 .wm-raw-body > :first-child { margin-top: 4px; }
 .wm-raw-body > :last-child { margin-bottom: 4px; }
@@ -1195,7 +1200,8 @@ body:not(.is-phone) .modal.wm-eq-modal, body:not(.is-phone) .modal.wm-mmd-modal 
 .wm-mv-grid-row { display: flex; gap: 10px; justify-content: center; }
 .wm-mv-cell { display: inline-flex; min-width: 1em; justify-content: center; }
 .wm-mv-env-tools { display: inline-flex; flex-direction: column; gap: 1px; opacity: 0; transition: opacity .1s; }
-.wm-mv-env:hover .wm-mv-env-tools, .wm-mv-env:focus-within .wm-mv-env-tools { opacity: 1; }
+.wm-mv-env:focus-within .wm-mv-env-tools { opacity: 1; }
+@media (hover: hover) { .wm-mv-env:hover .wm-mv-env-tools { opacity: 1; } }
 .wm-mv-env-tools button.wm-mv-env-btn { height: 16px; padding: 0 3px; font-size: 10px; line-height: 1; box-shadow: none; background: var(--background-modifier-hover); }
 /* 格子：空的格子是虛線方框，游標所在的格子與它外面的結構用淡淡的底色標出來 */
 .wm-mv-text:focus { background: hsla(var(--wm-accent-hsl), .12); }
@@ -1523,7 +1529,8 @@ body.wm-own-count .status-bar-item.plugin-word-count { display: none; }
 .wm-props button.wm-props-raw, .wm-props button.wm-prop-del { height: 24px; min-width: 24px; padding: 0 4px; background: transparent; box-shadow: none; border: none; color: var(--text-faint); cursor: pointer; display: inline-flex; align-items: center; opacity: 0; transition: opacity .12s; }
 .wm-props button.wm-props-raw:hover, .wm-props button.wm-prop-del:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
 .wm-props button.wm-props-remove:hover { color: var(--text-error); }
-.wm-props .wm-props-head:hover button.wm-props-raw, .wm-props .wm-prop:hover button.wm-prop-del, .wm-props .wm-prop:focus-within button.wm-prop-del, .wm-props button.wm-props-raw:focus, .wm-props button.wm-prop-del:focus { opacity: 1; }
+.wm-props .wm-prop:focus-within button.wm-prop-del, .wm-props button.wm-props-raw:focus, .wm-props button.wm-prop-del:focus { opacity: 1; }
+@media (hover: hover) { .wm-props .wm-props-head:hover button.wm-props-raw, .wm-props .wm-prop:hover button.wm-prop-del { opacity: 1; } }
 .wm-mobile .wm-props button.wm-props-raw, .wm-mobile .wm-props button.wm-prop-del { opacity: 1; }
 /* 一個屬性一列：名稱、值、刪除。滑鼠移上去或正在編輯時整列淡淡變色 */
 .wm-props .wm-props-body { border-top: none; display: flex; flex-direction: column; gap: var(--metadata-gap, 2px); padding: 6px 6px 8px; }
@@ -1558,7 +1565,8 @@ body.wm-own-count .status-bar-item.plugin-word-count { display: none; }
 .wm-chip-x { cursor: pointer; color: var(--text-faint); padding: 0 3px; border-radius: 50%; }
 .wm-chip-x:hover { color: var(--text-error); }
 .wm-props .wm-chip-x { opacity: 0; transition: opacity .12s; }
-.wm-props .wm-chip:hover .wm-chip-x, .wm-mobile .wm-props .wm-chip-x { opacity: 1; }
+.wm-mobile .wm-props .wm-chip-x { opacity: 1; }
+@media (hover: hover) { .wm-props .wm-chip:hover .wm-chip-x { opacity: 1; } }
 .wm-chip-input { flex: 1 1 80px; }
 /* 巢狀資料：照結構一層一層列出來（唯讀） */
 .wm-prop-tree { display: flex; flex-direction: column; gap: 2px; width: 100%; padding: 4px 0; }
@@ -1569,10 +1577,12 @@ body.wm-own-count .status-bar-item.plugin-word-count { display: none; }
 .wm-prop-tree-key::after { content: ':'; }
 /* 新增屬性：平常只有一行淡淡的「＋ 新增屬性名稱」，滑鼠移上去或正在輸入時才出現類型與按鈕 */
 .wm-props .wm-prop-add { opacity: .7; }
-.wm-props .wm-prop-add:hover, .wm-props .wm-prop-add:focus-within { opacity: 1; }
+.wm-props .wm-prop-add:focus-within { opacity: 1; }
+@media (hover: hover) { .wm-props .wm-prop-add:hover { opacity: 1; } }
 .wm-prop-add .wm-prop-input { flex: 0 1 180px; }
 .wm-props .wm-prop-add .wm-prop-type, .wm-props .wm-prop-add .wm-prop-addbtn { opacity: 0; transition: opacity .12s; }
-.wm-props .wm-prop-add:hover .wm-prop-type, .wm-props .wm-prop-add:hover .wm-prop-addbtn, .wm-props .wm-prop-add:focus-within .wm-prop-type, .wm-props .wm-prop-add:focus-within .wm-prop-addbtn, .wm-mobile .wm-props .wm-prop-add .wm-prop-type, .wm-mobile .wm-props .wm-prop-add .wm-prop-addbtn { opacity: 1; }
+.wm-props .wm-prop-add:focus-within .wm-prop-type, .wm-props .wm-prop-add:focus-within .wm-prop-addbtn, .wm-mobile .wm-props .wm-prop-add .wm-prop-type, .wm-mobile .wm-props .wm-prop-add .wm-prop-addbtn { opacity: 1; }
+@media (hover: hover) { .wm-props .wm-prop-add:hover .wm-prop-type, .wm-props .wm-prop-add:hover .wm-prop-addbtn { opacity: 1; } }
 .wm-props select.wm-prop-type { height: 26px; font-size: var(--font-ui-smaller); }
 .wm-props button.wm-prop-addbtn { height: 26px; padding: 0 10px; border-radius: 6px; font-size: var(--font-ui-smaller); }
 /* 格式特殊、表單畫不出來的 YAML：一行說明加原文 */
@@ -1810,7 +1820,8 @@ mark.wm-set-find-hl { padding: 0 1px; border-radius: 3px; background: hsla(var(-
    手機沒有滑鼠移上去：點一下區塊（選取）就出現，第二下才按得到，不會一碰就刪掉 */
 .wm-raw-block .wm-block-tools { position: absolute; top: 4px; inset-inline-end: 6px; z-index: 1; display: flex; align-items: center; gap: 2px; border-radius: 4px; background: var(--background-primary); opacity: 0; pointer-events: none; transition: opacity .12s; }
 .wm-raw-block .wm-block-tools[hidden], .wm-block-tools button[hidden] { display: none; }
-.wm-raw-block:hover .wm-block-tools, .wm-raw-block.ProseMirror-selectednode .wm-block-tools, .wm-raw-block .wm-block-tools:focus-within { opacity: 1; pointer-events: auto; }
+.wm-raw-block.ProseMirror-selectednode .wm-block-tools, .wm-raw-block .wm-block-tools:focus-within { opacity: 1; pointer-events: auto; }
+@media (hover: hover) { .wm-raw-block:hover .wm-block-tools { opacity: 1; pointer-events: auto; } }
 .wm-block-tools button { height: 22px; padding: 0 6px; background: transparent; box-shadow: none; color: var(--text-muted); }
 .wm-block-tools button:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
 .wm-block-tools svg { width: 14px; height: 14px; }
@@ -1884,7 +1895,8 @@ mark.wm-set-find-hl { padding: 0 1px; border-radius: 3px; background: hsla(var(-
 /* ---------- 表格：右上角的按鈕、列與欄的把手 ---------- */
 /* 表格的按鈕：桌機直排在表格開頭那一邊的頁面留白裡（不蓋到文字）；游標在表格裡或滑鼠移上來才顯示 */
 .wm-editor .wm-table .wm-table-corner { position: absolute; top: 8px; inset-inline-end: calc(100% + 4px); z-index: 2; display: flex; flex-direction: column; gap: 2px; border-radius: 4px; background: var(--background-primary); opacity: 0; pointer-events: none; transition: opacity .12s; }
-.wm-editor .wm-table:hover .wm-table-corner, .wm-editor .wm-table.is-active .wm-table-corner, .wm-editor .wm-table .wm-table-corner:focus-within { opacity: 1; pointer-events: auto; }
+.wm-editor .wm-table.is-active .wm-table-corner, .wm-editor .wm-table .wm-table-corner:focus-within { opacity: 1; pointer-events: auto; }
+@media (hover: hover) { .wm-editor .wm-table:hover .wm-table-corner { opacity: 1; pointer-events: auto; } }
 /* 手機的頁面留白太窄：改成橫排放在表格上方的結尾那一邊 */
 .wm-mobile .wm-editor .wm-table .wm-table-corner { top: auto; bottom: calc(100% - 8px); inset-inline-end: 0; flex-direction: row; }
 /* 列與欄的把手：壓在格線上（每一列的開頭、第一列每一格的上方），按一下選取整列或整欄並開選單。
@@ -1897,7 +1909,7 @@ mark.wm-set-find-hl { padding: 0 1px; border-radius: 3px; background: hsla(var(-
 .wm-editor .wm-table-grip.is-row { top: 50%; inset-inline-start: -5px; width: 10px; height: 22px; transform: translateY(-50%); }
 .wm-editor .wm-table-grip.is-row::before { width: 4px; height: 12px; }
 /* 滑鼠移到某一列上：那一列的把手點點變清楚（欄的把手在第一列，移到其他列時看不出是哪一欄，所以只有列有這個） */
-.wm-editor .wm-table tr:hover .wm-table-grip.is-row { opacity: 1; color: var(--text-muted); }
+@media (hover: hover) { .wm-editor .wm-table tr:hover .wm-table-grip.is-row { opacity: 1; color: var(--text-muted); } }
 /* 小卡片：游標所在的列與欄、滑鼠指著、鍵盤選到 */
 .wm-editor .wm-table-grip.is-current, .wm-editor .wm-table-grip:hover, .wm-editor .wm-table-grip:focus-visible { opacity: 1; background-color: var(--background-primary); border-color: var(--background-modifier-border-hover); box-shadow: 0 1px 3px rgba(0, 0, 0, .14); color: var(--text-muted); }
 .wm-editor .wm-table-grip:hover, .wm-editor .wm-table-grip:focus-visible { border-color: var(--interactive-accent); color: var(--interactive-accent); }
@@ -1964,3 +1976,12 @@ mark.wm-set-find-hl { padding: 0 1px; border-radius: 3px; background: hsla(var(-
 @keyframes wm-sheet-fade { from { opacity: 0; } }
 /* 手機沒有實體鍵盤，樣式清單的快速鍵提示不用顯示 */
 .wm-popup.is-sheet .wm-style-key { display: none; }
+
+/* ===== 手機：在分頁選單按鈕上拖曳移動游標（toolbar.ts 的 caretPad）=====
+   按鈕自己處理拖曳，不讓瀏覽器拿去捲動按鈕列；拖曳中換成強調色，看得出現在是在移動游標 */
+.wm-mobile .wm-toolbar button.wm-tab-switch { touch-action: none; }
+.wm-toolbar button.wm-tab-switch.is-caret-pad { background: var(--interactive-accent); color: var(--text-on-accent); }
+.wm-toolbar button.wm-tab-switch.is-caret-pad .wm-tab-switch-arrow { color: var(--text-on-accent); }
+
+/* 手機的編輯區：點一下不用等 iOS 判斷「是不是要點兩下放大」（約 200ms），游標馬上出現；兩指縮放、捲動照常 */
+.wm-mobile .wm-editor { touch-action: manipulation; }

@@ -13,6 +13,7 @@ import { buildColorPanel, SHADING } from './colorpicker.js';
 import { ACTIONS as A, RibbonShell, ribbonClass } from './ribbon.js';
 import type { ColorKind } from './colorpicker.js';
 import type { IconFn } from './icons.js';
+import { Selection, TextSelection } from 'prosemirror-state';
 import type { Command, EditorState } from 'prosemirror-state';
 import type { EditorView } from 'prosemirror-view';
 import type { Mark, MarkType } from 'prosemirror-model';
@@ -157,6 +158,8 @@ export class Toolbar {
   declare onDocDown: (e: PointerEvent) => void;
   declare popup: HTMLDivElement | null | undefined;
   declare popupOwner: HTMLElement | null | undefined;
+  // 剛在分頁選單按鈕上拖曳過（caretPad）：接下來的那一下點擊不算
+  declare padMoved: boolean | undefined;
   // 手機的抽屜後面那層變暗的底（openPopup）
   declare popupBackdrop: HTMLElement | null | undefined;
   declare painterBtn: HTMLButtonElement | null;
@@ -177,11 +180,13 @@ export class Toolbar {
     this.fontColor = S.lastFontColor || '#c00000';
     this.shell = new RibbonShell(this.dom, {
       side: 'word', settings: S, isMobile: ctx.isMobile, icon: ctx.icon,
-      openMenu: (owner, items) => this.openMenu(owner, items),
+      // 剛在選單按鈕上拖曳移動過游標：放開時的那一下點擊不開選單
+      openMenu: (owner, items) => { if (this.padMoved) { this.padMoved = false; return; } this.openMenu(owner, items); },
       pickTab: id => this.showTab(id),
     });
     this.build();
     this.showTab(this.shell.usableTab(ctx.initialTab));
+    if (ctx.isMobile && this.shell.tabSwitch) this.caretPad(this.shell.tabSwitch);
     this.onDocDown = e => { if (this.popup && !this.popup.contains(e.target as Node | null) && !this.popupOwner!.contains(e.target as Node | null)) this.closePopup(); };
     this.dom.ownerDocument.addEventListener('pointerdown', this.onDocDown, true);
   }
@@ -533,6 +538,57 @@ export class Toolbar {
     this.painter = null;
     this.painterHandler = null;
     if (this.painterBtn) this.painterBtn.classList.remove('is-active', 'is-sticky');
+  }
+
+  // ----------------------------------------------------------- 拖曳移動游標（手機、平板）
+  // 螢幕鍵盤沒有方向鍵，在字與字之間放游標要靠手指點得很準。在分頁選單按鈕上按住拖曳：左右一格一格移動游標，
+  // 上下換行（Editorial、Textastic 鍵盤上方那一列的做法）。按鈕列本身要留給左右捲動，所以只有這顆按鈕當觸控板；
+  // 沒拖超過 START 就放開還是一般的點擊，照樣開選單
+  caretPad(b: HTMLElement): void {
+    const START = 8; const STEP_X = 12; const STEP_Y = 26;
+    let id = -1; let x = 0; let y = 0; let active = false;
+    b.addEventListener('pointerdown', e => {
+      if (e.pointerType === 'mouse') return;
+      id = e.pointerId; x = e.clientX; y = e.clientY; active = false; this.padMoved = false;
+    });
+    b.addEventListener('pointermove', e => {
+      if (e.pointerId !== id) return;
+      const dx = e.clientX - x; const dy = e.clientY - y;
+      if (!active) {
+        if (Math.abs(dx) < START && Math.abs(dy) < START) return;
+        // 編輯區沒有焦點（鍵盤沒開）時不啟動：移動游標會把焦點放回去、叫出鍵盤，畫面一重排手指的相對位置就跳掉，游標亂跑
+        const v = this.view;
+        if (!v || !v.hasFocus()) { id = -1; return; }
+        active = true; this.padMoved = true;
+        b.classList.add('is-caret-pad');
+        try { b.setPointerCapture(id); } catch { /* 舊環境 */ }
+        this.closePopup();
+      }
+      const nx = Math.trunc(dx / STEP_X); const ny = Math.trunc(dy / STEP_Y);
+      if (nx) { x += nx * STEP_X; this.run(C.moveCaretBy(nx)); }
+      if (ny) { y += ny * STEP_Y; this.moveCaretLines(ny); }
+    });
+    const end = (e: PointerEvent) => {
+      if (e.pointerId !== id) return;
+      id = -1; active = false;
+      b.classList.remove('is-caret-pad');
+    };
+    b.addEventListener('pointerup', end);
+    b.addEventListener('pointercancel', end);
+  }
+
+  // 游標往上（n < 0）或往下移 |n| 行：照畫面上的位置找上一行、下一行同一個水平位置的地方
+  moveCaretLines(n: number): void {
+    const v = this.view;
+    if (!v) return;
+    for (let i = 0; i < Math.abs(n); i++) {
+      const c = v.coordsAtPos(v.state.selection.head);
+      const h = Math.max(8, c.bottom - c.top);
+      const hit = v.posAtCoords({ left: c.left, top: n < 0 ? c.top - h / 2 : c.bottom + h / 2 });
+      if (!hit || hit.pos === v.state.selection.head) return;
+      const sel = Selection.near(v.state.doc.resolve(hit.pos), n < 0 ? -1 : 1);
+      v.dispatch(v.state.tr.setSelection(TextSelection.create(v.state.doc, sel.head)).scrollIntoView());
+    }
   }
 
   // ----------------------------------------------------------- 彈出選單
