@@ -92,7 +92,13 @@ export class KeyboardWatch {
   }
 
   private apply(cover: number, open: boolean): void {
-    if (cover === this.cover && open === this.open) return;
+    if (cover === this.cover && open === this.open) {
+      // 鍵盤的高度沒變，但 Obsidian 可能這時才把 app 縮到鍵盤上方（升起的動畫期間 app 還是整個畫面高，動畫結束才縮；
+      // iPhone 上 visualViewport 完全不變，鍵盤高度從頭到尾是同一個數字）。檢視要留的高度是用它當時的位置算的，
+      // 不重算的話動畫前留的那一整個鍵盤高度就一直留著，功能區與鍵盤之間空一大塊
+      if (open) for (const fn of Array.from(this.subs)) fn();
+      return;
+    }
     this.cover = cover; this.open = open;
     const body = this.win.document.body;
     body.classList.toggle('wm-kb-up', open);
