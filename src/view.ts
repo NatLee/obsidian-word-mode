@@ -1128,7 +1128,10 @@ export class WordModeView extends TextFileView {
         nodeViews: createNodeViews(this.nodeViewContext()),
         dispatchTransaction: tr => this.dispatch(tr),
         // 拼字檢查跟著 Obsidian 的設定（設定 → 編輯器 → 拼字檢查）
-        attributes: { class: 'wm-editor', spellcheck: this.spellcheckOn() ? 'true' : 'false' },
+        // 手機、平板：游標在程式碼裡時請鍵盤不要自動大寫、自動修正（程式碼打什麼就是什麼），離開就恢復
+        attributes: (st): Record<string, string> => Platform.isMobile && C.typingCode(st)
+          ? { class: 'wm-editor', spellcheck: 'false', autocapitalize: 'off', autocorrect: 'off' }
+          : { class: 'wm-editor', spellcheck: this.spellcheckOn() ? 'true' : 'false' },
         handleDOMEvents: {
           mousedown: (v, e) => this.onMouseDown(e as ElementEvent),
           mouseover: (v, e) => {

@@ -1,5 +1,5 @@
 // 色彩面板：字型色彩與醒目提示共用（標準色彩、深淺變化、最近使用的自訂色彩、自訂色彩）
-import { el } from './dom.js';
+import { el, keyboardHints } from './dom.js';
 import { t } from './i18n.js';
 import { HIGHLIGHT_COLORS } from './commands.js';
 import type { HighlightColor } from './commands.js';
@@ -147,7 +147,7 @@ export function buildColorPanel(p: HTMLElement, o: ColorPanelOptions): void {
   well.setAttribute('aria-label', t('選擇色彩'));
   const code = el('input', 'wm-cp-hex', box);
   code.type = 'text';
-  code.spellcheck = false;
+  keyboardHints(code, { plain: true, enter: 'done' });
   code.maxLength = 9;
   code.setAttribute('aria-label', t('色碼'));
   code.placeholder = font ? '#C00000' : '#FFD000';

@@ -3,7 +3,7 @@
 import { Scope, setIcon } from 'obsidian';
 import type { Keymap } from 'obsidian';
 import { t } from './i18n.js';
-import { keepFocus } from './dom.js';
+import { keepFocus, keyboardHints } from './dom.js';
 import { searchSettings } from './settingsearch.js';
 import type { SearchDoc, SearchHit, TextRange } from './settingsearch.js';
 
@@ -148,7 +148,7 @@ export function buildSettingSearch<T extends SettingSearchItem>(host: HTMLElemen
   const wrap = host.createDiv('wm-set-find');
   const box = wrap.createDiv('wm-set-find-box');
   setIcon(box.createSpan('wm-set-find-icon'), 'search');
-  const input = box.createEl('input', { cls: 'wm-set-find-input', type: 'search' });
+  const input = keyboardHints(box.createEl('input', { cls: 'wm-set-find-input', type: 'search' }), { plain: true, enter: 'search' });
   input.placeholder = t('搜尋設定，例如：縮放、工具列、快速鍵');
   input.setAttribute('aria-label', t('搜尋設定'));
   input.setAttribute('role', 'combobox');

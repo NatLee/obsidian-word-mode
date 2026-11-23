@@ -1,5 +1,6 @@
 // 設定頁裡管理「我的公式」「我的圖表範本」的清單：改名、改內容、調整順序、刪除、新增。
 // 資料操作在 templates.ts（純函式）；這裡只負責畫面。
+import { keyboardHints } from './dom.js';
 import { Notice, setIcon } from 'obsidian';
 import { t } from './i18n.js';
 import { editTemplate, moveTemplate, removeTemplate, renameTemplate, saveTemplate, uniqueName, MAX_TEMPLATES } from './templates.js';
@@ -67,7 +68,7 @@ export function buildTemplateManager(box: HTMLElement, o: TemplateManagerOptions
         b.setText(t('確定刪除？'));
         armed = window.setTimeout(() => { armed = 0; render(); }, 3000);
       });
-      const src = row.createEl('textarea', { cls: 'wm-tpl-src' });
+      const src = keyboardHints(row.createEl('textarea', { cls: 'wm-tpl-src' }), { plain: true });
       src.value = item.src;
       src.spellcheck = false;
       src.rows = Math.max(2, Math.min(8, item.src.split('\n').length));

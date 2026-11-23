@@ -107,3 +107,20 @@ export function keyboardHideButton(parent: HTMLElement, label: string, icon: (el
   b.addEventListener('click', e => { e.preventDefault(); hideKeyboard(b.ownerDocument); });
   return b;
 }
+
+// 螢幕鍵盤的提示（手機、平板的鍵盤照這些屬性決定行為；桌機沒有影響）：
+// plain：不自動大寫、不自動修正、不檢查拼字，給程式碼、LaTeX、色碼、網址、搜尋字這類「打什麼就是什麼」的欄位；
+// mode：要出現哪一種鍵盤（numeric 數字、decimal 有小數點、url 有 / 與 .com、search）；
+// enter：右下角那顆鍵顯示的字（search 搜尋、done 完成、go 前往、next 下一個）
+export interface KeyboardHints { plain?: boolean; mode?: 'numeric' | 'decimal' | 'url' | 'search' | 'text'; enter?: 'search' | 'done' | 'go' | 'next' | 'enter'; }
+export function keyboardHints<T extends HTMLElement>(e: T, h: KeyboardHints): T {
+  if (h.plain) {
+    e.setAttribute('autocapitalize', 'off');
+    e.setAttribute('autocorrect', 'off');
+    e.setAttribute('autocomplete', 'off');
+    e.spellcheck = false;
+  }
+  if (h.mode) e.setAttribute('inputmode', h.mode);
+  if (h.enter) e.setAttribute('enterkeyhint', h.enter);
+  return e;
+}

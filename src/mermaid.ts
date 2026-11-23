@@ -4,7 +4,7 @@
 // opts: { src, existing, mode: 'visual'|'code', render(src, el) → { unload(), ready? }, validate(src) → Promise<錯誤訊息|null> }
 import { Notice, setIcon } from 'obsidian';
 import { t, key } from './i18n.js';
-import { keepFocus } from './dom.js';
+import { keepFocus, keyboardHints } from './dom.js';
 import { buttonBar } from './dialogs.js';
 import { EditingModal } from './confirmclose.js';
 import { DIAGRAM_KINDS, DIAGRAM_REASONS, COMMON_OPTS, editableDiagram, generateDiagram, detectKind, textSlots, findSlot, setValue, restoreName, dropRefs, squash, sameSlot, slotNth, rowSlot } from './diagrams.js';
@@ -235,7 +235,7 @@ export class MermaidModal extends EditingModal {
     const left = body.createDiv('wm-mmd-edit wm-eq-card');
     this.visualPane = left.createDiv('wm-mmd-visual');
     this.codePane = left.createDiv('wm-mmd-code');
-    this.ta = this.codePane.createEl('textarea', { cls: 'wm-mmd-input' });
+    this.ta = keyboardHints(this.codePane.createEl('textarea', { cls: 'wm-mmd-input' }), { plain: true });
     this.ta.spellcheck = false;
     this.ta.placeholder = t('在這裡寫 Mermaid 程式碼，例如：') + '\n' + FREE_EXAMPLE;
     this.ta.value = this.src;
@@ -600,7 +600,7 @@ export class MermaidModal extends EditingModal {
       const fill = () => this.fillList(list, box, more, count);
       if (rows.length > FILTER_MIN) {
         // 列很多：可以打字篩選（只重畫這個清單，游標留在篩選框裡）
-        const filter = title.createEl('input', { type: 'search', cls: 'wm-mmd-filter' });
+        const filter = keyboardHints(title.createEl('input', { type: 'search', cls: 'wm-mmd-filter' }), { plain: true, enter: 'search' });
         filter.placeholder = t('篩選…');
         filter.setAttribute('aria-label', t('篩選這個清單'));
         filter.value = view.filter;
