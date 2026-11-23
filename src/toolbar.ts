@@ -594,12 +594,22 @@ export class Toolbar {
     const v = this.view;
     if (!v) return;
     for (let i = 0; i < Math.abs(n); i++) {
-      const c = v.coordsAtPos(v.state.selection.head);
+      const head = v.state.selection.head;
+      const c = v.coordsAtPos(head);
       const h = Math.max(8, c.bottom - c.top);
-      const hit = v.posAtCoords({ left: c.left, top: n < 0 ? c.top - h / 2 : c.bottom + h / 2 });
-      if (!hit || hit.pos === v.state.selection.head) return;
-      const sel = Selection.near(v.state.doc.resolve(hit.pos), n < 0 ? -1 : 1);
-      v.dispatch(v.state.tr.setSelection(TextSelection.create(v.state.doc, sel.head)).scrollIntoView());
+      // 上一行、下一行不一定緊貼著：段落之間有間距、表格儲存格有內距，只往外探半行會落在空白裡、查回來還是原來的位置，
+      // 游標就卡住。一次多探半行，直到找到畫面上真的在另一行的位置（最多探六行的距離）
+      let to = -1;
+      for (let k = 1; k <= 12 && to < 0; k++) {
+        const hit = v.posAtCoords({ left: c.left, top: n < 0 ? c.top - h * k / 2 : c.bottom + h * k / 2 });
+        if (!hit) continue;
+        const near = Selection.near(v.state.doc.resolve(hit.pos), n < 0 ? -1 : 1).head;
+        if (near === head) continue;
+        const at = v.coordsAtPos(near);
+        if (n < 0 ? at.bottom <= c.top + 1 : at.top >= c.bottom - 1) to = near;
+      }
+      if (to < 0) return;
+      v.dispatch(v.state.tr.setSelection(TextSelection.create(v.state.doc, to)).scrollIntoView());
     }
   }
 
