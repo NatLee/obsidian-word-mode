@@ -136,6 +136,25 @@ export function isAllSelected(state: EditorState): boolean {
   const a = Selection.atStart(state.doc); const b = Selection.atEnd(state.doc);
   return s.from <= a.from && s.to >= b.to;
 }
+// 游標往前（n < 0）或往後（n > 0）移動 |n| 個位置，一次一步、每一步都落在可以放游標的地方（跨過區塊邊界、表格的格線），
+// 到文件開頭或結尾就停。手機在功能區的分頁選單按鈕上拖曳時用（toolbar.ts 的 caretPad）
+export function moveCaretBy(n: number): Command {
+  return (state, dispatch) => {
+    const dir = n < 0 ? -1 : 1;
+    let head = state.selection.head;
+    for (let i = 0; i < Math.abs(n); i++) {
+      const at = head + dir;
+      if (at < 0 || at > state.doc.content.size) break;
+      const next = Selection.findFrom(state.doc.resolve(at), dir, true);
+      if (!next || next.head === head) break;
+      head = next.head;
+    }
+    if (head === state.selection.head && state.selection.empty) return false;
+    if (dispatch) dispatch(state.tr.setSelection(TextSelection.create(state.doc, head)).scrollIntoView());
+    return true;
+  };
+}
+
 export function collapseSelection(state: EditorState, dispatch?: Dispatch): boolean {
   if (state.selection.empty) return false;
   if (dispatch) dispatch(state.tr.setSelection(Selection.near(state.doc.resolve(state.selection.from))));

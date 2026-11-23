@@ -1977,5 +1977,11 @@ mark.wm-set-find-hl { padding: 0 1px; border-radius: 3px; background: hsla(var(-
 /* 手機沒有實體鍵盤，樣式清單的快速鍵提示不用顯示 */
 .wm-popup.is-sheet .wm-style-key { display: none; }
 
+/* ===== 手機：在分頁選單按鈕上拖曳移動游標（toolbar.ts 的 caretPad）=====
+   按鈕自己處理拖曳，不讓瀏覽器拿去捲動按鈕列；拖曳中換成強調色，看得出現在是在移動游標 */
+.wm-mobile .wm-toolbar button.wm-tab-switch { touch-action: none; }
+.wm-toolbar button.wm-tab-switch.is-caret-pad { background: var(--interactive-accent); color: var(--text-on-accent); }
+.wm-toolbar button.wm-tab-switch.is-caret-pad .wm-tab-switch-arrow { color: var(--text-on-accent); }
+
 /* 手機的編輯區：點一下不用等 iOS 判斷「是不是要點兩下放大」（約 200ms），游標馬上出現；兩指縮放、捲動照常 */
 .wm-mobile .wm-editor { touch-action: manipulation; }
