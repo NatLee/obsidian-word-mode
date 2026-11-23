@@ -1188,6 +1188,19 @@ await fresh('---\ntags:\n  - 會議\n  - 專案\ndate: 2026-11-16\ndone: false\n
   delete document.documentElement.clientHeight;
   vv.height = 768;
   kb.measure();
+  // 實機（iPhone）：visualViewport 不變，鍵盤高度只有 --keyboard-height；動畫期間 app 還是整個畫面高（檢視下緣 768），
+  // 動畫結束 Obsidian 才把 app 縮到鍵盤上方（下緣 468）。鍵盤高度沒變，檢視也要跟著重算，不能留著動畫前的 300
+  document.documentElement.style.setProperty('--keyboard-height', '300px');
+  el.getBoundingClientRect = () => ({ left: 0, top: 100, right: 390, bottom: 768, width: 390, height: 668 });
+  view.kbInset = -1;
+  kb.measure();
+  view.syncKeyboard();
+  assert(inset() === '300px', '鍵盤升起的動畫期間 app 還沒縮：檢視先留一整個鍵盤的高度，得到 ' + inset());
+  el.getBoundingClientRect = () => ({ left: 0, top: 100, right: 390, bottom: 468, width: 390, height: 368 });
+  kb.measure();
+  assert(cover() === '300px' && inset() === '0px', 'Obsidian 把 app 縮到鍵盤上方之後：鍵盤高度沒變，檢視也重算成不用留，得到 ' + inset());
+  el.getBoundingClientRect = () => ({ left: 0, top: 100, right: 390, bottom: 520, width: 390, height: 420 });
+  kb.measure();
   // 鍵盤事件帶的高度比另外兩個大：取最大的
   window.dispatchEvent(Object.assign(new Event('keyboardWillShow'), { keyboardHeight: 340 }));
   kb.measure();
