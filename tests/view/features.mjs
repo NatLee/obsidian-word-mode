@@ -1351,8 +1351,15 @@ await fresh('---\ntags:\n  - 會議\n  - 專案\ndate: 2026-11-16\ndone: false\n
       touch(u.dom, 'touchstart', [p0]); touch(u.dom, 'touchmove', [[p0[0], p0[1] - 40]]); touch(u.dom, 'touchmove', [[p0[0], p0[1] - 2]]);
       const e2 = touch(u.dom, 'touchend', [[p0[0], p0[1] - 2]]);
       assert(!e2.defaultPrevented && hits.join() === 'redo', '滑上去又滑回來：取消，不執行另一個功能');
+      // 收起鍵盤：行動裝置的功能區有這顆按鈕（鍵盤開著才顯示，樣式表管），按下去把焦點從編輯區拿掉
+      const hide = host.querySelector(':scope > button.wm-kb-hide');
+      pm.focus();
+      assert(hide && hide.getAttribute('aria-label') === B.I18N.t('收起鍵盤') && pm.hasFocus(), '行動裝置的功能區有「收起鍵盤」按鈕');
+      hide.click();
+      assert(!pm.hasFocus(), '按「收起鍵盤」：焦點離開編輯區（螢幕鍵盤跟著收起來）');
       const desk = new B.RibbonShell(host, { side: 'word', settings: {}, isMobile: false, icon: () => {}, openMenu: () => {}, pickTab: () => {} });
       assert(!desk.button(desk.groups.undo, B.ACTIONS.undo, () => {}).dom.classList.contains('has-swipe'), '桌機的功能區沒有往上滑');
+      assert(host.querySelectorAll('button.wm-kb-hide').length === 1, '桌機的功能區沒有「收起鍵盤」按鈕');
       host.remove();
     }
   }

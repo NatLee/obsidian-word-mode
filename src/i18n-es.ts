@@ -181,6 +181,7 @@ export default {
  "淺藍": "Azul claro",
  "常用": "Inicio",
  "中文標點": "Puntuación CJK",
+ "收起鍵盤": "Ocultar el teclado",
  "成對（包住選取的文字）": "Pares (envolver la selección)",
  "箭頭": "Flechas",
  "數學": "Matemáticas",

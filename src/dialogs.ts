@@ -4,7 +4,8 @@ import { countWeird, cleanWeird, WEIRD_KINDS } from './marks.js';
 import { MathField } from './mathvisual.js';
 import { saveTemplate, uniqueName } from './templates.js';
 import type { SavedTemplate } from './templates.js';
-import { keepFocus } from './dom.js';
+import { keepFocus, keyboardHideButton } from './dom.js';
+import { iconOr } from './icons.js';
 import { buildDemo } from './hints.js';
 import { t, key, isMac } from './i18n.js';
 import type { App, TFile } from 'obsidian';
@@ -74,7 +75,10 @@ export type WordCountRow = [label: string, all: string, sel: string | null];
 // 對話框最下面的按鈕列。手機的對話框內容是捲動區（Obsidian 的 .modal-content）：按鈕列放在它外面，
 // 跟 Obsidian 自己的對話框一樣固定在最下面，表單再長也不用捲到底才按得到
 export function buttonBar(modal: Modal): HTMLDivElement {
-  return (Platform.isPhone ? modal.modalEl : modal.contentEl).createDiv('modal-button-container');
+  const bar = (Platform.isPhone ? modal.modalEl : modal.contentEl).createDiv('modal-button-container');
+  // 手機、平板：鍵盤開著時按鈕列最前面多一顆「收起鍵盤」
+  if (Platform.isMobile) keyboardHideButton(bar, t('收起鍵盤'), iconOr);
+  return bar;
 }
 
 export class SourceModal extends EditingModal {

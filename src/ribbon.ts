@@ -3,7 +3,7 @@
 // 這裡只管「長什麼樣子」；按下去做什麼、何時停用，由兩條功能區各自決定
 import { t, key } from './i18n.js';
 import { attachHint, hideHint } from './hints.js';
-import { el, keepFocus } from './dom.js';
+import { el, keepFocus, keyboardHideButton } from './dom.js';
 import type { DemoName } from './hints.js';
 import type { IconFn } from './icons.js';
 import type { I18nKey } from './i18n.js';
@@ -322,7 +322,12 @@ export class RibbonShell {
     this.groups = {};
     this.seen = new Set();
     this.byTitle = o.isMobile ? new Map() : null;
-    if (o.isMobile) this.swipeKeys();
+    if (o.isMobile) {
+      this.swipeKeys();
+      // 收起鍵盤：放在功能區最外層、疊在按鈕列的結尾（樣式表用 absolute），不跟著按鈕左右捲。
+      // 放在按鈕列裡用 sticky 的話，按鈕列一捲它就跟著跑（面板本身比按鈕列寬，它的原位不在內容的最後面）
+      keyboardHideButton(root, t('收起鍵盤'), this.icon);
+    }
     if (this.layout === 'tabs') {
       const menuTabs = this.tabStyle === 'menu';
       // 收成選單：分頁列不佔一列，改成按鈕列最前面的一個按鈕，按下去選分頁。

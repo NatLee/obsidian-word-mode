@@ -90,3 +90,20 @@ export function whenVisible(target: Element, run: () => void, root = '.wm-scroll
   }, 0);
   return () => { done = true; window.clearTimeout(timer); if (io) io.disconnect(); };
 }
+
+// 收起螢幕鍵盤：把焦點從正在打字的地方拿掉（iOS、Android 沒有別的辦法從網頁裡收鍵盤）
+export function hideKeyboard(doc: Document): void {
+  const a = doc.activeElement as HTMLElement | null;
+  if (a && typeof a.blur === 'function') a.blur();
+}
+
+// 「收起鍵盤」按鈕（手機、平板）：平常藏著，螢幕鍵盤開著時（body 的 wm-kb-up）才顯示。
+// iPhone 的鍵盤沒有收起來的鍵，Obsidian 也沒有，鍵盤一開就只能點別的地方碰運氣
+export function keyboardHideButton(parent: HTMLElement, label: string, icon: (el: HTMLElement, name: string, fallback: string) => void): HTMLButtonElement {
+  const b = el('button', 'wm-kb-hide', parent);
+  b.type = 'button';
+  b.setAttribute('aria-label', label);
+  icon(b, 'chevrons-down', '⌄');
+  b.addEventListener('click', e => { e.preventDefault(); hideKeyboard(b.ownerDocument); });
+  return b;
+}

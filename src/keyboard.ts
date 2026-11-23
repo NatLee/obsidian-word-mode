@@ -91,6 +91,20 @@ export class KeyboardWatch {
     const cover = typing ? Math.max(gap, Math.round(this.cssHeight()), this.shown ? Math.round(this.eventHeight) : 0) : 0;
     // 外接鍵盤時也有焦點，但只會有一條很矮的輔助列：夠高才算螢幕鍵盤開著
     this.apply(cover, typing && (cover > 80 || this.shown === true));
+    this.unshove();
+  }
+
+  // 對話框裡的欄位拿到焦點時，iOS 為了露出它會把整個畫面往上推（一般的 WKWebView 會；推的量可以到整個鍵盤的高度），
+  // 對話框跟著被推出畫面、只剩最下面的按鈕。對話框自己已經縮到鍵盤上方了（樣式表用 --wm-kb-cover），不需要推：
+  // 推回原位，再讓欄位在對話框裡捲到看得到的地方
+  private unshove(): void {
+    const { win } = this;
+    const a = win.document.activeElement;
+    const vv = win.visualViewport;
+    if (!this.open || !a || !a.closest('.modal')) return;
+    if (!(vv && vv.offsetTop > 0) && !(win.scrollY > 0)) return;
+    win.scrollTo(0, 0);
+    win.requestAnimationFrame(() => { if (a.isConnected) a.scrollIntoView({ block: 'center' }); });
   }
 
   private apply(cover: number, open: boolean): void {
@@ -109,7 +123,7 @@ export class KeyboardWatch {
     for (const fn of Array.from(this.subs)) fn();
     // 對話框變矮之後，正在打字的欄位可能跑到看不到的地方
     const a = this.win.document.activeElement;
-    if (open && a && a.closest('.modal')) this.win.requestAnimationFrame(() => { if (a.isConnected) a.scrollIntoView({ block: 'nearest' }); });
+    if (open && a && a.closest('.modal')) this.win.requestAnimationFrame(() => { if (a.isConnected) a.scrollIntoView({ block: 'center' }); });
   }
 
   // 目前量得到的數字（一行）
