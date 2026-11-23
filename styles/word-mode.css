@@ -2018,3 +2018,38 @@ mark.wm-set-find-hl { padding: 0 1px; border-radius: 3px; background: hsla(var(-
 .wm-loupe.is-below .wm-loupe-tail { bottom: auto; top: -6px; }
 .wm-loupe.is-jump, .wm-loupe.is-jump .wm-loupe-body, .wm-loupe.is-jump .wm-loupe-caret, .wm-loupe.is-jump .wm-loupe-tail { transition: none; }
 @keyframes wm-loupe-in { from { transform: scale(.86); opacity: 0; } }
+
+/* 「收起鍵盤」按鈕（dom.ts 的 keyboardHideButton）：螢幕鍵盤開著才顯示。
+   功能區上疊在按鈕列的結尾，不跟著其他按鈕左右捲；左邊一條細線與陰影，看得出底下還有按鈕 */
+button.wm-kb-hide { display: none; }
+.wm-kb-up .wm-ribbon { position: relative; }
+.wm-kb-up .wm-ribbon > button.wm-kb-hide { display: inline-flex; align-items: center; justify-content: center; position: absolute; inset-inline-end: 0; bottom: 0; width: 46px; height: 46px; padding: 0; border: 0; border-radius: 0; border-inline-start: 1px solid var(--background-modifier-border); background: var(--background-primary); box-shadow: -6px 0 8px -6px rgba(0, 0, 0, .18); color: var(--text-muted); z-index: 2; }
+/* 功能區在下方時按鈕列在上面那一列；打字時精簡成一列的話就整個高度 */
+.wm-kb-up .wm-toolbar-bottom .wm-ribbon > button.wm-kb-hide { bottom: auto; top: 0; }
+.wm-kb-up .wm-kb-compact .wm-ribbon > button.wm-kb-hide { top: 0; bottom: 0; height: auto; }
+.wm-kb-up .wm-ribbon > button.wm-kb-hide svg { width: 20px; height: 20px; }
+/* 按鈕列的結尾留出這顆按鈕的寬度，最後幾顆按鈕才捲得出來 */
+.wm-kb-up .wm-ribbon > .wm-toolbar { padding-inline-end: 52px; }
+/* 對話框的按鈕列：一顆小的圖示按鈕，不跟取消、確定平分寬度 */
+.wm-kb-up .modal-button-container > button.wm-kb-hide { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 44px; width: 44px; min-width: 44px; padding: 0; color: var(--text-muted); }
+.is-phone.wm-kb-up .modal:is(.wm-eq-modal, .wm-mmd-modal) > .modal-button-container button.wm-kb-hide { flex: 0 0 44px; }
+
+/* ===== 手機的方程式、圖表編輯器：再緊一點 =====
+   「文字中／獨立一行」與「視覺化／LaTeX」排在同一列（原本各佔一列），字與內距縮一點；放不下時這一列可以左右捲 */
+.is-phone .wm-eq-top { flex-wrap: nowrap; gap: 6px; overflow-x: auto; --scrollbar-native-width: none; }
+.is-phone .wm-eq-top::-webkit-scrollbar { display: none; }
+.is-phone .wm-eq-top .wm-seg { flex: 0 0 auto; }
+.is-phone .wm-eq-top .wm-seg button { padding: 0 6px; font-size: 12.5px; white-space: nowrap; }
+/* 鍵盤開著時畫面只剩上半：標題列、模式切換先收起來（收起鍵盤就回來），把位置留給正在編輯的式子、符號與預覽 */
+.is-phone.wm-kb-up .modal:is(.wm-eq-modal, .wm-mmd-modal) > .modal-header,
+.is-phone.wm-kb-up .modal:is(.wm-eq-modal, .wm-mmd-modal) > .modal-header-button,
+.is-phone.wm-kb-up .modal:is(.wm-eq-modal, .wm-mmd-modal) > .modal-close-button,
+.is-phone.wm-kb-up .wm-eq-modal .wm-eq-top,
+.is-phone.wm-kb-up .wm-mmd-modal .wm-mmd-kinds { display: none; }
+.is-phone.wm-kb-up .modal:is(.wm-eq-modal, .wm-mmd-modal) > .modal-content { padding-top: 10px; }
+/* 符號改成一列左右滑（原本往下排好幾列，鍵盤一開就看不到編輯中的式子） */
+.is-phone.wm-kb-up .wm-eq-palbox .wm-eq-items { flex-wrap: nowrap; overflow-x: auto; --scrollbar-native-width: none; -webkit-overflow-scrolling: touch; }
+.is-phone.wm-kb-up .wm-eq-palbox .wm-eq-items::-webkit-scrollbar { display: none; }
+.is-phone.wm-kb-up .wm-eq-palbox .wm-eq-items > * { flex: 0 0 auto; }
+.is-phone.wm-kb-up .wm-eq > .wm-eq-card { padding-block: 6px 8px; }
+.is-phone.wm-kb-up .wm-eq-card .wm-eq-preview { min-height: 36px; }

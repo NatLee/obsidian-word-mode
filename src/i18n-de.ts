@@ -181,6 +181,7 @@ export default {
  "淺藍": "Hellblau",
  "常用": "Start",
  "中文標點": "CJK-Satzzeichen",
+ "收起鍵盤": "Tastatur ausblenden",
  "成對（包住選取的文字）": "Paare (Auswahl umschließen)",
  "箭頭": "Pfeile",
  "數學": "Mathematik",
