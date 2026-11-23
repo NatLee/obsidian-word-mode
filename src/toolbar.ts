@@ -130,6 +130,12 @@ const SYMBOLS: readonly (readonly [group: I18nKey, chars: string])[] = [
   ['圈號數字', '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮'],
 ];
 
+// 成對的括號與引號：按下去把選取的文字包起來（沒有選取時插入一對，游標停在中間）
+const PAIRS: readonly (readonly [open: string, close: string])[] = [
+  ['「', '」'], ['『', '』'], ['（', '）'], ['《', '》'], ['〈', '〉'], ['【', '】'], ['“', '”'], ['‘', '’'],
+  ['(', ')'], ['[', ']'], ['{', '}'], ['"', '"'],
+];
+
 const DATE_FORMATS: readonly string[] = ['YYYY-MM-DD', 'YYYY/MM/DD', 'YYYY年M月D日', 'YYYY-MM-DD HH:mm', 'HH:mm', 'YYYY-MM-DD dddd'];
 
 const CASE_MENU: readonly (readonly [kind: CaseKind, label: I18nKey])[] = [['upper', '全部大寫'], ['lower', '全部小寫'], ['title', '每個英文單字首字大寫'], ['sentence', '句首大寫'], ['half', '轉成半形'], ['full', '轉成全形']];
@@ -726,6 +732,17 @@ export class Toolbar {
   openSymbolPopup(owner: HTMLElement): void {
     this.openPopup(owner, p => {
       p.classList.add('wm-symbol-popup');
+      // 成對的括號：跨段落選取時包不起來，整組不顯示
+      if (this.view && C.wrapPair('(', ')')(this.view.state)) {
+        el('div', 'wm-popup-title', p, t('成對（包住選取的文字）'));
+        const grid = el('div', 'wm-symbol-grid wm-pair-grid', p);
+        for (const [open, close] of PAIRS) {
+          const b = el('button', 'wm-symbol wm-pair', grid, open + close);
+          b.type = 'button';
+          keepFocus(b);
+          b.addEventListener('click', () => { this.closePopup(); this.run(C.wrapPair(open, close)); });
+        }
+      }
       for (const [group, chars] of SYMBOLS) {
         el('div', 'wm-popup-title', p, t(group));
         const grid = el('div', 'wm-symbol-grid', p);

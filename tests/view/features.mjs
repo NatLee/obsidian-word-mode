@@ -1272,6 +1272,87 @@ await fresh('---\ntags:\n  - 會議\n  - 專案\ndate: 2026-11-16\ndone: false\n
     pad.remove();
     view.toolbar.padMoved = false;
   }
+  // 手機的觸控手勢（touch.ts）、成對的括號、往上滑的按鍵、表格的最小寬度
+  {
+    const pm = view.pm;
+    const run = cmd => cmd(pm.state, tr => pm.dispatch(tr));
+    await view.loadFile(view.file, '第一段有幾個字\n\n| 甲 | 乙 |\n| --- | --- |\n| 一 | 二 |\n\n最後一段');
+    // 成對的括號：沒有選取時插入一對、游標在中間；有選取時包起來、選取留在裡面；跨段落不做
+    pm.dispatch(pm.state.tr.setSelection(B.TextSelection.create(pm.state.doc, 3)));
+    assert(run(B.C.wrapPair('「', '」')) && pm.state.doc.firstChild.textContent === '第一「」段有幾個字' && pm.state.selection.empty && pm.state.selection.head === 4, 'wrapPair：沒有選取時插入一對，游標停在中間');
+    pm.dispatch(pm.state.tr.setSelection(B.TextSelection.create(pm.state.doc, 6, 8)));
+    assert(run(B.C.wrapPair('(', ')')) && pm.state.doc.firstChild.textContent === '第一「」段(有幾)個字' && pm.state.selection.from === 7 && pm.state.selection.to === 9, 'wrapPair：把選取的文字包起來，選取範圍留在括號裡');
+    pm.dispatch(pm.state.tr.setSelection(B.TextSelection.create(pm.state.doc, 2, pm.state.doc.content.size - 2)));
+    assert(!B.C.wrapPair('(', ')')(pm.state), 'wrapPair：選取跨了段落就不做');
+    // 表格：prosemirror-tables 寫在表格上的 min-width 搬到 --wm-min-width，樣式表才決定得了
+    const table = pm.dom.querySelector('table');
+    assert(table.style.minWidth === '' && table.style.getPropertyValue('--wm-min-width') === '180px', '表格的最小寬度（每欄 90px）改放在 --wm-min-width，不直接寫在 min-width');
+    // 觸控手勢裝在另一個容器上測（這裡的檢視不是行動裝置，沒有安裝）
+    B.installTouch(view.page, () => view.pm);
+    const touch = (target, type, pts, changed) => {
+      const list = pts.map(([x, y]) => ({ clientX: x, clientY: y }));
+      const e = Object.assign(new Event(type, { bubbles: true, cancelable: true }), { touches: type === 'touchend' ? [] : list, changedTouches: changed || list });
+      target.dispatchEvent(e);
+      return e;
+    };
+    const cell = pm.dom.querySelectorAll('td')[1];
+    const cr = cell.getBoundingClientRect();
+    const at = [cr.left + cr.width / 2, cr.top + cr.height / 2];
+    // jsdom 沒有版面，posAtCoords 查不到位置：這裡直接指定手指點到的文件位置
+    let tapPos = 0;
+    pm.state.doc.descendants((n, pos) => { if (n.isText && n.text === '二') tapPos = pos + 1; });
+    const realPosAt = pm.posAtCoords;
+    pm.posAtCoords = () => ({ pos: tapPos, inside: -1 });
+    pm.dom.blur();
+    touch(cell, 'touchstart', [at]);
+    assert(!touch(cell, 'touchend', [at]).defaultPrevented, '編輯區沒有焦點：點儲存格交給系統（要靠它叫出鍵盤）');
+    pm.focus();
+    touch(cell, 'touchstart', [at]);
+    const end = touch(cell, 'touchend', [at]);
+    assert(end.defaultPrevented && pm.state.selection.empty && pm.state.selection.$head.parent.textContent === '二', '編輯中點儲存格：自己放游標並擋掉系統的處理（不會跳出剪下／貼上選單）');
+    await sleep(400);
+    touch(cell, 'touchstart', [at]); touch(cell, 'touchend', [at]);
+    assert(pm.state.selection.empty, '隔了一下再點同一格：還是只放游標');
+    touch(cell, 'touchstart', [at]); touch(cell, 'touchend', [at]);
+    assert(!pm.state.selection.empty && pm.state.doc.textBetween(pm.state.selection.from, pm.state.selection.to) === '二', '連點兩下儲存格：選取整格的文字');
+    touch(cell, 'touchstart', [at]); touch(cell, 'touchmove', [[at[0], at[1] + 40]]);
+    assert(!touch(cell, 'touchend', [[at[0], at[1] + 40]]).defaultPrevented, '手指移動過（捲動）：不算點擊，不接手');
+    const para = pm.dom.querySelector('p');
+    const pr = para.getBoundingClientRect();
+    touch(para, 'touchstart', [[pr.left + 20, pr.top + 8]]);
+    assert(!touch(para, 'touchend', [[pr.left + 20, pr.top + 8]]).defaultPrevented, '點一般段落：不接手（游標交給系統放）');
+    // 兩指點一下：選取整段
+    tapPos = 3;
+    const two = [[pr.left + 20, pr.top + 8], [pr.left + 80, pr.top + 10]];
+    touch(para, 'touchstart', two);
+    const up = touch(para, 'touchend', two);
+    assert(up.defaultPrevented && pm.state.selection.from === 1 && pm.state.doc.textBetween(pm.state.selection.from, pm.state.selection.to) === pm.state.doc.firstChild.textContent, '兩指點一下：選取那一整段');
+    pm.posAtCoords = realPosAt;
+    // 往上滑的按鍵：行動裝置的功能區才有；點一下是原本的功能，往上滑再放開是另一個
+    {
+      const host = document.body.appendChild(document.createElement('div'));
+      const shell = new B.RibbonShell(host, { side: 'word', settings: {}, isMobile: true, icon: () => {}, openMenu: () => {}, pickTab: () => {} });
+      const hits = [];
+      const u = shell.button(shell.groups.undo, B.ACTIONS.undo, () => hits.push('undo'));
+      const r = shell.button(shell.groups.undo, B.ACTIONS.redo, () => hits.push('redo'));
+      assert(u.dom.classList.contains('has-swipe') && r.dom.classList.contains('has-swipe'), '行動裝置：復原、取消復原標成可以往上滑');
+      const b = u.dom.getBoundingClientRect();
+      const p0 = [b.left + 5, b.top + 5];
+      touch(u.dom, 'touchstart', [p0]); touch(u.dom, 'touchmove', [[p0[0], p0[1] - 10]]);
+      assert(!document.querySelector('.wm-swipe-tip'), '只滑了一點點：還不算');
+      touch(u.dom, 'touchmove', [[p0[0] + 3, p0[1] - 40]]);
+      const tip = document.querySelector('.wm-swipe-tip');
+      assert(tip && tip.textContent === B.I18N.t('取消復原') && u.dom.classList.contains('is-swiped'), '往上滑過門檻：按鈕上方顯示另一個功能的名稱');
+      const e1 = touch(u.dom, 'touchend', [[p0[0] + 3, p0[1] - 40]]);
+      assert(e1.defaultPrevented && hits.join() === 'redo' && !document.querySelector('.wm-swipe-tip'), '放開：執行另一個功能（取消復原），原本的點擊被擋掉');
+      touch(u.dom, 'touchstart', [p0]); touch(u.dom, 'touchmove', [[p0[0], p0[1] - 40]]); touch(u.dom, 'touchmove', [[p0[0], p0[1] - 2]]);
+      const e2 = touch(u.dom, 'touchend', [[p0[0], p0[1] - 2]]);
+      assert(!e2.defaultPrevented && hits.join() === 'redo', '滑上去又滑回來：取消，不執行另一個功能');
+      const desk = new B.RibbonShell(host, { side: 'word', settings: {}, isMobile: false, icon: () => {}, openMenu: () => {}, pickTab: () => {} });
+      assert(!desk.button(desk.groups.undo, B.ACTIONS.undo, () => {}).dom.classList.contains('has-swipe'), '桌機的功能區沒有往上滑');
+      host.remove();
+    }
+  }
   // 彈出選單要放在看得到的範圍裡：按鈕在鍵盤正上方時往上開
   input.focus();
   kb.measure();

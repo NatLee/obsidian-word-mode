@@ -50,13 +50,15 @@ export class KeyboardWatch {
       this.note(e.type);
       soon();
     };
-    if (vv) { vv.addEventListener('resize', soon); vv.addEventListener('scroll', soon); }
+    // visualViewport 變了就先量一次再排後面幾次：等計時器的話，畫面會先照舊的數字畫一格（功能區閃一下）
+    const now = () => { this.measure(); soon(); };
+    if (vv) { vv.addEventListener('resize', now); vv.addEventListener('scroll', now); }
     for (const name of EVENTS) win.addEventListener(name, onKeyboard);
     win.document.addEventListener('focusin', soon);
     win.document.addEventListener('focusout', soon);
     return () => {
       this.timers.forEach(id => win.clearTimeout(id));
-      if (vv) { vv.removeEventListener('resize', soon); vv.removeEventListener('scroll', soon); }
+      if (vv) { vv.removeEventListener('resize', now); vv.removeEventListener('scroll', now); }
       for (const name of EVENTS) win.removeEventListener(name, onKeyboard);
       win.document.removeEventListener('focusin', soon);
       win.document.removeEventListener('focusout', soon);

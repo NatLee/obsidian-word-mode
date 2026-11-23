@@ -1189,6 +1189,19 @@ class WordTableView extends TableView {
       this.view.focus();
     });
     this.dom.appendChild(scroll);
+    this.looseMinWidth();
+  }
+  update(node: PMNode): boolean {
+    const ok = super.update(node);
+    if (ok) this.looseMinWidth();
+    return ok;
+  }
+  // prosemirror-tables 把「每欄至少 90px」的總寬直接寫在表格的 min-width 上，樣式表蓋不掉：手機上四、五欄就比頁面寬，
+  // 引言區塊裡更窄、三四欄就要左右捲才看得到右邊。把這個數字搬到 --wm-min-width，讓樣式表決定要不要照它
+  // （手機上最多只撐到跟容器一樣寬，欄位照內容分配，見樣式表）
+  looseMinWidth(): void {
+    const s = this.table.style;
+    if (s.minWidth) { s.setProperty('--wm-min-width', s.minWidth); s.minWidth = ''; } else if (s.width) s.removeProperty('--wm-min-width');
   }
   stopEvent(e: Event): boolean { return this.tools.contains(e.target as Node | null); }
   ignoreMutation(m: ViewMutationRecord): boolean {
