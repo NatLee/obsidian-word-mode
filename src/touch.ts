@@ -35,9 +35,13 @@ export function cellTapPos(view: EditorView, target: EventTarget | null, x: numb
 //    iOS 放在後面）、游標到了表格與段落之間的縫隙。所以拖曳中不讓 ProseMirror 收到選取的變動，iOS 自己畫游標與放大鏡；
 //    放開的那一刻再照 iOS 最後放的位置設定編輯器的選取（落在不能打字的地方就找最近的文字）。
 //
-//    只有「真的在長按拖曳」才這樣做，條件要嚴：一般的點擊絕對不能走到這裡（1.31.0 在實機上點一般的行叫不出游標就是
-//    條件太鬆）。要同時符合：按下去時編輯區已經有焦點、按住超過 HOLD_MS、手指移動過、最近還有收到觸控事件
-//    （放開的事件收不到時不會一直擋著）。
+//    拖曳選取範圍時也一樣：範圍的一端拖到兩個區塊之間的縫隙，ProseMirror 就把那一端改回段落裡，同樣互搶
+//    （1.31.4 的實機紀錄：鍵盤收著時長按會選取一個詞，接著拖曳就是在拉範圍）。
+//
+//    條件要嚴，一般的點擊絕對不能走到這裡（1.31.0 在實機上點一般的行叫不出游標就是條件太鬆）：手指是從編輯區裡按下的、
+//    移動過、最近還有收到觸控事件（放開的事件收不到時不會一直擋著），而且是「按住超過 HOLD_MS 才開始拖」（長按拖曳），
+//    或「按下時已經選取了一段文字」（拉選取範圍）。後者也包含選取中捲動畫面：捲動不會改選取，擋著也沒有影響。
+//    不再要求按下時編輯區已有焦點：鍵盤收著時長按，焦點是在按住的途中才拿到的。
 const HOLD_MS = 450;
 const DRAG_MOVE = 8;
 const STALE_MS = 2500;
@@ -86,8 +90,8 @@ function tapInBlock(view: EditorView, x: number, y: number, before: Selection): 
 
 // 回傳拆掉的函式（selectionchange 掛在 window 上，檢視關掉時要拿掉）
 export function installTouch(host: HTMLElement, getView: () => EditorView | null): () => void {
-  // 這一次觸控：按下的時間與位置、按下時編輯區有沒有焦點、有沒有移動過、最後一次收到事件的時間
-  let down = false; let focused = false; let downAt = 0; let moved = false; let seen = 0;
+  // 這一次觸控：按下的時間與位置、是不是在編輯區裡按下的、按下時有沒有選取範圍、有沒有移動過、最後一次收到事件的時間
+  let down = false; let inEditor = false; let ranged = false; let downAt = 0; let moved = false; let seen = 0;
   let startX = 0; let startY = 0;
   // 這次觸控變成長按拖曳了沒有；拖曳中擋掉了幾次選取的變動（紀錄用）
   let drag = false; let held = 0;
@@ -112,7 +116,9 @@ export function installTouch(host: HTMLElement, getView: () => EditorView | null
     const view = getView();
     const t = e.touches[0];
     down = e.touches.length === 1; moved = false; drag = false; held = 0; downAt = seen = Date.now();
-    focused = !!view && view.hasFocus();
+    inEditor = !!view && !!e.target && view.dom.contains(e.target as Node);
+    const s = host.ownerDocument.getSelection();
+    ranged = !!view && !!s && !s.isCollapsed && !!s.anchorNode && view.dom.contains(s.anchorNode);
     if (t) { startX = t.clientX; startY = t.clientY; }
   }, { capture: true, passive: true });
   host.addEventListener('touchmove', e => {
@@ -120,7 +126,10 @@ export function installTouch(host: HTMLElement, getView: () => EditorView | null
     if (!t) return;
     seen = Date.now();
     if (Math.abs(t.clientX - startX) > DRAG_MOVE || Math.abs(t.clientY - startY) > DRAG_MOVE) moved = true;
-    if (!drag && down && focused && moved && seen - downAt >= HOLD_MS) { drag = true; trace('drag', 'press-and-drag: editor stops reading the selection'); }
+    if (!drag && down && inEditor && moved && (ranged || seen - downAt >= HOLD_MS)) {
+      drag = true;
+      trace('drag', (ranged ? 'drag with a range selected' : 'press-and-drag') + ': editor stops reading the selection');
+    }
   }, { capture: true, passive: true });
   const lift = (e: TouchEvent): void => {
     if (e.touches.length) return;
