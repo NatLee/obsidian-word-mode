@@ -1,4 +1,5 @@
-// 輸入時的自動完成：打 [[ 選筆記（[[筆記# 選標題）、打 # 選標籤，像 Obsidian 的編輯器
+// 輸入時的自動完成：打 [[ 選筆記（[[筆記# 選標題）、打 # 選標籤，像 Obsidian 的編輯器；
+// 在段落開頭打 / 選要插入什麼（斜線選單：標題、清單、表格、圖表…），手機上不用捲功能區找按鈕
 // ctx: { enabled(), files(query) → [{ file, label, detail }], resolve(name) → file|null, headings(file|null) → [text],
 //        tags(query) → ['#標籤'], linkNode(file|null, heading|null, embed) → 節點, icon(el, name, fallback) }
 import { Plugin, PluginKey } from 'prosemirror-state';
@@ -11,7 +12,7 @@ import type { TFile } from 'obsidian';
 
 // 游標前面正在打的 [[… 或 #…（外掛狀態）；embed 只有連結（![[…）才有
 export interface SuggestTrigger {
-  kind: 'link' | 'tag';
+  kind: 'link' | 'tag' | 'slash';
   embed?: boolean;
   query: string;
   from: number;
@@ -34,6 +35,24 @@ export interface SuggestItem {
   file?: TFile | null;
   heading?: string;
   tag?: string;
+  // 斜線選單的項目：選了之後先刪掉「/查詢」再執行
+  run?: (view: EditorView) => void;
+}
+
+// 斜線選單的一項（complete.ts 的 slashItems 產生）；keys 是另外可以用來找它的字（英文、縮寫）
+export interface SlashItem { label: string; icon: string; keys?: string; detail?: string; run: (view: EditorView) => void; }
+
+// 斜線選單裡符合查詢的項目：名稱或 keys 裡有這段字；開頭就符合的排前面
+export function matchSlash(items: SlashItem[], query: string): SlashItem[] {
+  const q = query.toLowerCase();
+  if (!q) return items;
+  const rank = (it: SlashItem): number => {
+    const label = it.label.toLowerCase();
+    const keys = (it.keys || '').toLowerCase().split(' ');
+    if (label.startsWith(q) || keys.some(k => k.startsWith(q))) return 0;
+    return label.includes(q) || keys.some(k => k.includes(q)) ? 1 : -1;
+  };
+  return items.map(it => ({ it, r: rank(it) })).filter(x => x.r >= 0).sort((a, b) => a.r - b.r).map(x => x.it);
 }
 
 // 自動完成需要的外部功能（complete.js 的 suggestContext 產生）
@@ -44,6 +63,8 @@ export interface SuggestContext {
   headings(file: TFile | null): string[];
   tags(query: string): string[];
   linkNode(file: TFile | null, heading: string | null, embed: boolean | undefined): PMNode | null;
+  // 斜線選單的項目；沒有這個函式（或設定關掉）就沒有斜線選單
+  slash?(): SlashItem[];
   icon(el: HTMLElement, name: string, fallback: string): void;
 }
 
@@ -62,6 +83,11 @@ function suggestTrigger(state: EditorState): SuggestTrigger | null {
   if (m) return { kind: 'link', embed: !!m[1], query: m[2], from: $from.pos - m[0].length, to: $from.pos };
   m = /(^|\s)#([^\s#￼]{1,60})$/.exec(before);
   if (m) return { kind: 'tag', query: m[2], from: $from.pos - m[2].length - 1, to: $from.pos };
+  // 斜線選單：只在一般段落的最前面（整段到游標為止只有「/查詢」）。句子中間的 / 是網址、日期、分數，不能跳出來
+  if ($from.parent.type.name === 'paragraph') {
+    m = /^\/([^\s/￼]{0,24})$/.exec($from.parent.textBetween(0, $from.parentOffset, null, LEAF));
+    if (m) return { kind: 'slash', query: m[1], from: $from.pos - m[0].length, to: $from.pos };
+  }
   return null;
 }
 
@@ -69,6 +95,7 @@ export function suggestPlugin(ctx: SuggestContext): Plugin<SuggestTrigger | null
   let ui: SuggestUI | null = null; // { view, box, items, index, active }
 
   const itemsFor = (active: SuggestTrigger): SuggestItem[] => {
+    if (active.kind === 'slash') return ctx.slash ? matchSlash(ctx.slash(), active.query) : [];
     if (active.kind === 'tag') {
       const q = active.query.toLowerCase();
       return ctx.tags(active.query).filter(tag => tag.toLowerCase() !== '#' + q).slice(0, 8).map(tag => ({ label: tag, icon: 'hash', tag }));
@@ -92,6 +119,14 @@ export function suggestPlugin(ctx: SuggestContext): Plugin<SuggestTrigger | null
     if (!active || !item) return;
     const state = view.state;
     let tr = state.tr;
+    if (item.run) {
+      // 先把「/查詢」刪掉（段落變回空的），再做選的那件事：對話框、選單都是從空段落開始
+      close();
+      view.dispatch(tr.delete(active.from, active.to).setMeta(suggestKey, { close: true }));
+      view.focus();
+      item.run(view);
+      return;
+    }
     if (item.tag) tr.insertText(item.tag + ' ', active.from, active.to);
     else {
       // 後面已經有 ]]（例如先打好括號再回頭填）就一併取代
@@ -107,11 +142,13 @@ export function suggestPlugin(ctx: SuggestContext): Plugin<SuggestTrigger | null
 
   const render = (view: EditorView) => {
     const active = suggestKey.getState(view.state);
-    if (!active || !ctx.enabled()) { close(); return; }
+    // 斜線選單有自己的開關（ctx.slash 在關掉時回傳空的清單），不跟著「輸入時自動完成」
+    if (!active || (active.kind !== 'slash' && !ctx.enabled())) { close(); return; }
     const items = itemsFor(active);
     if (!items.length) { close(); return; }
     if (!ui) ui = { view, box: null, items: [], index: 0 };
     if (!ui.box) { ui.box = el('div', 'wm-popup wm-suggest', view.dom.ownerDocument.body); ui.index = 0; }
+    ui.box.classList.toggle('wm-slash', active.kind === 'slash');
     ui.view = view; ui.items = items;
     if (ui.index >= items.length) ui.index = 0;
     const box = ui.box;
@@ -124,7 +161,9 @@ export function suggestPlugin(ctx: SuggestContext): Plugin<SuggestTrigger | null
       row.addEventListener('mousedown', e => e.preventDefault());
       row.addEventListener('click', () => pick(view, it));
     });
-    el('div', 'wm-suggest-hint', box, active.kind === 'tag' ? t('↑↓ 選擇・Enter 插入標籤・Esc 關閉') : t('↑↓ 選擇・Enter 插入連結・打 # 選標題・Esc 關閉'));
+    el('div', 'wm-suggest-hint', box, active.kind === 'slash' ? t('↑↓ 選擇・Enter 插入・Esc 關閉') : active.kind === 'tag' ? t('↑↓ 選擇・Enter 插入標籤・Esc 關閉') : t('↑↓ 選擇・Enter 插入連結・打 # 選標題・Esc 關閉'));
+    const cur = box.querySelector<HTMLElement>('.wm-suggest-item.is-selected');
+    if (cur && typeof cur.scrollIntoView === 'function') cur.scrollIntoView({ block: 'nearest' });
     // 放在游標下方；超出畫面時往上或往旁邊移。介面由右到左時選單的右緣對齊游標、往左展開（跟 Obsidian 自己的自動完成一樣）
     try {
       const c = view.coordsAtPos(active.from);
@@ -144,7 +183,10 @@ export function suggestPlugin(ctx: SuggestContext): Plugin<SuggestTrigger | null
         const meta = tr.getMeta(suggestKey) as { close?: boolean } | undefined;
         if (meta && meta.close) return null;
         // 只有打字（文件有變）時才開；只是把游標移到 #標籤 旁邊不會跳出來
-        if (tr.docChanged) return ctx.enabled() ? suggestTrigger(state) : null;
+        if (tr.docChanged) {
+          const trig = suggestTrigger(state);
+          return trig && (trig.kind === 'slash' ? !!ctx.slash : ctx.enabled()) ? trig : null;
+        }
         if (tr.selectionSet) return null;
         return old;
       },

@@ -135,7 +135,8 @@ export default class WordModePlugin extends Plugin {
     this.patchSetViewState();
 
     this.addCommand({
-      id: 'open-word-mode', name: t('以 Word 模式編輯目前筆記'),
+      // 圖示：使用者可以在 Obsidian 的設定把指令加進手機鍵盤上方的工具列，沒有圖示會顯示成問號
+      id: 'open-word-mode', name: t('以 Word 模式編輯目前筆記'), icon: 'file-text',
       checkCallback: checking => {
         const leaf = this.app.workspace.getMostRecentLeaf();
         const v = leaf && leaf.view;
@@ -145,7 +146,7 @@ export default class WordModePlugin extends Plugin {
       },
     });
     this.addCommand({
-      id: 'open-markdown', name: t('以 Markdown 編輯目前筆記'),
+      id: 'open-markdown', name: t('以 Markdown 編輯目前筆記'), icon: 'code-2',
       checkCallback: checking => {
         const leaf = this.app.workspace.getMostRecentLeaf();
         if (!leaf || !(leaf.view instanceof WordModeView)) return false;
@@ -154,7 +155,7 @@ export default class WordModePlugin extends Plugin {
       },
     });
     this.addCommand({
-      id: 'toggle-mode', name: t('切換 Word 模式／Markdown'),
+      id: 'toggle-mode', name: t('切換 Word 模式／Markdown'), icon: 'file-text',
       checkCallback: checking => {
         const leaf = this.app.workspace.getMostRecentLeaf();
         if (!leaf) return false;
@@ -568,9 +569,11 @@ export default class WordModePlugin extends Plugin {
     const path = v.file.path;
     await v.save();
     v.cacheHistory();
+    // 切過去之後停在同一個地方：長筆記切換模式就跳回最上面的話，手機上要捲很久才找得回來
+    const line = v.currentLine();
     this.forceMarkdown.set(leaf, path);
     const state = mode === 'preview' ? { file: path, mode: 'preview' } : { file: path, mode: 'source', source: false };
-    await leaf.setViewState({ type: 'markdown', state, active: true });
+    await leaf.setViewState({ type: 'markdown', state, active: true }, line == null ? undefined : { line });
     // 馬上放上 Markdown 的工具列（不等版面事件），切換時上方不會空一下
     this.syncMdBars();
     window.setTimeout(() => { const nv: LeafView = leaf.view; if (nv && nv.editor && mode !== 'preview') nv.editor.focus(); }, 50);
@@ -581,8 +584,18 @@ export default class WordModePlugin extends Plugin {
     if (!(v instanceof MarkdownView) || !v.file) return;
     const path = v.file.path;
     await v.save();
+    const line = markdownLine(v);
     this.forceMarkdown.delete(leaf);
-    await leaf.setViewState({ type: VIEW_TYPE, state: { file: path }, active: true });
+    await leaf.setViewState({ type: VIEW_TYPE, state: { file: path }, active: true }, line == null ? undefined : { line });
     window.setTimeout(() => { const nv: LeafView = leaf.view; if (nv && nv.pm) nv.pm.focus(); }, 50);
   }
+}
+
+// Markdown／閱讀模式目前在第幾行（切換到 Word 模式時停在同一個地方）：編輯中用游標那一行，閱讀模式用捲到的位置
+function markdownLine(v: MarkdownView): number | null {
+  try {
+    if (v.getMode() === 'source' && v.editor) return v.editor.getCursor().line;
+    const top = v.currentMode.getScroll();
+    return typeof top === 'number' && top > 0 ? Math.round(top) : null;
+  } catch { return null; }
 }

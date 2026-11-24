@@ -1443,6 +1443,75 @@ await fresh('---\ntags:\n  - 會議\n  - 專案\ndate: 2026-11-16\ndone: false\n
   delete window.visualViewport;
 }
 
+// ======== 斜線選單：段落開頭打 / 選要插入什麼 ========
+{
+  const popup = () => document.body.querySelector('.wm-suggest');
+  const labels = () => Array.from(popup().querySelectorAll('.wm-suggest-label')).map(e => e.textContent);
+  // 預設關閉（這個外掛照 Word 的方式操作；斜線選單要自己到設定開）
+  assert(B.DEFAULTS.slashMenu === false, '斜線選單預設關閉');
+  await fresh('');
+  type(view, '/');
+  assert(!popup(), '沒開設定：打 / 不跳選單');
+  plugin.settings.slashMenu = true;
+  await fresh('');
+  type(view, '/');
+  assert(popup() && popup().classList.contains('wm-slash') && labels().length > 10 && labels()[0] === '標題 1', '空白段落打 / 跳出插入選單：' + (popup() && labels().join('、')));
+  type(view, '表');
+  assert(popup() && labels()[0] === '插入表格', '繼續打字篩選：' + (popup() && labels().join('、')));
+  press(view, 'Enter');
+  assert(!popup() && view.pm.state.doc.firstChild.type.name === 'table' && !out().includes('/'), '按 Enter 插入表格，打的「/表」不留下來：' + JSON.stringify(out()));
+  await fresh('');
+  type(view, '/h2');
+  assert(popup() && labels()[0] === '標題 2', '中文介面打英文別名也找得到：' + (popup() && labels().join('、')));
+  press(view, 'Enter');
+  type(view, '小節');
+  assert(out() === '## 小節\n', '選標題 2 之後接著打字：' + JSON.stringify(out()));
+  await fresh('');
+  type(view, '/zzzz');
+  assert(!popup(), '沒有符合的項目：選單收起來，照常打字');
+  await fresh('');
+  type(view, '見 https:/');
+  assert(!popup(), '句子中間的 / 不跳選單（網址、日期）');
+  await fresh('');
+  type(view, '/');
+  press(view, 'Escape');
+  type(view, '2');
+  assert(out() === '/2\n', 'Esc 關掉之後打的 / 留著：' + JSON.stringify(out()));
+  plugin.settings.slashMenu = false;
+  await fresh('');
+  type(view, '/');
+  assert(!popup(), '設定關掉：不跳選單');
+  const items = [{ label: '插入表格', icon: '', keys: 'table grid', run() {} }, { label: '標題 1', icon: '', keys: 'h1 heading title', run() {} }];
+  assert(B.matchSlash(items, 't').map(i => i.label).join() === '插入表格,標題 1' && B.matchSlash(items, 'ti').length === 1 && B.matchSlash(items, '').length === 2, 'matchSlash：開頭符合的排前面，別名裡有也算');
+}
+
+// ======== 手機的表格：上一個、下一個儲存格（螢幕鍵盤沒有 Tab） ========
+{
+  await fresh('| 甲 | 乙 |\n| --- | --- |\n| 丙 | 丁 |\n');
+  view.pm.dispatch(view.pm.state.tr.setSelection(TextSelection.create(view.pm.state.doc, 4)));
+  const cellText = () => view.pm.state.selection.$from.parent.textContent;
+  assert(cellText() === '甲', '游標在第一格：' + cellText());
+  B.C.nextCell(view.pm.state, view.pm.dispatch, view.pm);
+  assert(cellText() === '乙', '下一個儲存格：' + cellText());
+  B.C.prevCell(view.pm.state, view.pm.dispatch, view.pm);
+  assert(cellText() === '甲', '上一個儲存格：' + cellText());
+  B.C.nextCell(view.pm.state, view.pm.dispatch, view.pm); B.C.nextCell(view.pm.state, view.pm.dispatch, view.pm); B.C.nextCell(view.pm.state, view.pm.dispatch, view.pm);
+  B.C.nextCell(view.pm.state, view.pm.dispatch, view.pm);
+  assert(view.pm.state.doc.firstChild.childCount === 3, '最後一格再按下一格：新增一列（跟 Tab 一樣）');
+}
+
+// ======== 切換模式時停在同一個地方：目前這一段在原文第幾行 ========
+{
+  await fresh('第一段\n\n第二段\n\n- 清單\n\n第四段\n');
+  caret(view, 0);
+  assert(view.currentLine() === 0, '游標在第一段：第 0 行，得到 ' + view.currentLine());
+  let pos = 0; view.pm.state.doc.forEach((n, off, i) => { if (i === 3) pos = off + 1; });
+  view.pm.dispatch(view.pm.state.tr.setSelection(TextSelection.create(view.pm.state.doc, pos)));
+  assert(view.currentLine() === 6, '游標在第四段：第 6 行，得到 ' + view.currentLine());
+  view.pm.dispatch(view.pm.state.tr.insertText('新的一段', 1));
+  assert(view.currentLine() === 6, '前面改過字之後行號照現在的內容算：' + view.currentLine());
+}
+
 //@@MORE@@
 
 finish();

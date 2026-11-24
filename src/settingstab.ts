@@ -101,6 +101,8 @@ function settingSections(settingTab: WordModeSettings): SettingSection[] {
         t('段落開頭打「- 」「1. 」「# 」「> 」「[ ] 」會變成清單、編號、標題、引文、核取清單；打完 **粗體**、*斜體*、`程式碼`、[[筆記]] 也會直接變成格式。套用格式是獨立的一步：按一次 {k}（或緊接著按 Backspace）只取消格式，打的字還在。', { k: key('Mod+Z') }), 'autoFormat'),
       toggleRow(t('輸入 [[ 與 # 時顯示選單'),
         t('打 [[ 會列出筆記（[[筆記# 列出標題），打 # 會列出用過的標籤，用方向鍵與 Enter 選擇。'), 'autoComplete'),
+      toggleRow(t('在段落開頭打 / 顯示插入選單'),
+        t('在空白段落打 / 會列出標題、清單、表格、圖表、方程式等，繼續打字可以篩選，用方向鍵與 Enter 選擇。'), 'slashMenu'),
       toggleRow(t('貼上 Markdown 文字時顯示「轉成格式」選項'),
         t('從 ChatGPT 等地方複製的 Markdown 純文字，貼上後可一鍵轉成粗體、標題、清單等格式。'), 'pasteChip'),
       toggleRow(t('切換模式時保留復原紀錄'),
@@ -141,6 +143,10 @@ function settingSections(settingTab: WordModeSettings): SettingSection[] {
         s => s.addDropdown(d => d.addOptions({ text: t('文字'), icon: t('只顯示圖示'), both: t('圖示加文字'), menu: t('收成選單（不佔一列）') })
           .setValue(S.tabStyle || 'text').onChange(async v => { S.tabStyle = v as TabStyle; await rebuild(); }))),
       toggleRow(t('打字時精簡工具列'), t('手機、平板的螢幕鍵盤開著時，工具列只留一列：分頁收成最前面的選單按鈕，按鈕只顯示圖示，多留一點地方打字。鍵盤收起來就恢復。'), 'compactOnKeyboard'),
+      toggleRow(t('Markdown 模式打字時讓出 Obsidian 的工具列'),
+        t('手機上在 Markdown 模式打字時，Obsidian 自己的工具列會出現在鍵盤上方。開啟時這個外掛的工具列先藏起來，不會疊成兩列；鍵盤收起來就回來。'), 'mdYieldNative', () => p.refreshToolbars()),
+      toggleRow(t('閱讀模式的工具列只留能用的按鈕'),
+        t('手機的閱讀模式不能編輯，大半的按鈕按不了。開啟時工具列縮成一列，只留切換模式、大綱、屬性與設定。'), 'readingLite', () => p.refreshToolbars()),
       { kind: 'grid', name: t('分頁名稱'), desc: t('可以把分頁改成自己習慣的名稱；留白就用預設名稱。'), cls: 'wm-settings-groups wm-settings-tabnames', fill: box => {
         for (const [tab, tabLabel] of TABS) {
           const l = box.createEl('label', { cls: 'wm-settings-tabname' });

@@ -398,6 +398,12 @@ export class Toolbar {
         { title: t('刪除表格'), icon: 'trash-2', run: run(T.deleteTable) },
       ]);
       this.button(g, { icon: 'text', title: '表格轉成文字', text: '文', label: '轉成文字', big: true, desc: '把表格換回一般段落：每一列一段，儲存格之間用 Tab 隔開。' }, { cmd: T.toText, enabled: s => T.toText(s) });
+      // 螢幕鍵盤沒有 Tab：手機、平板多兩顆按鈕在儲存格之間移動（最後一格再按下一格會新增一列，跟 Tab 一樣）
+      if (this.ctx.isMobile) {
+        g = group('儲存格');
+        tb(g, 'arrow-left-from-line', '上一個儲存格', C.prevCell, '←格');
+        tb(g, 'arrow-right-from-line', '下一個儲存格', C.nextCell, '格→');
+      }
       g = group('列與欄');
       tb(g, 'arrow-up-to-line', '在上方插入列', T.addRowBefore, '↑列');
       tb(g, 'arrow-down-to-line', '在下方插入列', T.addRowAfter, '↓列');
@@ -689,7 +695,7 @@ export class Toolbar {
       // 拖過了：擋掉放開之後的點擊，手指底下的選項不要被選到
       if (e.cancelable) e.preventDefault();
       if (dy > CLOSE && e.type === 'touchend') { this.closePopup(); return; }
-      p.style.setProperty('--wm-sheet-drag', '0px');
+      p.style.removeProperty('--wm-sheet-drag');
     };
     p.addEventListener('touchend', end);
     p.addEventListener('touchcancel', end);

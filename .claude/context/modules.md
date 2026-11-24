@@ -23,7 +23,7 @@
 | 自己存的公式與圖表範本 | `templates.ts`（資料操作，純函式）、`templateui.ts`（設定頁的管理清單）；存在設定的 `mathTemplates`、`diagramTemplates`。方程式編輯器的「我的公式」在 `dialogs.ts`，圖表編輯器的「我的範本」在 `mermaid.ts` |
 | 設定 | `settings.ts`：`Settings` 介面、`DEFAULTS`；`settingstab.ts`：`settingSections()` 與設定頁。設定分成幾類（`SectionId`），設定頁上方的分類列在 `settingsnav.ts`，一次只顯示一類；其他分類用 CSS 隱藏（`.wm-settings[data-wm-tab]`），不用設定定義的 `visible`（會讓那些設定搜尋不到） |
 | 設定頁的搜尋框 | 畫面與鍵盤操作在 `settingsnav.ts` 的 `buildSettingSearch`，比對與排序在 `settingsearch.ts`（純函式，同義詞在 `SYNONYMS`）。`main.ts` 的 `WordModeSettings` 記下每一列畫在哪裡（`rowEls`），`searchItems()` 用 `settingTextsByLanguage()` 暫時切換語言取得每一列在各語言的文字，所以介面是中文也能打英文找到。列加上 `common: true` 會在還沒打字時列在「常用的設定」 |
-| 尋找取代、摺疊、大綱、編輯標記、自動格式、`[[`／`#` 選單 | `find.ts`、`fold.ts`、`outline.ts`、`marks.ts`、`autoformat.ts`、`suggest.ts` + `complete.ts` |
+| 尋找取代、摺疊、大綱、編輯標記、自動格式、`[[`／`#` 選單、斜線選單 | `find.ts`、`fold.ts`、`outline.ts`、`marks.ts`、`autoformat.ts`、`suggest.ts` + `complete.ts` |
 | 按鈕的詳細提示與示意動畫 | `hints.ts` 的 `DEMOS`（按鈕的 `demo` 屬性是它的鍵，型別是 `DemoName`，寫了不存在的名稱型別檢查會失敗），動畫在 CSS 的 `wm-anim-*`、`wm-step-*`。快速鍵說明（`dialogs.ts` 的 `SHORTCUTS`）每一列的第三個欄位也是 `DemoName`，按那一列會展開同一段動畫 |
 
 ## 常見修改的做法

@@ -2141,4 +2141,50 @@ button.wm-kb-hide { display: none; }
 .is-phone .wm-mdbar.wm-mdbar-bottom { margin-bottom: max(0px, var(--view-bottom-spacing, 0px)); }
 /* 手機上打字時 Obsidian 自己的工具列會出現在鍵盤上方（body 的 mod-toolbar-open），兩條疊在一起佔掉兩列。
    那一條是使用者在 Obsidian 設定裡自己排的，讓給它；使用者把它清空（Obsidian 就不顯示）時我們的照常顯示 */
-.is-phone.mod-toolbar-open .wm-mdbar.wm-mdbar-bottom { display: none; }
+.is-phone.mod-toolbar-open .wm-mdbar.wm-mdbar-bottom.wm-yield-native { display: none; }
+
+/* ===== 鍵盤上方那一列：跟 Obsidian 手機版自己的鍵盤工具列同一個樣子 =====
+   Obsidian 在 Markdown 模式打字時，鍵盤上方是一條圓角的按鈕列，右邊另外一顆圓形的「收起鍵盤」。
+   Word 模式原本是整條貼邊的按鈕列，收起鍵盤的按鈕是右端一塊方形、靠一條線與陰影跟其他按鈕分開，看起來像被切掉的一格。
+   改成同樣的做法：按鈕收進一條圓角的膠囊裡左右捲，收起鍵盤是膠囊右邊獨立的一顆圓鈕，切換模式時位置與樣子都一樣 */
+.wm-kb-up .wm-ribbon > button.wm-kb-hide { inset-inline-end: 8px; bottom: 3px; width: 40px; height: 40px; border: 0; border-radius: 50%; background: var(--touch-background, var(--background-modifier-hover)); box-shadow: none; color: var(--text-normal); transition: transform .12s ease, background-color .12s ease; }
+.wm-kb-up .wm-toolbar-bottom .wm-ribbon > button.wm-kb-hide { bottom: auto; top: 3px; }
+.wm-kb-up .wm-kb-compact .wm-ribbon > button.wm-kb-hide { top: 50%; bottom: auto; height: 40px; margin-top: -20px; }
+.wm-kb-up .wm-ribbon > button.wm-kb-hide:active { transform: scale(.92); background: var(--background-modifier-active-hover, var(--background-modifier-border)); }
+.wm-kb-up .wm-ribbon > button.wm-kb-hide svg { width: 22px; height: 22px; }
+.wm-kb-up .wm-ribbon > .wm-toolbar { padding-inline-end: 56px; }
+/* 精簡成一列時：按鈕列是膠囊，右邊留給圓鈕 */
+.wm-kb-up .wm-kb-compact .wm-ribbon.wm-mobile, .wm-kb-up .wm-kb-compact .wm-mobile .wm-ribbon, .wm-kb-up .wm-kb-compact.wm-mobile .wm-ribbon { background: var(--background-primary); }
+.wm-kb-up .wm-kb-compact .wm-ribbon > .wm-toolbar { margin-block: 4px; margin-inline: 8px 56px; padding-block: 0; padding-inline: 4px; min-height: 40px; border-radius: 20px; background: var(--touch-background, var(--background-modifier-hover)); }
+/* 膠囊裡的分頁選單按鈕：底色跟膠囊一樣會看不出是按鈕，改用頁面的底色、兩端跟著膠囊圓 */
+.wm-kb-up .wm-kb-compact .wm-toolbar button.wm-tab-switch { height: 32px; border-radius: 16px; background: var(--background-primary); }
+.wm-kb-up .wm-kb-compact .wm-toolbar button.wm-tab-switch.is-caret-pad { background: var(--interactive-accent); }
+.wm-kb-up .wm-ribbon > button.wm-kb-hide { font-size: 20px; line-height: 1; }
+
+/* 斜線選單（suggest.ts 的 wm-slash）：項目比 [[、# 的選單多，自己捲；手機上每一列加高好點，方向鍵的說明用不到 */
+.wm-suggest.wm-slash { max-height: min(340px, 45vh); overflow-y: auto; overscroll-behavior: contain; }
+.is-mobile .wm-suggest-item { padding: 9px 10px; gap: 10px; font-size: var(--font-ui-medium); }
+.is-mobile .wm-suggest-icon svg { width: 18px; height: 18px; }
+.is-mobile .wm-suggest-hint { display: none; }
+
+/* 手機的閱讀模式（mdbar.ts 的 wm-reading-lite）：只留能用的按鈕排成一列，分頁列與停用的按鈕不佔位置 */
+.wm-mdbar.wm-reading-lite .wm-tabs { display: none; }
+.wm-mdbar.wm-reading-lite .wm-btn.is-disabled { display: none; }
+
+/* ===== 手機：區塊的按鈕（表格、方程式、圖表、程式碼）要按得到 =====
+   原本每顆按鈕只有 26×32、圖示 14px、彼此只隔 2px，手指一按常常按到隔壁，刪除又緊貼在旁邊。
+   手機上每顆至少 44×38（iOS 建議的觸控大小）、圖示 20px、顏色用一般文字的深度；
+   表格與方程式的那一排是浮在內容上方的一條圓角列（有底色、框線與陰影，看得出是一組按鈕）；
+   刪除用紅色、跟其他按鈕隔開一段，不會順手按到 */
+.wm-mobile .wm-block-tools.wm-block-tools { gap: 2px; padding: 3px; border: 1px solid var(--background-modifier-border); border-radius: 12px; background: var(--background-primary); box-shadow: var(--shadow-s); }
+.wm-mobile .wm-block-tools button { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; height: 38px; padding: 0 6px; border-radius: 9px; color: var(--text-normal); font-size: var(--font-ui-small); transition: transform .1s ease, background-color .1s ease; }
+.wm-mobile .wm-block-tools svg, .wm-mobile .wm-codeblock .wm-code-head svg { width: 20px; height: 20px; }
+.wm-mobile .wm-block-tools button:active, .wm-mobile .wm-codeblock .wm-code-head button:active { transform: scale(.93); background: var(--background-modifier-hover); }
+.wm-mobile .wm-block-tools button.wm-block-delete, .wm-mobile .wm-codeblock .wm-code-head button.wm-code-delete { margin-inline-start: 10px; color: var(--text-error); }
+/* 表格：那一排變高了，表格上方多留一點，才不會壓到上一段太多 */
+.wm-mobile .wm-editor .wm-table { margin-top: 40px; }
+.wm-mobile .wm-editor .callout-content > .wm-table:first-child { margin-top: 52px; }
+/* 程式碼與圖表：按鈕在區塊上方自己的一列 */
+.wm-mobile .wm-codeblock .wm-code-head { gap: 4px; padding: 4px 6px 0; }
+.wm-mobile .wm-codeblock .wm-code-head button { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; height: 38px; padding: 0 6px; border-radius: 9px; color: var(--text-normal); }
+.wm-mobile .wm-codeblock .wm-code-head select { height: 38px; padding-inline: 10px; border-radius: 9px; font-size: var(--font-ui-small); color: var(--text-muted); }

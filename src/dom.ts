@@ -103,7 +103,8 @@ export function keyboardHideButton(parent: HTMLElement, label: string, icon: (el
   const b = el('button', 'wm-kb-hide', parent);
   b.type = 'button';
   b.setAttribute('aria-label', label);
-  icon(b, 'chevrons-down', '⌄');
+  // 圖示用 Obsidian 手機版自己那顆「切換鍵盤」的（鍵盤加一個往下的箭頭），使用者在 Markdown 模式已經認得它
+  icon(b, 'keyboard-toggle', '⌄');
   b.addEventListener('click', e => { e.preventDefault(); hideKeyboard(b.ownerDocument); });
   return b;
 }

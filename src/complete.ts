@@ -4,7 +4,11 @@ import { schema, IMAGE_EXT } from './schema.js';
 import { tagsInDoc } from './links.js';
 import type { Node as PMNode } from 'prosemirror-model';
 import type { WordModeView } from './view.js';
-import type { SuggestContext, SuggestFileItem } from './suggest.js';
+import * as C from './commands.js';
+import { t } from './i18n.js';
+import type { I18nKey } from './i18n.js';
+import type { Command } from 'prosemirror-state';
+import type { SuggestContext, SuggestFileItem, SlashItem } from './suggest.js';
 
 
 // 依名稱搜尋保管庫裡的檔案（筆記優先）；沒有輸入時列出最近修改的筆記
@@ -77,6 +81,31 @@ export function linkNode(view: WordModeView, file: TFile | null, heading: string
   return schema.text(heading ? file.basename + ' › ' + heading : l.text, [schema.marks.link.create({ href })]);
 }
 
+// 斜線選單（在段落開頭打 /）的項目。名稱用功能區按鈕的同一組字；keys 是英文的別名，中文介面下打英文也找得到
+export function slashItems(view: WordModeView): SlashItem[] {
+  const cmd = (c: Command) => () => { const pm = view.pm; if (pm) { c(pm.state, pm.dispatch); pm.focus(); } };
+  const item = (label: I18nKey, icon: string, keys: string, run: () => void): SlashItem => ({ label: t(label), icon, keys, run });
+  return [
+    item('標題 1', 'heading-1', 'h1 heading title', cmd(C.setBlockStyle('h1'))),
+    item('標題 2', 'heading-2', 'h2 heading', cmd(C.setBlockStyle('h2'))),
+    item('標題 3', 'heading-3', 'h3 heading', cmd(C.setBlockStyle('h3'))),
+    item('項目符號', 'list', 'ul bullet list', cmd(C.toggleList('bullet'))),
+    item('編號', 'list-ordered', 'ol number ordered list', cmd(C.toggleList('ordered'))),
+    item('核取清單', 'list-checks', 'todo task check list', cmd(C.toggleList('task'))),
+    item('引文', 'quote', 'quote blockquote', cmd(C.toggleQuote)),
+    item('插入表格', 'table', 'table grid', cmd(C.insertTable(3, 3))),
+    item('插入程式碼區塊', 'square-code', 'code block pre', cmd(C.insertCodeBlock(''))),
+    item('插入提示框', 'info', 'callout note tip warning', () => view.openCalloutMenu(null)),
+    item('插入方程式', 'sigma', 'math equation latex formula', () => view.openEquation()),
+    item('插入圖表（Mermaid）', 'workflow', 'mermaid diagram chart flow gantt', () => view.openMermaid()),
+    item('插入圖片', 'image', 'image img picture photo', () => view.openImageMenu(null)),
+    item('連結到筆記', 'file-symlink', 'note link wiki', () => view.openNoteLinkPicker()),
+    item('超連結', 'link', 'link url href', () => view.openLinkDialog()),
+    item('水平線', 'minus', 'hr line divider rule', cmd(C.insertHr)),
+    item('插入註腳', 'asterisk', 'footnote fn', () => view.insertFootnoteDialog()),
+  ];
+}
+
 export function suggestContext(view: WordModeView, icon: SuggestContext['icon']): SuggestContext {
   return {
     enabled: () => view.plugin.settings.autoComplete !== false,
@@ -85,6 +114,7 @@ export function suggestContext(view: WordModeView, icon: SuggestContext['icon'])
     headings: file => headingsOf(view, file),
     tags: q => searchTags(view, q),
     linkNode: (file, heading, embed) => linkNode(view, file, heading, embed),
+    slash: () => view.plugin.settings.slashMenu === true ? slashItems(view) : [],
     icon,
   };
 }
