@@ -1205,6 +1205,27 @@ await fresh('---\ntags:\n  - 會議\n  - 專案\ndate: 2026-11-16\ndone: false\n
   window.dispatchEvent(Object.assign(new Event('keyboardWillShow'), { keyboardHeight: 340 }));
   kb.measure();
   assert(cover() === '340px' && inset() === '92px', '鍵盤事件說 340：三個來源取最大的，得到 ' + cover());
+  // 焦點離開了，但 Obsidian 還沒把 app 放大（--keyboard-height 還在）：先維持鍵盤開著的樣子，
+  // 不然功能區會在鍵盤上方先恢復成完整的（往上頂），app 放大後才掉下去
+  input.blur();
+  kb.measure();
+  assert(kb.open && el.classList.contains('wm-kb-open') && el.classList.contains('wm-kb-compact'), '焦點離開、Obsidian 還沒放大 app：功能區維持精簡，不先頂上去');
+  document.documentElement.style.removeProperty('--keyboard-height');
+  kb.measure();
+  assert(!kb.open && !el.classList.contains('wm-kb-open') && !el.classList.contains('wm-kb-compact'), '--keyboard-height 歸零的那一刻才還原');
+  // 原生端一直沒有把高度歸零：等一段時間之後照樣還原，不會卡在鍵盤開著
+  document.documentElement.style.setProperty('--keyboard-height', '300px');
+  input.focus();
+  kb.measure();
+  input.blur();
+  kb.measure();
+  assert(kb.open, '再開一次鍵盤、焦點離開：先等');
+  await sleep(700);
+  kb.measure();
+  assert(!kb.open, '等超過時限：還原');
+  input.focus();
+  document.documentElement.style.setProperty('--keyboard-height', '300px');
+  kb.measure();
   window.dispatchEvent(new Event('keyboardDidHide'));
   document.documentElement.style.removeProperty('--keyboard-height');
   kb.measure();
