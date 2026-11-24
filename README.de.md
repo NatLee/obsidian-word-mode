@@ -198,7 +198,7 @@ Kein Befehl hat ein voreingestelltes Tastenkürzel. Eigene können Sie unter **E
 
 ## Bekannte Einschränkungen
 
-- Die Nutzung auf Mobilgeräten wurde nicht auf echten Geräten getestet.
+- Auf Smartphone und Tablet wurde nur auf einem echten iPhone getestet; Android-Geräte und iPad wurden nicht auf echter Hardware getestet.
 - Einige Schaltflächen der Symbolleiste in der Markdown- und Leseansicht rufen integrierte Obsidian-Befehle auf und wurden nicht alle einzeln getestet.
 - Die Übersetzungen außer Chinesisch (traditionell) und Englisch wurden nicht von Muttersprachlern geprüft.
 - Auf Arabisch und Hebräisch ist der Text übersetzt, aber Symbolleiste und Dialoge behalten ihr Layout von links nach rechts.

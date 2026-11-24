@@ -198,7 +198,7 @@ Ningún comando tiene un atajo predeterminado. Puedes asignar los tuyos en **Aju
 
 ## Limitaciones conocidas
 
-- El uso en móviles no se ha probado en dispositivos reales.
+- En teléfonos y tabletas solo se ha probado en un iPhone real; los dispositivos Android y el iPad no se han probado en hardware real.
 - Algunos botones de la barra de herramientas que se muestra en Markdown y en la vista de lectura llaman a comandos integrados de Obsidian, y no todos se han probado uno por uno.
 - Las traducciones distintas del chino tradicional y el inglés no han sido revisadas por hablantes nativos.
 - En árabe y hebreo, el texto está traducido, pero la barra de herramientas y los cuadros de diálogo mantienen el diseño de izquierda a derecha.
