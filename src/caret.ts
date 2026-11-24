@@ -41,10 +41,7 @@ class CaretView {
 
   constructor(readonly view: EditorView, readonly ctx: CaretContext) {
     const doc = view.dom.ownerDocument;
-    this.el = doc.createElement('div');
-    this.el.className = 'wm-caret';
-    this.el.setAttribute('aria-hidden', 'true');
-    ctx.host().appendChild(this.el);
+    this.el = ctx.host().createDiv({ cls: 'wm-caret', attr: { 'aria-hidden': 'true' } });
     this.shown = false; this.idle = 0; this.frame = 0;
     // 焦點、組字不會產生 transaction；等這一輪事件處理完（ProseMirror 的 composing 才是新的值）再重畫
     this.onFocus = () => this.later();
