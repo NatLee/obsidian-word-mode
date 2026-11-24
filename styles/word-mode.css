@@ -2195,3 +2195,31 @@ button.wm-kb-hide { display: none; }
 .wm-statusbar .wm-bb-path.is-empty { display: none; }
 .wm-bb-path-dir { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .wm-bb-path-name { flex: 0 1 auto; min-width: 40px; max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------- 游標（caret.ts）----------
+   顏色：強調色（預設）、文字顏色（.wm-caret-text），或設定裡自訂的顏色（--wm-caret-color，由 view.ts 寫上）。
+   桌機自己畫游標（.wm-caret-custom）：內建的變透明，輸入法組字中（.wm-caret-composing）放回來 */
+.wm-view { --wm-caret-paint: var(--wm-caret-color, var(--interactive-accent)); }
+.wm-view.wm-caret-text { --wm-caret-paint: var(--wm-caret-color, var(--text-normal)); }
+.wm-editor { caret-color: var(--wm-caret-paint); }
+.wm-caret-custom .wm-editor { caret-color: transparent; }
+.wm-caret-custom .wm-page.wm-caret-composing .wm-editor { caret-color: var(--wm-caret-paint); }
+/* 編輯區裡自己的輸入框（程式碼的語言、提示框標題、方程式的格子）不歸 caret.ts 管，游標要看得到 */
+.wm-caret-custom .wm-editor :is([contenteditable="false"], input, textarea) { caret-color: var(--wm-caret-paint); }
+.wm-caret { position: absolute; left: 0; top: 0; z-index: 3; display: none; width: 2px; height: var(--wm-caret-h, 1em); margin-left: -1px; border-radius: 2px; background: var(--wm-caret-paint); pointer-events: none; transform: translate(var(--wm-caret-x, 0px), var(--wm-caret-y, 0px)); }
+.wm-caret.is-shown { display: block; }
+.wm-caret.is-smooth { transition: transform .09s cubic-bezier(.2, .8, .2, 1), height .09s ease-out; }
+.wm-caret[data-shape="thick"] { width: 3px; margin-left: -1.5px; }
+/* 方塊：半透明，底下的字還看得到。透明度放在裡面那一層，外層的透明度留給閃爍的動畫 */
+.wm-caret[data-shape="block"] { width: calc(var(--wm-caret-h, 1em) * .5); margin-left: 0; background: transparent; }
+.wm-caret[data-shape="block"]::before { content: ''; position: absolute; inset: 0; border-radius: 2px; background: var(--wm-caret-paint); opacity: .4; }
+.wm-caret[data-shape="underline"] { width: calc(var(--wm-caret-h, 1em) * .5); height: 2px; margin-left: 0; margin-top: calc(var(--wm-caret-h, 1em) - 2px); }
+/* 停下來才閃（is-idle）：打字與移動的時候一直是實心的 */
+.wm-caret.is-idle[data-blink="fade"] { animation: wm-caret-fade 1.3s ease-in-out infinite; }
+.wm-caret.is-idle[data-blink="blink"] { animation: wm-caret-blink 1.06s steps(1, end) infinite; }
+@keyframes wm-caret-fade { 0%, 100% { opacity: 1; } 50% { opacity: .12; } }
+@keyframes wm-caret-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .wm-caret.is-smooth { transition: none; }
+  .wm-caret.is-idle[data-blink="fade"] { animation: wm-caret-blink 1.06s steps(1, end) infinite; }
+}

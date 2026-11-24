@@ -404,6 +404,7 @@ export default class WordModePlugin extends Plugin {
   }
 
   applyPropsLook(): void { for (const v of this.views()) v.applyPropsLook(); }
+  applyCaretLook(): void { for (const v of this.views()) v.applyCaretLook(); }
 
   async setPropsSticky(on: boolean): Promise<void> {
     this.settings.propsSticky = !!on;

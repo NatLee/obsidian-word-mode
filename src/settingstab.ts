@@ -2,6 +2,7 @@
 import { PluginSettingTab, Setting, Notice, Platform } from 'obsidian';
 import { t, withKey, key, setLanguage, getLanguage, LANGUAGES, LANGUAGE_NAMES } from './i18n.js';
 import { DEFAULTS } from './settings.js';
+import { caretLook } from './caret.js';
 import { renderMathInto } from './mathrender.js';
 import { mdToolbarMode } from './mdbar.js';
 import { TABS } from './ribbon.js';
@@ -15,6 +16,7 @@ import type WordModePlugin from './main.js';
 import type { ConflictMode, LanguageSetting, OutlinePlace, ToggleKey, ToolbarPosition } from './settings.js';
 import type { I18nKey } from './i18n.js';
 import type { PropsStyle } from './view.js';
+import type { CaretBlink, CaretShape } from './caret.js';
 import type { RibbonLayout, ButtonStyle, TabStyle } from './ribbon.js';
 import type { EquationEditMode } from './dialogs.js';
 import type { SettingNav, SettingSearchItem } from './settingsnav.js';
@@ -119,6 +121,17 @@ function settingSections(settingTab: WordModeSettings): SettingSection[] {
       row(t('文件屬性的外觀'), t('「區塊」有框線與淡底色，一看就知道是屬性；「只有框線」沒有底色；「簡潔」沒有框線，只在下方有一條分隔線。'),
         s => s.addDropdown(d => d.addOptions({ card: t('區塊（框線加底色）'), outline: t('只有框線'), plain: t('簡潔（沒有框線）') })
           .setValue(S.propsStyle || 'card').onChange(async v => { S.propsStyle = v as PropsStyle; await save(); p.applyPropsLook(); }))),
+      row(t('游標的樣式'), t('Word 模式裡打字位置的那條線。「細線」與「粗線」是圓角的直線，「方塊」蓋住一個字的寬度，「底線」畫在字的下方；「系統原本的」用瀏覽器內建的游標。手機與平板一律用系統的游標，只套用顏色。'),
+        s => s.addDropdown(d => d.addOptions({ line: t('細線'), thick: t('粗線'), block: t('方塊'), underline: t('底線'), native: t('系統原本的') })
+          .setValue(caretLook(S.caretShape, S.caretBlink, S.caretSmooth).shape).onChange(async v => { S.caretShape = v as CaretShape; await save(); p.applyCaretLook(); }))),
+      row(t('游標的顏色'), t('「強調色」跟著 Obsidian 的主題；「自訂」用右邊選的顏色。'),
+        s => s.addDropdown(d => d.addOptions({ accent: t('強調色'), text: t('跟文字一樣'), custom: t('自訂') })
+          .setValue(S.caretColor || 'accent').onChange(async v => { S.caretColor = v as 'accent' | 'text' | 'custom'; await save(); p.applyCaretLook(); }))
+          .addColorPicker(c => c.setValue(S.caretCustom || DEFAULTS.caretCustom).onChange(async v => { S.caretCustom = v; S.caretColor = 'custom'; await save(); p.applyCaretLook(); }))),
+      row(t('游標的閃爍'), t('「淡入淡出」慢慢變淡再回來，比較不刺眼；「閃爍」是一亮一滅；「不閃」一直顯示。打字與移動游標的時候都不會閃。'),
+        s => s.addDropdown(d => d.addOptions({ fade: t('淡入淡出'), blink: t('閃爍'), solid: t('不閃') })
+          .setValue(caretLook(S.caretShape, S.caretBlink, S.caretSmooth).blink).onChange(async v => { S.caretBlink = v as CaretBlink; await save(); p.applyCaretLook(); }))),
+      toggleRow(t('游標平滑移動'), t('打字或移動游標時，游標滑到新的位置而不是直接跳過去（像 Word）。選「系統原本的」游標時沒有作用。'), 'caretSmooth', () => p.applyCaretLook()),
       toggleRow(t('固定的屬性列顯示屬性名稱'), t('關閉後屬性列只顯示值，一行可以放更多屬性。'), 'pinLabels', () => p.applyPropsLook()),
       toggleRow(t('開啟筆記時顯示編輯標記（¶）'),
         t('顯示空白（·）、全形空白（□）、Tab（→）、換行（↵）與段落結尾（¶）。也可以用工具列的 ¶ 按鈕隨時切換。'), 'showMarks'),

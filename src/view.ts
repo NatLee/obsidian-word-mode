@@ -17,6 +17,7 @@ import { bubblePlugin } from './bubble.js';
 import { parseWidth, imageAttrsWithWidth } from './nodeviews.js';
 import { findPlugin, FindBar } from './find.js';
 import { foldPlugin } from './fold.js';
+import { caretPlugin, caretLook } from './caret.js';
 import { stripSliceBids, stripBids, clipboardTable, tableFromRows, fillTable, looksLikeMarkdown } from './paste.js';
 import { Slice, Fragment } from 'prosemirror-model';
 import { schema, IMAGE_EXT } from './schema.js';
@@ -166,6 +167,7 @@ export class WordModeView extends TextFileView {
   declare pinNode: PMNode | null;
   declare scroller: HTMLDivElement;
   declare pathEl?: HTMLDivElement | null;
+  declare caret?: Plugin;
   declare page: HTMLDivElement;
   declare toolbar: Toolbar;
   declare findBar: FindBar;
@@ -260,6 +262,7 @@ export class WordModeView extends TextFileView {
     if (Platform.isMobile) installTouch(this.page, () => this.pm);
     this.applyZoom();
     this.applyPropsLook();
+    this.applyCaretLook();
     this.applyPropsSticky();
     this.registerDomEvent(this.scroller, 'scroll', () => this.updatePin(), { passive: true });
     this.registerDomEvent(this.scroller, 'click', e => this.onTailClick(e));
@@ -531,6 +534,19 @@ export class WordModeView extends TextFileView {
     this.contentEl.toggleClass('wm-pin-nolabels', S.pinLabels === false);
   }
 
+  // 游標的外觀（設定）：形狀由 caret.ts 畫，這裡只切換「內建的游標要不要藏起來」與顏色
+  applyCaretLook(): void {
+    const S = this.plugin.settings;
+    const look = caretLook(S.caretShape, S.caretBlink, S.caretSmooth);
+    this.contentEl.toggleClass('wm-caret-custom', !Platform.isMobile && look.shape !== 'native');
+    this.contentEl.toggleClass('wm-caret-text', S.caretColor === 'text');
+    const custom = S.caretColor === 'custom' && /^#[0-9a-f]{3,8}$/i.test(S.caretCustom || '') ? S.caretCustom : '';
+    if (custom) this.contentEl.style.setProperty('--wm-caret-color', custom);
+    else this.contentEl.style.removeProperty('--wm-caret-color');
+    // 讓游標照新的設定重畫一次
+    if (this.pm) this.pm.dispatch(this.pm.state.tr.setMeta('wm-caret', true));
+  }
+
   applyPropsSticky(): void {
     if (!this.plugin.settings.propsSticky) this.hidePin();
     this.updatePin();
@@ -672,7 +688,18 @@ export class WordModeView extends TextFileView {
     if (!this.marks) this.marks = marksPlugin({ on: !!this.plugin.settings.showMarks, always: this.plugin.settings.highlightWeird !== false });
     if (!this.code) this.code = codePlugin(() => this.prism);
     if (!this.suggest) this.suggest = suggestPlugin(suggestContext(this, iconOr));
-    return [this.suggest, this.bubble, findPlugin, this.fold, this.marks, this.code, codeActivePlugin, this.grips];
+    const plugins = [this.suggest, this.bubble, findPlugin, this.fold, this.marks, this.code, codeActivePlugin, this.grips];
+    // 自己畫的游標只用在桌機；手機用系統的游標（有把手與放大鏡）
+    if (!Platform.isMobile) {
+      if (!this.caret) {
+        this.caret = caretPlugin({
+          look: () => { const S = this.plugin.settings; return caretLook(S.caretShape, S.caretBlink, S.caretSmooth); },
+          host: () => this.page,
+        });
+      }
+      plugins.push(this.caret);
+    }
+    return plugins;
   }
 
   setMarks(on: boolean): void {
