@@ -11,7 +11,6 @@ import { WordModeView, VIEW_TYPE } from './view.js';
 import { OutlineView, OUTLINE_TYPE } from './outline.js';
 import { MarkdownBar, mdToolbarMode, wantsMdBar } from './mdbar.js';
 import { KeyboardWatch } from './keyboard.js';
-import { enableTrace, trace, traceReport } from './trace.js';
 import { MdStatusBar } from './statusbar.js';
 import { closePropsPeek } from './propview.js';
 import { cleanTemplates } from './templates.js';
@@ -117,25 +116,6 @@ export default class WordModePlugin extends Plugin {
           const device = (Platform.isIosApp ? 'iOS' : Platform.isAndroidApp ? 'Android' : 'other') + (Platform.isPhone ? ' phone' : ' tablet');
           const text = kb.report(['Word Mode ' + this.manifest.version + ' / Obsidian ' + apiVersion + ' / ' + device]);
           if (navigator.clipboard) void navigator.clipboard.writeText(text).then(() => new Notice(t('已複製診斷資訊，可以貼到問題回報裡')));
-        },
-      });
-      // 觸控與游標的紀錄（trace.ts）：點了沒有游標、放大鏡消失這類只在實機發生的問題，要有實際的事件順序才查得出來
-      this.register(enableTrace(window));
-      let kbOpen = kb.open;
-      this.register(kb.subscribe(() => { if (kb.open !== kbOpen) { kbOpen = kb.open; trace('keyboard', (kb.open ? 'open ' : 'closed ') + kb.snapshot()); } }));
-      this.addCommand({
-        id: 'copy-touch-report', name: t('複製觸控與游標的紀錄'), icon: 'clipboard-copy',
-        callback: () => {
-          const device = (Platform.isIosApp ? 'iOS' : Platform.isAndroidApp ? 'Android' : 'other') + (Platform.isPhone ? ' phone' : ' tablet');
-          const vv = window.visualViewport;
-          const word = this.app.workspace.getActiveViewOfType(WordModeView);
-          const text = traceReport([
-            'Word Mode ' + this.manifest.version + ' / Obsidian ' + apiVersion + ' / ' + device,
-            'scale: ' + window.devicePixelRatio,
-            'window: ' + window.innerWidth + 'x' + window.innerHeight + (vv ? ' visual ' + Math.round(vv.width) + 'x' + Math.round(vv.height) + ' top ' + Math.round(vv.offsetTop) : ''),
-            'keyboard: ' + kb.snapshot(),
-          ], word && word.pm ? word.pm : null);
-          if (navigator.clipboard) void navigator.clipboard.writeText(text).then(() => new Notice(t('已複製觸控與游標的紀錄（不含筆記內容），可以貼到問題回報裡')));
         },
       });
     }

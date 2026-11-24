@@ -2230,3 +2230,44 @@ button.wm-kb-hide { display: none; }
 .wm-toolbar.is-trackpad > * { opacity: .25; transition: opacity .12s ease-out; }
 .wm-pad-tip { position: fixed; z-index: var(--layer-popover, 30); display: flex; align-items: center; justify-content: center; padding: 0 12px; border-radius: 20px; background: color-mix(in srgb, var(--interactive-accent) 14%, transparent); color: var(--interactive-accent); font-size: var(--font-ui-small); font-weight: 600; text-align: center; pointer-events: none; animation: wm-pad-tip-in .14s ease-out; }
 @keyframes wm-pad-tip-in { from { opacity: 0; transform: scale(.96); } }
+
+/* ---------- 放大鏡的外觀（設定；loupe.ts）----------
+   兩種外觀共用：陰影柔一點、移動用帶一點回彈的曲線；游標標記細一點、外面一圈淡淡的強調色。
+   膠囊（預設，is-capsule）：圓頭長條、沒有尖角，左右兩端的字淡出得長一點，出現時從游標的位置往上彈出來。
+   卡片（is-card）：沿用原本的圓角方框與尖角 */
+.wm-loupe { transition: transform .13s cubic-bezier(.25, .8, .25, 1), opacity .12s ease-out; filter: drop-shadow(0 12px 22px rgba(0, 0, 0, .16)) drop-shadow(0 2px 5px rgba(0, 0, 0, .12)); }
+.wm-loupe.wm-loupe .wm-loupe-body.wm-loupe-body { transition: transform .13s cubic-bezier(.25, .8, .25, 1); }
+.wm-loupe .wm-loupe-caret { left: -1.25px; width: 2.5px; box-shadow: 0 0 0 3px color-mix(in srgb, var(--interactive-accent) 22%, transparent); transition: transform .13s cubic-bezier(.25, .8, .25, 1), height .13s ease-out; }
+.wm-loupe.is-capsule .wm-loupe-lens { border-radius: 999px; box-shadow: inset 0 0 0 .5px var(--background-modifier-border-hover); animation: wm-loupe-pop .2s cubic-bezier(.2, .9, .3, 1.2); }
+.wm-loupe.is-capsule .wm-loupe-fade { border-radius: 999px; background: linear-gradient(to right, var(--wm-loupe-bg) 8px, transparent 42px), linear-gradient(to left, var(--wm-loupe-bg) 8px, transparent 42px), linear-gradient(to bottom, var(--wm-loupe-bg) 2px, transparent 10px), linear-gradient(to top, var(--wm-loupe-bg) 2px, transparent 10px); }
+.wm-loupe.is-capsule .wm-loupe-tail { display: none; }
+.wm-loupe.is-capsule.is-below .wm-loupe-lens { animation-name: wm-loupe-pop-down; }
+.theme-dark .wm-loupe { filter: drop-shadow(0 12px 22px rgba(0, 0, 0, .45)) drop-shadow(0 2px 5px rgba(0, 0, 0, .35)); }
+.theme-dark .wm-loupe .wm-loupe-lens { box-shadow: inset 0 0 0 1px var(--background-modifier-border-hover); }
+@keyframes wm-loupe-pop { from { transform: translateY(10px) scale(.8); opacity: 0; } }
+@keyframes wm-loupe-pop-down { from { transform: translateY(-10px) scale(.8); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .wm-loupe, .wm-loupe.wm-loupe .wm-loupe-body.wm-loupe-body, .wm-loupe .wm-loupe-caret { transition: none; }
+  .wm-loupe .wm-loupe-lens { animation: none; }
+}
+
+/* ---------- 放大鏡旁的位置資訊（設定；loupe.ts 的 caretInfo）----------
+   在鏡片離游標遠的那一邊：鏡片在游標上面時放在鏡片上方，鏡片在游標下面時放在鏡片下方，不會蓋到游標那一行 */
+.wm-loupe .wm-loupe-info { position: absolute; left: 50%; bottom: calc(100% + 6px); display: flex; align-items: center; gap: 6px; max-width: 100%; padding: 3px 10px; border-radius: 999px; background: var(--background-primary); box-shadow: inset 0 0 0 .5px var(--background-modifier-border-hover); color: var(--text-muted); font-family: var(--font-interface); font-size: 12px; line-height: 16px; white-space: nowrap; transform: translateX(-50%); }
+.wm-loupe.is-below .wm-loupe-info { bottom: auto; top: calc(100% + 6px); }
+.wm-loupe .wm-loupe-info-part:first-child { color: var(--text-normal); font-weight: 600; }
+.wm-loupe .wm-loupe-info-dot { opacity: .5; }
+.wm-loupe .wm-loupe-info-part { overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+
+/* ---------- 放大鏡：停在物件上、到文件頭尾（loupe.ts）----------
+   物件（方程式、圖表、分隔線…）沒有文字可以放大，只留資訊那一條，寫出是什麼；物件本身照 ProseMirror 的選取外框標出來。
+   到文件開頭、結尾時資訊變成強調色的提示，鏡片左右晃一下 */
+.wm-loupe.is-object .wm-loupe-lens, .wm-loupe.is-object .wm-loupe-tail { display: none; }
+.wm-loupe.is-edge .wm-loupe-info { color: var(--interactive-accent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--interactive-accent) 45%, transparent); }
+.wm-loupe.is-edge .wm-loupe-info .wm-loupe-info-part:first-child { color: var(--interactive-accent); }
+.wm-loupe.is-edge .wm-loupe-lens { animation: wm-loupe-nudge .32s cubic-bezier(.36, .07, .19, .97); }
+@keyframes wm-loupe-nudge { 20% { transform: translateX(-5px); } 45% { transform: translateX(4px); } 70% { transform: translateX(-2px); } 100% { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .wm-loupe.is-edge .wm-loupe-lens { animation: none; } }
+.wm-loupe.is-object { height: 0; }
+/* 物件的資訊對齊物件左邊（loupe.ts 把整個放大鏡的左邊放在物件左邊） */
+.wm-loupe.is-object .wm-loupe-info { left: 0; transform: none; }

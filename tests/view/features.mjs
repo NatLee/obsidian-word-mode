@@ -1299,7 +1299,7 @@ await fresh('---\ntags:\n  - 會議\n  - 專案\ndate: 2026-11-16\ndone: false\n
     const row = document.body.appendChild(document.createElement('div'));
     const key = row.appendChild(document.createElement('button'));
     view.toolbar.caretPad(row, 300);
-    const rev = (type, x, target = key) => { const pt = [{ identifier: 8, clientX: x, clientY: 0 }]; target.dispatchEvent(Object.assign(new Event(type, { bubbles: true, cancelable: true }), { touches: type === 'touchend' ? [] : pt, changedTouches: pt })); };
+    const rev = (type, x, target = key) => { const pt = [{ identifier: -135680138, clientX: x, clientY: 0 }]; target.dispatchEvent(Object.assign(new Event(type, { bubbles: true, cancelable: true }), { touches: type === 'touchend' ? [] : pt, changedTouches: pt })); };
     const wait = ms => new Promise(r => setTimeout(r, ms));
     pm.focus();
     const h0 = pm.state.selection.head;
@@ -1308,7 +1308,7 @@ await fresh('---\ntags:\n  - 會議\n  - 專案\ndate: 2026-11-16\ndone: false\n
     rev('touchstart', 100); await wait(350);
     assert(row.classList.contains('is-trackpad') && document.querySelector('.wm-pad-tip'), '整列：按住 0.3 秒，按鈕變淡、出現說明');
     let tapped = true;
-    const endEv = Object.assign(new Event('touchend', { bubbles: true, cancelable: true }), { touches: [], changedTouches: [{ identifier: 8, clientX: 100, clientY: 0 }] });
+    const endEv = Object.assign(new Event('touchend', { bubbles: true, cancelable: true }), { touches: [], changedTouches: [{ identifier: -135680138, clientX: 100, clientY: 0 }] });
     key.dispatchEvent(endEv); tapped = !endEv.defaultPrevented;
     assert(tapped && !row.classList.contains('is-trackpad') && !document.querySelector('.wm-pad-tip') && pm.state.selection.head === h0, '整列：按住了沒拖就放開，照常是按了按鈕（不擋點擊）');
     rev('touchstart', 100); await wait(350); rev('touchmove', 110); rev('touchmove', 137);
@@ -1320,6 +1320,50 @@ await fresh('---\ntags:\n  - 會議\n  - 專案\ndate: 2026-11-16\ndone: false\n
     assert(!row.classList.contains('is-trackpad'), '整列：從分頁選單按鈕開始的觸控不管（它自己就是觸控板）');
     rev('touchend', 100, chip);
     row.remove();
+    view.toolbar.padMoved = false;
+    // 設定：速度、按住的時間、放大鏡的開關與外觀
+    assert(B.padSteps(1).x > B.padSteps(3).x && B.padSteps(3).x > B.padSteps(5).x && B.padSteps('x').x === B.padSteps(3).x && B.padSteps(99).x === B.padSteps(5).x, '速度 1～5：越快走一格要的距離越短，不認得的值用 3');
+    assert(B.padHold(10) === 150 && B.padHold(9999) === 800 && B.padHold('x') === 300 && B.padHold(320) === 300, '按住的時間限制在 150～800，以 50 為單位');
+    const LO = B.LOUPE.loupeOptions;
+    assert(JSON.stringify(LO()) === JSON.stringify({ scale: 1.6, width: 260, style: 'capsule', info: true }) && LO(1, 1, 'x', false).info === false && LO(9, 9, 'card').scale === 2.5 && LO(9, 9, 'card').width === 180 && LO(9, 9, 'card').style === 'card', '放大鏡的設定值整理：預設膠囊 1.6 倍 260px，超出範圍的收回來');
+    const S0 = view.plugin.settings;
+    const keep = { loupeShow: S0.loupeShow, loupeStyle: S0.loupeStyle, loupeZoom: S0.loupeZoom, padSpeed: S0.padSpeed };
+    const pad2 = document.body.appendChild(document.createElement('button'));
+    view.toolbar.caretPad(pad2);
+    const ev2 = (type, x) => { const pt = [{ identifier: 9, clientX: x, clientY: 0 }]; pad2.dispatchEvent(Object.assign(new Event(type, { bubbles: true, cancelable: true }), { touches: type === 'touchend' ? [] : pt, changedTouches: pt })); };
+    pm.focus();
+    S0.loupeStyle = 'card'; S0.loupeZoom = 2;
+    ev2('touchstart', 100); ev2('touchmove', 130);
+    const lens2 = document.querySelector('.wm-loupe');
+    assert(lens2 && lens2.classList.contains('is-card') && /scale\(2\)/.test(lens2.querySelector('.wm-loupe-body').style.transform), '外觀與倍率照設定：' + (lens2 && lens2.className));
+    ev2('touchend', 130);
+    S0.loupeShow = false;
+    ev2('touchstart', 100); ev2('touchmove', 130);
+    assert(!document.querySelector('.wm-loupe'), '關掉放大鏡：拖曳時不顯示');
+    ev2('touchend', 130);
+    S0.loupeShow = true; S0.padSpeed = 5;
+    const p0 = pm.state.selection.head;
+    ev2('touchstart', 100); ev2('touchmove', 130);
+    const fast = pm.state.selection.head - p0;
+    ev2('touchend', 130);
+    S0.padSpeed = 1;
+    const p1 = pm.state.selection.head;
+    ev2('touchstart', 100); ev2('touchmove', 130);
+    const slow = pm.state.selection.head - p1;
+    ev2('touchend', 130);
+    assert(fast > slow && slow > 0, '速度照設定：同樣拖 30px，快的走 ' + fast + ' 格、慢的走 ' + slow + ' 格');
+    // 位置資訊：預設顯示，設定可以關
+    ev2('touchstart', 100); ev2('touchmove', 130);
+    const info = document.querySelector('.wm-loupe .wm-loupe-info');
+    assert(info && /內文|標題|項目符號|編號|表格|引文/.test(info.textContent) && /第 \d+／\d+ 字/.test(info.textContent), '放大鏡旁有位置資訊：' + (info && info.textContent));
+    ev2('touchend', 130);
+    S0.loupeInfo = false;
+    ev2('touchstart', 100); ev2('touchmove', 130);
+    assert(document.querySelector('.wm-loupe') && !document.querySelector('.wm-loupe-info'), '關掉位置資訊：放大鏡還在、資訊不顯示');
+    ev2('touchend', 130);
+    S0.loupeInfo = true;
+    Object.assign(S0, keep);
+    pad2.remove();
     view.toolbar.padMoved = false;
   }
   // 手機的觸控手勢（touch.ts）、成對的括號、往上滑的按鍵、表格的最小寬度
@@ -1620,31 +1664,27 @@ await fresh('---\ntags:\n  - 會議\n  - 專案\ndate: 2026-11-16\ndone: false\n
   document.removeEventListener('selectionchange', count);
 }
 
-// ======== 觸控與游標的紀錄（trace.ts）：記得到事件與選取，而且不含筆記的文字 ========
+// ======== 放大鏡的位置資訊（loupe.ts 的 caretInfo）========
 {
-  const SECRET = '機密會議紀錄內容';
-  await fresh('# 標題\n\n' + SECRET + '\n\n| 甲 | 乙 |\n| --- | --- |\n| 1 | 2 |\n');
-  const T = B.TRACE;
-  const stop = T.enableTrace(window);
-  // 編輯器外掛：手機才會裝，這裡自己建一個掛到同一個編輯器上看選取的變動
-  const { EditorView } = await import('prosemirror-view');
-  const { EditorState } = await import('prosemirror-state');
-  const host = document.body.createDiv();
-  const pv = new EditorView(host, { state: EditorState.create({ doc: view.pm.state.doc, plugins: [T.tracePlugin()] }) });
-  const target = pv.dom.querySelector('p');
-  target.dispatchEvent(Object.assign(new Event('touchstart', { bubbles: true }), { touches: [{ clientX: 12, clientY: 34 }], changedTouches: [] }));
-  target.dispatchEvent(Object.assign(new Event('touchend', { bubbles: true }), { touches: [], changedTouches: [{ clientX: 12, clientY: 34 }] }));
-  pv.dispatch(pv.state.tr.setSelection(B.TextSelection.create(pv.state.doc, 6)));
-  const sel = window.getSelection(); sel.collapse(target.firstChild, 3); document.dispatchEvent(new Event('selectionchange'));
-  const report = T.traceReport(['header line'], pv);
-  assert(report.startsWith('header line') && /t-start\s+12,34 n=1 @p/.test(report) && /t-end\s+12,34/.test(report), '記到觸控：' + report.split('\n').filter(l => l.includes('t-')).join(' / '));
-  assert(/state\s+text 6 in paragraph/.test(report), '記到編輯器的選取（種類、位置、區塊）');
-  assert(/dom-sel\s+text\(\d+\)<p:3 pos=\d+/.test(report), '記到系統的選取，換算成編輯器的位置：' + (report.split('\n').find(l => l.includes('dom-sel')) || ''));
-  assert(/^doc: 0:heading@0\+\d+ 1:paragraph@\d+\+\d+ 2:table@/m.test(report), '文件骨架只有區塊種類與位置');
-  assert(!report.includes(SECRET) && !report.includes('標題') && !report.includes('甲'), '紀錄裡沒有筆記的文字');
-  pv.destroy(); host.remove();
-  stop();
-  assert(!T.traceReport([], null).includes('t-start'), '停止之後清空');
+  await fresh('## 標題\n\n內文段落\n\n- 項目\n\n1. 編號\n\n- [ ] 待辦\n\n> 引文\n\n| 甲 | 乙 |\n| --- | --- |\n| 1 | 2 |\n');
+  const doc = view.pm.state.doc;
+  const at = text => { let p = -1; doc.descendants((n, pos) => { if (p < 0 && n.isText && n.text.includes(text)) p = pos + n.text.indexOf(text) + 1; }); return B.LOUPE.caretInfo(doc.resolve(p)).join(' | '); };
+  assert(at('標題') === '標題 2 | 第 1／2 字', '標題：' + at('標題'));
+  assert(at('內文段落') === '內文 | 第 1／4 字', '內文：' + at('內文段落'));
+  assert(at('項目').startsWith('項目符號'), '項目符號清單：' + at('項目'));
+  assert(at('編號').startsWith('編號'), '編號清單：' + at('編號'));
+  assert(at('待辦').startsWith('核取清單'), '核取清單：' + at('待辦'));
+  assert(at('引文').startsWith('引文'), '引文：' + at('引文'));
+  assert(at('2').startsWith('表格 第 2 列第 2 欄'), '表格：' + at('2'));
+  // 旁邊緊貼著行內方程式：寫出來
+  await fresh('前面 $x^2$ 後面\n\n$$\ny\n$$\n\n---\n');
+  const d2 = view.pm.state.doc;
+  let mathPos = -1; d2.descendants((n, p) => { if (mathPos < 0 && n.type.name === 'raw_inline') mathPos = p; });
+  const beforeMath = B.LOUPE.caretInfo(d2.resolve(mathPos)).join(' | ');
+  const afterMath = B.LOUPE.caretInfo(d2.resolve(mathPos + 1)).join(' | ');
+  assert(beforeMath.endsWith('行內方程式 →') && afterMath.endsWith('← 行內方程式'), '行內方程式在游標旁邊：' + beforeMath + ' / ' + afterMath);
+  const kids = []; d2.forEach(n => kids.push(B.LOUPE.objectLabel(n, null)));
+  assert(kids[1] === '方程式' && kids[2] === '水平線', '物件的名稱：' + kids.join('、'));
 }
 
 //@@MORE@@

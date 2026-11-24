@@ -5,7 +5,6 @@
 import { NodeSelection, Selection, TextSelection } from 'prosemirror-state';
 import type { EditorView } from 'prosemirror-view';
 import { selectBlockAt } from './commands.js';
-import { trace, describeNode } from './trace.js';
 
 // 多久以內放開、移動多少以內算「點一下」
 const TAP_MS = 350;
@@ -55,7 +54,6 @@ function commitDomSelection(view: EditorView): void {
   const doc = view.state.doc;
   const clamp = (p: number) => Math.max(0, Math.min(p, doc.content.size));
   const sel = TextSelection.between(doc.resolve(clamp(anchor)), doc.resolve(clamp(head)));
-  trace('drag', 'commit ' + anchor + (anchor === head ? '' : '-' + head) + ' -> ' + sel.from + (sel.empty ? '' : '-' + sel.to));
   if (!view.state.selection.eq(sel)) view.dispatch(view.state.tr.setSelection(sel));
 }
 
@@ -84,7 +82,6 @@ function tapInBlock(view: EditorView, x: number, y: number, before: Selection): 
   const plain = inside && (inside.type.name === 'paragraph' || inside.type.name === 'heading');
   if (inside && !plain && NodeSelection.isSelectable(inside)) sel = NodeSelection.create(doc, hit.inside);
   else sel = Selection.near(doc.resolve(hit.pos));
-  trace('tap', 'DOM selection inside a block; select ' + sel.from + (sel.empty ? '' : '-' + sel.to));
   view.dispatch(view.state.tr.setSelection(sel));
 }
 
@@ -93,29 +90,22 @@ export function installTouch(host: HTMLElement, getView: () => EditorView | null
   // 這一次觸控：按下的時間與位置、是不是在編輯區裡按下的、按下時有沒有選取範圍、有沒有移動過、最後一次收到事件的時間
   let down = false; let inEditor = false; let ranged = false; let downAt = 0; let moved = false; let seen = 0;
   let startX = 0; let startY = 0;
-  // 這次觸控變成長按拖曳了沒有；拖曳中擋掉了幾次選取的變動（紀錄用）
-  let drag = false; let held = 0;
+  // 這次觸控變成拖曳了沒有
+  let drag = false;
   const holding = (): boolean => down && drag && Date.now() - seen < STALE_MS;
   const win = host.ownerDocument.defaultView || window;
   // selectionchange 是送給 document 的事件，掛在 window 的捕獲階段會比 ProseMirror 掛在 document 上的早收到，
   // 在這裡停下來 ProseMirror 就收不到
   const onSelection = (e: Event): void => {
     if (!holding()) return;
-    held++;
     e.stopImmediatePropagation();
-    // 紀錄：被擋下來的選取在哪裡（不含文字）
-    const s = host.ownerDocument.getSelection();
-    const view = getView();
-    let pos = -1;
-    if (s && s.anchorNode && view) { try { pos = view.posAtDOM(s.anchorNode, s.anchorOffset); } catch { /* 對不到 */ } }
-    trace('held-sel', (s && s.anchorNode ? describeNode(s.anchorNode) + ':' + s.anchorOffset : 'none') + ' pos=' + pos);
   };
   win.addEventListener('selectionchange', onSelection, true);
   // 掛在捕獲階段：要比 ProseMirror 讀選取早知道
   host.addEventListener('touchstart', e => {
     const view = getView();
     const t = e.touches[0];
-    down = e.touches.length === 1; moved = false; drag = false; held = 0; downAt = seen = Date.now();
+    down = e.touches.length === 1; moved = false; drag = false; downAt = seen = Date.now();
     inEditor = !!view && !!e.target && view.dom.contains(e.target as Node);
     const s = host.ownerDocument.getSelection();
     ranged = !!view && !!s && !s.isCollapsed && !!s.anchorNode && view.dom.contains(s.anchorNode);
@@ -126,10 +116,7 @@ export function installTouch(host: HTMLElement, getView: () => EditorView | null
     if (!t) return;
     seen = Date.now();
     if (Math.abs(t.clientX - startX) > DRAG_MOVE || Math.abs(t.clientY - startY) > DRAG_MOVE) moved = true;
-    if (!drag && down && inEditor && moved && (ranged || seen - downAt >= HOLD_MS)) {
-      drag = true;
-      trace('drag', (ranged ? 'drag with a range selected' : 'press-and-drag') + ': editor stops reading the selection');
-    }
+    if (!drag && down && inEditor && moved && (ranged || seen - downAt >= HOLD_MS)) drag = true;
   }, { capture: true, passive: true });
   const lift = (e: TouchEvent): void => {
     if (e.touches.length) return;
@@ -137,7 +124,6 @@ export function installTouch(host: HTMLElement, getView: () => EditorView | null
     down = false;
     if (!drag) return;
     drag = false;
-    trace('drag', 'end (' + e.type + '), ' + held + ' selection changes held back');
     const view = getView();
     // 放開的當下就設定：再晚一點，iOS 放開後送來的 selectionchange 會讓 ProseMirror 用舊的選取把 DOM 改回去
     if (view && was) commitDomSelection(view);
