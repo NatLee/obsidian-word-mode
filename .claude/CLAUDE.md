@@ -19,7 +19,7 @@ Word Mode 是 Obsidian 外掛：用 ProseMirror 把 Markdown 筆記變成像 Wor
 
 ## 架構
 
-- **往返不失真是核心**。`MarkdownConverter.parse()`（`src/markdown.ts`）把原文切成「原文區塊」，每個頂層節點用 `bid` 屬性指回 `meta.segments`。`serialize(doc, meta)` 只重新產生改過的區塊，沒改的區塊一字不差輸出原文。新建的節點 `bid` 是 null；貼上或複製節點要先 `stripBids`。看不懂或不適合用 Word 方式編輯的內容（HTML、數學、註腳、註解）存成 `raw_block`／`raw_inline`，`src` 屬性就是原文。
+- **往返不失真是核心**。`MarkdownConverter.parse()`（`src/markdown.ts`）把原文切成「原文區塊」，每個頂層節點用 `bid` 屬性指回 `meta.segments`。`serialize(doc, meta)` 只重新產生改過的區塊，沒改的區塊一字不差輸出原文。新建的節點 `bid` 是 null；貼上或複製節點要先 `stripBids`。看不懂或不適合用 Word 方式編輯的內容（HTML、數學、註腳、註解）存成 `raw_block`／`raw_inline`，`src` 屬性就是原文。連續的空行每多一行是一個 `blank` 原文區塊，顯示成空白段落（最後一行空行仍是兩個區塊之間的分隔）；文件最後面新加的空白段落不寫進檔案。
 - **`src/view.ts` 的 `WordModeView` 是中樞**：建立編輯器、功能區、尋找列，是所有對話框的進入點，也處理右鍵選單、貼上、同步衝突。功能區（`src/toolbar.ts`）只透過 `ToolbarContext.dialogs` 回呼 view，不直接碰 Obsidian。
 - **不依賴 Obsidian 的純邏輯**：`commands.ts`、`schema.ts`、`markdown.ts`、`flowchart.ts`、`diagrams.ts`、`mathvisual.ts`、`colorpicker.ts` 的色碼工具。這些可以用 `tests/run.mjs` 直接測，新的邏輯盡量寫在這一類。
 - **`src/main.ts`**：外掛進入點、Word ⇄ Markdown 切換（包了 `WorkspaceLeaf.setViewState`）。設定的型別與預設值（`Settings`、`DEFAULTS`）在 `src/settings.ts`，設定頁在 `src/settingstab.ts`：內容只在 `settingSections()` 描述一次，舊版的 `display()` 與 Obsidian 1.13 的 `getSettingDefinitions()` 都用它。
