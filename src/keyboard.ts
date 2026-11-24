@@ -10,6 +10,8 @@ interface KeyboardEventLike extends Event { keyboardHeight?: unknown; }
 
 const EVENTS = ['keyboardWillShow', 'keyboardDidShow', 'keyboardWillHide', 'keyboardDidHide'] as const;
 const LOG_SIZE = 40;
+// 鍵盤收起時最多等 Obsidian 多久（見 holding）；iOS 鍵盤收起的動畫大約四分之一秒
+const HOLD_MS = 600;
 
 // el 是不是可以打字的地方（有焦點時螢幕鍵盤會升起）
 export function isTypingTarget(el: Element | null): boolean {
@@ -31,6 +33,9 @@ export class KeyboardWatch {
   log: string[] = [];
   private subs = new Set<() => void>();
   private timers: number[] = [];
+  // 鍵盤正在收起、還在等 Obsidian 把 app 放大：最晚等到這個時間（performance.now）；沒在等是 0
+  private holdUntil = 0;
+  private holdFrame = 0;
 
   constructor(private win: Window) {}
 
@@ -58,6 +63,7 @@ export class KeyboardWatch {
     win.document.addEventListener('focusout', soon);
     return () => {
       this.timers.forEach(id => win.clearTimeout(id));
+      win.cancelAnimationFrame(this.holdFrame);
       if (vv) { vv.removeEventListener('resize', now); vv.removeEventListener('scroll', now); }
       for (const name of EVENTS) win.removeEventListener(name, onKeyboard);
       win.document.removeEventListener('focusin', soon);
@@ -82,6 +88,7 @@ export class KeyboardWatch {
     const { win } = this;
     // 沒有在打字就當作鍵盤收起來了：iOS 收起鍵盤之後 visualViewport 有時不會馬上恢復，只看它會留下一塊空白
     const typing = isTypingTarget(win.document.activeElement);
+    if (this.holding(typing)) return;
     // 鍵盤從版面下緣往上蓋住多少：版面的高度減掉看得到的高度。iOS 為了露出游標會先把整個畫面往上推，推的時候
     // innerHeight 與看得到的下緣都少了推上去的那一段，用它們算會把鍵盤算矮，功能區先跳到錯的位置、推回來之後再跳一次。
     // 版面的高度（dom.ts 的 layoutHeight）不受影響；放大檢視時看得到的高度要乘回縮放比例，不然會當成鍵盤
@@ -92,6 +99,22 @@ export class KeyboardWatch {
     // 外接鍵盤時也有焦點，但只會有一條很矮的輔助列：夠高才算螢幕鍵盤開著
     this.apply(cover, typing && (cover > 80 || this.shown === true));
     this.unshove();
+  }
+
+  // 焦點一離開就當成鍵盤收起來的話，功能區會先在鍵盤上方恢復成完整的樣子（多一列分頁與狀態列，整條往上頂），
+  // 等 Obsidian 把 app 放大才掉到畫面下緣，看起來是往上跳一下再縮下去。Obsidian 的 --keyboard-height 還沒歸零
+  // 表示 app 還縮在鍵盤上方：這段時間維持鍵盤開著的樣子，每個畫格再看一次，歸零的那一格才一次換過去。
+  // 最多等 HOLD_MS：原生端沒有更新這個值的時候不能一直卡在鍵盤開著的狀態
+  private holding(typing: boolean): boolean {
+    const { win } = this;
+    const wait = !typing && this.open && this.cssHeight() > 0;
+    if (!wait) { this.holdUntil = 0; return false; }
+    const t = win.performance.now();
+    if (!this.holdUntil) this.holdUntil = t + HOLD_MS;
+    if (t >= this.holdUntil) { this.holdUntil = 0; return false; }
+    win.cancelAnimationFrame(this.holdFrame);
+    this.holdFrame = win.requestAnimationFrame(() => this.measure());
+    return true;
   }
 
   // 對話框裡的欄位拿到焦點時，iOS 為了露出它會把整個畫面往上推（一般的 WKWebView 會；推的量可以到整個鍵盤的高度），

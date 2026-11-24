@@ -2135,3 +2135,10 @@ button.wm-kb-hide { display: none; }
 .is-phone .wm-mmd-row { border-radius: 0; border-color: transparent transparent var(--background-modifier-border); padding-block: 8px; }
 .is-phone .wm-mmd-row.is-current { border-radius: 10px; border-color: hsla(var(--wm-accent-hsl), .45); }
 .is-phone .wm-mmd-head .wm-mmd-opt { gap: 8px; }
+
+/* Markdown／閱讀模式的工具列在下方時：手機上 Obsidian 的導覽列是浮動的，會蓋在工具列的按鈕上。
+   跟 Word 模式一樣在工具列下方留 --view-bottom-spacing 給它（鍵盤開著時這個值是負的，當成 0） */
+.is-phone .wm-mdbar.wm-mdbar-bottom { margin-bottom: max(0px, var(--view-bottom-spacing, 0px)); }
+/* 手機上打字時 Obsidian 自己的工具列會出現在鍵盤上方（body 的 mod-toolbar-open），兩條疊在一起佔掉兩列。
+   那一條是使用者在 Obsidian 設定裡自己排的，讓給它；使用者把它清空（Obsidian 就不顯示）時我們的照常顯示 */
+.is-phone.mod-toolbar-open .wm-mdbar.wm-mdbar-bottom { display: none; }
