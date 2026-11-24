@@ -2,7 +2,7 @@
 // 1. 表格儲存格：編輯中再點儲存格，自己放游標。交給 iOS 的話，點在游標所在的位置會跳出系統的選單（貼上、選取…），
 //    儲存格很小、幾乎每一下都點在游標上，選單又剛好蓋住下一列，下一列就怎麼點都沒反應。
 // 2. 兩指點一下：選取那一整段（Editorial 的做法）。
-import { Selection, TextSelection } from 'prosemirror-state';
+import { NodeSelection, Selection, TextSelection } from 'prosemirror-state';
 import { GapCursor } from 'prosemirror-gapcursor';
 import type { ResolvedPos } from 'prosemirror-model';
 import type { EditorView } from 'prosemirror-view';
@@ -77,6 +77,35 @@ function resyncSelection(view: EditorView): void {
     const at = view.domAtPos(head);
     dom.collapse(at.node, at.offset);
   } catch { /* 位置對不到就算了 */ }
+}
+
+// 4. 點在方程式、圖表這類不能編輯的區塊上：iOS 把系統的選取放進區塊裡面，編輯器不認那個位置，選取停在原本的地方。
+//    編輯區剛拿到焦點時原本的地方就是文件最前面，看起來就是「點了之後游標跑到開頭」。
+//    等 iOS 放完選取，如果還在區塊裡，就照點的位置選取那個區塊（像 Word 點圖片）；不能整個選取的就放在最近的文字上。
+//    區塊裡的按鈕、輸入框自己處理點擊，不管
+const OWN_TAP = 'button, input, select, textarea, a, label, [role="button"], .clickable-icon';
+const ISLAND_WAIT_MS = 150;
+
+function tapInBlock(view: EditorView, x: number, y: number, before: Selection): void {
+  // 這段時間裡有別人處理了這次點擊（提示框標題、區塊按鈕改了選取或焦點）就不管
+  if (!view.hasFocus() || view.state.selection !== before) return;
+  const dom = view.dom.ownerDocument.getSelection();
+  const node = dom && dom.anchorNode;
+  if (!node || !view.dom.contains(node)) return;
+  const el = node.nodeType === 1 ? node as Element : node.parentElement;
+  const island = el && el.closest('[contenteditable="false"]');
+  if (!island || !view.dom.contains(island)) return;
+  const hit = view.posAtCoords({ left: x, top: y });
+  if (!hit) return;
+  const doc = view.state.doc;
+  const inside = hit.inside >= 0 ? doc.nodeAt(hit.inside) : null;
+  let sel: Selection;
+  // 段落、標題裡的小東西（摺疊箭頭、註腳）：游標放在旁邊的字上。其他（方程式、圖表、程式碼、圖片）整個選起來
+  const plain = inside && (inside.type.name === 'paragraph' || inside.type.name === 'heading');
+  if (inside && !plain && NodeSelection.isSelectable(inside)) sel = NodeSelection.create(doc, hit.inside);
+  else sel = Selection.near(doc.resolve(hit.pos));
+  trace('tap', 'DOM selection inside a block; select ' + sel.from + (sel.empty ? '' : '-' + sel.to));
+  view.dispatch(view.state.tr.setSelection(sel));
 }
 
 // 給編輯器 createSelectionBetween 用的函式：長按拖曳中、選取落在區塊之間時回傳 GapCursor，其餘回傳 null（照 ProseMirror 原本的做法）
@@ -172,6 +201,12 @@ export function installTouch(host: HTMLElement, getView: () => EditorView | null
     }
     const d = one; one = null;
     if (!d || !view || e.touches.length || e.timeStamp - d.t > TAP_MS) return;
+    // 點在不能編輯的區塊上（不是區塊裡的按鈕）：等 iOS 放完選取再看（見上面第 4 點）
+    const tgt = e.target as Element | null;
+    if (tgt && tgt.nodeType === 1 && tgt.closest('[contenteditable="false"]') && !tgt.closest(OWN_TAP) && view.dom.contains(tgt)) {
+      const x = d.x, y = d.y, before = view.state.selection;
+      window.setTimeout(() => tapInBlock(view, x, y, before), ISLAND_WAIT_MS);
+    }
     const pos = cellTapPos(view, e.target, d.x, d.y);
     if (pos == null) return;
     // 擋掉之後 iOS 不會移動游標、也不會跳出選單，鍵盤維持開著（編輯區本來就有焦點）
