@@ -25,6 +25,7 @@ import { createEditorState, restoreEditorState } from './editor.js';
 import { createNodeViews } from './nodeviews.js';
 import { Toolbar } from './toolbar.js';
 import * as C from './commands.js';
+import type { TouchGap } from './touch.js';
 import { marksPlugin, marksKey, marksOn, scanWeird } from './marks.js';
 import { codePlugin, codeKey, codeActivePlugin } from './codehl.js';
 import { MermaidModal } from './mermaid.js';
@@ -41,7 +42,7 @@ import { renderPath, pathEntries, copyPath } from './paths.js';
 import { buildStatusBar, renderSaveStatus, renderCount, showWordCount, showZoom } from './statusbar.js';
 import { openPropsPeek, propertyWidget, fillPropsPeek, fillPinSummary, markOverflow } from './propview.js';
 import { isRtl, hiddenBelow, layoutHeight } from './dom.js';
-import { installTouch, touchGapSelection } from './touch.js';
+import { installTouch } from './touch.js';
 import { frontmatterBody, peekData } from './props.js';
 import { t, key, withKey } from './i18n.js';
 import type { Modifier, TAbstractFile, WorkspaceLeaf } from 'obsidian';
@@ -168,6 +169,7 @@ export class WordModeView extends TextFileView {
   declare scroller: HTMLDivElement;
   declare pathEl?: HTMLDivElement | null;
   declare caret?: Plugin;
+  declare touchGap?: TouchGap;
   declare page: HTMLDivElement;
   declare toolbar: Toolbar;
   declare findBar: FindBar;
@@ -259,7 +261,7 @@ export class WordModeView extends TextFileView {
       }
     }
     // 觸控手勢：表格儲存格自己放游標、兩指點一下選整段（touch.ts）
-    if (Platform.isMobile) installTouch(this.page, () => this.pm);
+    if (Platform.isMobile) this.touchGap = installTouch(this.page, () => this.pm);
     this.applyZoom();
     this.applyPropsLook();
     this.applyCaretLook();
@@ -1238,7 +1240,7 @@ export class WordModeView extends TextFileView {
           contextmenu: (v, e) => this.onContextMenu(e as ElementEvent<typeof e>),
         },
         // 手機長按拖曳游標時，暫時接受區塊之間的位置（touch.ts）
-        createSelectionBetween: (v, $anchor, $head) => (Platform.isMobile ? touchGapSelection($anchor, $head) : null),
+        createSelectionBetween: (v, $anchor, $head) => (this.touchGap ? this.touchGap($anchor, $head) : null),
         handleKeyDown: (v, e) => this.onKeyDown(e),
         handleScrollToSelection: v => this.scrollPastProps(v),
         handlePaste: (v, e) => this.onPaste(e),
