@@ -122,6 +122,7 @@ Word 模式的功能區（`src/toolbar.ts`）與 Markdown、閱讀模式的功�
 | `src/colorpicker.ts` | 字型色彩與醒目提示的色彩面板。 |
 | `src/mdbar.ts` | Markdown 與閱讀模式的功能區：每個按鈕對 Markdown 編輯器做什麼。 |
 | `src/statusbar.ts` | 狀態列的內容（字數、存檔狀態、檢視切換、文件屬性、縮放），Word 模式與 Markdown、閱讀模式共用。 |
+| `src/paths.ts` | 檔案的路徑：狀態列上的顯示，以及「複製路徑」的項目（筆記自己、文件裡連結與圖片指向的檔案）。 |
 | `src/props.ts`、`src/propview.ts` | 文件屬性的值（類型、轉換、讀出文件屬性），以及查看文件屬性的小視窗與固定在上方的屬性列。 |
 | `src/bubble.ts` | 連結與圖片的浮動工具列。 |
 | `src/tablegrips.ts` | 游標所在表格的列與欄把手（選取整列或整欄並開選單）。 |

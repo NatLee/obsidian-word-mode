@@ -40,6 +40,8 @@ Shown in the animation at the top. Start a paragraph with `# `, `- `, `1. `, `> 
 - **The same toolbar in Markdown and reading mode**, with the same layout, so nothing jumps when you switch. You can show it in both, in one of them, or in neither.
 - **Detailed tooltips**: hovering a button explains it with a short animation, including the view mode buttons and the status bar buttons. They are on by default; turn them off in settings or in the shortcut list.
 - **Status bar** with the word count, save status, buttons to switch between Word mode, Markdown and reading view, view properties, and zoom. Markdown and reading view keep the same buttons and count words the same way. You can turn this off in settings. The status bar shows only the word count; Markdown symbols and link addresses are not counted, and the character count and reading time are in its tooltip. To get the same numbers as Obsidian's built-in word count, change "Word count method" in settings.
+- **Note path and copy path**: on desktop the status bar shows the folder and file name of the note. Click or right-click it to copy the path in the vault, the full path on your computer, the Obsidian URL, the file name or the folder. Right-clicking a link, embed or image in the document shows the file it points to and copies its path the same way.
+- **Blank lines stay visible**: several blank lines in a row in the Markdown show up as empty paragraphs, like pressing Enter several times in Word. Delete one and one blank line goes away; untouched ones are saved exactly as they were.
 
 ### Tables
 

@@ -1512,6 +1512,25 @@ await fresh('---\ntags:\n  - 會議\n  - 專案\ndate: 2026-11-16\ndone: false\n
   assert(view.currentLine() === 6, '前面改過字之後行號照現在的內容算：' + view.currentLine());
 }
 
+// ======== 點文件下方的空白處：游標到文件最後，表格後面補一個空白段落 ========
+{
+  const src = '段落\n\n| 甲 | 乙 |\n| --- | --- |\n| 1 | 2 |\n';
+  await fresh(src);
+  B.C.caretToDocEnd(view.pm.state, view.pm.dispatch);
+  const last = view.pm.state.doc.lastChild;
+  assert(last.type.name === 'paragraph' && last.childCount === 0, '表格在最後：補一個空白段落，得到 ' + last.type.name);
+  assert(view.pm.state.selection.$from.parent === last, '游標在新的段落裡');
+  assert(view.plugin.converter.serialize(view.pm.state.doc, view.meta) === src, '沒打字：存檔內容不變');
+  view.pm.dispatch(view.pm.state.tr.insertText('後面'));
+  assert(view.plugin.converter.serialize(view.pm.state.doc, view.meta) === src + '\n後面\n', '打了字：接在表格後面');
+  await fresh('第一段\n\n最後一段\n');
+  B.C.caretToDocEnd(view.pm.state, view.pm.dispatch);
+  assert(view.pm.state.doc.childCount === 2 && view.pm.state.selection.from === view.pm.state.doc.content.size - 1, '最後是內文：不加段落，游標在結尾');
+  // 連續空行顯示成空白段落
+  await fresh('甲\n\n\n\n乙\n');
+  assert(view.pm.state.doc.childCount === 4, '三個空行：兩個空白段落，得到 ' + view.pm.state.doc.childCount);
+}
+
 //@@MORE@@
 
 finish();

@@ -122,6 +122,7 @@ All styles are in `styles/word-mode.css`, and every class starts with `wm-`. The
 | `src/colorpicker.ts` | Color panel for font color and highlight. |
 | `src/mdbar.ts` | Ribbon shown in Markdown and reading mode: what each button does to the Markdown editor. |
 | `src/statusbar.ts` | Status bar contents (word count, save status, view switch, properties, zoom), shared by Word mode and Markdown and reading mode. |
+| `src/paths.ts` | File paths: the path shown in the status bar and the "copy path" entries (for the note itself and for files that links and images point to). |
 | `src/props.ts`, `src/propview.ts` | Property values (types, conversion, reading the frontmatter), and the properties popover and the pinned properties bar. |
 | `src/bubble.ts` | Floating toolbar for links and images. |
 | `src/tablegrips.ts` | Row and column handles on the table at the cursor (select a whole row or column and open its menu). |

@@ -23,7 +23,7 @@ import type {
 // 其餘種類整段保留原文
 export type BlockRange =
   | { start: number; end: number; kind: 'md'; token: Token }
-  | { start: number; end: number; kind: 'frontmatter' | 'raw' | 'footnote' | 'comment' | 'math'; token?: undefined };
+  | { start: number; end: number; kind: 'frontmatter' | 'raw' | 'footnote' | 'comment' | 'math' | 'blank'; token?: undefined };
 export type BlockKind = BlockRange['kind'];
 // 建立節點時的種類：md 區塊可能再細分成 html／math／comment
 export type SegmentKind = BlockKind | 'html';
@@ -35,6 +35,7 @@ export interface SegmentMeta {
   canon: string; // 剛解析完時序列化的結果；存檔時結果相同就表示沒有修改
   trailing: string; // 區塊尾端的空行，修改後重新輸出時保留
   line: number; // 區塊第一行的行號（從 0 起算）
+  blank?: boolean; // 這個區塊是一行空行（顯示成空白段落）
 }
 
 // parse() 回傳、serialize() 需要的文件資訊
@@ -912,6 +913,11 @@ function emptyFrontmatter(src: string): boolean {
   return !String(src).replace(/^---[^\n]*\r?\n?/, '').replace(/\r?\n?(---|\.\.\.)\s*$/, '').trim();
 }
 
+// 沒有內容、也沒有對齊或縮排的段落：存檔時就是一個空行
+function isEmptyPara(node: PMNode): boolean {
+  return node.type === schema.nodes.paragraph && node.childCount === 0 && !hasBlockFormat(node);
+}
+
 function withBid(node: PMNode, bid: number): PMNode {
   if (!('bid' in (node.type.spec.attrs || {}))) return node;
   return node.type.create(Object.assign({}, node.attrs, { bid }), node.content, node.marks);
@@ -992,6 +998,19 @@ export class MarkdownConverter {
     ranges = splitFootnotes(ranges, lines);
     ranges = carveProtected(ranges, protectedRanges(lines, bodyStart));
 
+    // 連續的空行：最後一行是兩個區塊之間的分隔，前面每多一行就是一個空白段落（Word 裡按了幾次 Enter 就看到幾行）。
+    // 每一行各自是一個原文區塊，沒動過就照原文輸出（行裡的空白也留著）。
+    // markdown-it 有時把後面的空行算進區塊（清單）：先從區塊拿掉，才數得到。沒有結尾的程式碼區塊例外，那些空行是程式碼
+    const spaced: BlockRange[] = [];
+    let gapStart = 0;
+    for (const r of ranges) {
+      if (!(r.kind === 'md' && r.token.type === 'fence')) while (r.end > r.start + 1 && isBlank(lines[r.end - 1])) r.end--;
+      for (let i = gapStart; i < r.start - 1; i++) if (isBlank(lines[i])) spaced.push({ start: i, end: i + 1, kind: 'blank' });
+      spaced.push(r);
+      gapStart = r.end;
+    }
+    ranges = spaced;
+
     // 每段建立節點
     const nodes: PMNode[] = [];
     let prevEnd = 0;
@@ -1017,7 +1036,9 @@ export class MarkdownConverter {
           if (fb && this.serializeNodes([fb]).trim() === src.trim()) segNodes = [withBid(fb, idx)];
         } catch { segNodes = null; }
       }
-      if (kind === 'frontmatter') {
+      if (kind === 'blank') {
+        segNodes = [withBid(schema.nodes.paragraph.create(), idx)];
+      } else if (kind === 'frontmatter') {
         segNodes = [schema.nodes.frontmatter.create({ src, bid: idx })];
       } else if (kind === 'md') {
         try {
@@ -1050,7 +1071,8 @@ export class MarkdownConverter {
       let k = r.end;
       while (k > r.start + 1 && isBlank(lines[k - 1])) k--;
       const trailing = lines.slice(k, r.end).join('');
-      meta.segments.push({ text: segText, gapBefore, canon, trailing, line: r.start });
+      meta.segments.push(kind === 'blank' ? { text: segText, gapBefore, canon, trailing, line: r.start, blank: true }
+        : { text: segText, gapBefore, canon, trailing, line: r.start });
       nodes.push(...segNodes);
     });
     meta.trailingGap = lines.slice(prevEnd).join('');
@@ -1087,7 +1109,8 @@ export class MarkdownConverter {
       const a = node.attrs as Partial<BidAttrs>;
       const b = a && a.bid != null ? a.bid : null;
       const last = runs[runs.length - 1];
-      if (last && b != null && last.bid === b) last.nodes.push(node);
+      // 空白段落各自算一段：在段落裡按 Enter 分出來的空白段落帶著同一個 bid，併在一起寫的話這一行會不見
+      if (last && b != null && last.bid === b && !isEmptyPara(node) && !isEmptyPara(last.nodes[0])) last.nodes.push(node);
       else runs.push({ bid: b, nodes: [node] });
     });
     const used = new Set<number | null>();
@@ -1101,6 +1124,7 @@ export class MarkdownConverter {
     const endLine = (): void => { if (out !== '' && !/[\r\n]$/.test(out)) out += eol; };
     // 目前這一串「中間沒有空行」的區塊各自寫出的文字。檢查時帶上前面幾個：緊接在有空行的註解、數學式後面的
     // 文字，怎麼讀要看更前面的內容（markdown-it 把它們看成同一段）
+    let held = ''; // 還沒寫出去的空行（新加的空白段落）
     let chain: string[] = [];
     let chainAtStart = false; // 這一串是不是從檔案的第一行開始（第一行才可能是文件屬性）
     const CONTEXT = 3;
@@ -1113,8 +1137,26 @@ export class MarkdownConverter {
         if (seg) { used.add(run.bid); lastModified = true; }
         continue;
       }
+      // 新加的空白段落就是一個空行。先記著，後面還有內容才寫出去：文件最後面的空白段落不寫進檔案
+      // （點文件下方的空白處會在表格、程式碼後面補一個空白段落；沒打字的話檔案不該因此改變）
+      if (!seg && runs.length > 1 && isEmptyPara(run.nodes[0])) { held += eol; continue; }
+      if (held) {
+        endLine();
+        out += held; held = '';
+        prevSeg = -2; pending = null;
+        chain = []; chainAtStart = false;
+      }
       const follows = seg && run.bid === prevSeg + 1;
       endLine();
+      // 原文裡的空行：沒動過、前面也還是原本那一段時照原文輸出；前後被改過的，寫一個空行
+      if (seg && seg.blank && isEmptyPara(run.nodes[0])) {
+        out += follows ? (pending != null ? pending : '') + seg.gapBefore + seg.text : eol;
+        pending = null;
+        used.add(run.bid);
+        prevSeg = run.bid!;
+        chain = []; chainAtStart = false;
+        continue;
+      }
       let sep = follows ? (pending != null ? pending : '') + seg.gapBefore : defaultSep();
       pending = null;
       if (seg) {
@@ -1133,13 +1175,6 @@ export class MarkdownConverter {
         if (!same && seg.trailing) pending = seg.trailing;
         prevSeg = run.bid!; // 有 seg 就表示 bid 不是 null
       } else {
-        if (run.nodes.length === 1 && run.nodes[0].type.name === 'paragraph' && run.nodes[0].childCount === 0
-          && runs.length > 1) {
-          // 空白段落：Word 的空行，用一個空行表示
-          out += defaultSep();
-          prevSeg = -2;
-          continue;
-        }
         out += defaultSep() + toEol(ser) + eol;
         prevSeg = -2;
         lastModified = true;

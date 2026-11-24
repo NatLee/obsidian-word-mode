@@ -70,6 +70,8 @@ export interface Settings {
   // Markdown／閱讀模式要不要顯示工具列：都顯示、只在其中一種模式顯示、都隱藏（舊版存的是 true／false，載入時轉換）
   mdToolbar: MdToolbarMode;
   mdStatusBar: boolean;
+  // 桌機的狀態列顯示這份筆記的路徑（按一下複製）
+  showPath: boolean;
   // 狀態列與「字數統計」的字數怎麼算：只算看得到的文字，或跟 Obsidian 內建的字數一樣算 Markdown 原文
   countMethod: CountMethod;
   outlinePlace: OutlinePlace;
@@ -159,6 +161,7 @@ export const DEFAULTS: Settings = {
   richHints: true,
   mdToolbar: 'both',
   mdStatusBar: true,
+  showPath: true,
   countMethod: 'word',
   outlinePlace: 'split',
   // 右鍵選單與方程式

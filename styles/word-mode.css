@@ -2188,3 +2188,10 @@ button.wm-kb-hide { display: none; }
 .wm-mobile .wm-codeblock .wm-code-head { gap: 4px; padding: 4px 6px 0; }
 .wm-mobile .wm-codeblock .wm-code-head button { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; height: 38px; padding: 0 6px; border-radius: 9px; color: var(--text-normal); }
 .wm-mobile .wm-codeblock .wm-code-head select { height: 38px; padding-inline: 10px; border-radius: 9px; font-size: var(--font-ui-small); color: var(--text-muted); }
+
+/* ---------- 狀態列：筆記的路徑（桌機）。資料夾太長時縮資料夾，檔名留著 ---------- */
+.wm-statusbar .wm-bb-path { display: flex; align-items: center; gap: 4px; min-width: 0; max-width: 380px; color: var(--text-muted); white-space: nowrap; cursor: pointer; }
+.wm-statusbar .wm-bb-path:hover { color: var(--text-normal); }
+.wm-statusbar .wm-bb-path.is-empty { display: none; }
+.wm-bb-path-dir { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.wm-bb-path-name { flex: 0 1 auto; min-width: 40px; max-width: 240px; overflow: hidden; text-overflow: ellipsis; }

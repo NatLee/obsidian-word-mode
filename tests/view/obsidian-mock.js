@@ -28,6 +28,7 @@ export class TFile {
 }
 export class TFolder { constructor(path, children = []) { this.path = path; this.name = path.split('/').pop(); this.children = children; } }
 export class Vault { static recurseChildren(root, cb) { cb(root); for (const c of root.children || []) { if (c instanceof TFolder) Vault.recurseChildren(c, cb); else cb(c); } } }
+export class FileSystemAdapter { getFullPath(p) { return '/vault/' + p; } }
 export class Notice { constructor(m) { log.push(['notice', m]); } }
 export class Menu {
   constructor() { this.items = []; }

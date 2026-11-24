@@ -103,6 +103,9 @@ export function openContextMenu(view: WordModeView, e: ElementEvent): boolean {
     item(t('編輯連結…'), 'pencil', () => view.openLinkDialog());
     item(t('複製連結'), 'copy', () => view.copyText(href));
     if (a.matches('a.wm-link')) item(t('移除連結'), 'unlink', () => { const c = linkContext(view.pm!.state); if (c) view.unlink(c); });
+    // 連到保管庫裡的檔案：寫出它的路徑，可以複製
+    const paths = view.pathItems(href);
+    if (paths.length) submenu(t('複製路徑'), 'clipboard-copy', () => { for (const p of paths) item(p.title, p.icon || 'file', p.run, !p.disabled); });
     sep();
   }
   // ---- 專屬：程式碼區塊

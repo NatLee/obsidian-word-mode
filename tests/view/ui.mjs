@@ -1978,4 +1978,47 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
   view.buildToolbar();
 }
 
+// ======== 狀態列顯示筆記的路徑；連結與圖片的右鍵選單可以複製路徑 ========
+{
+  const keepFile = view.file, keepAdapter = env.app.vault.adapter, keepName = env.app.vault.getName;
+  view.file = new B.mock.TFile('專案/會議/紀錄.md');
+  env.app.vault.adapter = new B.mock.FileSystemAdapter();
+  env.app.vault.getName = () => '我的 vault';
+  env.files.set('專案/附件/圖.png', '');
+  const bar = document.body.createDiv('wm-statusbar');
+  view.buildBottomBar(bar, true);
+  const p = bar.querySelector('.wm-bb-path');
+  assert(p && p.querySelector('.wm-bb-path-dir').textContent === '專案/會議/' && p.querySelector('.wm-bb-path-name').textContent === '紀錄.md', '狀態列顯示路徑：資料夾與檔名分開');
+  B.mock.Menu.last = null;
+  p.dispatchEvent(new window.MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+  const titles = B.mock.Menu.last ? B.mock.Menu.last.items.map(i => i.title) : [];
+  assert(titles.join('|') === '複製保管庫內的路徑|複製電腦上的完整路徑|複製 Obsidian 網址|複製檔名|複製所在資料夾的路徑', '路徑按右鍵：五種可以複製的路徑：' + titles.join('|'));
+  const copied = [];
+  const clip = navigator.clipboard;
+  Object.defineProperty(navigator, 'clipboard', { value: { writeText: v => { copied.push(v); return Promise.resolve(); } }, configurable: true });
+  for (const it of B.mock.Menu.last.items) it.fn();
+  assert(copied.join('|') === '專案/會議/紀錄.md|/vault/專案/會議/紀錄.md|obsidian://open?vault=' + encodeURIComponent('我的 vault') + '&file=' + encodeURIComponent('專案/會議/紀錄.md') + '|紀錄.md|專案/會議', '複製出來的內容：' + copied.join('|'));
+  // 改名之後跟著換
+  view.file = new B.mock.TFile('專案/新名字.md');
+  view.renderStatus();
+  assert(p.querySelector('.wm-bb-path-name').textContent === '新名字.md' && p.querySelector('.wm-bb-path-dir').textContent === '專案/', '筆記改名、搬移：路徑跟著換');
+  // 文件裡的連結
+  const items = view.pathItems('專案/附件/圖.png');
+  assert(items.length === 4 && items[0].title === '專案/附件/圖.png' && items[0].disabled === true && items[1].title === '複製保管庫內的路徑', '連結指向的檔案：第一項寫出路徑，接著是複製：' + items.map(i => i.title).join('|'));
+  assert(view.pathItems('https://example.com/a.png').length === 0 && view.pathItems('沒有這個檔案.md').length === 0, '網址、找不到的檔案：沒有路徑項目');
+  // 設定關掉就不顯示
+  plugin.settings.showPath = false;
+  const bar2 = document.body.createDiv('wm-statusbar');
+  view.buildBottomBar(bar2, true);
+  assert(!bar2.querySelector('.wm-bb-path'), '設定關掉：狀態列不顯示路徑');
+  // 手機的列不顯示
+  plugin.settings.showPath = true;
+  const bar3 = document.body.createDiv('wm-bottombar');
+  view.buildBottomBar(bar3, false);
+  assert(!bar3.querySelector('.wm-bb-path'), '手機的列不顯示路徑');
+  if (clip) Object.defineProperty(navigator, 'clipboard', { value: clip, configurable: true }); else delete navigator.clipboard;
+  view.file = keepFile; env.app.vault.adapter = keepAdapter; env.app.vault.getName = keepName;
+  bar.remove(); bar2.remove(); bar3.remove();
+}
+
 finish();

@@ -42,6 +42,8 @@ Chỉnh sửa ghi chú [Obsidian](https://obsidian.md) giống như trong Word: 
 - **Cùng một thanh công cụ trong chế độ Markdown và chế độ đọc**, với cùng bố cục, nên không có gì bị nhảy khi bạn chuyển chế độ. Bạn có thể hiện nó ở cả hai, ở một trong hai, hoặc không hiện ở đâu cả.
 - **Gợi ý chi tiết**: di chuột lên một nút sẽ thấy lời giải thích kèm một hoạt ảnh ngắn, kể cả các nút chế độ xem và các nút trên thanh trạng thái. Gợi ý được bật sẵn; bạn có thể tắt trong phần cài đặt hoặc trong danh sách phím tắt.
 - **Thanh trạng thái** với số từ, trạng thái lưu, các nút chuyển giữa chế độ Word, Markdown và chế độ đọc, xem thuộc tính và thu phóng. Chế độ Markdown và chế độ đọc giữ nguyên các nút này và đếm từ theo cùng một cách. Bạn có thể tắt tính năng này trong cài đặt. Thanh trạng thái chỉ hiện số từ, không tính ký hiệu Markdown và địa chỉ liên kết; số ký tự và thời gian đọc ước tính nằm trong chú thích. Muốn có cùng con số với bộ đếm từ có sẵn của Obsidian, hãy đổi “Cách đếm từ” trong cài đặt.
+- **Đường dẫn của ghi chú và sao chép đường dẫn**: trên máy tính, thanh trạng thái hiện thư mục và tên tệp của ghi chú. Nhấp hoặc nhấp chuột phải để sao chép đường dẫn trong kho, đường dẫn đầy đủ trên máy tính, URL Obsidian, tên tệp hoặc thư mục. Nhấp chuột phải vào liên kết, nội dung nhúng hoặc hình ảnh trong tài liệu sẽ hiện tệp mà nó trỏ tới và cho sao chép đường dẫn theo cùng cách.
+- **Dòng trống vẫn hiện ra**: nhiều dòng trống liên tiếp trong Markdown hiện thành các đoạn trống, giống như nhấn Enter nhiều lần trong Word. Xóa một đoạn thì bớt một dòng trống; những dòng không đụng tới được lưu y nguyên.
 
 ### Bảng
 

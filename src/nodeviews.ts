@@ -14,6 +14,8 @@ import type { I18nKey } from './i18n.js';
 
 // 右鍵選單的一個項目（ctx.menu 用）
 export interface NodeViewMenuItem { title: string; icon?: string; run: () => void; }
+// 路徑的項目：第一項只是寫出路徑，不能按
+export interface PathMenuItem extends NodeViewMenuItem { disabled?: boolean; }
 
 // 節點顯示元件需要的外部功能，由 view.js 的 nodeViewContext() 提供（Obsidian 端的實作）。
 // 標成可省略（?）的成員，顯示元件用之前都會先檢查；沒有提供時只少那一項功能。
@@ -53,7 +55,9 @@ export interface NodeViewContext {
   // 獨立方程式右上角「更多功能」的選單（改成行內、複製 LaTeX…）；pos 是方程式節點的位置
   mathMenu?(evt: MouseEvent, pos: number): void;
   editMermaid?(pos: number): void;
-  menu(evt: MouseEvent, items: NodeViewMenuItem[]): void;
+  menu(evt: MouseEvent, items: PathMenuItem[]): void;
+  // 連結指向保管庫裡的檔案時，選單裡「顯示路徑、複製路徑」的項目
+  pathItems?(link: string): PathMenuItem[];
   notice?(message: string): void;
   // ---- 註腳
   gotoFootnote?(id: string): void;
@@ -223,6 +227,7 @@ class WikilinkView extends SelectableAtomView<HTMLSpanElement> {
         { title: t('開啟連結'), icon: 'file-input', run: () => ctx.openLink((this.node.attrs as WikilinkAttrs).target, false) },
         { title: t('在新分頁開啟'), icon: 'file-plus', run: () => ctx.openLink((this.node.attrs as WikilinkAttrs).target, true) },
         { title: t('編輯連結…'), icon: 'pencil', run: () => ctx.editLinkAt(pos) },
+        ...(ctx.pathItems ? ctx.pathItems((this.node.attrs as WikilinkAttrs).target) : []),
       ]);
     });
     this.render();

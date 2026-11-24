@@ -36,6 +36,7 @@ import { suggestPlugin } from './suggest.js';
 import { suggestContext } from './complete.js';
 import { SourceModal, PromptModal, LinkDialog, FilePicker, ShortcutModal, EquationModal, CleanupModal } from './dialogs.js';
 import { countSource, countText, docText, docStats } from './textstats.js';
+import { renderPath, pathEntries, copyPath } from './paths.js';
 import { buildStatusBar, renderSaveStatus, renderCount, showWordCount, showZoom } from './statusbar.js';
 import { openPropsPeek, propertyWidget, fillPropsPeek, fillPinSummary, markOverflow } from './propview.js';
 import { isRtl, hiddenBelow, layoutHeight } from './dom.js';
@@ -48,7 +49,7 @@ import type { Attrs, Node as PMNode } from 'prosemirror-model';
 import type { DecorationSet } from 'prosemirror-view';
 import type WordModePlugin from './main.js';
 import type { PasteMode, ClipKind } from './toolbar.js';
-import type { NodeViewContext, NodeViewMenuItem, FrontmatterDom } from './nodeviews.js';
+import type { NodeViewContext, NodeViewMenuItem, PathMenuItem, FrontmatterDom } from './nodeviews.js';
 import type { BubbleContext, LinkDescription } from './bubble.js';
 import type { FoldState } from './fold.js';
 import type { LinkContext } from './links.js';
@@ -164,6 +165,7 @@ export class WordModeView extends TextFileView {
   declare pin: HTMLDivElement | null;
   declare pinNode: PMNode | null;
   declare scroller: HTMLDivElement;
+  declare pathEl?: HTMLDivElement | null;
   declare page: HTMLDivElement;
   declare toolbar: Toolbar;
   declare findBar: FindBar;
@@ -260,6 +262,7 @@ export class WordModeView extends TextFileView {
     this.applyPropsLook();
     this.applyPropsSticky();
     this.registerDomEvent(this.scroller, 'scroll', () => this.updatePin(), { passive: true });
+    this.registerDomEvent(this.scroller, 'click', e => this.onTailClick(e));
     // 屬性列展開時，點屬性列以外的地方就收起來
     this.registerDomEvent(this.contentEl.ownerDocument, 'pointerdown', e => { if (this.pin && this.pin.classList.contains('is-open') && !this.pin.contains(e.target as Node | null)) this.closePin(); }, true);
     // 側邊欄開關、視窗改變大小時，屬性列跟著頁面的寬度
@@ -504,7 +507,9 @@ export class WordModeView extends TextFileView {
       onCount: () => this.openWordCount(),
       onMode: m => { void this.plugin.switchToMarkdown(this.leaf, m === 'preview' ? 'preview' : undefined); },
       onProps: b => this.peekProperties(b),
+      file: this.plugin.settings.showPath !== false ? () => this.file : null, app: this.app,
     });
+    this.pathEl = parts.path;
     this.countEl = parts.count;
     this.statusBox = parts.status;
     this.zoomRange = parts.range;
@@ -646,6 +651,9 @@ export class WordModeView extends TextFileView {
 
   renderStatus(): void {
     if (this.statusBox) renderSaveStatus(this.statusBox, this.status, this.savedAt);
+    // 筆記改名或搬到別的資料夾之後，狀態列的路徑跟著換
+    const shown = this.file ? this.file.path : '';
+    if (this.pathEl && this.pathEl.dataset.path !== shown) { this.pathEl.dataset.path = shown; renderPath(this.pathEl, this.file); }
   }
 
   updateCount(): void {
@@ -1295,16 +1303,17 @@ export class WordModeView extends TextFileView {
   }
 
   nodeViewContext(): NodeViewContext {
-    const menu = (evt: MouseEvent, items: NodeViewMenuItem[]) => {
+    const menu = (evt: MouseEvent, items: PathMenuItem[]) => {
       evt.preventDefault();
       const m = new Menu();
-      for (const it of items) m.addItem(i => { i.setTitle(it.title); if (it.icon) i.setIcon(it.icon); i.onClick(it.run); });
+      for (const it of items) m.addItem(i => { i.setTitle(it.title); if (it.icon) i.setIcon(it.icon); i.onClick(it.run); if (it.disabled) i.setDisabled(true); });
       hideKeyboardForMenu(this); m.showAtMouseEvent(evt);
     };
     return {
       icon: iconOr,
       openLink: (tv, n) => this.openLink(tv, n),
       isResolved: tv => !!this.resolveFile(tv),
+      pathItems: tv => this.pathItems(tv),
       resolveImage: a => {
         const { src } = a as ImageAttrs;
         if (/^(https?:|data:)/i.test(src)) return src;
@@ -1353,6 +1362,23 @@ export class WordModeView extends TextFileView {
   }
 
   // ---------------------------------------------------------- 事件
+
+  // 點在最後一個區塊下方的空白處（頁面的留白、手機上頁面以下的空間）：游標放到文件最後，必要時補一個空白段落。
+  // 這些地方不在編輯器裡，ProseMirror 不會處理；表格、程式碼在最後面時，手機上就沒有地方可以點出一行新的
+  onTailClick(e: MouseEvent): void {
+    const pm = this.pm;
+    if (!pm || e.button !== 0 || e.defaultPrevented) return;
+    const target = e.target as Node | null;
+    // 點在某個區塊裡面的不管（編輯器自己會處理）；編輯器本身（它底下的留白）、頁面、捲動區才算
+    if (target !== pm.dom && target !== this.page && target !== this.scroller) return;
+    const lastEl = pm.dom.lastElementChild;
+    if (!lastEl || e.clientY <= lastEl.getBoundingClientRect().bottom) return;
+    // 拖曳選取到下方放開也會有 click：有選取範圍時不要把它清掉
+    if (!pm.state.selection.empty && pm.hasFocus()) return;
+    e.preventDefault();
+    C.caretToDocEnd(pm.state, pm.dispatch);
+    pm.focus();
+  }
 
   onMouseDown(e: ElementEvent): boolean {
     // Ctrl+點擊超連結：開啟（一般點擊只放游標，不會跳出網址）
@@ -1866,6 +1892,16 @@ export class WordModeView extends TextFileView {
     if (f) void this.app.workspace.getLeaf('tab').openFile(f);
   }
 
+  // 連結、內嵌、圖片指向保管庫裡的檔案時，右鍵選單多出來的項目：第一項寫出檔案的路徑（只是顯示），接著是複製路徑
+  pathItems(link: string): PathMenuItem[] {
+    if (/^[a-z][a-z0-9+.-]*:/i.test(link)) return [];
+    const f = this.resolvePath(link);
+    if (!f) return [];
+    const items: PathMenuItem[] = [{ title: f.path, icon: f instanceof TFolder ? 'folder' : 'file', run: () => { /* 只是顯示 */ }, disabled: true }];
+    for (const e of pathEntries(this.app, f, true)) items.push({ title: e.title, icon: e.icon, run: () => copyPath(e.value) });
+    return items;
+  }
+
   imageMenu(evt: MouseEvent, pos: number): void {
     evt.preventDefault();
     this.selectNodeAt(pos);
@@ -1882,6 +1918,9 @@ export class WordModeView extends TextFileView {
     m.addItem(i => i.setTitle(t('更換圖片…')).setIcon('replace').onClick(() => this.openImageMenu(null, pos, evt)));
     m.addItem(i => i.setTitle(t('在新分頁開啟圖片')).setIcon('external-link').onClick(() => this.openImage(n.attrs)));
     m.addItem(i => i.setTitle(t('刪除圖片')).setIcon('trash-2').onClick(() => { this.pm!.dispatch(this.pm!.state.tr.delete(pos, pos + n.nodeSize)); }));
+    const paths = this.pathItems((n.attrs as ImageAttrs).src);
+    if (paths.length) m.addSeparator();
+    for (const it of paths) m.addItem(i => { i.setTitle(it.title).setIcon(it.icon || null).onClick(it.run); if (it.disabled) i.setDisabled(true); });
     hideKeyboardForMenu(this); m.showAtMouseEvent(evt);
   }
 
