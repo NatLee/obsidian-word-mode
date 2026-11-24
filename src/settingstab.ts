@@ -2,7 +2,7 @@
 import { PluginSettingTab, Setting, Notice, Platform } from 'obsidian';
 import { t, withKey, key, setLanguage, getLanguage, LANGUAGES, LANGUAGE_NAMES } from './i18n.js';
 import { DEFAULTS } from './settings.js';
-import { caretLook } from './caret.js';
+import { caretLook, caretPeriod, CARET_PERIOD } from './caret.js';
 import { renderMathInto } from './mathrender.js';
 import { mdToolbarMode } from './mdbar.js';
 import { TABS } from './ribbon.js';
@@ -131,6 +131,9 @@ function settingSections(settingTab: WordModeSettings): SettingSection[] {
       row(t('游標的閃爍'), t('「淡入淡出」慢慢變淡再回來，比較不刺眼；「閃爍」是一亮一滅；「不閃」一直顯示。打字與移動游標的時候都不會閃。'),
         s => s.addDropdown(d => d.addOptions({ fade: t('淡入淡出'), blink: t('閃爍'), solid: t('不閃') })
           .setValue(caretLook(S.caretShape, S.caretBlink, S.caretSmooth).blink).onChange(async v => { S.caretBlink = v as CaretBlink; await save(); p.applyCaretLook(); }))),
+      row(t('游標閃爍的速度'), t('閃一次（或淡出再淡入一次）要幾秒，數字越小越快，預設 1.3 秒。選「不閃」或「系統原本的」游標時沒有作用。'),
+        s => s.addSlider(sl => sl.setLimits(CARET_PERIOD.min, CARET_PERIOD.max, CARET_PERIOD.step).setValue(caretPeriod(S.caretPeriod)).setDynamicTooltip()
+          .onChange(async v => { S.caretPeriod = caretPeriod(v); await save(); p.applyCaretLook(); }))),
       toggleRow(t('游標平滑移動'), t('打字或移動游標時，游標滑到新的位置而不是直接跳過去（像 Word）。選「系統原本的」游標時沒有作用。'), 'caretSmooth', () => p.applyCaretLook()),
       toggleRow(t('固定的屬性列顯示屬性名稱'), t('關閉後屬性列只顯示值，一行可以放更多屬性。'), 'pinLabels', () => p.applyPropsLook()),
       toggleRow(t('開啟筆記時顯示編輯標記（¶）'),

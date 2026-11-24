@@ -2215,11 +2215,18 @@ button.wm-kb-hide { display: none; }
 .wm-caret[data-shape="block"]::before { content: ''; position: absolute; inset: 0; border-radius: 2px; background: var(--wm-caret-paint); opacity: .4; }
 .wm-caret[data-shape="underline"] { width: calc(var(--wm-caret-h, 1em) * .5); height: 2px; margin-left: 0; margin-top: calc(var(--wm-caret-h, 1em) - 2px); }
 /* 停下來才閃（is-idle）：打字與移動的時候一直是實心的 */
-.wm-caret.is-idle[data-blink="fade"] { animation: wm-caret-fade 1.3s ease-in-out infinite; }
-.wm-caret.is-idle[data-blink="blink"] { animation: wm-caret-blink 1.06s steps(1, end) infinite; }
+/* 速度：--wm-caret-period 是閃一次的秒數（設定；view.ts 只在不是預設值時寫上） */
+.wm-caret.is-idle[data-blink="fade"] { animation: wm-caret-fade var(--wm-caret-period, 1.3s) ease-in-out infinite; }
+.wm-caret.is-idle[data-blink="blink"] { animation: wm-caret-blink var(--wm-caret-period, 1.3s) steps(1, end) infinite; }
 @keyframes wm-caret-fade { 0%, 100% { opacity: 1; } 50% { opacity: .12; } }
 @keyframes wm-caret-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
   .wm-caret.is-smooth { transition: none; }
-  .wm-caret.is-idle[data-blink="fade"] { animation: wm-caret-blink 1.06s steps(1, end) infinite; }
+  .wm-caret.is-idle[data-blink="fade"] { animation: wm-caret-blink var(--wm-caret-period, 1.3s) steps(1, end) infinite; }
 }
+
+/* ---------- 手機：不能編輯的區塊（文件屬性、方程式、圖表、分隔線、區塊按鈕）不讓系統選取 ----------
+   長按拖曳游標時 iOS 會把選取放進這些區塊的文字裡，編輯器不認那個位置，游標就停在別的地方、放大鏡照到別處。
+   區塊裡自己的輸入框照常可以選字 */
+.wm-mobile .wm-editor [contenteditable="false"] { -webkit-user-select: none; user-select: none; }
+.wm-mobile .wm-editor [contenteditable="false"] :is(input, textarea, [contenteditable="true"], [contenteditable="plaintext-only"]) { -webkit-user-select: text; user-select: text; }

@@ -1266,4 +1266,6 @@ export default {
  "「強調色」跟著 Obsidian 的主題；「自訂」用右邊選的顏色。": "„Akzentfarbe“ folgt dem Obsidian-Design. „Benutzerdefiniert“ verwendet die rechts gewählte Farbe.",
  "「淡入淡出」慢慢變淡再回來，比較不刺眼；「閃爍」是一亮一滅；「不閃」一直顯示。打字與移動游標的時候都不會閃。": "„Ausblenden“ wird langsam schwächer und kehrt zurück, das ist angenehmer für die Augen. „Blinken“ schaltet an und aus. „Kein Blinken“ zeigt den Cursor dauerhaft. Beim Tippen und Bewegen blinkt der Cursor nie.",
  "打字或移動游標時，游標滑到新的位置而不是直接跳過去（像 Word）。選「系統原本的」游標時沒有作用。": "Beim Tippen oder Bewegen gleitet der Cursor an die neue Position, statt zu springen (wie in Word). Ohne Wirkung beim Cursor „Systemstandard“.",
+ "游標閃爍的速度": "Blinkgeschwindigkeit des Cursors",
+ "閃一次（或淡出再淡入一次）要幾秒，數字越小越快，預設 1.3 秒。選「不閃」或「系統原本的」游標時沒有作用。": "Wie viele Sekunden ein Blinken (oder einmal Aus- und Einblenden) dauert. Kleiner ist schneller; Standard sind 1,3 Sekunden. Ohne Wirkung bei „Kein Blinken“ oder dem Cursor „Systemstandard“.",
 };

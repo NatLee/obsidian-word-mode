@@ -1266,4 +1266,6 @@ export default {
  "「強調色」跟著 Obsidian 的主題；「自訂」用右邊選的顏色。": "\"Accent color\" follows the Obsidian theme. \"Custom\" uses the color picked on the right.",
  "「淡入淡出」慢慢變淡再回來，比較不刺眼；「閃爍」是一亮一滅；「不閃」一直顯示。打字與移動游標的時候都不會閃。": "\"Fade\" dims slowly and comes back, which is easier on the eyes. \"Blink\" switches on and off. \"No blinking\" keeps it visible. The cursor never blinks while you type or move it.",
  "打字或移動游標時，游標滑到新的位置而不是直接跳過去（像 Word）。選「系統原本的」游標時沒有作用。": "When you type or move the cursor, it glides to the new position instead of jumping (like Word). Has no effect with the \"System default\" cursor.",
+ "游標閃爍的速度": "Cursor blink speed",
+ "閃一次（或淡出再淡入一次）要幾秒，數字越小越快，預設 1.3 秒。選「不閃」或「系統原本的」游標時沒有作用。": "How many seconds one blink (or one fade out and back in) takes. Smaller is faster; the default is 1.3 seconds. Has no effect with \"No blinking\" or the \"System default\" cursor.",
 };

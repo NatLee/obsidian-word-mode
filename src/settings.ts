@@ -56,6 +56,8 @@ export interface Settings {
   caretColor: 'accent' | 'text' | 'custom';
   caretCustom: string;
   caretBlink: CaretBlink;
+  // 閃一次（淡出再淡入一次）要幾秒
+  caretPeriod: number;
   caretSmooth: boolean;
   toolbarPosition: ToolbarPosition;
   // ---- 工具列
@@ -155,6 +157,7 @@ export const DEFAULTS: Settings = {
   caretColor: 'accent',
   caretCustom: '#2b7de9',
   caretBlink: 'fade',
+  caretPeriod: 1.3,
   caretSmooth: true,
   toolbarPosition: 'auto',
   // 工具列
