@@ -1270,4 +1270,5 @@ export default {
  "閃一次（或淡出再淡入一次）要幾秒，數字越小越快，預設 1.3 秒。選「不閃」或「系統原本的」游標時沒有作用。": "Durée en secondes d’un clignotement (ou d’un fondu aller-retour). Plus la valeur est petite, plus c’est rapide ; 1,3 seconde par défaut. Sans effet avec « Sans clignotement » ou le curseur « Par défaut du système ».",
  "複製觸控與游標的紀錄": "Copier le journal des touchers et du curseur",
  "已複製觸控與游標的紀錄（不含筆記內容），可以貼到問題回報裡": "Journal des touchers et du curseur copié (sans le contenu des notes). Vous pouvez le coller dans un signalement.",
+ "左右拖移動游標，上下拖換行": "Glissez à gauche ou à droite pour déplacer le curseur, en haut ou en bas pour changer de ligne",
 };

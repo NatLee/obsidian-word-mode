@@ -1270,4 +1270,5 @@ export default {
  "閃一次（或淡出再淡入一次）要幾秒，數字越小越快，預設 1.3 秒。選「不閃」或「系統原本的」游標時沒有作用。": "How many seconds one blink (or one fade out and back in) takes. Smaller is faster; the default is 1.3 seconds. Has no effect with \"No blinking\" or the \"System default\" cursor.",
  "複製觸控與游標的紀錄": "Copy touch and cursor log",
  "已複製觸控與游標的紀錄（不含筆記內容），可以貼到問題回報裡": "Copied the touch and cursor log (no note content). You can paste it into a bug report.",
+ "左右拖移動游標，上下拖換行": "Drag left or right to move the cursor, up or down to change lines",
 };

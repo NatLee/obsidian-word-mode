@@ -1270,4 +1270,5 @@ export default {
  "閃一次（或淡出再淡入一次）要幾秒，數字越小越快，預設 1.3 秒。選「不閃」或「系統原本的」游標時沒有作用。": "Cuántos segundos dura un parpadeo (o una atenuación de ida y vuelta). Cuanto menor, más rápido; el valor predeterminado es 1,3 segundos. No tiene efecto con «Sin parpadeo» ni con el cursor «Predeterminado del sistema».",
  "複製觸控與游標的紀錄": "Copiar el registro de toques y cursor",
  "已複製觸控與游標的紀錄（不含筆記內容），可以貼到問題回報裡": "Se copió el registro de toques y cursor (sin el contenido de las notas). Puedes pegarlo en un informe de errores.",
+ "左右拖移動游標，上下拖換行": "Arrastra a izquierda o derecha para mover el cursor, arriba o abajo para cambiar de línea",
 };

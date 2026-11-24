@@ -489,7 +489,7 @@ export class RibbonShell {
     this.bar.addEventListener('touchmove', e => {
       if (!from || !e.touches.length) return;
       const dx = e.touches[0].clientX - x; const dy = e.touches[0].clientY - y;
-      const on = dy < -UP && Math.abs(dx) < -dy;
+      const on = dy < -UP && Math.abs(dx) < -dy && !this.bar.classList.contains('is-trackpad');
       if (on === !!tip) return;
       disarm();
       if (!on) return;
@@ -502,7 +502,8 @@ export class RibbonShell {
     this.bar.addEventListener('touchend', e => {
       const go = !!tip; const other = to;
       disarm(); from = null; to = null;
-      if (!go || !other) return;
+      // 整列按鈕當觸控板拖曳中（toolbar.ts 的 caretPad）：不是往上滑按鍵
+      if (!go || !other || this.bar.classList.contains('is-trackpad')) return;
       // 擋掉這一下的點擊，不然放開之後原本的功能也會執行
       if (e.cancelable) e.preventDefault();
       other.click();
@@ -523,7 +524,7 @@ export class RibbonShell {
       down = dy > DOWN && Math.abs(dx) < dy;
     }, { passive: true });
     this.bar.addEventListener('touchend', e => {
-      if (!tracking || !down) { tracking = false; return; }
+      if (!tracking || !down || this.bar.classList.contains('is-trackpad')) { tracking = false; return; }
       tracking = false; down = false;
       // 擋掉放開之後的點擊：手指起點的那顆按鈕不要被按到
       if (e.cancelable) e.preventDefault();

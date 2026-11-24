@@ -2224,3 +2224,9 @@ button.wm-kb-hide { display: none; }
   .wm-caret.is-smooth { transition: none; }
   .wm-caret.is-idle[data-blink="fade"] { animation: wm-caret-blink var(--wm-caret-period, 1.3s) steps(1, end) infinite; }
 }
+
+/* ---------- 手機：整列按鈕當觸控板（toolbar.ts 的 caretPad，按住一下再拖）----------
+   按住夠久時按鈕變淡、上面蓋一層說明；開始拖之後說明收掉，游標上方是放大的預覽 */
+.wm-toolbar.is-trackpad > * { opacity: .25; transition: opacity .12s ease-out; }
+.wm-pad-tip { position: fixed; z-index: var(--layer-popover, 30); display: flex; align-items: center; justify-content: center; padding: 0 12px; border-radius: 20px; background: color-mix(in srgb, var(--interactive-accent) 14%, transparent); color: var(--interactive-accent); font-size: var(--font-ui-small); font-weight: 600; text-align: center; pointer-events: none; animation: wm-pad-tip-in .14s ease-out; }
+@keyframes wm-pad-tip-in { from { opacity: 0; transform: scale(.96); } }

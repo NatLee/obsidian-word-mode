@@ -1270,4 +1270,5 @@ export default {
  "閃一次（或淡出再淡入一次）要幾秒，數字越小越快，預設 1.3 秒。選「不閃」或「系統原本的」游標時沒有作用。": "Wie viele Sekunden ein Blinken (oder einmal Aus- und Einblenden) dauert. Kleiner ist schneller; Standard sind 1,3 Sekunden. Ohne Wirkung bei „Kein Blinken“ oder dem Cursor „Systemstandard“.",
  "複製觸控與游標的紀錄": "Touch- und Cursorprotokoll kopieren",
  "已複製觸控與游標的紀錄（不含筆記內容），可以貼到問題回報裡": "Touch- und Cursorprotokoll kopiert (ohne Notizinhalt). Du kannst es in eine Fehlermeldung einfügen.",
+ "左右拖移動游標，上下拖換行": "Nach links oder rechts ziehen bewegt den Cursor, nach oben oder unten wechselt die Zeile",
 };
