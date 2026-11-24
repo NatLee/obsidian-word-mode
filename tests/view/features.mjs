@@ -1531,6 +1531,47 @@ await fresh('---\ntags:\n  - 會議\n  - 專案\ndate: 2026-11-16\ndone: false\n
   assert(view.pm.state.doc.childCount === 4, '三個空行：兩個空白段落，得到 ' + view.pm.state.doc.childCount);
 }
 
+// ======== 手機長按拖曳游標：只有真的長按拖曳才接受區塊之間的位置；一般的點擊不行（1.31.0 在實機上點不出游標）========
+{
+  await fresh('---\na: 1\n---\n\n第一段\n\n---\n\n第二段\n');
+  const host = document.body.createDiv();
+  let hasFocus = true;
+  const fake = { dom: view.pm.dom, domAtPos: p => view.pm.domAtPos(p), state: view.pm.state, hasFocus: () => hasFocus, dispatch() {}, coordsAtPos: () => ({ top: 0, bottom: 10, left: 0, right: 0 }) };
+  const gap = B.installTouch(host, () => fake);
+  const realNow = Date.now; let now = 1000; Date.now = () => now;
+  const ev = (type, x, y) => host.dispatchEvent(Object.assign(new Event(type, { bubbles: true }), { touches: type === 'touchend' ? [] : [{ identifier: 1, clientX: x, clientY: y }], changedTouches: [{ identifier: 1, clientX: x, clientY: y }] }));
+  const doc = view.pm.state.doc;
+  const $gap = doc.resolve(0), $text = doc.resolve(3);
+  assert(!$gap.parent.inlineContent && $text.parent.inlineContent, '測試用的位置：一個在區塊之間、一個在文字裡');
+  assert(gap($gap, $gap) === null, '沒有觸控：照原本的做法');
+  ev('touchstart', 10, 10);
+  assert(gap($gap, $gap) === null, '剛按下去（點一下）：不接受縫隙');
+  now += 600;
+  assert(gap($gap, $gap) === null, '按住很久但手指沒動（長按選字）：不接受縫隙');
+  ev('touchmove', 40, 30);
+  const g = gap($gap, $gap);
+  assert(g && g.constructor.name.includes('GapCursor'), '按住超過時間、手指移動過：接受縫隙，得到 ' + (g && g.constructor.name));
+  assert(gap($text, $text) === null, '文字裡的位置不用處理');
+  ev('touchend', 40, 30);
+  assert(gap($gap, $gap) === null, '放開之後：不接受縫隙');
+  // 很快地點一下再移動（沒按夠久）
+  ev('touchstart', 10, 10); now += 100; ev('touchmove', 40, 30);
+  assert(gap($gap, $gap) === null, '沒按夠久就移動（捲動、滑動）：不接受縫隙');
+  ev('touchend', 40, 30);
+  // 按下去時編輯區沒有焦點（點一下叫出鍵盤）：之後怎麼樣都不接受
+  hasFocus = false;
+  ev('touchstart', 10, 10); now += 600; ev('touchmove', 40, 30);
+  assert(gap($gap, $gap) === null, '按下去時編輯區沒有焦點：不接受縫隙');
+  hasFocus = true;
+  // 放開的事件沒收到：過一陣子就不再當成按著
+  ev('touchstart', 10, 10); now += 600; ev('touchmove', 40, 30);
+  assert(gap($gap, $gap) !== null, '拖曳中');
+  now += 3000;
+  assert(gap($gap, $gap) === null, '很久沒有收到觸控事件（放開的事件漏掉）：不再接受縫隙');
+  Date.now = realNow;
+  host.remove();
+}
+
 //@@MORE@@
 
 finish();
