@@ -17,7 +17,7 @@ import { bubblePlugin } from './bubble.js';
 import { parseWidth, imageAttrsWithWidth } from './nodeviews.js';
 import { findPlugin, FindBar } from './find.js';
 import { foldPlugin } from './fold.js';
-import { caretPlugin, caretLook } from './caret.js';
+import { caretPlugin, caretLook, caretPeriod, CARET_PERIOD } from './caret.js';
 import { stripSliceBids, stripBids, clipboardTable, tableFromRows, fillTable, looksLikeMarkdown } from './paste.js';
 import { Slice, Fragment } from 'prosemirror-model';
 import { schema, IMAGE_EXT } from './schema.js';
@@ -41,7 +41,7 @@ import { renderPath, pathEntries, copyPath } from './paths.js';
 import { buildStatusBar, renderSaveStatus, renderCount, showWordCount, showZoom } from './statusbar.js';
 import { openPropsPeek, propertyWidget, fillPropsPeek, fillPinSummary, markOverflow } from './propview.js';
 import { isRtl, hiddenBelow, layoutHeight } from './dom.js';
-import { installTouch } from './touch.js';
+import { installTouch, touchGapSelection } from './touch.js';
 import { frontmatterBody, peekData } from './props.js';
 import { t, key, withKey } from './i18n.js';
 import type { Modifier, TAbstractFile, WorkspaceLeaf } from 'obsidian';
@@ -543,6 +543,10 @@ export class WordModeView extends TextFileView {
     const custom = S.caretColor === 'custom' && /^#[0-9a-f]{3,8}$/i.test(S.caretCustom || '') ? S.caretCustom : '';
     if (custom) this.contentEl.style.setProperty('--wm-caret-color', custom);
     else this.contentEl.style.removeProperty('--wm-caret-color');
+    // 閃爍的速度：跟預設一樣就不寫（預設值在 CSS）
+    const period = caretPeriod(S.caretPeriod);
+    if (period !== CARET_PERIOD.default) this.contentEl.style.setProperty('--wm-caret-period', period + 's');
+    else this.contentEl.style.removeProperty('--wm-caret-period');
     // 讓游標照新的設定重畫一次
     if (this.pm) this.pm.dispatch(this.pm.state.tr.setMeta('wm-caret', true));
   }
@@ -1233,6 +1237,8 @@ export class WordModeView extends TextFileView {
           },
           contextmenu: (v, e) => this.onContextMenu(e as ElementEvent<typeof e>),
         },
+        // 手機長按拖曳游標時，暫時接受區塊之間的位置（touch.ts）
+        createSelectionBetween: (v, $anchor, $head) => (Platform.isMobile ? touchGapSelection($anchor, $head) : null),
         handleKeyDown: (v, e) => this.onKeyDown(e),
         handleScrollToSelection: v => this.scrollPastProps(v),
         handlePaste: (v, e) => this.onPaste(e),

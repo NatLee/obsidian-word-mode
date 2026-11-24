@@ -615,16 +615,39 @@ export class Toolbar {
       const h = Math.max(8, c.bottom - c.top);
       // 上一行、下一行不一定緊貼著：段落之間有間距、表格儲存格有內距，只往外探半行會落在空白裡、查回來還是原來的位置，
       // 游標就卡住。一次多探半行，直到找到畫面上真的在另一行的位置（最多探六行的距離）
+      // 只停在可以打字的地方（textOnly）：分隔線、圖片、方程式、文件屬性這類區塊旁邊的位置不在文字裡，
+      // 停在那裡放大鏡沒有東西可以放大（會消失），再往下一行找時也可能卡住
+      const dir = n < 0 ? -1 : 1;
+      const textAt = (pos: number): number => {
+        const sel = Selection.findFrom(v.state.doc.resolve(Math.max(0, Math.min(pos, v.state.doc.content.size))), dir, true);
+        return sel ? sel.head : -1;
+      };
+      const otherLine = (pos: number): boolean => {
+        if (pos < 0 || pos === head) return false;
+        const at = v.coordsAtPos(pos);
+        return n < 0 ? at.bottom <= c.top + 1 : at.top >= c.bottom - 1;
+      };
       let to = -1;
       for (let k = 1; k <= 12 && to < 0; k++) {
         const hit = v.posAtCoords({ left: c.left, top: n < 0 ? c.top - h * k / 2 : c.bottom + h * k / 2 });
         if (!hit) continue;
-        const near = Selection.near(v.state.doc.resolve(hit.pos), n < 0 ? -1 : 1).head;
-        if (near === head) continue;
-        const at = v.coordsAtPos(near);
-        if (n < 0 ? at.bottom <= c.top + 1 : at.top >= c.bottom - 1) to = near;
+        const near = textAt(hit.pos);
+        if (otherLine(near)) to = near;
+      }
+      if (to < 0) {
+        // 探不到：中間隔著很高的區塊（圖片、圖表），或緊鄰的是不能放游標的區塊。跳到這個方向最近的一段文字
+        const $h = v.state.selection.$head;
+        const far = textAt(n < 0 ? $h.start() - 1 : $h.end() + 1);
+        if (otherLine(far)) to = far;
       }
       if (to < 0) return;
+      // 找到的位置可能是那一行的頭或尾（探到的是段落之間的空隙）：照原本的水平位置落在同一行上
+      const at = v.coordsAtPos(to);
+      const same = v.posAtCoords({ left: c.left, top: (at.top + at.bottom) / 2 });
+      if (same) {
+        const $same = v.state.doc.resolve(same.pos);
+        if ($same.parent.inlineContent && $same.parent === v.state.doc.resolve(to).parent && otherLine(same.pos)) to = same.pos;
+      }
       v.dispatch(v.state.tr.setSelection(TextSelection.create(v.state.doc, to)).scrollIntoView());
     }
   }

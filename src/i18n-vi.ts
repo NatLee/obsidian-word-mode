@@ -1266,4 +1266,6 @@ export default {
  "「強調色」跟著 Obsidian 的主題；「自訂」用右邊選的顏色。": "“Màu nhấn” theo giao diện của Obsidian. “Tùy chỉnh” dùng màu chọn ở bên phải.",
  "「淡入淡出」慢慢變淡再回來，比較不刺眼；「閃爍」是一亮一滅；「不閃」一直顯示。打字與移動游標的時候都不會閃。": "“Mờ dần” nhạt đi từ từ rồi hiện lại, dịu mắt hơn. “Nhấp nháy” là bật rồi tắt. “Không nhấp nháy” luôn hiển thị. Con trỏ không nhấp nháy khi bạn đang gõ hoặc di chuyển nó.",
  "打字或移動游標時，游標滑到新的位置而不是直接跳過去（像 Word）。選「系統原本的」游標時沒有作用。": "Khi gõ hoặc di chuyển con trỏ, nó trượt đến vị trí mới thay vì nhảy thẳng tới (giống Word). Không có tác dụng với con trỏ “Mặc định của hệ thống”.",
+ "游標閃爍的速度": "Tốc độ nhấp nháy của con trỏ",
+ "閃一次（或淡出再淡入一次）要幾秒，數字越小越快，預設 1.3 秒。選「不閃」或「系統原本的」游標時沒有作用。": "Một lần nhấp nháy (hoặc một lần mờ đi rồi hiện lại) mất bao nhiêu giây. Số càng nhỏ càng nhanh; mặc định là 1,3 giây. Không có tác dụng với “Không nhấp nháy” hoặc con trỏ “Mặc định của hệ thống”.",
 };

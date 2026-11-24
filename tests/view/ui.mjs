@@ -2039,7 +2039,12 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
   assert(el.classList.contains('wm-caret-text') && el.style.getPropertyValue('--wm-caret-color') === '', '跟文字一樣：用類別，不寫顏色');
   const L = B.CARET.caretLook;
   assert(JSON.stringify(L('怪值', undefined, undefined)) === JSON.stringify({ shape: 'line', blink: 'fade', smooth: true }) && L('underline', 'solid', false).smooth === false, '不認得的設定值用預設');
-  Object.assign(S, { caretShape: keep.shape, caretColor: keep.color, caretCustom: keep.custom, caretBlink: keep.blink, caretSmooth: keep.smooth });
+  S.caretPeriod = 0.6; view.applyCaretLook();
+  assert(el.style.getPropertyValue('--wm-caret-period') === '0.6s', '閃爍的速度寫成秒數：' + el.style.getPropertyValue('--wm-caret-period'));
+  S.caretPeriod = 1.3; view.applyCaretLook();
+  assert(el.style.getPropertyValue('--wm-caret-period') === '', '預設的速度不寫（預設值在 CSS）');
+  assert(B.CARET.caretPeriod(99) === 3 && B.CARET.caretPeriod(0) === 0.4 && B.CARET.caretPeriod('快') === 1.3 && B.CARET.caretPeriod(0.74) === 0.7, '速度限制在 0.4 到 3 秒，不是數字用預設');
+  Object.assign(S, { caretPeriod: 1.3, caretShape: keep.shape, caretColor: keep.color, caretCustom: keep.custom, caretBlink: keep.blink, caretSmooth: keep.smooth });
   view.applyCaretLook();
 }
 

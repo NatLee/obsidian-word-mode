@@ -1266,4 +1266,6 @@ export default {
  "「強調色」跟著 Obsidian 的主題；「自訂」用右邊選的顏色。": "«Color de acento» sigue el tema de Obsidian. «Personalizado» usa el color elegido a la derecha.",
  "「淡入淡出」慢慢變淡再回來，比較不刺眼；「閃爍」是一亮一滅；「不閃」一直顯示。打字與移動游標的時候都不會閃。": "«Atenuar» se desvanece poco a poco y vuelve, lo que cansa menos la vista. «Parpadear» se enciende y se apaga. «Sin parpadeo» lo mantiene visible. El cursor nunca parpadea mientras escribes o lo mueves.",
  "打字或移動游標時，游標滑到新的位置而不是直接跳過去（像 Word）。選「系統原本的」游標時沒有作用。": "Al escribir o mover el cursor, este se desliza a la nueva posición en lugar de saltar (como en Word). No tiene efecto con el cursor «Predeterminado del sistema».",
+ "游標閃爍的速度": "Velocidad de parpadeo del cursor",
+ "閃一次（或淡出再淡入一次）要幾秒，數字越小越快，預設 1.3 秒。選「不閃」或「系統原本的」游標時沒有作用。": "Cuántos segundos dura un parpadeo (o una atenuación de ida y vuelta). Cuanto menor, más rápido; el valor predeterminado es 1,3 segundos. No tiene efecto con «Sin parpadeo» ni con el cursor «Predeterminado del sistema».",
 };

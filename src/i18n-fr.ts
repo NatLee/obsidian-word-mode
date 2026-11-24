@@ -1266,4 +1266,6 @@ export default {
  "「強調色」跟著 Obsidian 的主題；「自訂」用右邊選的顏色。": "« Couleur d’accentuation » suit le thème d’Obsidian. « Personnalisée » utilise la couleur choisie à droite.",
  "「淡入淡出」慢慢變淡再回來，比較不刺眼；「閃爍」是一亮一滅；「不閃」一直顯示。打字與移動游標的時候都不會閃。": "« Fondu » s’estompe lentement puis revient, ce qui fatigue moins les yeux. « Clignotement » s’allume et s’éteint. « Sans clignotement » le laisse affiché. Le curseur ne clignote jamais pendant la saisie ou les déplacements.",
  "打字或移動游標時，游標滑到新的位置而不是直接跳過去（像 Word）。選「系統原本的」游標時沒有作用。": "Quand vous écrivez ou déplacez le curseur, il glisse vers sa nouvelle position au lieu de sauter (comme dans Word). Sans effet avec le curseur « Par défaut du système ».",
+ "游標閃爍的速度": "Vitesse de clignotement du curseur",
+ "閃一次（或淡出再淡入一次）要幾秒，數字越小越快，預設 1.3 秒。選「不閃」或「系統原本的」游標時沒有作用。": "Durée en secondes d’un clignotement (ou d’un fondu aller-retour). Plus la valeur est petite, plus c’est rapide ; 1,3 seconde par défaut. Sans effet avec « Sans clignotement » ou le curseur « Par défaut du système ».",
 };

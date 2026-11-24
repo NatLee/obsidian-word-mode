@@ -21,6 +21,13 @@ export function caretLook(shape: unknown, blink: unknown, smooth: unknown): Care
   };
 }
 
+// 閃一次要幾秒（設定）：整理成 0.4 到 3 秒之間、一位小數；不是數字就用預設
+export const CARET_PERIOD = { min: 0.4, max: 3, step: 0.1, default: 1.3 } as const;
+export function caretPeriod(v: unknown): number {
+  const n = typeof v === 'number' && isFinite(v) ? v : CARET_PERIOD.default;
+  return Math.round(Math.max(CARET_PERIOD.min, Math.min(CARET_PERIOD.max, n)) * 10) / 10;
+}
+
 // 停止移動多久之後才開始閃：打字、移動游標的時候一直是實心的，看得清楚位置
 const IDLE_MS = 500;
 
