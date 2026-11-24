@@ -26,7 +26,6 @@ import { createEditorState, restoreEditorState } from './editor.js';
 import { createNodeViews } from './nodeviews.js';
 import { Toolbar } from './toolbar.js';
 import * as C from './commands.js';
-import type { TouchGap } from './touch.js';
 import { marksPlugin, marksKey, marksOn, scanWeird } from './marks.js';
 import { codePlugin, codeKey, codeActivePlugin } from './codehl.js';
 import { MermaidModal } from './mermaid.js';
@@ -171,7 +170,6 @@ export class WordModeView extends TextFileView {
   declare pathEl?: HTMLDivElement | null;
   declare caret?: Plugin;
   declare tracer?: Plugin;
-  declare touchGap?: TouchGap;
   declare page: HTMLDivElement;
   declare toolbar: Toolbar;
   declare findBar: FindBar;
@@ -263,7 +261,7 @@ export class WordModeView extends TextFileView {
       }
     }
     // 觸控手勢：表格儲存格自己放游標、兩指點一下選整段（touch.ts）
-    if (Platform.isMobile) this.touchGap = installTouch(this.page, () => this.pm);
+    if (Platform.isMobile) this.register(installTouch(this.page, () => this.pm));
     this.applyZoom();
     this.applyPropsLook();
     this.applyCaretLook();
@@ -1246,8 +1244,6 @@ export class WordModeView extends TextFileView {
           },
           contextmenu: (v, e) => this.onContextMenu(e as ElementEvent<typeof e>),
         },
-        // 手機長按拖曳游標時，暫時接受區塊之間的位置（touch.ts）
-        createSelectionBetween: (v, $anchor, $head) => (this.touchGap ? this.touchGap($anchor, $head) : null),
         handleKeyDown: (v, e) => this.onKeyDown(e),
         handleScrollToSelection: v => this.scrollPastProps(v),
         handlePaste: (v, e) => this.onPaste(e),

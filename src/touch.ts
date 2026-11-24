@@ -3,11 +3,9 @@
 //    儲存格很小、幾乎每一下都點在游標上，選單又剛好蓋住下一列，下一列就怎麼點都沒反應。
 // 2. 兩指點一下：選取那一整段（Editorial 的做法）。
 import { NodeSelection, Selection, TextSelection } from 'prosemirror-state';
-import { GapCursor } from 'prosemirror-gapcursor';
-import type { ResolvedPos } from 'prosemirror-model';
 import type { EditorView } from 'prosemirror-view';
 import { selectBlockAt } from './commands.js';
-import { trace } from './trace.js';
+import { trace, describeNode } from './trace.js';
 
 // 多久以內放開、移動多少以內算「點一下」
 const TAP_MS = 350;
@@ -31,52 +29,30 @@ export function cellTapPos(view: EditorView, target: EventTarget | null, x: numb
   return hit ? hit.pos : null;
 }
 
-// 3. 長按拖曳游標（iOS 內建的手勢與放大鏡）：iOS 會把游標放在段落與分隔線、方程式、文件屬性這類區塊「之間」的縫隙。
-//    ProseMirror 不認這個位置，會把選取改回原本的文字位置；iOS 下一格又放回縫隙，兩邊互搶，游標在兩個地方跳、
-//    放大鏡跑去顯示別的地方。拖曳中先照 iOS 的位置（用 GapCursor 表示，DOM 的選取就不必改），放開之後再落到最近的一行文字。
+// 3. 長按拖曳游標（iOS 內建的手勢與放大鏡）：拖曳中 iOS 一直在改系統的選取，ProseMirror 每收到一次就讀進來，
+//    覺得 DOM 的寫法跟它要的不一樣就再寫回去。兩邊一來一回（每 8ms 一次），游標跳、放大鏡失效。實機紀錄裡看到的有：
+//    游標進到方程式裡（編輯器不認）、段落結尾在行內方程式後面時兩邊對同一個位置寫法不同（PM 放在結尾的分隔圖片前面，
+//    iOS 放在後面）、游標到了表格與段落之間的縫隙。所以拖曳中不讓 ProseMirror 收到選取的變動，iOS 自己畫游標與放大鏡；
+//    放開的那一刻再照 iOS 最後放的位置設定編輯器的選取（落在不能打字的地方就找最近的文字）。
 //
-//    只有「真的在長按拖曳」才這樣做，條件要嚴：一般的點擊絕對不能走到這裡。編輯區拿到焦點時 iOS 會先把選取放在
-//    文件最前面（文件屬性前面的縫隙），當成拖曳接受的話，游標就停在那裡、系統的游標還被藏起來（1.31.0 在實機上
-//    點一般的行叫不出游標就是這樣）。所以要同時符合：按下去時編輯區已經有焦點、按住超過 HOLD_MS、手指移動過、
-//    最近還有收到觸控事件（放開的事件收不到時不會一直卡在「按著」）。
+//    只有「真的在長按拖曳」才這樣做，條件要嚴：一般的點擊絕對不能走到這裡（1.31.0 在實機上點一般的行叫不出游標就是
+//    條件太鬆）。要同時符合：按下去時編輯區已經有焦點、按住超過 HOLD_MS、手指移動過、最近還有收到觸控事件
+//    （放開的事件收不到時不會一直擋著）。
 const HOLD_MS = 450;
 const DRAG_MOVE = 8;
 const STALE_MS = 2500;
 
-// 放開手指：拖曳留下的縫隙游標移到最近的文字（y 是手指最後的位置，上下兩邊都有文字時挑近的那一邊）
-function settleGap(view: EditorView, y: number): void {
-  const sel = view.state.selection;
-  if (!(sel instanceof GapCursor)) return;
-  const before = Selection.findFrom(sel.$head, -1, true);
-  const after = Selection.findFrom(sel.$head, 1, true);
-  let pick = before || after;
-  if (before && after) {
-    try {
-      const a = view.coordsAtPos(before.head); const b = view.coordsAtPos(after.head);
-      pick = Math.abs(y - (b.top + b.bottom) / 2) < Math.abs(y - (a.top + a.bottom) / 2) ? after : before;
-    } catch { /* 量不到就用前面那一個 */ }
-  }
-  trace('drag', 'settle gap @' + sel.head + ' -> ' + (pick ? pick.head : 'none'));
-  if (pick) view.dispatch(view.state.tr.setSelection(pick));
-}
-
-// 長按拖曳放開時，系統的選取可能停在方程式、圖表這類不能編輯的區塊裡面：編輯器不認那個位置（狀態還在原本的文字上），
-// 畫面上就沒有游標、打字也沒有反應。把系統的選取放回編輯器認為的位置
-function resyncSelection(view: EditorView): void {
-  if (!view.hasFocus() || !(view.state.selection instanceof TextSelection)) return;
-  const dom = view.dom.ownerDocument.getSelection();
-  const node = dom && dom.anchorNode;
-  if (!node || !view.dom.contains(node)) return;
-  const el = node.nodeType === 1 ? node as Element : node.parentElement;
-  const island = el && el.closest('[contenteditable="false"]');
-  if (!island || !view.dom.contains(island)) return;
-  const head = view.state.selection.head;
-  trace('drag', 'DOM selection left inside a block; put back @' + head);
-  try {
-    // 直接把 DOM 的選取放到編輯器狀態裡的那個位置（狀態沒有變，不必送 transaction）
-    const at = view.domAtPos(head);
-    dom.collapse(at.node, at.offset);
-  } catch { /* 位置對不到就算了 */ }
+// 放開時：照系統最後的選取設定編輯器的選取。TextSelection.between 遇到不能打字的位置會自己找附近的文字
+function commitDomSelection(view: EditorView): void {
+  const s = view.dom.ownerDocument.getSelection();
+  if (!s || !s.anchorNode || !s.focusNode || !view.dom.contains(s.anchorNode) || !view.dom.contains(s.focusNode)) return;
+  let anchor: number; let head: number;
+  try { anchor = view.posAtDOM(s.anchorNode, s.anchorOffset); head = view.posAtDOM(s.focusNode, s.focusOffset); } catch { return; }
+  const doc = view.state.doc;
+  const clamp = (p: number) => Math.max(0, Math.min(p, doc.content.size));
+  const sel = TextSelection.between(doc.resolve(clamp(anchor)), doc.resolve(clamp(head)));
+  trace('drag', 'commit ' + anchor + (anchor === head ? '' : '-' + head) + ' -> ' + sel.from + (sel.empty ? '' : '-' + sel.to));
+  if (!view.state.selection.eq(sel)) view.dispatch(view.state.tr.setSelection(sel));
 }
 
 // 4. 點在方程式、圖表這類不能編輯的區塊上：iOS 把系統的選取放進區塊裡面，編輯器不認那個位置，選取停在原本的地方。
@@ -108,54 +84,54 @@ function tapInBlock(view: EditorView, x: number, y: number, before: Selection): 
   view.dispatch(view.state.tr.setSelection(sel));
 }
 
-// 給編輯器 createSelectionBetween 用的函式：長按拖曳中、選取落在區塊之間時回傳 GapCursor，其餘回傳 null（照 ProseMirror 原本的做法）
-export type TouchGap = ($anchor: ResolvedPos, $head: ResolvedPos) => Selection | null;
-
-export function installTouch(host: HTMLElement, getView: () => EditorView | null): TouchGap {
+// 回傳拆掉的函式（selectionchange 掛在 window 上，檢視關掉時要拿掉）
+export function installTouch(host: HTMLElement, getView: () => EditorView | null): () => void {
   // 這一次觸控：按下的時間與位置、按下時編輯區有沒有焦點、有沒有移動過、最後一次收到事件的時間
   let down = false; let focused = false; let downAt = 0; let moved = false; let seen = 0;
-  let startX = 0; let startY = 0; let lastY = 0;
-  // 這次拖曳有沒有放過縫隙游標（有才需要在放開後整理），以及整理用的計時器
-  let madeGap = false; let settleTimer = 0;
-  // 這次觸控有沒有變成長按拖曳（放開後要確認系統的選取還在編輯器認得的地方）
-  let wasDrag = false;
-  const dragging = (): boolean => { const now = Date.now(); return down && focused && moved && now - downAt >= HOLD_MS && now - seen < STALE_MS; };
-  const settle = (): void => {
-    if (dragging()) return;
+  let startX = 0; let startY = 0;
+  // 這次觸控變成長按拖曳了沒有；拖曳中擋掉了幾次選取的變動（紀錄用）
+  let drag = false; let held = 0;
+  const holding = (): boolean => down && drag && Date.now() - seen < STALE_MS;
+  const win = host.ownerDocument.defaultView || window;
+  // selectionchange 是送給 document 的事件，掛在 window 的捕獲階段會比 ProseMirror 掛在 document 上的早收到，
+  // 在這裡停下來 ProseMirror 就收不到
+  const onSelection = (e: Event): void => {
+    if (!holding()) return;
+    held++;
+    e.stopImmediatePropagation();
+    // 紀錄：被擋下來的選取在哪裡（不含文字）
+    const s = host.ownerDocument.getSelection();
     const view = getView();
-    if (!view) return;
-    if (madeGap) { madeGap = false; settleGap(view, lastY); }
-    if (wasDrag) { wasDrag = false; resyncSelection(view); }
+    let pos = -1;
+    if (s && s.anchorNode && view) { try { pos = view.posAtDOM(s.anchorNode, s.anchorOffset); } catch { /* 對不到 */ } }
+    trace('held-sel', (s && s.anchorNode ? describeNode(s.anchorNode) + ':' + s.anchorOffset : 'none') + ' pos=' + pos);
   };
-  const later = (ms: number): void => { window.clearTimeout(settleTimer); settleTimer = window.setTimeout(settle, ms); };
-  const gap: TouchGap = ($anchor, $head) => {
-    if (!dragging() || $anchor.pos !== $head.pos || $head.parent.inlineContent) return null;
-    if (!madeGap) trace('drag', 'accept gap @' + $head.pos);
-    madeGap = true;
-    // 保險：放開的事件沒收到（手指底下的元素被重畫時事件不會傳到這裡）也會在一段時間後整理
-    later(STALE_MS + 100);
-    return new GapCursor($head);
-  };
+  win.addEventListener('selectionchange', onSelection, true);
   // 掛在捕獲階段：要比 ProseMirror 讀選取早知道
   host.addEventListener('touchstart', e => {
     const view = getView();
     const t = e.touches[0];
-    down = e.touches.length === 1; moved = false; downAt = seen = Date.now();
+    down = e.touches.length === 1; moved = false; drag = false; held = 0; downAt = seen = Date.now();
     focused = !!view && view.hasFocus();
-    if (t) { startX = t.clientX; startY = lastY = t.clientY; }
+    if (t) { startX = t.clientX; startY = t.clientY; }
   }, { capture: true, passive: true });
   host.addEventListener('touchmove', e => {
     const t = e.touches[0];
     if (!t) return;
-    seen = Date.now(); lastY = t.clientY;
+    seen = Date.now();
     if (Math.abs(t.clientX - startX) > DRAG_MOVE || Math.abs(t.clientY - startY) > DRAG_MOVE) moved = true;
-    if (dragging() && !wasDrag) { wasDrag = true; trace('drag', 'press-and-drag'); }
+    if (!drag && down && focused && moved && seen - downAt >= HOLD_MS) { drag = true; trace('drag', 'press-and-drag: editor stops reading the selection'); }
   }, { capture: true, passive: true });
   const lift = (e: TouchEvent): void => {
     if (e.touches.length) return;
+    const was = holding();
     down = false;
-    // 等 iOS 把這次手勢最後的選取交出來（touchend 之後才有 selectionchange）再整理
-    later(60);
+    if (!drag) return;
+    drag = false;
+    trace('drag', 'end (' + e.type + '), ' + held + ' selection changes held back');
+    const view = getView();
+    // 放開的當下就設定：再晚一點，iOS 放開後送來的 selectionchange 會讓 ProseMirror 用舊的選取把 DOM 改回去
+    if (view && was) commitDomSelection(view);
   };
   host.addEventListener('touchend', lift, { capture: true, passive: true });
   host.addEventListener('touchcancel', lift, { capture: true, passive: true });
@@ -219,5 +195,5 @@ export function installTouch(host: HTMLElement, getView: () => EditorView | null
     const sel = $p.parent.inlineContent ? TextSelection.create(view.state.doc, pos) : Selection.near($p);
     view.dispatch(view.state.tr.setSelection(sel));
   });
-  return gap;
+  return () => win.removeEventListener('selectionchange', onSelection, true);
 }
