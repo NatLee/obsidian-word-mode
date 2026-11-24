@@ -31,6 +31,12 @@ export interface Settings {
   wordAtCursor: boolean;
   autoFormat: boolean;
   autoComplete: boolean;
+  // 在段落開頭打 / 跳出插入選單
+  slashMenu: boolean;
+  // 手機的 Markdown 模式打字時，工具列讓給 Obsidian 自己的手機工具列（不疊成兩列）
+  mdYieldNative: boolean;
+  // 手機的閱讀模式工具列只留能用的按鈕（一列）
+  readingLite: boolean;
   pasteChip: boolean;
   keepHistory: boolean;
   // ---- 顯示
@@ -122,6 +128,10 @@ export const DEFAULTS: Settings = {
   wordAtCursor: true,
   autoFormat: true,
   autoComplete: true,
+  // 預設關閉：這個外掛的定位是照 Word 的方式操作（功能區），斜線選單是另一種習慣，想用的人自己開
+  slashMenu: false,
+  mdYieldNative: true,
+  readingLite: true,
   pasteChip: true,
   keepHistory: true,
   // 顯示

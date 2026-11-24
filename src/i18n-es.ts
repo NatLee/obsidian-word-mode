@@ -1228,5 +1228,15 @@ export default {
  "選取游標所在的儲存格、整列、整欄或整張表。選取整列、整欄或整張表後按 Backspace 會刪掉它們。": "Selecciona la celda, la fila, la columna o toda la tabla donde está el cursor. Con filas, columnas o la tabla enteras seleccionadas, Backspace las elimina.",
  "表格下方的段落開頭按 Backspace": "Backspace al inicio del párrafo debajo de una tabla",
  "複製螢幕鍵盤的診斷資訊": "Copiar el diagnóstico del teclado en pantalla",
- "已複製診斷資訊，可以貼到問題回報裡": "Diagnóstico copiado. Pégalo en tu informe de error."
+ "已複製診斷資訊，可以貼到問題回報裡": "Diagnóstico copiado. Pégalo en tu informe de error.",
+ "↑↓ 選擇・Enter 插入・Esc 關閉": "↑↓ para elegir · Intro para insertar · Esc para cerrar",
+ "在段落開頭打 / 顯示插入選單": "Mostrar el menú de inserción al escribir / al principio de un párrafo",
+ "在空白段落打 / 會列出標題、清單、表格、圖表、方程式等，繼續打字可以篩選，用方向鍵與 Enter 選擇。": "Al escribir / en un párrafo vacío se listan títulos, listas, tablas, diagramas, ecuaciones y más. Sigue escribiendo para filtrar y elige con las flechas e Intro.",
+ "儲存格": "Celda",
+ "上一個儲存格": "Celda anterior",
+ "下一個儲存格": "Celda siguiente",
+ "Markdown 模式打字時讓出 Obsidian 的工具列": "Dejar sitio a la barra de herramientas de Obsidian al escribir en Markdown",
+ "手機上在 Markdown 模式打字時，Obsidian 自己的工具列會出現在鍵盤上方。開啟時這個外掛的工具列先藏起來，不會疊成兩列；鍵盤收起來就回來。": "En el teléfono, Obsidian muestra su propia barra de herramientas sobre el teclado mientras escribes en Markdown. Con esta opción activada, la barra de este complemento se oculta para que no se apilen las dos, y vuelve al cerrar el teclado.",
+ "閱讀模式的工具列只留能用的按鈕": "Mostrar solo los botones utilizables en la vista de lectura",
+ "手機的閱讀模式不能編輯，大半的按鈕按不了。開啟時工具列縮成一列，只留切換模式、大綱、屬性與設定。": "En la vista de lectura del teléfono no se puede editar, así que la mayoría de los botones no hacen nada. Con esta opción activada, la barra de herramientas se reduce a una fila con el cambio de modo, el esquema, las propiedades y los ajustes.",
 };

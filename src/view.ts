@@ -429,7 +429,7 @@ export class WordModeView extends TextFileView {
     const shown = host.getBoundingClientRect().top;
     host.removeClass('wm-bar-slide');
     // 轉場跑到一半時畫面上的位置：用量到的位置反推目前實際的位移（屬性寫的是終點 0）
-    host.style.setProperty('--wm-bar-shift', '0px');
+    host.style.removeProperty('--wm-bar-shift');
     const top = host.getBoundingClientRect().top;
     const moving = shown - top;
     const prev = this.barTop;
@@ -442,7 +442,7 @@ export class WordModeView extends TextFileView {
     // 先讓起點那一格畫出來，再打開轉場滑到 0
     void host.offsetHeight;
     host.addClass('wm-bar-slide');
-    host.style.setProperty('--wm-bar-shift', '0px');
+    host.style.removeProperty('--wm-bar-shift');
   }
 
   // ---------------------------------------------------------- 資料進出
@@ -1062,6 +1062,32 @@ export class WordModeView extends TextFileView {
     const last = sp.split('#').pop()!.trim().toLowerCase();
     const h = (cache.headings || []).find(x => x.heading.trim().toLowerCase() === last);
     return h ? h.position.start.line : null;
+  }
+
+  // 目前看的地方在原文的第幾行（切換到 Markdown／閱讀模式時停在同一個地方）；算不出來是 null。
+  // 游標在畫面上就用游標那一段，捲到別的地方了就用畫面最上面那一段。行號用現在會存出去的內容重新切一次來對
+  // （跟 lineToPos 反過來）：切出來的最上層區塊跟目前文件的一一對應
+  currentLine(): number | null {
+    const pm = this.pm;
+    if (!pm) return null;
+    let pos = pm.state.selection.from;
+    try {
+      const box = this.scroller.getBoundingClientRect();
+      const c = pm.coordsAtPos(pos);
+      if (box.height > 0 && (c.bottom < box.top || c.top > box.bottom)) {
+        const hit = pm.posAtCoords({ left: box.left + box.width / 2, top: box.top + 40 });
+        if (hit) pos = hit.pos;
+      }
+    } catch { /* 測試環境沒有版面資訊：用游標 */ }
+    try {
+      const doc = pm.state.doc;
+      const index = doc.resolve(Math.min(pos, doc.content.size)).index(0);
+      const fresh = this.plugin.converter.parse(this.getViewData());
+      if (fresh.doc.childCount !== doc.childCount || index >= fresh.doc.childCount) return null;
+      const bid: unknown = fresh.doc.child(index).attrs.bid;
+      const seg = typeof bid === 'number' ? fresh.meta.segments[bid] : null;
+      return seg && typeof seg.line === 'number' ? seg.line : null;
+    } catch { return null; }
   }
 
   // 原文行號 → 文件位置：找出包含該行的原文區塊

@@ -1575,6 +1575,10 @@ const tabInTable: Command = (state, dispatch, view) => {
   return true;
 };
 
+// 下一格、上一格（Tab、Shift+Tab 做的事）：螢幕鍵盤沒有 Tab，手機上從功能區的表格分頁按
+export const nextCell: Command = tabInTable;
+export const prevCell: Command = (state, dispatch) => isInTable(state) && goToNextCell(-1)(state, dispatch);
+
 export function buildKeymap(): Record<string, Command> {
   const keys: Record<string, Command> = {
     'Mod-z': undo, 'Mod-y': redo, 'Shift-Mod-z': redo,

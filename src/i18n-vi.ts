@@ -1228,5 +1228,15 @@ export default {
  "選取游標所在的儲存格、整列、整欄或整張表。選取整列、整欄或整張表後按 Backspace 會刪掉它們。": "Chọn ô, hàng, cột hoặc cả bảng tại con trỏ. Chọn cả hàng, cột hoặc bảng rồi nhấn Backspace để xóa chúng.",
  "表格下方的段落開頭按 Backspace": "Backspace ở đầu đoạn văn bên dưới bảng",
  "複製螢幕鍵盤的診斷資訊": "Sao chép thông tin chẩn đoán bàn phím ảo",
- "已複製診斷資訊，可以貼到問題回報裡": "Đã sao chép thông tin chẩn đoán. Hãy dán vào báo cáo lỗi."
+ "已複製診斷資訊，可以貼到問題回報裡": "Đã sao chép thông tin chẩn đoán. Hãy dán vào báo cáo lỗi.",
+ "↑↓ 選擇・Enter 插入・Esc 關閉": "↑↓ để chọn · Enter để chèn · Esc để đóng",
+ "在段落開頭打 / 顯示插入選單": "Hiện menu chèn khi gõ / ở đầu đoạn",
+ "在空白段落打 / 會列出標題、清單、表格、圖表、方程式等，繼續打字可以篩選，用方向鍵與 Enter 選擇。": "Gõ / trong một đoạn trống sẽ liệt kê tiêu đề, danh sách, bảng, sơ đồ, phương trình và nhiều mục khác. Gõ tiếp để lọc, chọn bằng phím mũi tên và Enter.",
+ "儲存格": "Ô",
+ "上一個儲存格": "Ô trước",
+ "下一個儲存格": "Ô sau",
+ "Markdown 模式打字時讓出 Obsidian 的工具列": "Nhường chỗ cho thanh công cụ của Obsidian khi gõ trong Markdown",
+ "手機上在 Markdown 模式打字時，Obsidian 自己的工具列會出現在鍵盤上方。開啟時這個外掛的工具列先藏起來，不會疊成兩列；鍵盤收起來就回來。": "Trên điện thoại, Obsidian hiện thanh công cụ riêng phía trên bàn phím khi bạn gõ trong chế độ Markdown. Khi bật, thanh công cụ của plugin này ẩn đi để hai thanh không chồng lên nhau, và hiện lại khi đóng bàn phím.",
+ "閱讀模式的工具列只留能用的按鈕": "Chỉ hiện các nút dùng được trong chế độ đọc",
+ "手機的閱讀模式不能編輯，大半的按鈕按不了。開啟時工具列縮成一列，只留切換模式、大綱、屬性與設定。": "Chế độ đọc trên điện thoại không chỉnh sửa được nên phần lớn các nút không có tác dụng. Khi bật, thanh công cụ thu lại thành một hàng gồm chuyển chế độ, dàn ý, thuộc tính và cài đặt.",
 };

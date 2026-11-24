@@ -18,7 +18,8 @@ export function isTypingTarget(el: Element | null): boolean {
   if (!el) return false;
   if ((el as HTMLElement).isContentEditable || el.matches('textarea, select, [contenteditable="true"]')) return true;
   // 核取方塊、按鈕這類 input 不會叫出鍵盤
-  return el instanceof (el.ownerDocument.defaultView || window).HTMLInputElement && !/^(checkbox|radio|button|submit|range|color|file)$/.test(el.type);
+  // 用標籤名稱判斷，不用 instanceof：彈出視窗有自己的一份 HTMLInputElement
+  return el.tagName === 'INPUT' && !/^(checkbox|radio|button|submit|range|color|file)$/.test((el as HTMLInputElement).type);
 }
 
 export class KeyboardWatch {

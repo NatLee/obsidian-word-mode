@@ -1228,5 +1228,15 @@ export default {
  "選取游標所在的儲存格、整列、整欄或整張表。選取整列、整欄或整張表後按 Backspace 會刪掉它們。": "Zelle, Zeile, Spalte oder die ganze Tabelle an der Cursorposition auswählen. Sind ganze Zeilen, Spalten oder die Tabelle markiert, löscht Backspace sie.",
  "表格下方的段落開頭按 Backspace": "Backspace am Anfang des Absatzes unter einer Tabelle",
  "複製螢幕鍵盤的診斷資訊": "Diagnose der Bildschirmtastatur kopieren",
- "已複製診斷資訊，可以貼到問題回報裡": "Diagnose kopiert. Füge sie in deinen Fehlerbericht ein."
+ "已複製診斷資訊，可以貼到問題回報裡": "Diagnose kopiert. Füge sie in deinen Fehlerbericht ein.",
+ "↑↓ 選擇・Enter 插入・Esc 關閉": "↑↓ auswählen · Enter einfügen · Esc schließen",
+ "在段落開頭打 / 顯示插入選單": "Einfügemenü anzeigen, wenn am Absatzanfang / getippt wird",
+ "在空白段落打 / 會列出標題、清單、表格、圖表、方程式等，繼續打字可以篩選，用方向鍵與 Enter 選擇。": "Ein / in einem leeren Absatz listet Überschriften, Listen, Tabellen, Diagramme, Formeln und mehr auf. Weitertippen filtert, die Auswahl erfolgt mit den Pfeiltasten und Enter.",
+ "儲存格": "Zelle",
+ "上一個儲存格": "Vorherige Zelle",
+ "下一個儲存格": "Nächste Zelle",
+ "Markdown 模式打字時讓出 Obsidian 的工具列": "Beim Tippen in Markdown der Obsidian-Symbolleiste Platz machen",
+ "手機上在 Markdown 模式打字時，Obsidian 自己的工具列會出現在鍵盤上方。開啟時這個外掛的工具列先藏起來，不會疊成兩列；鍵盤收起來就回來。": "Auf dem Smartphone zeigt Obsidian beim Tippen in Markdown eine eigene Symbolleiste über der Tastatur. Ist diese Option aktiv, blendet sich die Symbolleiste dieses Plugins aus, damit nicht zwei übereinander liegen, und kehrt zurück, wenn die Tastatur geschlossen wird.",
+ "閱讀模式的工具列只留能用的按鈕": "In der Leseansicht nur nutzbare Schaltflächen anzeigen",
+ "手機的閱讀模式不能編輯，大半的按鈕按不了。開啟時工具列縮成一列，只留切換模式、大綱、屬性與設定。": "In der Leseansicht auf dem Smartphone lässt sich nichts bearbeiten, daher tun die meisten Schaltflächen nichts. Ist diese Option aktiv, schrumpft die Symbolleiste auf eine Zeile mit Moduswechsel, Gliederung, Eigenschaften und Einstellungen.",
 };

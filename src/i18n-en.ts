@@ -1228,5 +1228,15 @@ export default {
  "選取游標所在的儲存格、整列、整欄或整張表。選取整列、整欄或整張表後按 Backspace 會刪掉它們。": "Select the cell, row, column or whole table at the cursor. Press Backspace with whole rows, columns or the table selected to delete them.",
  "表格下方的段落開頭按 Backspace": "Backspace at the start of the paragraph below a table",
  "複製螢幕鍵盤的診斷資訊": "Copy on-screen keyboard diagnostics",
- "已複製診斷資訊，可以貼到問題回報裡": "Diagnostics copied. Paste them into your bug report."
+ "已複製診斷資訊，可以貼到問題回報裡": "Diagnostics copied. Paste them into your bug report.",
+ "↑↓ 選擇・Enter 插入・Esc 關閉": "↑↓ to select · Enter to insert · Esc to close",
+ "在段落開頭打 / 顯示插入選單": "Show the insert menu when you type / at the start of a paragraph",
+ "在空白段落打 / 會列出標題、清單、表格、圖表、方程式等，繼續打字可以篩選，用方向鍵與 Enter 選擇。": "Typing / in an empty paragraph lists headings, lists, tables, diagrams, equations and more. Keep typing to filter, and choose with the arrow keys and Enter.",
+ "儲存格": "Cell",
+ "上一個儲存格": "Previous cell",
+ "下一個儲存格": "Next cell",
+ "Markdown 模式打字時讓出 Obsidian 的工具列": "Make way for Obsidian's toolbar while typing in Markdown",
+ "手機上在 Markdown 模式打字時，Obsidian 自己的工具列會出現在鍵盤上方。開啟時這個外掛的工具列先藏起來，不會疊成兩列；鍵盤收起來就回來。": "On a phone, Obsidian shows its own toolbar above the keyboard while you type in Markdown. When this is on, this plugin's toolbar hides so the two do not stack, and comes back when the keyboard closes.",
+ "閱讀模式的工具列只留能用的按鈕": "Show only usable buttons in reading view",
+ "手機的閱讀模式不能編輯，大半的按鈕按不了。開啟時工具列縮成一列，只留切換模式、大綱、屬性與設定。": "Reading view on a phone cannot edit, so most buttons do nothing. When this is on, the toolbar shrinks to one row with mode switching, outline, properties and settings.",
 };

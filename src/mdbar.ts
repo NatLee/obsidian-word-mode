@@ -107,6 +107,8 @@ export class MarkdownBar {
   declare sizer: ResizeObserver | null;
   // 取消訂閱螢幕鍵盤的狀態；桌機沒有鍵盤偵測時是 null
   declare offKeyboard: (() => void) | null;
+  // 手機的閱讀模式：只剩一列能用的按鈕（見 update）
+  declare lite: boolean;
 
   constructor(plugin: WordModePlugin, view: MarkdownView) {
     this.plugin = plugin;
@@ -121,6 +123,8 @@ export class MarkdownBar {
     this.offKeyboard = plugin.keyboard ? plugin.keyboard.subscribe(() => this.syncKeyboard()) : null;
     this.syncKeyboard();
     this.items = [];
+    // 打字時讓給 Obsidian 自己的手機工具列（樣式表的 wm-yield-native；設定可以關）
+    this.dom.toggleClass('wm-yield-native', plugin.settings.mdYieldNative !== false);
     this.mode = null;
     this.render();
     // 其他外掛會假設「標題列正下方就是筆記內容」，用 top: var(--header-height) 把自己的東西貼在那裡
@@ -159,6 +163,8 @@ export class MarkdownBar {
 
   render(): void {
     this.dom.replaceChildren();
+    this.dom.removeClass('wm-reading-lite');
+    this.lite = false;
     this.items = [];
     this.mode = this.isReading() ? 'preview' : 'source';
     const S = this.plugin.settings;
@@ -272,6 +278,14 @@ export class MarkdownBar {
       if (!this.shell.richHints) this.shell.setTip(it);
       if (it.spec.active) it.dom.classList.toggle('is-active', !!it.spec.active());
     }
+    // 閱讀模式不能編輯，四個分頁裡大半的按鈕是停用的。手機的畫面小，佔兩列卻幾乎都按不了：
+    // 只留「檢視」分頁裡能用的那幾顆（切換模式、大綱、屬性、設定）排成一列，分頁列與停用的按鈕藏起來（樣式表）。
+    // 不動「上次的分頁」：回到編輯模式時還是原來那個分頁
+    const lite = reading && !!Platform.isPhone && this.plugin.settings.readingLite !== false && this.shell.layout === 'tabs' && !!this.shell.panels.viewtab;
+    if (lite === this.lite) return;
+    this.lite = lite;
+    this.dom.toggleClass('wm-reading-lite', lite);
+    this.shell.showTab(lite ? 'viewtab' : this.shell.usableTab(this.plugin.lastTab));
   }
 
   async setMode(mode: MarkdownViewModeType): Promise<void> {
