@@ -3,6 +3,7 @@
 // 版面可在設定中調整：分頁、全部排成一行（可左右捲動）、全部自動換行；按鈕可只顯示圖示或加上文字；分頁與群組可隱藏
 import * as C from './commands.js';
 import { Loupe } from './loupe.js';
+import { trace } from './trace.js';
 import { undo, redo } from 'prosemirror-history';
 import { schema } from './schema.js';
 import { t, key } from './i18n.js';
@@ -581,8 +582,9 @@ export class Toolbar {
         if (Math.abs(dx) < START && Math.abs(dy) < START) return;
         // 編輯區沒有焦點（鍵盤沒開）時不啟動：移動游標會把焦點放回去、叫出鍵盤，畫面一重排手指的相對位置就跳掉，游標亂跑
         const v = this.view;
-        if (!v || !v.hasFocus()) { id = -1; return; }
+        if (!v || !v.hasFocus()) { trace('pad', 'not started: editor has no focus'); id = -1; return; }
         active = true; this.padMoved = true;
+        trace('pad', 'drag start');
         b.classList.add('is-caret-pad');
         this.closePopup();
         loupe = new Loupe(v);
@@ -597,6 +599,7 @@ export class Toolbar {
       if (!find(e)) return;
       // 拖曳過：擋掉放開之後的那一下點擊，不然會打開分頁選單
       if (active && e.cancelable) e.preventDefault();
+      if (active) trace('pad', 'drag end (' + e.type + ')');
       id = -1; active = false;
       if (loupe) { loupe.destroy(); loupe = null; }
       b.classList.remove('is-caret-pad');
@@ -640,7 +643,7 @@ export class Toolbar {
         const far = textAt(n < 0 ? $h.start() - 1 : $h.end() + 1);
         if (otherLine(far)) to = far;
       }
-      if (to < 0) return;
+      if (to < 0) { trace('pad', 'no line ' + (n < 0 ? 'above' : 'below') + ' @' + head); return; }
       // 找到的位置可能是那一行的頭或尾（探到的是段落之間的空隙）：照原本的水平位置落在同一行上
       const at = v.coordsAtPos(to);
       const same = v.posAtCoords({ left: c.left, top: (at.top + at.bottom) / 2 });

@@ -26,3 +26,4 @@ export { RibbonShell, ACTIONS } from '../../src/ribbon.js';
 export { matchSlash } from '../../src/suggest.js';
 export { DEFAULTS } from '../../src/settings.js';
 export * as CARET from '../../src/caret.js';
+export * as TRACE from '../../src/trace.js';

@@ -4,6 +4,7 @@
 // 同一段裡移動只改 transform（有轉場，所以是滑過去的），換段才重新複製
 import type { EditorView } from 'prosemirror-view';
 import { el } from './dom.js';
+import { trace } from './trace.js';
 
 // 放大倍率、鏡片的寬度、鏡片與游標的距離（含指向游標的小尖角）、鏡片離畫面邊緣至少多遠
 const SCALE = 1.6;
@@ -55,7 +56,11 @@ export class Loupe {
       const n = $head.depth ? view.nodeDOM($head.before($head.depth)) : null;
       if (n && n.nodeType === 1) block = n as HTMLElement;
     } catch { /* 位置對不到元素：下面當作沒有 */ }
-    if (!block || !$head.parent.isTextblock) { this.dom.classList.remove('is-shown'); return; }
+    if (!block || !$head.parent.isTextblock) {
+      if (this.dom.classList.contains('is-shown')) trace('loupe', 'hidden: caret not in text (' + $head.parent.type.name + ' @' + head + ')');
+      this.dom.classList.remove('is-shown');
+      return;
+    }
     const c = view.coordsAtPos(head);
     const r = block.getBoundingClientRect();
     const lineH = Math.max(12, c.bottom - c.top);
@@ -85,6 +90,7 @@ export class Loupe {
     this.mark.style.transform = 'translate3d(' + markX.toFixed(1) + 'px,0,0)';
     this.mark.style.height = Math.round(lineH * SCALE) + 'px';
     this.tail.style.transform = 'translate3d(' + Math.max(TAIL_INSET, Math.min(markX, WIDTH - TAIL_INSET)).toFixed(1) + 'px,0,0) rotate(45deg)';
+    if (!this.dom.classList.contains('is-shown')) trace('loupe', 'shown @' + head + (below ? ' below' : ''));
     this.dom.classList.add('is-shown');
     if (this.dom.classList.contains('is-jump')) {
       // 先讓這一格不帶轉場畫出來，再把轉場開回去

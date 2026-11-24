@@ -7,6 +7,7 @@ import { GapCursor } from 'prosemirror-gapcursor';
 import type { ResolvedPos } from 'prosemirror-model';
 import type { EditorView } from 'prosemirror-view';
 import { selectBlockAt } from './commands.js';
+import { trace } from './trace.js';
 
 // 多久以內放開、移動多少以內算「點一下」
 const TAP_MS = 350;
@@ -55,6 +56,7 @@ function settleGap(view: EditorView, y: number): void {
       pick = Math.abs(y - (b.top + b.bottom) / 2) < Math.abs(y - (a.top + a.bottom) / 2) ? after : before;
     } catch { /* 量不到就用前面那一個 */ }
   }
+  trace('drag', 'settle gap @' + sel.head + ' -> ' + (pick ? pick.head : 'none'));
   if (pick) view.dispatch(view.state.tr.setSelection(pick));
 }
 
@@ -69,6 +71,7 @@ function resyncSelection(view: EditorView): void {
   const island = el && el.closest('[contenteditable="false"]');
   if (!island || !view.dom.contains(island)) return;
   const head = view.state.selection.head;
+  trace('drag', 'DOM selection left inside a block; put back @' + head);
   try {
     // 直接把 DOM 的選取放到編輯器狀態裡的那個位置（狀態沒有變，不必送 transaction）
     const at = view.domAtPos(head);
@@ -98,6 +101,7 @@ export function installTouch(host: HTMLElement, getView: () => EditorView | null
   const later = (ms: number): void => { window.clearTimeout(settleTimer); settleTimer = window.setTimeout(settle, ms); };
   const gap: TouchGap = ($anchor, $head) => {
     if (!dragging() || $anchor.pos !== $head.pos || $head.parent.inlineContent) return null;
+    if (!madeGap) trace('drag', 'accept gap @' + $head.pos);
     madeGap = true;
     // 保險：放開的事件沒收到（手指底下的元素被重畫時事件不會傳到這裡）也會在一段時間後整理
     later(STALE_MS + 100);
@@ -116,7 +120,7 @@ export function installTouch(host: HTMLElement, getView: () => EditorView | null
     if (!t) return;
     seen = Date.now(); lastY = t.clientY;
     if (Math.abs(t.clientX - startX) > DRAG_MOVE || Math.abs(t.clientY - startY) > DRAG_MOVE) moved = true;
-    if (dragging()) wasDrag = true;
+    if (dragging() && !wasDrag) { wasDrag = true; trace('drag', 'press-and-drag'); }
   }, { capture: true, passive: true });
   const lift = (e: TouchEvent): void => {
     if (e.touches.length) return;
