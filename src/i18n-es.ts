@@ -1239,4 +1239,13 @@ export default {
  "手機上在 Markdown 模式打字時，Obsidian 自己的工具列會出現在鍵盤上方。開啟時這個外掛的工具列先藏起來，不會疊成兩列；鍵盤收起來就回來。": "En el teléfono, Obsidian muestra su propia barra de herramientas sobre el teclado mientras escribes en Markdown. Con esta opción activada, la barra de este complemento se oculta para que no se apilen las dos, y vuelve al cerrar el teclado.",
  "閱讀模式的工具列只留能用的按鈕": "Mostrar solo los botones utilizables en la vista de lectura",
  "手機的閱讀模式不能編輯，大半的按鈕按不了。開啟時工具列縮成一列，只留切換模式、大綱、屬性與設定。": "En la vista de lectura del teléfono no se puede editar, así que la mayoría de los botones no hacen nada. Con esta opción activada, la barra de herramientas se reduce a una fila con el cambio de modo, el esquema, las propiedades y los ajustes.",
+ "複製路徑": "Copiar ruta",
+ "複製保管庫內的路徑": "Copiar la ruta en la bóveda",
+ "複製電腦上的完整路徑": "Copiar la ruta completa en este equipo",
+ "複製 Obsidian 網址": "Copiar la URL de Obsidian",
+ "複製檔名": "Copiar el nombre del archivo",
+ "複製所在資料夾的路徑": "Copiar la ruta de la carpeta",
+ "按一下複製路徑": "Haz clic para copiar la ruta",
+ "在狀態列顯示筆記的路徑": "Mostrar la ruta de la nota en la barra de estado",
+ "電腦上，在右下角的狀態列顯示這份筆記在保管庫裡的位置（資料夾與檔名）。按一下或按右鍵可以複製：保管庫內的路徑、電腦上的完整路徑、Obsidian 網址、檔名、所在資料夾。文件裡的連結與圖片按右鍵也能複製它們指向的檔案路徑。": "En el escritorio, muestra dónde está esta nota en la bóveda (carpeta y nombre de archivo) en la barra de estado, abajo a la derecha. Con un clic o un clic derecho puedes copiar la ruta en la bóveda, la ruta completa en este equipo, la URL de Obsidian, el nombre del archivo o la carpeta. Al hacer clic derecho en un enlace o una imagen del documento también puedes copiar la ruta del archivo al que apunta.",
 };

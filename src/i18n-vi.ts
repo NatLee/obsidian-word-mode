@@ -1239,4 +1239,13 @@ export default {
  "手機上在 Markdown 模式打字時，Obsidian 自己的工具列會出現在鍵盤上方。開啟時這個外掛的工具列先藏起來，不會疊成兩列；鍵盤收起來就回來。": "Trên điện thoại, Obsidian hiện thanh công cụ riêng phía trên bàn phím khi bạn gõ trong chế độ Markdown. Khi bật, thanh công cụ của plugin này ẩn đi để hai thanh không chồng lên nhau, và hiện lại khi đóng bàn phím.",
  "閱讀模式的工具列只留能用的按鈕": "Chỉ hiện các nút dùng được trong chế độ đọc",
  "手機的閱讀模式不能編輯，大半的按鈕按不了。開啟時工具列縮成一列，只留切換模式、大綱、屬性與設定。": "Chế độ đọc trên điện thoại không chỉnh sửa được nên phần lớn các nút không có tác dụng. Khi bật, thanh công cụ thu lại thành một hàng gồm chuyển chế độ, dàn ý, thuộc tính và cài đặt.",
+ "複製路徑": "Sao chép đường dẫn",
+ "複製保管庫內的路徑": "Sao chép đường dẫn trong kho",
+ "複製電腦上的完整路徑": "Sao chép đường dẫn đầy đủ trên máy tính",
+ "複製 Obsidian 網址": "Sao chép URL Obsidian",
+ "複製檔名": "Sao chép tên tệp",
+ "複製所在資料夾的路徑": "Sao chép đường dẫn thư mục",
+ "按一下複製路徑": "Nhấp để sao chép đường dẫn",
+ "在狀態列顯示筆記的路徑": "Hiện đường dẫn của ghi chú trên thanh trạng thái",
+ "電腦上，在右下角的狀態列顯示這份筆記在保管庫裡的位置（資料夾與檔名）。按一下或按右鍵可以複製：保管庫內的路徑、電腦上的完整路徑、Obsidian 網址、檔名、所在資料夾。文件裡的連結與圖片按右鍵也能複製它們指向的檔案路徑。": "Trên máy tính, hiện vị trí của ghi chú này trong kho (thư mục và tên tệp) trên thanh trạng thái ở góc dưới bên phải. Nhấp hoặc nhấp chuột phải để sao chép đường dẫn trong kho, đường dẫn đầy đủ trên máy tính, URL Obsidian, tên tệp hoặc thư mục. Nhấp chuột phải vào liên kết hoặc hình ảnh trong tài liệu cũng cho phép sao chép đường dẫn của tệp mà nó trỏ tới.",
 };

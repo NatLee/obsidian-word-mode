@@ -249,5 +249,39 @@ const P = text => schema.nodes.paragraph.create(null, schema.text(text));
   ok('1) 的編號清單改過之後還是 1)', r.out === '1) a!\n2) b\n' && sameDoc(r), JSON.stringify(r.out));
 }
 
+// ---- 連續的空行：每多一行就是一個空白段落（Word 裡看得到、刪得掉），沒動過的照原文輸出
+{
+  const names = doc => { const a = []; doc.forEach(n => a.push(n.type.name === 'paragraph' && !n.childCount ? '空' : n.type.name)); return a.join(' '); };
+  const same = src => c.serialize(c.parse(src).doc, c.parse(src).meta) === src;
+  ok('一個空行只是分隔：沒有空白段落', names(c.parse('A\n\nB\n').doc) === 'paragraph paragraph');
+  ok('三個空行：中間兩個空白段落', names(c.parse('A\n\n\n\nB\n').doc) === 'paragraph 空 空 paragraph', names(c.parse('A\n\n\n\nB\n').doc));
+  ok('清單後面的空行也算', names(c.parse('- a\n\n\nB\n').doc) === 'bullet_list 空 paragraph', names(c.parse('- a\n\n\nB\n').doc));
+  ok('文件屬性後面的空行', names(c.parse('---\na: 1\n---\n\n\n# H\n').doc) === 'frontmatter 空 heading', names(c.parse('---\na: 1\n---\n\n\n# H\n').doc));
+  for (const src of ['A\n\n\n\nB\n', 'A\n  \n\t\n\nB\n', 'A\r\n\r\n\r\n\r\nB\r\n', '\n\n\nA\n', '- a\n\n\n\n- b\n\n\n', '# H\n\n\n| a |\n|---|\n| 1 |\n\n\n\n文字', '```\ncode\n\n\n']) {
+    ok('空行沒動過：一字不差 ' + JSON.stringify(src), same(src), JSON.stringify(c.serialize(c.parse(src).doc, c.parse(src).meta)));
+  }
+  const emptyAt = (s, i) => { let k = 0, pos = -1, size = 0; s.doc.forEach((n, p) => { if (n.type.name === 'paragraph' && !n.childCount && k++ === i) { pos = p; size = n.nodeSize; } }); return [pos, pos + size]; };
+  let r = save('A\n\n\n\nB\n', (s, d) => d(s.tr.delete(...emptyAt(s, 1))));
+  ok('刪掉後面那個空白段落：少一個空行', r.out === 'A\n\n\nB\n' && sameDoc(r), JSON.stringify(r.out));
+  r = save('A\n\n\n\nB\n', (s, d) => d(s.tr.delete(...emptyAt(s, 0))));
+  ok('刪掉前面那個空白段落：少一個空行', r.out === 'A\n\n\nB\n' && sameDoc(r), JSON.stringify(r.out));
+  r = save('A\n\n\n\nB\n', (s, d, cur) => { d(s.tr.delete(...emptyAt(s, 0))); d(cur().tr.delete(...emptyAt(cur(), 0))); });
+  ok('兩個都刪掉：剩一個空行', r.out === 'A\n\nB\n' && sameDoc(r), JSON.stringify(r.out));
+  r = save('A\n\n\n\nB\n', (s, d) => d(s.tr.insertText('x', emptyAt(s, 0)[0] + 1)));
+  ok('在空白段落裡打字：變成一段，另一個空行還在', r.out === 'A\n\nx\n\n\nB\n' && sameDoc(r), JSON.stringify(r.out));
+  r = save('A\n\nB\n', (s, d) => d(s.tr.insert(s.doc.firstChild.nodeSize, schema.nodes.paragraph.create())));
+  ok('中間加一個空白段落：多一個空行', r.out === 'A\n\n\nB\n' && sameDoc(r), JSON.stringify(r.out));
+  r = save('A\n\nB\n', (s, d, cur) => { d(s.tr.setSelection(TextSelection.create(s.doc, 2))); splitBlock(cur(), d); });
+  ok('在段落結尾按 Enter：多一個空行', r.out === 'A\n\n\nB\n' && sameDoc(r), JSON.stringify(r.out));
+  r = save('A\n\n\n\nB\n', (s, d, cur) => { d(s.tr.setSelection(TextSelection.create(s.doc, emptyAt(s, 0)[0] + 1))); splitBlock(cur(), d); });
+  ok('在空白段落按 Enter：多一個空行', r.out === 'A\n\n\n\n\nB\n' && sameDoc(r), JSON.stringify(r.out));
+  r = save('A\n\n\n\nB\n', (s, d) => d(s.tr.insertText('!', 2)));
+  ok('改前一段：空行照舊', r.out === 'A!\n\n\n\nB\n' && sameDoc(r), JSON.stringify(r.out));
+  r = save('- a\n\n\nB\n', (s, d) => d(s.tr.insertText('!', 4)));
+  ok('改清單：後面的空行照舊', r.out === '- a!\n\n\nB\n' && sameDoc(r), JSON.stringify(r.out));
+  r = save('| a |\n|---|\n| 1 |\n', (s, d) => d(s.tr.insert(s.doc.content.size, schema.nodes.paragraph.create())));
+  ok('表格後面加一個空白段落：表格一字不差', r.out.startsWith('| a |\n|---|\n| 1 |\n') && r.back.firstChild.type.name === 'table', JSON.stringify(r.out));
+}
+
 if (fails) process.exitCode = 1;
 console.log(fails ? `\n${fails} FAILED` : '\nALL PASS');

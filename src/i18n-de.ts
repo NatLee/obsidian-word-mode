@@ -1239,4 +1239,13 @@ export default {
  "手機上在 Markdown 模式打字時，Obsidian 自己的工具列會出現在鍵盤上方。開啟時這個外掛的工具列先藏起來，不會疊成兩列；鍵盤收起來就回來。": "Auf dem Smartphone zeigt Obsidian beim Tippen in Markdown eine eigene Symbolleiste über der Tastatur. Ist diese Option aktiv, blendet sich die Symbolleiste dieses Plugins aus, damit nicht zwei übereinander liegen, und kehrt zurück, wenn die Tastatur geschlossen wird.",
  "閱讀模式的工具列只留能用的按鈕": "In der Leseansicht nur nutzbare Schaltflächen anzeigen",
  "手機的閱讀模式不能編輯，大半的按鈕按不了。開啟時工具列縮成一列，只留切換模式、大綱、屬性與設定。": "In der Leseansicht auf dem Smartphone lässt sich nichts bearbeiten, daher tun die meisten Schaltflächen nichts. Ist diese Option aktiv, schrumpft die Symbolleiste auf eine Zeile mit Moduswechsel, Gliederung, Eigenschaften und Einstellungen.",
+ "複製路徑": "Pfad kopieren",
+ "複製保管庫內的路徑": "Pfad im Tresor kopieren",
+ "複製電腦上的完整路徑": "Vollständigen Pfad auf diesem Computer kopieren",
+ "複製 Obsidian 網址": "Obsidian-URL kopieren",
+ "複製檔名": "Dateinamen kopieren",
+ "複製所在資料夾的路徑": "Ordnerpfad kopieren",
+ "按一下複製路徑": "Klicken, um den Pfad zu kopieren",
+ "在狀態列顯示筆記的路徑": "Pfad der Notiz in der Statusleiste anzeigen",
+ "電腦上，在右下角的狀態列顯示這份筆記在保管庫裡的位置（資料夾與檔名）。按一下或按右鍵可以複製：保管庫內的路徑、電腦上的完整路徑、Obsidian 網址、檔名、所在資料夾。文件裡的連結與圖片按右鍵也能複製它們指向的檔案路徑。": "Zeigt auf dem Desktop in der Statusleiste unten rechts, wo diese Notiz im Tresor liegt (Ordner und Dateiname). Per Klick oder Rechtsklick lassen sich der Pfad im Tresor, der vollständige Pfad auf diesem Computer, die Obsidian-URL, der Dateiname oder der Ordner kopieren. Ein Rechtsklick auf einen Link oder ein Bild im Dokument kopiert ebenfalls den Pfad der Zieldatei.",
 };

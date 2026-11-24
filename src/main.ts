@@ -494,6 +494,13 @@ export default class WordModePlugin extends Plugin {
     this.mdStatus = new MdStatusBar(this, el, md);
   }
 
+  // 狀態列的內容整個重建（設定改了要不要顯示路徑）
+  rebuildStatus(): void {
+    if (this.statusEl) this.statusEl.empty();
+    this.mdStatusKey = null;
+    this.updateStatus(null);
+  }
+
   // 狀態列不再顯示 Markdown 檢視的內容（換到 Word 模式、其他檢視，或關掉設定）
   hideMdStatus(): void {
     if (this.statusEl) hideBuiltinCount(this.statusEl, false);

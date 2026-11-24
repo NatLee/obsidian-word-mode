@@ -7,7 +7,8 @@ import { attachHint } from './hints.js';
 import { countSource, countText, docText, docStats, readingMinutes, withSourceCounts } from './textstats.js';
 import { WordCountModal, wordCountRows } from './dialogs.js';
 import { openMarkdownPeek } from './mdbar.js';
-import type { App, MarkdownView } from 'obsidian';
+import { openPathMenu, renderPath } from './paths.js';
+import type { App, MarkdownView, TAbstractFile } from 'obsidian';
 import type { CountMethod, TextStats, WordStats } from './textstats.js';
 import type { DemoName, HintInfo } from './hints.js';
 import type { I18nKey } from './i18n.js';
@@ -33,6 +34,9 @@ export interface StatusBarSpec {
   onCount(): void;
   onMode(mode: StatusMode): void;
   onProps(btn: HTMLButtonElement): void;
+  // 這份筆記（顯示路徑用）；沒有這一項就不顯示路徑。只在桌機的狀態列顯示，手機的列放不下
+  file?: (() => TAbstractFile | null) | null;
+  app?: App;
 }
 
 export interface StatusBarParts {
@@ -40,6 +44,8 @@ export interface StatusBarParts {
   status: HTMLDivElement;
   range: HTMLInputElement;
   zoomLabel: HTMLButtonElement;
+  // 筆記的路徑（沒顯示時是 null）
+  path: HTMLDivElement | null;
   // 檢視按鈕（依 VIEW_BUTTONS 的順序），最後一個是「查看文件屬性」
   views: HTMLButtonElement[];
 }
@@ -63,6 +69,15 @@ function smallButton(parent: HTMLElement, cls: string, rich: boolean, info: Hint
 }
 
 export function buildStatusBar(bar: HTMLElement, o: StatusBarSpec): StatusBarParts {
+  // 筆記的路徑：按一下或按右鍵選要複製哪一種路徑
+  const getFile = o.file, app = o.app;
+  const path = o.inStatusBar && getFile && app ? bar.createDiv('wm-bb-path') : null;
+  if (path && getFile && app) {
+    renderPath(path, getFile());
+    const menu = (e: MouseEvent) => { const f = getFile(); if (f) openPathMenu(app, f, e); };
+    path.addEventListener('click', menu);
+    path.addEventListener('contextmenu', menu);
+  }
   const count = bar.createDiv('wm-bb-count');
   count.addEventListener('click', () => o.onCount());
   if (!o.inStatusBar) bar.createDiv('wm-bb-spacer');
@@ -106,7 +121,7 @@ export function buildStatusBar(bar: HTMLElement, o: StatusBarSpec): StatusBarPar
     range.addEventListener('input', () => o.setZoom(+range.value));
     zoomLabel.addEventListener('click', () => o.setZoom(100));
   }
-  const parts = { count, status, range, zoomLabel, views: buttons };
+  const parts = { count, status, range, zoomLabel, path, views: buttons };
   showZoom(parts, o.zoom());
   return parts;
 }
@@ -193,6 +208,7 @@ export class MdStatusBar {
       onCount: () => this.openWordCount(),
       onMode: m => { if (m === 'word') void plugin.switchToWord(view.leaf); else void plugin.setMarkdownMode(view, m); },
       onProps: b => openMarkdownPeek(plugin, view, b),
+      file: S.showPath !== false ? () => view.file : null, app: plugin.app,
     });
     this.update();
   }

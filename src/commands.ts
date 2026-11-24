@@ -1091,6 +1091,21 @@ const exitTable: Command = (state, dispatch) => {
   return true;
 };
 
+// 點文件下方的空白處：游標放到文件最後。最後一個區塊是內文、標題、清單時放在它的結尾；
+// 是表格、程式碼、圖表、引文這類「走不出去」的區塊時，在後面補一個空白段落（Word 的文件最後一定有一個段落可以打字）
+export const caretToDocEnd: Command = (state, dispatch) => {
+  const last = state.doc.lastChild;
+  if (!last) return false;
+  if (dispatch) {
+    const plain = last.type === N.paragraph || last.type === N.heading || last.type === N.bullet_list || last.type === N.ordered_list;
+    const tr = state.tr;
+    if (!plain) tr.insert(state.doc.content.size, N.paragraph.create());
+    tr.setSelection(Selection.atEnd(tr.doc));
+    dispatch(tr.scrollIntoView());
+  }
+  return true;
+};
+
 // 表格是文件的最後一個區塊、游標在最後一列時按 ↓：在表格後面新增段落（像在 Word 裡往下走出表格）
 const arrowDownOutOfTable: Command = (state, dispatch, view) => {
   const sel = state.selection;

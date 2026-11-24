@@ -1239,4 +1239,13 @@ export default {
  "手機上在 Markdown 模式打字時，Obsidian 自己的工具列會出現在鍵盤上方。開啟時這個外掛的工具列先藏起來，不會疊成兩列；鍵盤收起來就回來。": "Sur téléphone, Obsidian affiche sa propre barre d'outils au-dessus du clavier quand vous écrivez en Markdown. Lorsque cette option est activée, la barre d'outils de ce module se masque pour que les deux ne s'empilent pas, puis revient à la fermeture du clavier.",
  "閱讀模式的工具列只留能用的按鈕": "N'afficher que les boutons utilisables en mode lecture",
  "手機的閱讀模式不能編輯，大半的按鈕按不了。開啟時工具列縮成一列，只留切換模式、大綱、屬性與設定。": "Le mode lecture sur téléphone ne permet pas de modifier la note, donc la plupart des boutons ne servent à rien. Lorsque cette option est activée, la barre d'outils se réduit à une ligne : changement de mode, plan, propriétés et paramètres.",
+ "複製路徑": "Copier le chemin",
+ "複製保管庫內的路徑": "Copier le chemin dans le coffre",
+ "複製電腦上的完整路徑": "Copier le chemin complet sur cet ordinateur",
+ "複製 Obsidian 網址": "Copier l’URL Obsidian",
+ "複製檔名": "Copier le nom du fichier",
+ "複製所在資料夾的路徑": "Copier le chemin du dossier",
+ "按一下複製路徑": "Cliquer pour copier le chemin",
+ "在狀態列顯示筆記的路徑": "Afficher le chemin de la note dans la barre d’état",
+ "電腦上，在右下角的狀態列顯示這份筆記在保管庫裡的位置（資料夾與檔名）。按一下或按右鍵可以複製：保管庫內的路徑、電腦上的完整路徑、Obsidian 網址、檔名、所在資料夾。文件裡的連結與圖片按右鍵也能複製它們指向的檔案路徑。": "Sur ordinateur, affiche l’emplacement de cette note dans le coffre (dossier et nom de fichier) dans la barre d’état en bas à droite. Un clic ou un clic droit permet de copier le chemin dans le coffre, le chemin complet sur cet ordinateur, l’URL Obsidian, le nom du fichier ou le dossier. Un clic droit sur un lien ou une image du document permet aussi de copier le chemin du fichier visé.",
 };
