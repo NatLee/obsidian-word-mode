@@ -1,6 +1,6 @@
 {
   "name": "obsidian-word-mode",
-  "version": "1.31.0",
+  "version": "1.31.1",
   "private": true,
   "description": "Obsidian plugin that lets you edit Markdown notes like a Word document while keeping the files clean Markdown.",
   "author": "NatLee",
