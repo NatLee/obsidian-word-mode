@@ -1531,44 +1531,56 @@ await fresh('---\ntags:\n  - 會議\n  - 專案\ndate: 2026-11-16\ndone: false\n
   assert(view.pm.state.doc.childCount === 4, '三個空行：兩個空白段落，得到 ' + view.pm.state.doc.childCount);
 }
 
-// ======== 手機長按拖曳游標：只有真的長按拖曳才接受區塊之間的位置；一般的點擊不行（1.31.0 在實機上點不出游標）========
+// ======== 手機長按拖曳游標：拖曳中不讓編輯器讀系統的選取（兩邊會互搶），放開時才照系統最後的位置設定；一般的點擊不受影響 ========
 {
-  await fresh('---\na: 1\n---\n\n第一段\n\n---\n\n第二段\n');
+  await fresh('第一段文字\n\n---\n\n第二段文字\n');
   const host = document.body.createDiv();
   let hasFocus = true;
-  const fake = { dom: view.pm.dom, domAtPos: p => view.pm.domAtPos(p), state: view.pm.state, hasFocus: () => hasFocus, dispatch() {}, coordsAtPos: () => ({ top: 0, bottom: 10, left: 0, right: 0 }) };
-  const gap = B.installTouch(host, () => fake);
+  const pm = view.pm;
+  const fake = { dom: pm.dom, get state() { return pm.state; }, hasFocus: () => hasFocus, dispatch: tr => pm.dispatch(tr), posAtDOM: (n, o) => pm.posAtDOM(n, o), posAtCoords: () => null };
+  const stop = B.installTouch(host, () => fake);
   const realNow = Date.now; let now = 1000; Date.now = () => now;
   const ev = (type, x, y) => host.dispatchEvent(Object.assign(new Event(type, { bubbles: true }), { touches: type === 'touchend' ? [] : [{ identifier: 1, clientX: x, clientY: y }], changedTouches: [{ identifier: 1, clientX: x, clientY: y }] }));
-  const doc = view.pm.state.doc;
-  const $gap = doc.resolve(0), $text = doc.resolve(3);
-  assert(!$gap.parent.inlineContent && $text.parent.inlineContent, '測試用的位置：一個在區塊之間、一個在文字裡');
-  assert(gap($gap, $gap) === null, '沒有觸控：照原本的做法');
-  ev('touchstart', 10, 10);
-  assert(gap($gap, $gap) === null, '剛按下去（點一下）：不接受縫隙');
-  now += 600;
-  assert(gap($gap, $gap) === null, '按住很久但手指沒動（長按選字）：不接受縫隙');
-  ev('touchmove', 40, 30);
-  const g = gap($gap, $gap);
-  assert(g && g.constructor.name.includes('GapCursor'), '按住超過時間、手指移動過：接受縫隙，得到 ' + (g && g.constructor.name));
-  assert(gap($text, $text) === null, '文字裡的位置不用處理');
-  ev('touchend', 40, 30);
-  assert(gap($gap, $gap) === null, '放開之後：不接受縫隙');
-  // 很快地點一下再移動（沒按夠久）
-  ev('touchstart', 10, 10); now += 100; ev('touchmove', 40, 30);
-  assert(gap($gap, $gap) === null, '沒按夠久就移動（捲動、滑動）：不接受縫隙');
-  ev('touchend', 40, 30);
-  // 按下去時編輯區沒有焦點（點一下叫出鍵盤）：之後怎麼樣都不接受
-  hasFocus = false;
-  ev('touchstart', 10, 10); now += 600; ev('touchmove', 40, 30);
-  assert(gap($gap, $gap) === null, '按下去時編輯區沒有焦點：不接受縫隙');
-  hasFocus = true;
-  // 放開的事件沒收到：過一陣子就不再當成按著
-  ev('touchstart', 10, 10); now += 600; ev('touchmove', 40, 30);
-  assert(gap($gap, $gap) !== null, '拖曳中');
-  now += 3000;
-  assert(gap($gap, $gap) === null, '很久沒有收到觸控事件（放開的事件漏掉）：不再接受縫隙');
+  let seen = 0;
+  const count = () => { seen++; };
+  document.addEventListener('selectionchange', count);
+  const fire = () => document.dispatchEvent(new Event('selectionchange'));
+  const second = pm.dom.children[2].firstChild; // 「第二段文字」的文字節點
+  // 點一下：選取的變動照常送到編輯器
+  ev('touchstart', 10, 10); fire(); ev('touchend', 10, 10);
+  assert(seen === 1, '點一下：selectionchange 照常送出');
+  // 按住很久但沒移動（長按選字）：照常
+  ev('touchstart', 10, 10); now += 600; fire(); ev('touchend', 10, 10);
+  assert(seen === 2, '長按不動：照常');
+  // 沒按夠久就移動（捲動）：照常
+  ev('touchstart', 10, 10); now += 100; ev('touchmove', 40, 40); fire(); ev('touchend', 40, 40);
+  assert(seen === 3, '很快地滑動：照常');
+  // 按下去時編輯區沒有焦點：照常
+  hasFocus = false; ev('touchstart', 10, 10); now += 600; ev('touchmove', 40, 40); fire(); ev('touchend', 40, 40); hasFocus = true;
+  assert(seen === 4, '按下時編輯區沒有焦點：照常');
+  // 長按拖曳：擋下來；放開時照系統最後的位置設定編輯器的選取
+  ev('touchstart', 10, 10); now += 600; ev('touchmove', 40, 40);
+  window.getSelection().collapse(second, 2);
+  fire(); fire();
+  assert(seen === 4, '長按拖曳中：編輯器收不到 selectionchange');
+  ev('touchend', 40, 40);
+  const want = pm.posAtDOM(second, 2);
+  assert(pm.state.selection.empty && pm.state.selection.head === want, '放開時照系統最後的位置設定選取：' + pm.state.selection.head + ' / ' + want);
+  fire();
+  assert(seen === 5, '放開之後照常');
+  // 拖曳停在分隔線上（不能打字）：找最近的文字
+  ev('touchstart', 10, 10); now += 600; ev('touchmove', 40, 40);
+  window.getSelection().collapse(pm.dom, 1);
+  ev('touchend', 40, 40);
+  assert(pm.state.selection.$head.parent.inlineContent, '停在分隔線旁邊：落到旁邊的文字，得到 ' + pm.state.selection.$head.parent.type.name);
+  // 放開的事件漏掉：過一陣子就不再擋
+  ev('touchstart', 10, 10); now += 600; ev('touchmove', 40, 40); fire();
+  const before = seen; now += 3000; fire();
+  assert(seen === before + 1, '很久沒有觸控事件（放開的事件漏掉）：不再擋');
+  ev('touchend', 40, 40);
+  stop();
   Date.now = realNow;
+  document.removeEventListener('selectionchange', count);
   host.remove();
 }
 
