@@ -30,21 +30,34 @@ Es lo que se ve en la animación del principio. Empieza un párrafo con `# `, `-
 - **Pestañas Inicio, Insertar, Revisar y Vista**, organizadas como en un procesador de texto.
 - **Color de fuente y resaltado**: colores estándar con sus tonos claros y oscuros, tus colores recientes, o cualquier color que elijas o escribas como código hex. Los resaltados pueden usar cualquier color y opacidad.
 - **Adáptala a tu gusto**: muestra las pestañas como texto, iconos o ambos, agrúpalas en un solo botón de menú y cámbiales el nombre. Los grupos de botones se pueden renombrar, reordenar, ocultar o mover a otra pestaña.
-- **Más espacio al escribir en el teléfono**: mientras el teclado en pantalla está abierto, la barra de herramientas se reduce a una fila justo encima. Las pestañas pasan a un botón de menú y los botones muestran solo el icono; todo vuelve al cerrar el teclado. Puedes desactivarlo en los ajustes.
-- **Paneles inferiores en el teléfono**: los paneles desplegables de la barra de herramientas (pestañas, estilos, esquema, colores, símbolos, insertar tabla) suben desde la parte inferior de la pantalla, como los menús de Obsidian en el móvil, y se colocan sobre el teclado cuando está abierto.
-- **Mover el cursor arrastrando**: con el teclado abierto en el teléfono, la fila sobre el teclado funciona como un trackpad. Mantén pulsado un momento en cualquier punto hasta que los botones se atenúen y arrastra a izquierda o derecha para mover el cursor una posición cada vez, o arriba y abajo para cambiar de línea. El botón del menú de pestañas, al principio, funciona al instante sin mantener pulsado. Mientras arrastras, una vista ampliada sobre el cursor muestra exactamente dónde está. Tocar los botones y desplazar la fila funcionan como antes.
-- **Gestos en el teléfono**: desliza hacia arriba sobre Deshacer para rehacer y sobre Rehacer para deshacer (los dos botones de sangría funcionan igual; un punto pequeño marca estos botones). Toca con dos dedos para seleccionar el párrafo entero. Al tocar una celda de tabla el cursor se coloca al momento, sin que estorbe el menú del sistema Cortar / Copiar / Pegar. El selector de símbolos también tiene pares de paréntesis y comillas que envuelven el texto seleccionado.
-- **Ocultar el teclado**: mientras el teclado en pantalla está abierto, un botón al final de la barra de herramientas (y junto a Cancelar en los editores de ecuaciones y diagramas) lo guarda.
-- **Más fluido en el teléfono**: la barra de herramientas se desliza con el teclado en vez de saltar; desliza hacia abajo sobre la barra para guardar el teclado; los cajones tienen título, marcan la opción actual y se cierran arrastrándolos hacia abajo; la barra de búsqueda mantiene Cerrar en el extremo derecho; los botones de tablas, diagramas y bloques de código ya no tapan el contenido; la barra de herramientas también queda abajo en Markdown y en vista de lectura; y deslizar por la barra ya no saca las barras laterales de Obsidian.
-- **Insertar con una barra** (desactivado por defecto; actívalo en los ajustes): escribe `/` al principio de un párrafo vacío para elegir un título, una lista, una tabla, un bloque de código, un destacado, una ecuación, un diagrama, una imagen o un enlace, y sigue escribiendo para filtrar. En el teléfono es más rápido que desplazar la barra de herramientas. Al cambiar entre el modo Word, Markdown y la vista de lectura se conserva tu posición en la nota; en la vista de lectura del teléfono la barra de herramientas se reduce a una fila con los botones que siguen funcionando; y las tablas tienen los botones **Celda anterior** y **Celda siguiente**, porque el teclado en pantalla no tiene Tab. En el teléfono, los botones de tablas, ecuaciones, diagramas y bloques de código son más grandes y están más separados, y eliminar aparece en rojo y aparte.
-- **El teclado adecuado para cada campo**: las fórmulas, el código y los cuadros de búsqueda se escriben tal cual (sin mayúsculas ni corrección automáticas, también cuando el cursor está dentro de un bloque de código o de código en línea); los campos numéricos abren el teclado numérico y los de enlace el teclado de URL; la tecla de retorno muestra Buscar u OK donde eso es lo que hace.
-- **Editores de ecuaciones y diagramas en el teléfono**: con el teclado abierto, el cuadro de diálogo queda por encima y muestra solo lo necesario: la fórmula en edición, una fila de símbolos deslizable y la vista previa; el título y los selectores de modo vuelven al cerrar el teclado.
+
+<details>
+<summary>Más sobre la barra de herramientas</summary>
+
 - **La misma barra de herramientas en Markdown y en la vista de lectura**, con la misma distribución, para que nada salte al cambiar. Puedes mostrarla en ambos, solo en uno de ellos o en ninguno.
 - **Descripciones detalladas**: al pasar el ratón sobre un botón, verás una explicación con una breve animación, también en los botones del grupo Vistas y en los de la barra de estado. Vienen activadas; puedes desactivarlas en los ajustes o en la lista de atajos.
-- **Barra de estado** con el recuento de palabras, el estado de guardado, botones para cambiar entre el modo Word, Markdown y la vista de lectura, Ver propiedades y el zoom. Markdown y la vista de lectura mantienen los mismos botones y cuentan las palabras de la misma forma. Puedes desactivarla en los ajustes. Solo muestra el número de palabras, sin contar los símbolos de Markdown ni las direcciones de los enlaces; los caracteres y el tiempo de lectura están en su descripción emergente. Para obtener los mismos números que el recuento integrado de Obsidian, cambia "Forma de contar palabras" en los ajustes.
-- **Ruta de la nota y copiar ruta**: en el escritorio, la barra de estado muestra la carpeta y el nombre de archivo de la nota. Con un clic o un clic derecho puedes copiar la ruta en la bóveda, la ruta completa en tu equipo, la URL de Obsidian, el nombre del archivo o la carpeta. Al hacer clic derecho en un enlace, una inserción o una imagen del documento se muestra el archivo al que apunta y puedes copiar su ruta del mismo modo.
-- **Las líneas en blanco se ven**: varias líneas en blanco seguidas en el Markdown aparecen como párrafos vacíos, como si pulsaras Intro varias veces en Word. Si borras uno, desaparece una línea en blanco; las que no tocas se guardan tal cual.
-- **Un cursor más agradable y configurable**: en el escritorio el cursor es una línea fina redondeada del color de acento, que se desliza al escribir y se atenúa suavemente cuando está quieto. En los ajustes puedes elegir la forma (línea fina, línea gruesa, bloque, subrayado o el cursor del sistema), el color, el parpadeo y su velocidad, y si se mueve con suavidad.
+
+</details>
+
+### En teléfonos y tabletas
+
+![Al mantener pulsada la barra sobre el teclado se convierte en trackpad: al arrastrar, el cursor se mueve con una lupa, mantiene la columna en una tabla, se detiene en una ecuación y avisa al final del documento](docs/images/trackpad.en.webp)
+
+- **Mover el cursor arrastrando**: con el teclado abierto en el teléfono, la fila sobre el teclado funciona como un trackpad. Mantén pulsado un momento en cualquier punto hasta que los botones se atenúen y arrastra a izquierda o derecha para mover el cursor una posición cada vez, o arriba y abajo para cambiar de línea. El botón del menú de pestañas, al principio, funciona al instante sin mantener pulsado. Mientras arrastras, una vista ampliada sobre el cursor muestra exactamente dónde está. Tocar los botones y desplazar la fila funcionan como antes. En los ajustes puedes cambiar el tiempo de pulsación y la velocidad, y elegir el estilo de la lupa (cápsula o tarjeta), su aumento y su ancho, o desactivarla. Junto a la lupa, una pequeña etiqueta indica dónde está el cursor: el tipo de bloque (texto, título, lista, fila y columna de la tabla) y en qué carácter; se puede desactivar. Hacia arriba y abajo se mantiene la misma columna (también en tablas), se detiene en ecuaciones, diagramas y líneas horizontales del camino indicando qué son, y aparece un aviso al principio o al final del documento.
+- **Más espacio al escribir en el teléfono**: mientras el teclado en pantalla está abierto, la barra de herramientas se reduce a una fila justo encima. Las pestañas pasan a un botón de menú y los botones muestran solo el icono; todo vuelve al cerrar el teclado. Puedes desactivarlo en los ajustes.
+- **Gestos en el teléfono**: desliza hacia arriba sobre Deshacer para rehacer y sobre Rehacer para deshacer (los dos botones de sangría funcionan igual; un punto pequeño marca estos botones). Toca con dos dedos para seleccionar el párrafo entero. Al tocar una celda de tabla el cursor se coloca al momento, sin que estorbe el menú del sistema Cortar / Copiar / Pegar. El selector de símbolos también tiene pares de paréntesis y comillas que envuelven el texto seleccionado.
+- **Insertar con una barra** (desactivado por defecto; actívalo en los ajustes): escribe `/` al principio de un párrafo vacío para elegir un título, una lista, una tabla, un bloque de código, un destacado, una ecuación, un diagrama, una imagen o un enlace, y sigue escribiendo para filtrar. En el teléfono es más rápido que desplazar la barra de herramientas. Al cambiar entre el modo Word, Markdown y la vista de lectura se conserva tu posición en la nota; en la vista de lectura del teléfono la barra de herramientas se reduce a una fila con los botones que siguen funcionando; y las tablas tienen los botones **Celda anterior** y **Celda siguiente**, porque el teclado en pantalla no tiene Tab. En el teléfono, los botones de tablas, ecuaciones, diagramas y bloques de código son más grandes y están más separados, y eliminar aparece en rojo y aparte.
+
+<details>
+<summary>Más para teléfonos y tabletas</summary>
+
+- **Paneles inferiores en el teléfono**: los paneles desplegables de la barra de herramientas (pestañas, estilos, esquema, colores, símbolos, insertar tabla) suben desde la parte inferior de la pantalla, como los menús de Obsidian en el móvil, y se colocan sobre el teclado cuando está abierto.
+- **Ocultar el teclado**: mientras el teclado en pantalla está abierto, un botón al final de la barra de herramientas (y junto a Cancelar en los editores de ecuaciones y diagramas) lo guarda.
+- **Más fluido en el teléfono**: la barra de herramientas se desliza con el teclado en vez de saltar; desliza hacia abajo sobre la barra para guardar el teclado; los cajones tienen título, marcan la opción actual y se cierran arrastrándolos hacia abajo; la barra de búsqueda mantiene Cerrar en el extremo derecho; los botones de tablas, diagramas y bloques de código ya no tapan el contenido; la barra de herramientas también queda abajo en Markdown y en vista de lectura; y deslizar por la barra ya no saca las barras laterales de Obsidian.
+- **El teclado adecuado para cada campo**: las fórmulas, el código y los cuadros de búsqueda se escriben tal cual (sin mayúsculas ni corrección automáticas, también cuando el cursor está dentro de un bloque de código o de código en línea); los campos numéricos abren el teclado numérico y los de enlace el teclado de URL; la tecla de retorno muestra Buscar u OK donde eso es lo que hace.
+- **Editores de ecuaciones y diagramas en el teléfono**: con el teclado abierto, el cuadro de diálogo queda por encima y muestra solo lo necesario: la fórmula en edición, una fila de símbolos deslizable y la vista previa; el título y los selectores de modo vuelven al cerrar el teclado.
+
+</details>
 
 ### Tablas
 
@@ -107,6 +120,13 @@ Es lo que se ve en la animación del principio. Empieza un párrafo con `# `, `-
 
 ### Y más
 
+<details>
+<summary>Mostrar todo: propiedades, imágenes, enlaces, buscar y reemplazar, barra de estado, cursor…</summary>
+
+- **Barra de estado** con el recuento de palabras, el estado de guardado, botones para cambiar entre el modo Word, Markdown y la vista de lectura, Ver propiedades y el zoom. Markdown y la vista de lectura mantienen los mismos botones y cuentan las palabras de la misma forma. Puedes desactivarla en los ajustes. Solo muestra el número de palabras, sin contar los símbolos de Markdown ni las direcciones de los enlaces; los caracteres y el tiempo de lectura están en su descripción emergente. Para obtener los mismos números que el recuento integrado de Obsidian, cambia "Forma de contar palabras" en los ajustes.
+- **Ruta de la nota y copiar ruta**: en el escritorio, la barra de estado muestra la carpeta y el nombre de archivo de la nota. Con un clic o un clic derecho puedes copiar la ruta en la bóveda, la ruta completa en tu equipo, la URL de Obsidian, el nombre del archivo o la carpeta. Al hacer clic derecho en un enlace, una inserción o una imagen del documento se muestra el archivo al que apunta y puedes copiar su ruta del mismo modo.
+- **Las líneas en blanco se ven**: varias líneas en blanco seguidas en el Markdown aparecen como párrafos vacíos, como si pulsaras Intro varias veces en Word. Si borras uno, desaparece una línea en blanco; las que no tocas se guardan tal cual.
+- **Un cursor más agradable y configurable**: en el escritorio el cursor es una línea fina redondeada del color de acento, que se desliza al escribir y se atenúa suavemente cuando está quieto. En los ajustes puedes elegir la forma (línea fina, línea gruesa, bloque, subrayado o el cursor del sistema), el color, el parpadeo y su velocidad, y si se mueve con suavidad.
 - **Propiedades** en forma de formulario: las etiquetas y los enlaces aparecen como fichas que puedes seleccionar para abrirlos, los valores anidados aparecen como un árbol, y desde el icono de una propiedad puedes cambiar su tipo o su nombre. Ver propiedades, en la pestaña Vista y en la barra de estado, las muestra sin tener que desplazarte hasta arriba y te permite filtrar una lista larga. El botón de chincheta del encabezado de las propiedades (o un ajuste) fija arriba una barra de propiedades delgada mientras te desplazas; haz clic en ella para ver la lista completa. Puedes mostrar las propiedades como un cuadro con borde y fondo, solo con borde, o con un estilo mínimo sin borde.
 - **Imágenes**: pega o elige una imagen y luego arrástrala para cambiar su tamaño.
 - **Enlaces** a notas, títulos y páginas web, con una pequeña barra de herramientas que aparece cuando el cursor está sobre un enlace.
@@ -122,6 +142,8 @@ Es lo que se ve en la animación del principio. Empieza un párrafo con `# `, `-
 - Interfaz en chino tradicional, taiwanés (caracteres han), cantonés, chino simplificado, inglés, japonés, coreano, vietnamita, francés, alemán, español, árabe y hebreo.
 
 Todo lo que Word Mode no puede editar visualmente, como un bloque HTML, se muestra como un bloque sin procesar y se guarda sin cambios. Pasa el puntero por encima, o por una nota al pie o un bloque de comentario, para ver en la esquina superior derecha botones para editarlo, copiarlo o eliminarlo. Al eliminar una nota al pie también se quitan sus llamadas en el texto.
+
+</details>
 
 ## Primeros pasos
 
@@ -146,6 +168,9 @@ Los ajustes están agrupados en categorías, con una fila de pestañas arriba qu
 
 ### Comandos
 
+<details>
+<summary>Mostrar los comandos</summary>
+
 | Comando | Descripción |
 | --- | --- |
 | Editar la nota actual en modo Word | Cambia la nota actual al modo Word. |
@@ -156,6 +181,8 @@ Los ajustes están agrupados en categorías, con una fila de pestañas arriba qu
 | Buscar y reemplazar | Busca y reemplaza en la nota actual. |
 | Esquema: ir a un título | Salta a un título de la nota actual. |
 | Mostrar atajos de teclado | Muestra todos los atajos del modo Word. |
+
+</details>
 
 Ningún comando tiene un atajo predeterminado. Puedes asignar los tuyos en **Ajustes → Atajos de teclado**.
 

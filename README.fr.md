@@ -30,21 +30,34 @@ C'est ce que montre l'animation du haut. Commencez un paragraphe par `# `, `- `,
 - **Onglets Accueil, Insérer, Révision et Affichage**, organisés comme dans un traitement de texte.
 - **Couleur de police et surlignage** : couleurs standard avec leurs nuances, couleurs récentes, ou n'importe quelle couleur choisie ou saisie en code hexadécimal. Le surlignage accepte n'importe quelle couleur et opacité.
 - **À votre goût** : affichez les onglets en texte, en icônes ou les deux, regroupez-les dans un seul bouton de menu et renommez-les. Renommez, réordonnez, masquez ou déplacez les groupes de boutons vers un autre onglet.
-- **Plus de place pour écrire sur téléphone** : quand le clavier à l'écran est ouvert, la barre d'outils se réduit à une ligne juste au-dessus. Les onglets passent dans un bouton de menu et les boutons n'affichent que leur icône ; tout revient quand le clavier se ferme. Vous pouvez désactiver cette option dans les réglages.
-- **Tiroirs en bas de l'écran sur téléphone** : les panneaux déroulants de la barre d'outils (onglets, styles, plan, couleurs, symboles, insertion de tableau) glissent depuis le bas de l'écran, comme les menus d'Obsidian sur mobile, et se placent au-dessus du clavier quand il est ouvert.
-- **Déplacer le curseur en faisant glisser** : sur téléphone, clavier ouvert, la rangée au-dessus du clavier sert de pavé tactile. Appuyez un instant n'importe où jusqu'à ce que les boutons pâlissent, puis glissez à gauche ou à droite pour déplacer le curseur d'une position à la fois, ou en haut et en bas pour changer de ligne. Le bouton du menu des onglets, au début, fonctionne tout de suite sans appui prolongé. Pendant le glissement, un aperçu agrandi au-dessus du curseur montre exactement où il se trouve. Les appuis sur les boutons et le défilement de la rangée restent inchangés.
-- **Gestes sur téléphone** : balayez vers le haut sur Annuler pour rétablir, et sur Rétablir pour annuler (les deux boutons de retrait fonctionnent de la même façon ; un petit point signale ces boutons). Touchez avec deux doigts pour sélectionner tout le paragraphe. Toucher une cellule de tableau y place le curseur tout de suite, sans que le menu système Couper / Copier / Coller ne gêne. Le sélecteur de symboles propose aussi des paires de parenthèses et de guillemets qui entourent le texte sélectionné.
-- **Masquer le clavier** : quand le clavier à l'écran est ouvert, un bouton au bout de la barre d'outils (et à côté d'Annuler dans les éditeurs d'équations et de diagrammes) le referme.
-- **Plus fluide sur téléphone** : la barre d'outils glisse avec le clavier au lieu de sauter ; un balayage vers le bas sur la barre d'outils referme le clavier ; les tiroirs ont un titre, cochent le choix actuel et se ferment en les tirant vers le bas ; la barre de recherche garde Fermer tout à droite ; les boutons des tableaux, diagrammes et blocs de code ne recouvrent plus le contenu ; la barre d'outils reste en bas aussi en mode Markdown et en lecture ; et un balayage le long de la barre d'outils ne fait plus sortir les panneaux latéraux d'Obsidian.
-- **Insérer avec une barre oblique** (désactivé par défaut ; à activer dans les paramètres) : tapez `/` au début d'un paragraphe vide pour choisir un titre, une liste, un tableau, un bloc de code, un encadré, une équation, un diagramme, une image ou un lien, et continuez à taper pour filtrer. Sur téléphone, c'est plus rapide que de faire défiler la barre d'outils. Passer du mode Word à Markdown ou au mode lecture conserve votre position dans la note ; en mode lecture sur téléphone, la barre d'outils se réduit à une ligne avec les seuls boutons utilisables ; et les tableaux ont des boutons **Cellule précédente** et **Cellule suivante**, le clavier à l'écran n'ayant pas de touche Tab. Sur téléphone, les boutons des tableaux, des équations, des diagrammes et des blocs de code sont plus grands et plus espacés, et la suppression est en rouge, à l'écart.
-- **Le bon clavier pour chaque champ** : formules, code et champs de recherche sont saisis tels quels (sans majuscules ni correction automatiques, y compris quand le curseur est dans un bloc de code ou du code en ligne) ; les champs numériques ouvrent le pavé numérique et les champs de lien le clavier URL ; la touche retour affiche Rechercher ou OK là où c'est son rôle.
-- **Éditeurs d'équations et de diagrammes sur téléphone** : clavier ouvert, la fenêtre reste au-dessus et n'affiche que l'essentiel : la formule en cours, une rangée de symboles à faire défiler et l'aperçu ; le titre et les sélecteurs de mode reviennent quand le clavier se ferme.
+
+<details>
+<summary>Plus sur la barre d’outils</summary>
+
 - **La même barre d'outils en mode Markdown et lecture**, avec la même disposition, pour que rien ne saute quand vous changez de mode. Vous pouvez l'afficher dans les deux, dans un seul ou dans aucun.
 - **Info-bulles détaillées** : survoler un bouton l'explique avec une courte animation, y compris pour les boutons de vue et ceux de la barre d'état. Elles sont activées par défaut ; vous pouvez les désactiver dans les paramètres ou dans la liste des raccourcis.
-- **Barre d'état** avec le nombre de mots, l'état de l'enregistrement, des boutons pour passer du mode Word au Markdown ou au mode lecture, l'affichage des propriétés et le zoom. Les modes Markdown et lecture gardent les mêmes boutons et comptent les mots de la même façon. Vous pouvez désactiver cela dans les paramètres. Elle n'affiche que le nombre de mots, sans compter les symboles Markdown ni les adresses des liens ; le nombre de caractères et le temps de lecture sont dans son info-bulle. Pour obtenir les mêmes nombres que le compteur intégré d'Obsidian, changez « Méthode de comptage des mots » dans les paramètres.
-- **Chemin de la note et copie du chemin** : sur ordinateur, la barre d'état affiche le dossier et le nom de fichier de la note. Un clic ou un clic droit permet de copier le chemin dans le coffre, le chemin complet sur votre ordinateur, l'URL Obsidian, le nom du fichier ou le dossier. Un clic droit sur un lien, une intégration ou une image du document affiche le fichier visé et permet de copier son chemin de la même façon.
-- **Les lignes vides restent visibles** : plusieurs lignes vides de suite dans le Markdown apparaissent comme des paragraphes vides, comme si vous aviez appuyé plusieurs fois sur Entrée dans Word. Supprimez-en un et une ligne vide disparaît ; celles que vous ne touchez pas sont enregistrées telles quelles.
-- **Un curseur plus agréable et réglable** : sur ordinateur, le curseur est un trait fin arrondi de la couleur d'accentuation, qui glisse pendant la saisie et s'estompe doucement au repos. Dans les réglages, vous choisissez la forme (trait fin, trait épais, bloc, souligné ou curseur du système), la couleur, le clignotement et sa vitesse, et le déplacement fluide.
+
+</details>
+
+### Sur téléphone et tablette
+
+![Un appui long sur la barre au-dessus du clavier la transforme en pavé tactile : en glissant, le curseur bouge avec une loupe, garde la colonne dans un tableau, s’arrête sur une équation et un message apparaît à la fin du document](docs/images/trackpad.en.webp)
+
+- **Déplacer le curseur en faisant glisser** : sur téléphone, clavier ouvert, la rangée au-dessus du clavier sert de pavé tactile. Appuyez un instant n'importe où jusqu'à ce que les boutons pâlissent, puis glissez à gauche ou à droite pour déplacer le curseur d'une position à la fois, ou en haut et en bas pour changer de ligne. Le bouton du menu des onglets, au début, fonctionne tout de suite sans appui prolongé. Pendant le glissement, un aperçu agrandi au-dessus du curseur montre exactement où il se trouve. Les appuis sur les boutons et le défilement de la rangée restent inchangés. Dans les réglages, vous pouvez ajuster la durée d’appui et la vitesse, choisir le style de la loupe (capsule ou carte), son grossissement et sa largeur, ou la désactiver. À côté de la loupe, une petite étiquette indique où se trouve le curseur : le type de bloc (texte, titre, liste, ligne et colonne du tableau) et le numéro du caractère ; elle peut être désactivée. Vers le haut et le bas, le curseur garde la même colonne (y compris dans les tableaux), s’arrête sur les équations, diagrammes et lignes horizontales rencontrés en les nommant, et un message s’affiche au début ou à la fin du document.
+- **Plus de place pour écrire sur téléphone** : quand le clavier à l'écran est ouvert, la barre d'outils se réduit à une ligne juste au-dessus. Les onglets passent dans un bouton de menu et les boutons n'affichent que leur icône ; tout revient quand le clavier se ferme. Vous pouvez désactiver cette option dans les réglages.
+- **Gestes sur téléphone** : balayez vers le haut sur Annuler pour rétablir, et sur Rétablir pour annuler (les deux boutons de retrait fonctionnent de la même façon ; un petit point signale ces boutons). Touchez avec deux doigts pour sélectionner tout le paragraphe. Toucher une cellule de tableau y place le curseur tout de suite, sans que le menu système Couper / Copier / Coller ne gêne. Le sélecteur de symboles propose aussi des paires de parenthèses et de guillemets qui entourent le texte sélectionné.
+- **Insérer avec une barre oblique** (désactivé par défaut ; à activer dans les paramètres) : tapez `/` au début d'un paragraphe vide pour choisir un titre, une liste, un tableau, un bloc de code, un encadré, une équation, un diagramme, une image ou un lien, et continuez à taper pour filtrer. Sur téléphone, c'est plus rapide que de faire défiler la barre d'outils. Passer du mode Word à Markdown ou au mode lecture conserve votre position dans la note ; en mode lecture sur téléphone, la barre d'outils se réduit à une ligne avec les seuls boutons utilisables ; et les tableaux ont des boutons **Cellule précédente** et **Cellule suivante**, le clavier à l'écran n'ayant pas de touche Tab. Sur téléphone, les boutons des tableaux, des équations, des diagrammes et des blocs de code sont plus grands et plus espacés, et la suppression est en rouge, à l'écart.
+
+<details>
+<summary>Plus pour téléphone et tablette</summary>
+
+- **Tiroirs en bas de l'écran sur téléphone** : les panneaux déroulants de la barre d'outils (onglets, styles, plan, couleurs, symboles, insertion de tableau) glissent depuis le bas de l'écran, comme les menus d'Obsidian sur mobile, et se placent au-dessus du clavier quand il est ouvert.
+- **Masquer le clavier** : quand le clavier à l'écran est ouvert, un bouton au bout de la barre d'outils (et à côté d'Annuler dans les éditeurs d'équations et de diagrammes) le referme.
+- **Plus fluide sur téléphone** : la barre d'outils glisse avec le clavier au lieu de sauter ; un balayage vers le bas sur la barre d'outils referme le clavier ; les tiroirs ont un titre, cochent le choix actuel et se ferment en les tirant vers le bas ; la barre de recherche garde Fermer tout à droite ; les boutons des tableaux, diagrammes et blocs de code ne recouvrent plus le contenu ; la barre d'outils reste en bas aussi en mode Markdown et en lecture ; et un balayage le long de la barre d'outils ne fait plus sortir les panneaux latéraux d'Obsidian.
+- **Le bon clavier pour chaque champ** : formules, code et champs de recherche sont saisis tels quels (sans majuscules ni correction automatiques, y compris quand le curseur est dans un bloc de code ou du code en ligne) ; les champs numériques ouvrent le pavé numérique et les champs de lien le clavier URL ; la touche retour affiche Rechercher ou OK là où c'est son rôle.
+- **Éditeurs d'équations et de diagrammes sur téléphone** : clavier ouvert, la fenêtre reste au-dessus et n'affiche que l'essentiel : la formule en cours, une rangée de symboles à faire défiler et l'aperçu ; le titre et les sélecteurs de mode reviennent quand le clavier se ferme.
+
+</details>
 
 ### Tableaux
 
@@ -107,6 +120,13 @@ C'est ce que montre l'animation du haut. Commencez un paragraphe par `# `, `- `,
 
 ### Et plus encore
 
+<details>
+<summary>Tout afficher : propriétés, images, liens, rechercher et remplacer, barre d’état, curseur…</summary>
+
+- **Barre d'état** avec le nombre de mots, l'état de l'enregistrement, des boutons pour passer du mode Word au Markdown ou au mode lecture, l'affichage des propriétés et le zoom. Les modes Markdown et lecture gardent les mêmes boutons et comptent les mots de la même façon. Vous pouvez désactiver cela dans les paramètres. Elle n'affiche que le nombre de mots, sans compter les symboles Markdown ni les adresses des liens ; le nombre de caractères et le temps de lecture sont dans son info-bulle. Pour obtenir les mêmes nombres que le compteur intégré d'Obsidian, changez « Méthode de comptage des mots » dans les paramètres.
+- **Chemin de la note et copie du chemin** : sur ordinateur, la barre d'état affiche le dossier et le nom de fichier de la note. Un clic ou un clic droit permet de copier le chemin dans le coffre, le chemin complet sur votre ordinateur, l'URL Obsidian, le nom du fichier ou le dossier. Un clic droit sur un lien, une intégration ou une image du document affiche le fichier visé et permet de copier son chemin de la même façon.
+- **Les lignes vides restent visibles** : plusieurs lignes vides de suite dans le Markdown apparaissent comme des paragraphes vides, comme si vous aviez appuyé plusieurs fois sur Entrée dans Word. Supprimez-en un et une ligne vide disparaît ; celles que vous ne touchez pas sont enregistrées telles quelles.
+- **Un curseur plus agréable et réglable** : sur ordinateur, le curseur est un trait fin arrondi de la couleur d'accentuation, qui glisse pendant la saisie et s'estompe doucement au repos. Dans les réglages, vous choisissez la forme (trait fin, trait épais, bloc, souligné ou curseur du système), la couleur, le clignotement et sa vitesse, et le déplacement fluide.
 - **Propriétés** sous forme de formulaire : les étiquettes et les liens apparaissent comme des pastilles que vous pouvez sélectionner pour les ouvrir, les valeurs imbriquées apparaissent en arborescence, et vous pouvez changer le type d'une propriété ou la renommer depuis son icône. **Voir les propriétés**, dans l'onglet Affichage et la barre d'état, les affiche sans remonter en haut et permet de filtrer une longue liste. Le bouton en forme d'épingle dans l'en-tête des propriétés (ou un paramètre) épingle une fine barre de propriétés en haut pendant le défilement ; cliquez dessus pour voir la liste complète. Vous pouvez afficher les propriétés dans un bloc avec bordure et fond, avec une bordure seule, ou dans un style minimal sans bordure.
 - **Images** : collez ou choisissez une image, puis faites glisser pour la redimensionner.
 - **Liens** vers des notes, des titres et des pages web, avec une petite barre d'outils qui apparaît quand le curseur est sur un lien.
@@ -122,6 +142,8 @@ C'est ce que montre l'animation du haut. Commencez un paragraphe par `# `, `- `,
 - Interface en chinois traditionnel, taïwanais (caractères Han), cantonais, chinois simplifié, anglais, japonais, coréen, vietnamien, français, allemand, espagnol, arabe et hébreu.
 
 Tout ce que Word Mode ne peut pas modifier visuellement, comme un bloc HTML, s'affiche sous forme de bloc brut et est enregistré sans modification. Survolez-le, ou un bloc de note de bas de page ou de commentaire, pour afficher dans son coin supérieur droit des boutons pour le modifier, le copier ou le supprimer. Supprimer une note de bas de page retire aussi ses appels dans le texte.
+
+</details>
 
 ## Prise en main
 
@@ -146,6 +168,9 @@ Les paramètres sont regroupés par catégories, avec une rangée d'onglets en h
 
 ### Commandes
 
+<details>
+<summary>Afficher les commandes</summary>
+
 | Commande | Description |
 | --- | --- |
 | Modifier la note actuelle en mode Word | Passe la note actuelle en mode Word. |
@@ -156,6 +181,8 @@ Les paramètres sont regroupés par catégories, avec une rangée d'onglets en h
 | Rechercher et remplacer | Recherche et remplace dans la note actuelle. |
 | Plan : aller à un titre | Va à un titre de la note actuelle. |
 | Afficher les raccourcis clavier | Liste tous les raccourcis du mode Word. |
+
+</details>
 
 Aucune commande n'a de raccourci par défaut. Vous pouvez attribuer les vôtres dans **Paramètres → Raccourcis clavier**.
 

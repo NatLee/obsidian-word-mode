@@ -124,7 +124,6 @@ Word 模式的功能區（`src/toolbar.ts`）與 Markdown、閱讀模式的功�
 | `src/statusbar.ts` | 狀態列的內容（字數、存檔狀態、檢視切換、文件屬性、縮放），Word 模式與 Markdown、閱讀模式共用。 |
 | `src/paths.ts` | 檔案的路徑：狀態列上的顯示，以及「複製路徑」的項目（筆記自己、文件裡連結與圖片指向的檔案）。 |
 | `src/caret.ts` | 桌機自己畫的游標（形狀、閃爍、平滑移動）；內建的游標用 CSS 藏起來，輸入法組字時放回來。 |
-| `src/trace.ts` | 手機、平板的觸控與游標紀錄：最近 40 秒的觸控、系統的選取、編輯器的選取、放大鏡與鍵盤，用指令「複製觸控與游標的紀錄」貼出來。不記錄筆記的文字。 |
 | `src/props.ts`、`src/propview.ts` | 文件屬性的值（類型、轉換、讀出文件屬性），以及查看文件屬性的小視窗與固定在上方的屬性列。 |
 | `src/bubble.ts` | 連結與圖片的浮動工具列。 |
 | `src/tablegrips.ts` | 游標所在表格的列與欄把手（選取整列或整欄並開選單）。 |
@@ -193,6 +192,7 @@ jsdom 量不到版面，也畫不出圖表。版面、真的打字、畫圖這�
   ```
 
   需要 Google Chrome（或用環境變數 `CHROME` 指定路徑）、`PATH` 上的 `ffmpeg`，以及網路（從 jsDelivr 載入函式庫）。各場景的操作寫在 `docs/record/scenes.mjs`。
+- **手機的觸控板動畫**（`docs/images/trackpad.<語言>.webp`，只有英文與繁體中文）不是用上面的工具錄的：它要真的螢幕鍵盤與 iOS 的觸控，是在 iOS 模擬器裡的 WKWebView 跑外掛、用 `xcrun simctl io <裝置> recordVideo` 錄下來，再用 `ffmpeg` 切成 12 fps 的畫面、`img2webp -lossy -q 70 -d 83` 合成。模擬器的錄影看不到手指，錄的時候在頁面上加了一個跟著觸控移動的灰色圓點。觸控板的介面變了要照這個方式重錄。
 - **示意圖**（`docs/images/saving.*.svg`）由 `node docs/images/generate.mjs` 畫出來。
 
 ## 發佈新版本
