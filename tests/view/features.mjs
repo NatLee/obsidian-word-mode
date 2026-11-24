@@ -1572,6 +1572,33 @@ await fresh('---\ntags:\n  - 會議\n  - 專案\ndate: 2026-11-16\ndone: false\n
   host.remove();
 }
 
+// ======== 觸控與游標的紀錄（trace.ts）：記得到事件與選取，而且不含筆記的文字 ========
+{
+  const SECRET = '機密會議紀錄內容';
+  await fresh('# 標題\n\n' + SECRET + '\n\n| 甲 | 乙 |\n| --- | --- |\n| 1 | 2 |\n');
+  const T = B.TRACE;
+  const stop = T.enableTrace(window);
+  // 編輯器外掛：手機才會裝，這裡自己建一個掛到同一個編輯器上看選取的變動
+  const { EditorView } = await import('prosemirror-view');
+  const { EditorState } = await import('prosemirror-state');
+  const host = document.body.createDiv();
+  const pv = new EditorView(host, { state: EditorState.create({ doc: view.pm.state.doc, plugins: [T.tracePlugin()] }) });
+  const target = pv.dom.querySelector('p');
+  target.dispatchEvent(Object.assign(new Event('touchstart', { bubbles: true }), { touches: [{ clientX: 12, clientY: 34 }], changedTouches: [] }));
+  target.dispatchEvent(Object.assign(new Event('touchend', { bubbles: true }), { touches: [], changedTouches: [{ clientX: 12, clientY: 34 }] }));
+  pv.dispatch(pv.state.tr.setSelection(B.TextSelection.create(pv.state.doc, 6)));
+  const sel = window.getSelection(); sel.collapse(target.firstChild, 3); document.dispatchEvent(new Event('selectionchange'));
+  const report = T.traceReport(['header line'], pv);
+  assert(report.startsWith('header line') && /t-start\s+12,34 n=1 @p/.test(report) && /t-end\s+12,34/.test(report), '記到觸控：' + report.split('\n').filter(l => l.includes('t-')).join(' / '));
+  assert(/state\s+text 6 in paragraph/.test(report), '記到編輯器的選取（種類、位置、區塊）');
+  assert(/dom-sel\s+text\(\d+\)<p:3 pos=\d+/.test(report), '記到系統的選取，換算成編輯器的位置：' + (report.split('\n').find(l => l.includes('dom-sel')) || ''));
+  assert(/^doc: 0:heading@0\+\d+ 1:paragraph@\d+\+\d+ 2:table@/m.test(report), '文件骨架只有區塊種類與位置');
+  assert(!report.includes(SECRET) && !report.includes('標題') && !report.includes('甲'), '紀錄裡沒有筆記的文字');
+  pv.destroy(); host.remove();
+  stop();
+  assert(!T.traceReport([], null).includes('t-start'), '停止之後清空');
+}
+
 //@@MORE@@
 
 finish();

@@ -1268,4 +1268,6 @@ export default {
  "打字或移動游標時，游標滑到新的位置而不是直接跳過去（像 Word）。選「系統原本的」游標時沒有作用。": "Khi gõ hoặc di chuyển con trỏ, nó trượt đến vị trí mới thay vì nhảy thẳng tới (giống Word). Không có tác dụng với con trỏ “Mặc định của hệ thống”.",
  "游標閃爍的速度": "Tốc độ nhấp nháy của con trỏ",
  "閃一次（或淡出再淡入一次）要幾秒，數字越小越快，預設 1.3 秒。選「不閃」或「系統原本的」游標時沒有作用。": "Một lần nhấp nháy (hoặc một lần mờ đi rồi hiện lại) mất bao nhiêu giây. Số càng nhỏ càng nhanh; mặc định là 1,3 giây. Không có tác dụng với “Không nhấp nháy” hoặc con trỏ “Mặc định của hệ thống”.",
+ "複製觸控與游標的紀錄": "Sao chép nhật ký chạm và con trỏ",
+ "已複製觸控與游標的紀錄（不含筆記內容），可以貼到問題回報裡": "Đã sao chép nhật ký chạm và con trỏ (không có nội dung ghi chú). Có thể dán vào báo cáo lỗi.",
 };

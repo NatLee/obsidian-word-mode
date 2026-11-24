@@ -1268,4 +1268,6 @@ export default {
  "打字或移動游標時，游標滑到新的位置而不是直接跳過去（像 Word）。選「系統原本的」游標時沒有作用。": "When you type or move the cursor, it glides to the new position instead of jumping (like Word). Has no effect with the \"System default\" cursor.",
  "游標閃爍的速度": "Cursor blink speed",
  "閃一次（或淡出再淡入一次）要幾秒，數字越小越快，預設 1.3 秒。選「不閃」或「系統原本的」游標時沒有作用。": "How many seconds one blink (or one fade out and back in) takes. Smaller is faster; the default is 1.3 seconds. Has no effect with \"No blinking\" or the \"System default\" cursor.",
+ "複製觸控與游標的紀錄": "Copy touch and cursor log",
+ "已複製觸控與游標的紀錄（不含筆記內容），可以貼到問題回報裡": "Copied the touch and cursor log (no note content). You can paste it into a bug report.",
 };

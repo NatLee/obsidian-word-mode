@@ -19,6 +19,7 @@
 | 右下角的狀態列（字數、存檔狀態、檢視切換、查看文件屬性、縮放） | `statusbar.ts` 的 `buildStatusBar`：Word 模式（`view.ts` 的 `buildBottomBar`）與 Markdown／閱讀模式（`MdStatusBar`，由 `main.ts` 的 `updateStatus` 建立）共用，兩邊的版面要一樣。字數的兩種算法（設定 `countMethod`）在 `textstats.ts`：`countText` 只算看得到的文字、`countSource` 跟 Obsidian 內建的字數一樣（逐字比對過 Obsidian 1.15.1 的 regex）。狀態列有字數時，`main.ts` 的 `hideBuiltinCount` 藏起 Obsidian 內建的字數（它在 Word 模式也會出現） |
 | 路徑的顯示與「複製路徑」 | `paths.ts`：`pathEntries()` 列出可以複製的路徑（保管庫內、完整路徑、Obsidian 網址…），狀態列（`buildStatusBar` 的 `file`）與 `view.pathItems()`（連結、內嵌、圖片的右鍵選單）都用它 |
 | 游標的樣式 | `caret.ts` 的 `caretPlugin`（只在桌機裝）：在頁面上畫一個元素跟著選取移動；`view.applyCaretLook()` 切換 `wm-caret-custom`（藏內建游標）與顏色 `--wm-caret-color`。編輯區裡自己的輸入框要在 CSS 把 `caret-color` 放回來 |
+| 手機觸控、游標問題的紀錄 | `trace.ts`：`enableTrace`（main.ts 在行動裝置啟動）記文件層級的觸控、`selectionchange`；`tracePlugin`（view.ts 只在行動裝置裝）記編輯器的選取；其他模組用 `trace(kind, text)` 補記（loupe、caretPad、touch.ts 的拖曳）。指令「複製觸控與游標的紀錄」產生報告。**不可記錄筆記文字**：元素只記標籤與類別、文字節點只記長度。實機的問題先請使用者重現後貼這份紀錄；`dom-sel` 連續兩筆、後一筆跳回原處，就是 ProseMirror 把系統的選取改回去 |
 | 查看文件屬性的小視窗、固定在上方的屬性列 | `propview.ts`（`openPropsPeek`、`fillPropsPeek`、`fillPinSummary`）；資料由 `props.ts` 的 `peekData` 整理。Word 模式的屬性列在 `view.ts` 的 `updatePin`，Markdown 模式讀原文在 `mdbar.ts` 的 `openMarkdownPeek` |
 | 對話框（連結、方程式、快速鍵、清理符號、字數） | `dialogs.ts`；方程式的格子編輯在 `mathvisual.ts`（`MathField`） |
 | 圖表編輯器 | `mermaid.ts`（對話框、表單、圖上編輯）、`diagrams.ts`（十一種圖表的描述、圖表外觀、欄位種類）、`flowchart.ts`（流程圖的解析與範本 `MERMAID_TEMPLATES`） |
