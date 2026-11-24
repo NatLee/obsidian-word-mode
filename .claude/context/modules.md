@@ -18,6 +18,7 @@
 | 表格的列與欄把手、右上角的按鈕、「表格」情境分頁 | 把手在 `tablegrips.ts`（裝飾，也替游標所在的表格加 `is-active`）；右上角的按鈕在 `nodeviews.ts` 的 `WordTableView`；把手與「表格選項」的選單在 `contextmenu.ts` 的 `openTableMenu`；情境分頁由 `ribbon.ts` 的 `contextTab`／`setContextTab` 建立，按鈕在 `toolbar.ts` 的 `buildTable`。`prosemirror-tables` 會把整張表的節點選取換成所有儲存格的選取，所以「整張表被選取」看的是 `CellSelection` 的 `isRowSelection() && isColSelection()` |
 | 右下角的狀態列（字數、存檔狀態、檢視切換、查看文件屬性、縮放） | `statusbar.ts` 的 `buildStatusBar`：Word 模式（`view.ts` 的 `buildBottomBar`）與 Markdown／閱讀模式（`MdStatusBar`，由 `main.ts` 的 `updateStatus` 建立）共用，兩邊的版面要一樣。字數的兩種算法（設定 `countMethod`）在 `textstats.ts`：`countText` 只算看得到的文字、`countSource` 跟 Obsidian 內建的字數一樣（逐字比對過 Obsidian 1.15.1 的 regex）。狀態列有字數時，`main.ts` 的 `hideBuiltinCount` 藏起 Obsidian 內建的字數（它在 Word 模式也會出現） |
 | 路徑的顯示與「複製路徑」 | `paths.ts`：`pathEntries()` 列出可以複製的路徑（保管庫內、完整路徑、Obsidian 網址…），狀態列（`buildStatusBar` 的 `file`）與 `view.pathItems()`（連結、內嵌、圖片的右鍵選單）都用它 |
+| 游標的樣式 | `caret.ts` 的 `caretPlugin`（只在桌機裝）：在頁面上畫一個元素跟著選取移動；`view.applyCaretLook()` 切換 `wm-caret-custom`（藏內建游標）與顏色 `--wm-caret-color`。編輯區裡自己的輸入框要在 CSS 把 `caret-color` 放回來 |
 | 查看文件屬性的小視窗、固定在上方的屬性列 | `propview.ts`（`openPropsPeek`、`fillPropsPeek`、`fillPinSummary`）；資料由 `props.ts` 的 `peekData` 整理。Word 模式的屬性列在 `view.ts` 的 `updatePin`，Markdown 模式讀原文在 `mdbar.ts` 的 `openMarkdownPeek` |
 | 對話框（連結、方程式、快速鍵、清理符號、字數） | `dialogs.ts`；方程式的格子編輯在 `mathvisual.ts`（`MathField`） |
 | 圖表編輯器 | `mermaid.ts`（對話框、表單、圖上編輯）、`diagrams.ts`（十一種圖表的描述、圖表外觀、欄位種類）、`flowchart.ts`（流程圖的解析與範本 `MERMAID_TEMPLATES`） |

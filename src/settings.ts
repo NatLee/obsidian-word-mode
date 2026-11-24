@@ -3,6 +3,7 @@ import type { Language } from './i18n.js';
 import type { RibbonLayout, ButtonStyle, TabId, GroupId, TabStyle } from './ribbon.js';
 import type { MdToolbarMode } from './mdbar.js';
 import type { PropsStyle } from './view.js';
+import type { CaretBlink, CaretShape } from './caret.js';
 import type { EquationEditMode } from './dialogs.js';
 import type { MermaidTab } from './mermaid.js';
 import type { SavedTemplate } from './templates.js';
@@ -50,6 +51,12 @@ export interface Settings {
   // 文件屬性區塊的外觀，以及固定的屬性列要不要顯示屬性名稱
   propsStyle: PropsStyle;
   pinLabels: boolean;
+  // ---- 游標（caret.ts）：形狀、顏色（accent 強調色、text 文字顏色、custom 用 caretCustom）、閃爍的方式、移動時要不要滑過去
+  caretShape: CaretShape;
+  caretColor: 'accent' | 'text' | 'custom';
+  caretCustom: string;
+  caretBlink: CaretBlink;
+  caretSmooth: boolean;
   toolbarPosition: ToolbarPosition;
   // ---- 工具列
   ribbonLayout: RibbonLayout;
@@ -144,6 +151,11 @@ export const DEFAULTS: Settings = {
   propsSticky: false,
   propsStyle: 'card',
   pinLabels: true,
+  caretShape: 'line',
+  caretColor: 'accent',
+  caretCustom: '#2b7de9',
+  caretBlink: 'fade',
+  caretSmooth: true,
   toolbarPosition: 'auto',
   // 工具列
   ribbonLayout: 'tabs',

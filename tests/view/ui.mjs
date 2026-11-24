@@ -2021,4 +2021,26 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
   bar.remove(); bar2.remove(); bar3.remove();
 }
 
+// ======== 游標的樣式（設定）：桌機自己畫游標，內建的藏起來；顏色、形狀可以改 ========
+{
+  const S = plugin.settings;
+  const keep = { shape: S.caretShape, color: S.caretColor, custom: S.caretCustom, blink: S.caretBlink, smooth: S.caretSmooth };
+  const el = view.contentEl;
+  assert(B.DEFAULTS.caretShape === 'line' && B.DEFAULTS.caretBlink === 'fade' && B.DEFAULTS.caretSmooth === true && B.DEFAULTS.caretColor === 'accent', '預設：細線、淡入淡出、平滑移動、強調色');
+  view.applyCaretLook();
+  assert(el.classList.contains('wm-caret-custom') && view.page.querySelector('.wm-caret'), '桌機：自己畫游標，頁面裡有游標的元素');
+  S.caretShape = 'native'; view.applyCaretLook();
+  assert(!el.classList.contains('wm-caret-custom'), '系統原本的：不藏內建的游標');
+  S.caretShape = 'block'; S.caretColor = 'custom'; S.caretCustom = '#e0245e'; view.applyCaretLook();
+  assert(el.classList.contains('wm-caret-custom') && el.style.getPropertyValue('--wm-caret-color') === '#e0245e', '自訂顏色寫在檢視上：' + el.style.getPropertyValue('--wm-caret-color'));
+  S.caretCustom = 'red; background: url(x)'; view.applyCaretLook();
+  assert(el.style.getPropertyValue('--wm-caret-color') === '', '不是色碼的自訂顏色不採用');
+  S.caretColor = 'text'; view.applyCaretLook();
+  assert(el.classList.contains('wm-caret-text') && el.style.getPropertyValue('--wm-caret-color') === '', '跟文字一樣：用類別，不寫顏色');
+  const L = B.CARET.caretLook;
+  assert(JSON.stringify(L('怪值', undefined, undefined)) === JSON.stringify({ shape: 'line', blink: 'fade', smooth: true }) && L('underline', 'solid', false).smooth === false, '不認得的設定值用預設');
+  Object.assign(S, { caretShape: keep.shape, caretColor: keep.color, caretCustom: keep.custom, caretBlink: keep.blink, caretSmooth: keep.smooth });
+  view.applyCaretLook();
+}
+
 finish();
