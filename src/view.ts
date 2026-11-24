@@ -18,7 +18,6 @@ import { parseWidth, imageAttrsWithWidth } from './nodeviews.js';
 import { findPlugin, FindBar } from './find.js';
 import { foldPlugin } from './fold.js';
 import { caretPlugin, caretLook, caretPeriod, CARET_PERIOD } from './caret.js';
-import { tracePlugin } from './trace.js';
 import { stripSliceBids, stripBids, clipboardTable, tableFromRows, fillTable, looksLikeMarkdown } from './paste.js';
 import { Slice, Fragment } from 'prosemirror-model';
 import { schema, IMAGE_EXT } from './schema.js';
@@ -169,7 +168,6 @@ export class WordModeView extends TextFileView {
   declare scroller: HTMLDivElement;
   declare pathEl?: HTMLDivElement | null;
   declare caret?: Plugin;
-  declare tracer?: Plugin;
   declare page: HTMLDivElement;
   declare toolbar: Toolbar;
   declare findBar: FindBar;
@@ -695,11 +693,6 @@ export class WordModeView extends TextFileView {
     if (!this.code) this.code = codePlugin(() => this.prism);
     if (!this.suggest) this.suggest = suggestPlugin(suggestContext(this, iconOr));
     const plugins = [this.suggest, this.bubble, findPlugin, this.fold, this.marks, this.code, codeActivePlugin, this.grips];
-    // 手機、平板：記下觸控與選取的變動，「複製觸控與游標的紀錄」用（trace.ts，不含筆記內容）
-    if (Platform.isMobile) {
-      if (!this.tracer) this.tracer = tracePlugin();
-      plugins.push(this.tracer);
-    }
     // 自己畫的游標只用在桌機；手機用系統的游標（有把手與放大鏡）
     if (!Platform.isMobile) {
       if (!this.caret) {

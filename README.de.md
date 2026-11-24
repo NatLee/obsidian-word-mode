@@ -30,21 +30,34 @@ Zu sehen in der Animation oben. Beginnen Sie einen Absatz mit `# `, `- `, `1. `,
 - **Registerkarten Start, Einfügen, Überprüfen und Ansicht**, angeordnet wie in einer Textverarbeitung.
 - **Schriftfarbe und Hervorhebung**: Standardfarben mit Hell- und Dunkeltönen, zuletzt verwendete Farben oder jede beliebige Farbe, die Sie auswählen oder als Hex-Code eingeben. Hervorhebungen können jede Farbe und Deckkraft haben.
 - **Ganz nach Ihren Wünschen**: Registerkarten als Text, Symbole oder beides anzeigen, in eine einzige Menüschaltfläche zusammenfassen und umbenennen. Schaltflächengruppen umbenennen, umsortieren, ausblenden oder auf eine andere Registerkarte verschieben.
-- **Mehr Platz beim Tippen auf dem Smartphone**: Solange die Bildschirmtastatur offen ist, schrumpft die Symbolleiste auf eine Zeile direkt darüber. Die Registerkarten wandern in eine Menüschaltfläche, und die Schaltflächen zeigen nur Symbole; sobald die Tastatur geschlossen wird, ist alles wieder da. Lässt sich in den Einstellungen abschalten.
-- **Auf dem Smartphone als Schublade von unten**: Die Aufklappfelder der Symbolleiste (Registerkarten, Formatvorlagen, Gliederung, Farben, Symbole, Tabelle einfügen) gleiten wie die Menüs von Obsidian Mobile vom unteren Bildschirmrand herein und liegen bei geöffneter Tastatur direkt darüber.
-- **Cursor durch Ziehen bewegen**: Bei geöffneter Tastatur auf dem Smartphone wird die Leiste über der Tastatur zum Trackpad. Irgendwo kurz gedrückt halten, bis die Schaltflächen verblassen, dann nach links oder rechts ziehen, um den Cursor Zeichen für Zeichen zu bewegen, oder nach oben und unten, um die Zeile zu wechseln. Die Registerkarten-Menüschaltfläche am Anfang funktioniert sofort ohne Halten. Beim Ziehen zeigt eine vergrößerte Vorschau über dem Cursor genau, wo er steht. Tippen auf Schaltflächen und seitliches Scrollen der Leiste funktionieren wie bisher.
-- **Gesten auf dem Smartphone**: Auf „Rückgängig“ nach oben wischen stellt wieder her, auf „Wiederholen“ nach oben wischen macht rückgängig (die beiden Einzugsschaltflächen funktionieren genauso; ein kleiner Punkt markiert diese Schaltflächen). Mit zwei Fingern tippen markiert den ganzen Absatz. Ein Tipp auf eine Tabellenzelle setzt den Cursor sofort, ohne dass das Systemmenü Ausschneiden / Kopieren / Einfügen stört. Die Symbolauswahl enthält außerdem Klammer- und Anführungszeichenpaare, die den markierten Text umschließen.
-- **Tastatur ausblenden**: Solange die Bildschirmtastatur offen ist, blendet eine Schaltfläche am Ende der Symbolleiste (und neben „Abbrechen“ im Formel- und Diagrammeditor) sie aus.
-- **Flüssiger auf dem Smartphone**: Die Symbolleiste gleitet mit der Tastatur, statt zu springen; ein Wisch nach unten auf der Symbolleiste blendet die Tastatur aus; Schubladen haben einen Titel, markieren die aktuelle Auswahl und lassen sich nach unten wegziehen; in der Suchleiste sitzt „Schließen“ ganz rechts; Schaltflächen an Tabellen, Diagrammen und Codeblöcken verdecken den Inhalt nicht mehr; die Symbolleiste bleibt auch in der Markdown- und Leseansicht unten; und ein Wisch entlang der Symbolleiste zieht nicht mehr die Seitenleisten von Obsidian heraus.
-- **Einfügen mit Schrägstrich** (standardmäßig aus; in den Einstellungen aktivieren): Tippe `/` am Anfang eines leeren Absatzes, um Überschrift, Liste, Tabelle, Codeblock, Callout, Formel, Diagramm, Bild oder Link auszuwählen; Weitertippen filtert. Auf dem Smartphone geht das schneller, als die Symbolleiste zu durchsuchen. Beim Wechsel zwischen Word-Modus, Markdown und Leseansicht bleibst du an derselben Stelle der Notiz; in der Leseansicht auf dem Smartphone schrumpft die Symbolleiste auf eine Zeile mit den Schaltflächen, die dort funktionieren; und Tabellen haben die Schaltflächen **Vorherige Zelle** und **Nächste Zelle**, weil die Bildschirmtastatur keine Tab-Taste hat. Auf dem Smartphone sind die Schaltflächen an Tabellen, Formeln, Diagrammen und Codeblöcken größer und weiter auseinander, Löschen steht in Rot abgesetzt.
-- **Die passende Tastatur für jedes Feld**: Formeln, Code und Suchfelder werden so übernommen, wie sie getippt werden (keine automatische Großschreibung oder Autokorrektur, auch wenn der Cursor in einem Codeblock oder in Inline-Code steht); Zahlenfelder öffnen den Ziffernblock, Linkfelder die URL-Tastatur; die Eingabetaste zeigt „Suchen“ oder „Fertig“, wo sie genau das tut.
-- **Formel- und Diagrammeditor auf dem Smartphone**: Bei geöffneter Tastatur bleibt der Dialog darüber und zeigt nur das Nötige: die Formel in Arbeit, eine wischbare Zeile mit Symbolen und die Vorschau; Titel und Modusumschalter kehren zurück, sobald die Tastatur geschlossen wird.
+
+<details>
+<summary>Mehr zur Symbolleiste</summary>
+
 - **Dieselbe Symbolleiste in der Markdown- und Leseansicht**, mit demselben Layout, sodass beim Wechseln nichts springt. Sie lässt sich in beiden, in einer davon oder in keiner anzeigen.
 - **Ausführliche Tooltips**: Das Überfahren einer Schaltfläche erklärt sie mit einer kurzen Animation, auch bei den Schaltflächen für die Ansichtsmodi und in der Statusleiste. Sie sind standardmäßig eingeschaltet und lassen sich in den Einstellungen oder in der Liste der Tastenkürzel ausschalten.
-- **Statusleiste** mit Wortanzahl, Speicherstatus, Schaltflächen zum Wechseln zwischen Word-Modus, Markdown und Leseansicht, „Eigenschaften anzeigen“ und Zoom. Markdown- und Leseansicht behalten dieselben Schaltflächen und zählen Wörter auf dieselbe Weise. Das lässt sich in den Einstellungen abschalten. Angezeigt wird nur die Wortanzahl, ohne Markdown-Symbole und Linkadressen; Zeichenanzahl und Lesezeit stehen im Tooltip. Für dieselben Zahlen wie die integrierte Wortanzahl von Obsidian lässt sich in den Einstellungen die „Zählweise der Wörter“ umstellen.
-- **Pfad der Notiz und Pfad kopieren**: Auf dem Desktop zeigt die Statusleiste Ordner und Dateinamen der Notiz. Per Klick oder Rechtsklick lassen sich der Pfad im Tresor, der vollständige Pfad auf dem Computer, die Obsidian-URL, der Dateiname oder der Ordner kopieren. Ein Rechtsklick auf einen Link, eine Einbettung oder ein Bild im Dokument zeigt die Zieldatei und kopiert ihren Pfad auf dieselbe Weise.
-- **Leerzeilen bleiben sichtbar**: Mehrere Leerzeilen hintereinander im Markdown erscheinen als leere Absätze, so als hätte man in Word mehrmals die Eingabetaste gedrückt. Löscht man einen, verschwindet eine Leerzeile; unberührte werden unverändert gespeichert.
-- **Ein schönerer, einstellbarer Cursor**: Auf dem Desktop ist der Cursor eine abgerundete dünne Linie in der Akzentfarbe, die beim Tippen gleitet und im Ruhezustand sanft aus- und einblendet. In den Einstellungen wählst du Form (dünne Linie, dicke Linie, Block, Unterstrich oder Systemcursor), Farbe, Blinken samt Geschwindigkeit und ob er gleitend bewegt wird.
+
+</details>
+
+### Auf Smartphone und Tablet
+
+![Langes Drücken auf die Leiste über der Tastatur macht sie zum Trackpad: Beim Ziehen bewegt sich der Cursor mit einer Lupe, bleibt in Tabellen in derselben Spalte, hält auf einer Formel an und am Dokumentende erscheint ein Hinweis](docs/images/trackpad.en.webp)
+
+- **Cursor durch Ziehen bewegen**: Bei geöffneter Tastatur auf dem Smartphone wird die Leiste über der Tastatur zum Trackpad. Irgendwo kurz gedrückt halten, bis die Schaltflächen verblassen, dann nach links oder rechts ziehen, um den Cursor Zeichen für Zeichen zu bewegen, oder nach oben und unten, um die Zeile zu wechseln. Die Registerkarten-Menüschaltfläche am Anfang funktioniert sofort ohne Halten. Beim Ziehen zeigt eine vergrößerte Vorschau über dem Cursor genau, wo er steht. Tippen auf Schaltflächen und seitliches Scrollen der Leiste funktionieren wie bisher. In den Einstellungen lassen sich Haltedauer und Geschwindigkeit anpassen sowie Aussehen (Kapsel oder Karte), Vergrößerung und Breite der Lupe wählen oder die Lupe ausschalten. Neben der Lupe zeigt ein kleines Etikett, wo der Cursor steht: die Art des Blocks (Text, Überschrift, Liste, Tabellenzeile und -spalte) und das wievielte Zeichen; es lässt sich ausschalten. Nach oben und unten bleibt der Cursor in derselben Spalte (auch in Tabellen), hält unterwegs auf Formeln, Diagrammen und horizontalen Linien an und benennt sie; am Anfang oder Ende des Dokuments erscheint ein Hinweis.
+- **Mehr Platz beim Tippen auf dem Smartphone**: Solange die Bildschirmtastatur offen ist, schrumpft die Symbolleiste auf eine Zeile direkt darüber. Die Registerkarten wandern in eine Menüschaltfläche, und die Schaltflächen zeigen nur Symbole; sobald die Tastatur geschlossen wird, ist alles wieder da. Lässt sich in den Einstellungen abschalten.
+- **Gesten auf dem Smartphone**: Auf „Rückgängig“ nach oben wischen stellt wieder her, auf „Wiederholen“ nach oben wischen macht rückgängig (die beiden Einzugsschaltflächen funktionieren genauso; ein kleiner Punkt markiert diese Schaltflächen). Mit zwei Fingern tippen markiert den ganzen Absatz. Ein Tipp auf eine Tabellenzelle setzt den Cursor sofort, ohne dass das Systemmenü Ausschneiden / Kopieren / Einfügen stört. Die Symbolauswahl enthält außerdem Klammer- und Anführungszeichenpaare, die den markierten Text umschließen.
+- **Einfügen mit Schrägstrich** (standardmäßig aus; in den Einstellungen aktivieren): Tippe `/` am Anfang eines leeren Absatzes, um Überschrift, Liste, Tabelle, Codeblock, Callout, Formel, Diagramm, Bild oder Link auszuwählen; Weitertippen filtert. Auf dem Smartphone geht das schneller, als die Symbolleiste zu durchsuchen. Beim Wechsel zwischen Word-Modus, Markdown und Leseansicht bleibst du an derselben Stelle der Notiz; in der Leseansicht auf dem Smartphone schrumpft die Symbolleiste auf eine Zeile mit den Schaltflächen, die dort funktionieren; und Tabellen haben die Schaltflächen **Vorherige Zelle** und **Nächste Zelle**, weil die Bildschirmtastatur keine Tab-Taste hat. Auf dem Smartphone sind die Schaltflächen an Tabellen, Formeln, Diagrammen und Codeblöcken größer und weiter auseinander, Löschen steht in Rot abgesetzt.
+
+<details>
+<summary>Mehr für Smartphone und Tablet</summary>
+
+- **Auf dem Smartphone als Schublade von unten**: Die Aufklappfelder der Symbolleiste (Registerkarten, Formatvorlagen, Gliederung, Farben, Symbole, Tabelle einfügen) gleiten wie die Menüs von Obsidian Mobile vom unteren Bildschirmrand herein und liegen bei geöffneter Tastatur direkt darüber.
+- **Tastatur ausblenden**: Solange die Bildschirmtastatur offen ist, blendet eine Schaltfläche am Ende der Symbolleiste (und neben „Abbrechen“ im Formel- und Diagrammeditor) sie aus.
+- **Flüssiger auf dem Smartphone**: Die Symbolleiste gleitet mit der Tastatur, statt zu springen; ein Wisch nach unten auf der Symbolleiste blendet die Tastatur aus; Schubladen haben einen Titel, markieren die aktuelle Auswahl und lassen sich nach unten wegziehen; in der Suchleiste sitzt „Schließen“ ganz rechts; Schaltflächen an Tabellen, Diagrammen und Codeblöcken verdecken den Inhalt nicht mehr; die Symbolleiste bleibt auch in der Markdown- und Leseansicht unten; und ein Wisch entlang der Symbolleiste zieht nicht mehr die Seitenleisten von Obsidian heraus.
+- **Die passende Tastatur für jedes Feld**: Formeln, Code und Suchfelder werden so übernommen, wie sie getippt werden (keine automatische Großschreibung oder Autokorrektur, auch wenn der Cursor in einem Codeblock oder in Inline-Code steht); Zahlenfelder öffnen den Ziffernblock, Linkfelder die URL-Tastatur; die Eingabetaste zeigt „Suchen“ oder „Fertig“, wo sie genau das tut.
+- **Formel- und Diagrammeditor auf dem Smartphone**: Bei geöffneter Tastatur bleibt der Dialog darüber und zeigt nur das Nötige: die Formel in Arbeit, eine wischbare Zeile mit Symbolen und die Vorschau; Titel und Modusumschalter kehren zurück, sobald die Tastatur geschlossen wird.
+
+</details>
 
 ### Tabellen
 
@@ -107,6 +120,13 @@ Zu sehen in der Animation oben. Beginnen Sie einen Absatz mit `# `, `- `, `1. `,
 
 ### Und mehr
 
+<details>
+<summary>Alles anzeigen: Eigenschaften, Bilder, Links, Suchen und Ersetzen, Statusleiste, Cursor …</summary>
+
+- **Statusleiste** mit Wortanzahl, Speicherstatus, Schaltflächen zum Wechseln zwischen Word-Modus, Markdown und Leseansicht, „Eigenschaften anzeigen“ und Zoom. Markdown- und Leseansicht behalten dieselben Schaltflächen und zählen Wörter auf dieselbe Weise. Das lässt sich in den Einstellungen abschalten. Angezeigt wird nur die Wortanzahl, ohne Markdown-Symbole und Linkadressen; Zeichenanzahl und Lesezeit stehen im Tooltip. Für dieselben Zahlen wie die integrierte Wortanzahl von Obsidian lässt sich in den Einstellungen die „Zählweise der Wörter“ umstellen.
+- **Pfad der Notiz und Pfad kopieren**: Auf dem Desktop zeigt die Statusleiste Ordner und Dateinamen der Notiz. Per Klick oder Rechtsklick lassen sich der Pfad im Tresor, der vollständige Pfad auf dem Computer, die Obsidian-URL, der Dateiname oder der Ordner kopieren. Ein Rechtsklick auf einen Link, eine Einbettung oder ein Bild im Dokument zeigt die Zieldatei und kopiert ihren Pfad auf dieselbe Weise.
+- **Leerzeilen bleiben sichtbar**: Mehrere Leerzeilen hintereinander im Markdown erscheinen als leere Absätze, so als hätte man in Word mehrmals die Eingabetaste gedrückt. Löscht man einen, verschwindet eine Leerzeile; unberührte werden unverändert gespeichert.
+- **Ein schönerer, einstellbarer Cursor**: Auf dem Desktop ist der Cursor eine abgerundete dünne Linie in der Akzentfarbe, die beim Tippen gleitet und im Ruhezustand sanft aus- und einblendet. In den Einstellungen wählst du Form (dünne Linie, dicke Linie, Block, Unterstrich oder Systemcursor), Farbe, Blinken samt Geschwindigkeit und ob er gleitend bewegt wird.
 - **Eigenschaften** als Formular: Tags und Links erscheinen als Chips, die Sie zum Öffnen auswählen können, verschachtelte Werte erscheinen als Baum, und über das Symbol einer Eigenschaft ändern Sie ihren Typ oder benennen sie um. „Eigenschaften anzeigen“ auf der Registerkarte Ansicht und in der Statusleiste zeigt sie, ohne dass Sie nach oben scrollen müssen, und lässt lange Listen filtern. Die Stecknadel in der Kopfzeile der Eigenschaften (oder eine Einstellung) heftet beim Scrollen eine schmale Eigenschaftsleiste oben an; ein Klick darauf zeigt die vollständige Liste. Eigenschaften lassen sich als Kasten mit Rahmen und Hintergrund, nur mit Rahmen oder in einem minimalen Stil ohne Rahmen darstellen.
 - **Bilder**: Fügen Sie ein Bild ein oder wählen Sie eines aus und ändern Sie dann die Größe durch Ziehen.
 - **Links** zu Notizen, Überschriften und Webseiten, mit einer kleinen Symbolleiste, die erscheint, wenn der Cursor auf einem Link steht.
@@ -122,6 +142,8 @@ Zu sehen in der Animation oben. Beginnen Sie einen Absatz mit `# `, `- `, `1. `,
 - Oberfläche in Chinesisch (traditionell), Taiwanisch (Han-Schriftzeichen), Kantonesisch, Chinesisch (vereinfacht), Englisch, Japanisch, Koreanisch, Vietnamesisch, Französisch, Deutsch, Spanisch, Arabisch und Hebräisch.
 
 Alles, was Word Mode nicht visuell bearbeiten kann, etwa ein HTML-Block, wird als Rohblock angezeigt und unverändert gespeichert. Zeigen Sie mit der Maus darauf, auf eine Fußnote oder einen Kommentarblock, erscheinen oben rechts Schaltflächen zum Bearbeiten, Kopieren und Löschen. Wird eine Fußnote gelöscht, verschwinden auch ihre Verweise im Text.
+
+</details>
 
 ## Erste Schritte
 
@@ -146,6 +168,9 @@ Die Einstellungen sind in Kategorien gegliedert; eine Reihe von Registerkarten o
 
 ### Befehle
 
+<details>
+<summary>Befehle anzeigen</summary>
+
 | Befehl | Beschreibung |
 | --- | --- |
 | Aktuelle Notiz im Word-Modus bearbeiten | Schaltet die aktuelle Notiz in den Word-Modus. |
@@ -156,6 +181,8 @@ Die Einstellungen sind in Kategorien gegliedert; eine Reihe von Registerkarten o
 | Suchen und Ersetzen | Sucht und ersetzt in der aktuellen Notiz. |
 | Gliederung: zu Überschrift springen | Springt zu einer Überschrift in der aktuellen Notiz. |
 | Tastenkürzel anzeigen | Listet alle Tastenkürzel des Word-Modus auf. |
+
+</details>
 
 Kein Befehl hat ein voreingestelltes Tastenkürzel. Eigene können Sie unter **Einstellungen → Tastenkürzel** festlegen.
 

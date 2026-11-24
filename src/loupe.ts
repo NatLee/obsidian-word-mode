@@ -3,14 +3,90 @@
 // 做法：把游標所在的那一段複製一份放進固定大小的鏡片裡放大，用 transform 平移到游標對準鏡片中的標記；
 // 同一段裡移動只改 transform（有轉場，所以是滑過去的），換段才重新複製
 import type { EditorView } from 'prosemirror-view';
-import { el } from './dom.js';
-import { trace } from './trace.js';
+import { NodeSelection } from 'prosemirror-state';
+import type { Node as PMNode, ResolvedPos } from 'prosemirror-model';
+import { el, visibleBottom } from './dom.js';
+import { t } from './i18n.js';
 
-// 放大倍率、鏡片的寬度、鏡片與游標的距離（含指向游標的小尖角）、鏡片離畫面邊緣至少多遠
-const SCALE = 1.6;
-const WIDTH = 240;
-const GAP = 14;
+// 鏡片與游標的距離（卡片樣式含指向游標的小尖角）、鏡片離畫面邊緣至少多遠
+const GAP = { capsule: 16, card: 14 } as const;
 const EDGE = 8;
+
+// 外觀（設定）：膠囊是圓頭的長條、沒有尖角（像 iOS 的放大鏡）；卡片是圓角方框加一個指向游標的小尖角（1.32 以前的樣子）
+export type LoupeStyle = 'capsule' | 'card';
+// info：鏡片外面顯示游標所在的位置（哪一種區塊、第幾個字）
+export interface LoupeOptions { scale: number; width: number; style: LoupeStyle; info: boolean; }
+// 位置資訊那一條的高度與跟鏡片的距離（決定鏡片放在游標上面還是下面時要算進去）
+const INFO_H = 26;
+// 設定的範圍與預設值（設定頁的拉桿也用這份）
+export const LOUPE_ZOOM = { min: 1.2, max: 2.5, step: 0.1, default: 1.6 } as const;
+export const LOUPE_WIDTH = { min: 180, max: 340, step: 20, default: 260 } as const;
+
+const clampTo = (v: unknown, r: { min: number; max: number; step: number; default: number }): number => {
+  const n = typeof v === 'number' && isFinite(v) ? v : r.default;
+  return Math.round(Math.max(r.min, Math.min(r.max, n)) / r.step) * r.step;
+};
+// 設定值整理成認得的樣子（舊版沒有這些設定、或設定檔被手動改壞時用預設）
+export function loupeOptions(zoom: unknown, width: unknown, style: unknown, info?: unknown): LoupeOptions {
+  return {
+    scale: Math.round(clampTo(zoom, LOUPE_ZOOM) * 10) / 10,
+    width: clampTo(width, LOUPE_WIDTH),
+    style: style === 'card' ? 'card' : 'capsule',
+    info: info !== false,
+  };
+}
+
+// 游標所在位置的說明（放大鏡旁邊那一條）：最靠近游標的區塊種類（表格寫出第幾列第幾欄），加上在這一段的第幾個字。
+// 拖曳移動游標時看得出現在跑到哪裡，跨段、進出表格時特別有用
+export function caretInfo($head: ResolvedPos): string[] {
+  const parent = $head.parent;
+  let where = parent.type.name === 'heading' ? t('標題 {n}', { n: String(parent.attrs.level) }) : parent.type.name === 'code_block' ? t('程式碼') : t('內文');
+  for (let d = $head.depth - 1; d > 0; d--) {
+    const n = $head.node(d);
+    const name = n.type.name;
+    if (name === 'table_cell' || name === 'table_header') {
+      where = t('表格') + ' ' + t('第 {r} 列第 {c} 欄', { r: String($head.index(d - 2) + 1), c: String($head.index(d - 1) + 1) });
+      break;
+    }
+    if (name === 'list_item') {
+      const list = $head.node(d - 1);
+      where = n.attrs.checked != null ? t('核取清單') : list.type.name === 'ordered_list' ? t('編號') : t('項目符號');
+      break;
+    }
+    if (name === 'blockquote') { where = t('引文'); break; }
+    if (name === 'callout') { where = t('提示框'); break; }
+  }
+  const out = [where, t('第 {i}／{n} 字', { i: String($head.parentOffset), n: String(parent.content.size) })];
+  // 游標旁邊緊貼著圖片、行內方程式、內嵌這類不是文字的東西：寫出來（放大鏡裡它們很小，不一定看得出來）
+  const side = (n: PMNode | null | undefined): string | null => {
+    if (!n || n.isText) return null;
+    if (n.type.name === 'image') return t('圖片');
+    if (n.type.name === 'raw_inline') return /^\$/.test(String(n.attrs.src)) ? t('行內方程式') : t('原文');
+    if (n.type.name === 'wikilink' && n.attrs.embed) return t('內嵌');
+    return null;
+  };
+  const before = side($head.nodeBefore); const after = side($head.nodeAfter);
+  if (before) out.push('← ' + before);
+  if (after) out.push(after + ' →');
+  return out;
+}
+
+// 選取了整個區塊（拖曳時停在方程式、圖表這類物件上）時，旁邊寫的名稱
+export function objectLabel(node: PMNode, dom: Node | null): string {
+  const name = node.type.name;
+  if (name === 'raw_block') {
+    const kind = String(node.attrs.kind);
+    return kind === 'math' ? t('方程式') : kind === 'comment' ? t('註解') : kind === 'html' ? t('HTML 區塊') : t('Markdown 原文');
+  }
+  if (name === 'horizontal_rule') return t('水平線');
+  if (name === 'frontmatter') return t('文件屬性');
+  if (name === 'code_block') {
+    const lang = String(node.attrs.params || '').trim().split(/\s+/)[0].toLowerCase();
+    return lang === 'mermaid' ? t('圖表') : t('程式碼結果');
+  }
+  if (name === 'image') return t('圖片');
+  return dom && dom.nodeType === 1 ? t('原文') : node.type.name;
+}
 // 小尖角離鏡片左右兩端至少多遠（再靠邊就會超出圓角）
 const TAIL_INSET = 22;
 
@@ -22,15 +98,21 @@ export class Loupe {
   private body: HTMLDivElement;
   private mark: HTMLDivElement;
   private tail: HTMLDivElement;
+  private info: HTMLDivElement | null;
   // 目前複製的是哪一段
   private block: HTMLElement | null = null;
   private scroller: HTMLElement | null;
   private onScroll = () => this.update();
+  // 走到文件開頭、結尾時的提示（下一次走得動就收掉）
+  private edgeKind: 'start' | 'end' | null = null;
 
-  constructor(private view: EditorView) {
+  private opts: LoupeOptions;
+
+  constructor(private view: EditorView, opts?: Partial<LoupeOptions>) {
+    this.opts = Object.assign(loupeOptions(undefined, undefined, undefined), opts || {});
     // 放在檢視裡面：佈景主題與縮放的變數才拿得到
     const host = view.dom.closest<HTMLElement>('.wm-view') || view.dom.ownerDocument.body;
-    this.dom = el('div', 'wm-loupe', host);
+    this.dom = el('div', 'wm-loupe is-' + this.opts.style, host);
     this.dom.setAttribute('aria-hidden', 'true');
     this.tail = el('div', 'wm-loupe-tail', this.dom);
     // 裁切內容的是裡面這一層：小尖角要露在鏡片外面
@@ -40,29 +122,70 @@ export class Loupe {
     // 四邊的淡出（蓋在內容上面的一層漸層）：上下露出一點的鄰行、左右被切到的字是淡出去的
     el('div', 'wm-loupe-fade', lens);
     this.mark = el('div', 'wm-loupe-caret', lens);
+    // 位置資訊：在鏡片外面（鏡片會裁切），放在離游標遠的那一邊
+    this.info = this.opts.info ? el('div', 'wm-loupe-info', this.dom) : null;
     // 游標移到畫面外時編輯區會捲動（有時晚一格才捲）：捲了就重新對位，不然鏡片留在原地、跟游標分開
     this.scroller = view.dom.closest<HTMLElement>('.wm-scroller');
     if (this.scroller) this.scroller.addEventListener('scroll', this.onScroll, { passive: true });
     this.update();
   }
 
+  // 走到文件開頭（start）、結尾（end）：資訊那一條改寫成提示，鏡片輕輕晃一下；null 收掉提示
+  edge(kind: 'start' | 'end' | null): void {
+    const was = this.edgeKind;
+    this.edgeKind = kind;
+    if (kind && kind !== was) {
+      this.dom.classList.remove('is-edge');
+      void this.dom.offsetWidth;
+      this.dom.classList.add('is-edge');
+    }
+    if (!kind) this.dom.classList.remove('is-edge');
+  }
+
+  private fillInfo(parts: string[]): void {
+    const box = this.info || el('div', 'wm-loupe-info', this.dom);
+    this.info = box;
+    box.replaceChildren();
+    parts.forEach((p, i) => { if (i) el('span', 'wm-loupe-info-dot', box, '·'); el('span', 'wm-loupe-info-part', box, p); });
+  }
+
   // 依目前的游標位置更新內容與位置
   update(): void {
     const { view } = this;
-    const { $head, head } = view.state.selection;
+    const sel = view.state.selection;
+    const { $head, head } = sel;
     const win = view.dom.ownerDocument.defaultView || window;
+    // 停在方程式、圖表這類物件上：不放大（沒有文字），只在物件旁邊寫出是什麼。這時一定顯示資訊。
+    // 放在物件下方、對齊左邊：物件上方右邊是它自己的按鈕列、左上角是「按兩下編輯」的標籤，放上面會疊在一起。
+    // 下方放不下（被功能區、鍵盤擋住）才放上方
+    if (sel instanceof NodeSelection) {
+      const dom = view.nodeDOM(sel.from);
+      if (!dom || dom.nodeType !== 1) { this.dom.classList.remove('is-shown'); return; }
+      const rect = (dom as HTMLElement).getBoundingClientRect();
+      const width = this.opts.width;
+      const left = Math.max(EDGE, Math.min(rect.left, win.innerWidth - width - EDGE));
+      const below = rect.bottom + INFO_H + 6 + 56 <= visibleBottom(win) || rect.top - INFO_H - 6 < EDGE;
+      this.dom.classList.add('is-object');
+      this.dom.classList.toggle('is-below', below);
+      this.dom.style.width = width + 'px';
+      // 高度在樣式表（is-object 是 0）：拿掉文字模式留下的高度
+      this.dom.style.removeProperty('height');
+      this.dom.style.transform = 'translate3d(' + Math.round(left) + 'px,' + Math.round(below ? Math.min(rect.bottom, win.innerHeight - INFO_H - EDGE) : rect.top) + 'px,0)';
+      this.fillInfo(this.edgeKind ? [this.edgeKind === 'start' ? t('已到文件開頭') : t('已到文件結尾')] : [objectLabel(sel.node, dom), t('已選取')]);
+      this.block = null;
+      this.dom.classList.add('is-shown');
+      return;
+    }
+    this.dom.classList.remove('is-object');
     let block: HTMLElement | null = null;
     try {
       const n = $head.depth ? view.nodeDOM($head.before($head.depth)) : null;
       if (n && n.nodeType === 1) block = n as HTMLElement;
     } catch { /* 位置對不到元素：下面當作沒有 */ }
-    if (!block || !$head.parent.isTextblock) {
-      if (this.dom.classList.contains('is-shown')) trace('loupe', 'hidden: caret not in text (' + $head.parent.type.name + ' @' + head + ')');
-      this.dom.classList.remove('is-shown');
-      return;
-    }
+    if (!block || !$head.parent.isTextblock) { this.dom.classList.remove('is-shown'); return; }
     const c = view.coordsAtPos(head);
     const r = block.getBoundingClientRect();
+    const { scale: SCALE, width: WIDTH, style } = this.opts;
     const lineH = Math.max(12, c.bottom - c.top);
     const height = Math.round(lineH * SCALE + 22);
     if (block !== this.block) {
@@ -78,9 +201,10 @@ export class Loupe {
     }
     // 鏡片水平置中在游標上，超出畫面就往內收；鏡片裡的標記跟著游標實際的位置偏移
     const left = Math.max(EDGE, Math.min(c.left - WIDTH / 2, win.innerWidth - WIDTH - EDGE));
-    const above = c.top - height - GAP;
-    const below = above < EDGE;
-    const top = below ? c.bottom + GAP : above;
+    const above = c.top - height - GAP[style];
+    // 位置資訊在鏡片上方：鏡片放在游標上面時，它也要放得下
+    const below = above - (this.info ? INFO_H : 0) < EDGE;
+    const top = below ? c.bottom + GAP[style] : above;
     const markX = c.left - left;
     this.dom.classList.toggle('is-below', below);
     this.dom.style.width = WIDTH + 'px';
@@ -90,7 +214,9 @@ export class Loupe {
     this.mark.style.transform = 'translate3d(' + markX.toFixed(1) + 'px,0,0)';
     this.mark.style.height = Math.round(lineH * SCALE) + 'px';
     this.tail.style.transform = 'translate3d(' + Math.max(TAIL_INSET, Math.min(markX, WIDTH - TAIL_INSET)).toFixed(1) + 'px,0,0) rotate(45deg)';
-    if (!this.dom.classList.contains('is-shown')) trace('loupe', 'shown @' + head + (below ? ' below' : ''));
+    if (this.edgeKind) this.fillInfo([this.edgeKind === 'start' ? t('已到文件開頭') : t('已到文件結尾')]);
+    else if (this.opts.info) this.fillInfo(caretInfo($head));
+    else if (this.info) { this.info.remove(); this.info = null; }
     this.dom.classList.add('is-shown');
     if (this.dom.classList.contains('is-jump')) {
       // 先讓這一格不帶轉場畫出來，再把轉場開回去

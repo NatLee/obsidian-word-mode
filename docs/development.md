@@ -124,7 +124,6 @@ All styles are in `styles/word-mode.css`, and every class starts with `wm-`. The
 | `src/statusbar.ts` | Status bar contents (word count, save status, view switch, properties, zoom), shared by Word mode and Markdown and reading mode. |
 | `src/paths.ts` | File paths: the path shown in the status bar and the "copy path" entries (for the note itself and for files that links and images point to). |
 | `src/caret.ts` | The custom cursor on desktop (shape, blinking, smooth movement); the built-in caret is hidden with CSS and comes back during IME composition. |
-| `src/trace.ts` | Touch and cursor log on phones and tablets: the last 40 seconds of touches, system selection, editor selection, loupe and keyboard, copied with the "Copy touch and cursor log" command. No note text is recorded. |
 | `src/props.ts`, `src/propview.ts` | Property values (types, conversion, reading the frontmatter), and the properties popover and the pinned properties bar. |
 | `src/bubble.ts` | Floating toolbar for links and images. |
 | `src/tablegrips.ts` | Row and column handles on the table at the cursor (select a whole row or column and open its menu). |
@@ -193,6 +192,7 @@ jsdom can't measure layout or draw diagrams. For layout, real typing, and drawin
   ```
 
   This needs Google Chrome (or set `CHROME` to its path), `ffmpeg` on the `PATH`, and an internet connection for the libraries from jsDelivr. The scenes are in `docs/record/scenes.mjs`.
+- **The phone trackpad animation** (`docs/images/trackpad.<language>.webp`, English and Traditional Chinese only) is not made with the recorder above: it needs a real on-screen keyboard and iOS touch handling. It was recorded from the plugin running in a WKWebView in the iOS Simulator with `xcrun simctl io <device> recordVideo`, cut into 12 fps frames with `ffmpeg` and assembled with `img2webp -lossy -q 70 -d 83`. Simulator recordings do not show touches, so the page drew a grey dot that follows the finger. Re-record it the same way when the trackpad interface changes.
 - **Illustration** (`docs/images/saving.*.svg`) is drawn by `node docs/images/generate.mjs`.
 
 ## Releasing

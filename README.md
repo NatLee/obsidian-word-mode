@@ -28,21 +28,34 @@ Shown in the animation at the top. Start a paragraph with `# `, `- `, `1. `, `> 
 - **Home, Insert, Review, and View tabs**, arranged like a word processor.
 - **Font color and highlight**: standard colors with tints and shades, your recent colors, or any color you pick or type as a hex code. Highlights can use any color and opacity.
 - **Make it yours**: show the tabs as text, icons, or both, collapse them into one menu button, and rename them. Rename, reorder, hide, or move button groups to another tab.
-- **More room while typing on a phone**: when the on-screen keyboard is open, the toolbar shrinks to one row above it. The tabs fold into a menu button and the buttons show icons only; everything comes back when the keyboard closes. You can turn this off in settings.
-- **Bottom drawers on phones**: the toolbar's drop-down panels (tabs, styles, outline, colors, symbols, insert table) slide up from the bottom of the screen, like Obsidian's own phone menus, and sit above the keyboard when it is open.
-- **Move the cursor by dragging**: while the keyboard is open on a phone, the toolbar above it works as a trackpad. Press and hold anywhere on it for a moment until the buttons fade, then drag left or right to move the cursor one position at a time, or up and down to change lines. The tab menu button at the start works right away without holding. A magnified preview above the cursor shows exactly where it is. Taps and scrolling the toolbar work as before.
-- **Touch gestures on a phone**: swipe up on Undo to redo and on Redo to undo (the two indent buttons work the same way; a small dot marks these buttons). Tap with two fingers to select the whole paragraph. Tapping table cells places the cursor right away, without the system Cut / Copy / Paste menu getting in the way. The symbol picker also has paired brackets and quotes that wrap the selected text.
-- **Hide the keyboard**: while the on-screen keyboard is open, a button at the end of the toolbar (and next to Cancel in the equation and diagram editors) puts it away.
-- **Smoother on a phone**: the toolbar slides with the keyboard instead of jumping; swipe down on the toolbar to put the keyboard away; drawers have a title, mark the current choice and can be dragged down to close; the find bar keeps Close at the right end; buttons on tables, diagrams and code blocks no longer cover the content; the toolbar stays at the bottom in Markdown and reading view too; and swiping along the toolbar no longer pulls out the Obsidian sidebars.
-- **Insert with a slash** (off by default; turn it on in settings): type `/` at the start of an empty paragraph to pick a heading, list, table, code block, callout, equation, diagram, image or link, and keep typing to filter. On a phone this is faster than scrolling the toolbar. Switching between Word mode, Markdown and reading view keeps your place in the note; in reading view on a phone the toolbar shrinks to one row of the buttons that still work; and tables get **Previous cell** and **Next cell** buttons, since the on-screen keyboard has no Tab. On a phone, the buttons on tables, equations, diagrams and code blocks are larger and spaced apart, with delete set off in red.
-- **The right keyboard for each field**: formulas, code and search boxes are typed as-is (no auto-capitalisation or autocorrect, also while the cursor is inside a code block or inline code); number fields open the number pad and link fields the URL keyboard; the return key reads Search or Done where that is what it does.
-- **Equation and diagram editors on a phone**: with the keyboard open they stay above it and show only what you need: the formula being edited, one swipeable row of symbols and the preview; the title and mode switches come back when the keyboard closes.
+
+<details>
+<summary>More about the toolbar</summary>
+
 - **The same toolbar in Markdown and reading mode**, with the same layout, so nothing jumps when you switch. You can show it in both, in one of them, or in neither.
 - **Detailed tooltips**: hovering a button explains it with a short animation, including the view mode buttons and the status bar buttons. They are on by default; turn them off in settings or in the shortcut list.
-- **Status bar** with the word count, save status, buttons to switch between Word mode, Markdown and reading view, view properties, and zoom. Markdown and reading view keep the same buttons and count words the same way. You can turn this off in settings. The status bar shows only the word count; Markdown symbols and link addresses are not counted, and the character count and reading time are in its tooltip. To get the same numbers as Obsidian's built-in word count, change "Word count method" in settings.
-- **Note path and copy path**: on desktop the status bar shows the folder and file name of the note. Click or right-click it to copy the path in the vault, the full path on your computer, the Obsidian URL, the file name or the folder. Right-clicking a link, embed or image in the document shows the file it points to and copies its path the same way.
-- **Blank lines stay visible**: several blank lines in a row in the Markdown show up as empty paragraphs, like pressing Enter several times in Word. Delete one and one blank line goes away; untouched ones are saved exactly as they were.
-- **A nicer cursor you can change**: on desktop the cursor is a rounded line in the accent color that glides as you type and fades in and out when idle. In settings you can pick the shape (thin line, thick line, block, underline or the system cursor), the color, how it blinks and how fast, and whether it moves smoothly.
+
+</details>
+
+### On phones and tablets
+
+![Holding the toolbar above the keyboard turns it into a trackpad: dragging moves the cursor with a magnifier, keeps the column through a table, stops on an equation and shows a hint at the end of the document](docs/images/trackpad.en.webp)
+
+- **Move the cursor by dragging**: while the keyboard is open on a phone, the toolbar above it works as a trackpad. Press and hold anywhere on it for a moment until the buttons fade, then drag left or right to move the cursor one position at a time, or up and down to change lines. The tab menu button at the start works right away without holding. A magnified preview above the cursor shows exactly where it is. Taps and scrolling the toolbar work as before. In settings you can adjust the hold time and drag speed, and choose the magnifier style (capsule or card), zoom and width, or turn it off. Next to the magnifier a small label shows where the cursor is: the kind of block (body text, heading, list, table row and column) and which character it is at; it can be turned off. Up and down keep the same column (also in tables), stop on equations, diagrams and horizontal rules along the way and name them, and a hint appears at the start or end of the document.
+- **More room while typing on a phone**: when the on-screen keyboard is open, the toolbar shrinks to one row above it. The tabs fold into a menu button and the buttons show icons only; everything comes back when the keyboard closes. You can turn this off in settings.
+- **Touch gestures on a phone**: swipe up on Undo to redo and on Redo to undo (the two indent buttons work the same way; a small dot marks these buttons). Tap with two fingers to select the whole paragraph. Tapping table cells places the cursor right away, without the system Cut / Copy / Paste menu getting in the way. The symbol picker also has paired brackets and quotes that wrap the selected text.
+- **Insert with a slash** (off by default; turn it on in settings): type `/` at the start of an empty paragraph to pick a heading, list, table, code block, callout, equation, diagram, image or link, and keep typing to filter. On a phone this is faster than scrolling the toolbar. Switching between Word mode, Markdown and reading view keeps your place in the note; in reading view on a phone the toolbar shrinks to one row of the buttons that still work; and tables get **Previous cell** and **Next cell** buttons, since the on-screen keyboard has no Tab. On a phone, the buttons on tables, equations, diagrams and code blocks are larger and spaced apart, with delete set off in red.
+
+<details>
+<summary>More for phones and tablets</summary>
+
+- **Bottom drawers on phones**: the toolbar's drop-down panels (tabs, styles, outline, colors, symbols, insert table) slide up from the bottom of the screen, like Obsidian's own phone menus, and sit above the keyboard when it is open.
+- **Hide the keyboard**: while the on-screen keyboard is open, a button at the end of the toolbar (and next to Cancel in the equation and diagram editors) puts it away.
+- **Smoother on a phone**: the toolbar slides with the keyboard instead of jumping; swipe down on the toolbar to put the keyboard away; drawers have a title, mark the current choice and can be dragged down to close; the find bar keeps Close at the right end; buttons on tables, diagrams and code blocks no longer cover the content; the toolbar stays at the bottom in Markdown and reading view too; and swiping along the toolbar no longer pulls out the Obsidian sidebars.
+- **The right keyboard for each field**: formulas, code and search boxes are typed as-is (no auto-capitalisation or autocorrect, also while the cursor is inside a code block or inline code); number fields open the number pad and link fields the URL keyboard; the return key reads Search or Done where that is what it does.
+- **Equation and diagram editors on a phone**: with the keyboard open they stay above it and show only what you need: the formula being edited, one swipeable row of symbols and the preview; the title and mode switches come back when the keyboard closes.
+
+</details>
 
 ### Tables
 
@@ -105,6 +118,13 @@ Shown in the animation at the top. Start a paragraph with `# `, `- `, `1. `, `> 
 
 ### And more
 
+<details>
+<summary>Show all: properties, images, links, find and replace, status bar, cursor and more</summary>
+
+- **Status bar** with the word count, save status, buttons to switch between Word mode, Markdown and reading view, view properties, and zoom. Markdown and reading view keep the same buttons and count words the same way. You can turn this off in settings. The status bar shows only the word count; Markdown symbols and link addresses are not counted, and the character count and reading time are in its tooltip. To get the same numbers as Obsidian's built-in word count, change "Word count method" in settings.
+- **Note path and copy path**: on desktop the status bar shows the folder and file name of the note. Click or right-click it to copy the path in the vault, the full path on your computer, the Obsidian URL, the file name or the folder. Right-clicking a link, embed or image in the document shows the file it points to and copies its path the same way.
+- **Blank lines stay visible**: several blank lines in a row in the Markdown show up as empty paragraphs, like pressing Enter several times in Word. Delete one and one blank line goes away; untouched ones are saved exactly as they were.
+- **A nicer cursor you can change**: on desktop the cursor is a rounded line in the accent color that glides as you type and fades in and out when idle. In settings you can pick the shape (thin line, thick line, block, underline or the system cursor), the color, how it blinks and how fast, and whether it moves smoothly.
 - **Properties** as a form: tags and links appear as chips that you can select to open, nested values appear as a tree, and you can change a property's type or rename it from its icon. View properties, in the View tab and the status bar, shows them without scrolling to the top and lets you filter a long list. The pin button in the properties header (or a setting) keeps a slim properties bar at the top while you scroll; click the bar to see the full list. You can show properties as a box with a border and background, with a border only, or in a minimal style without a border.
 - **Images**: paste or pick an image, then drag to resize it.
 - **Links** to notes, headings, and web pages, with a small toolbar that appears when the cursor is on a link.
@@ -120,6 +140,8 @@ Shown in the animation at the top. Start a paragraph with `# `, `- `, `1. `, `> 
 - Interface in Traditional Chinese, Taiwanese (Han characters), Cantonese, Simplified Chinese, English, Japanese, Korean, Vietnamese, French, German, Spanish, Arabic, and Hebrew.
 
 Anything Word Mode can't edit visually, such as an HTML block, is shown as a raw block and saved unchanged. Point at one, or at a footnote or comment block, to show buttons in its top-right corner to edit, copy, or delete it. Deleting a footnote also removes its numbers in the text.
+
+</details>
 
 ## Getting started
 
@@ -144,6 +166,9 @@ The settings are grouped into categories, with a row of tabs at the top that sho
 
 ### Commands
 
+<details>
+<summary>Show the commands</summary>
+
 | Command | Description |
 | --- | --- |
 | Edit current note in Word mode | Switch the current note to Word mode. |
@@ -154,6 +179,8 @@ The settings are grouped into categories, with a row of tabs at the top that sho
 | Find and replace | Search and replace in the current note. |
 | Outline: jump to heading | Jump to a heading in the current note. |
 | Show keyboard shortcuts | List all Word mode shortcuts. |
+
+</details>
 
 No command has a default hotkey. You can assign your own under **Settings → Hotkeys**.
 

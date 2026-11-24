@@ -38,6 +38,16 @@ export interface Settings {
   mdYieldNative: boolean;
   // 手機的閱讀模式工具列只留能用的按鈕（一列）
   readingLite: boolean;
+  // ---- 拖曳移動游標（手機、平板；toolbar.ts 的 caretPad、loupe.ts）：整列按鈕當觸控板、按住多久開始、移動速度（1 慢～5 快）、
+  // 放大鏡要不要顯示、倍率、寬度、外觀
+  padRow: boolean;
+  padHold: number;
+  padSpeed: number;
+  loupeShow: boolean;
+  loupeZoom: number;
+  loupeWidth: number;
+  loupeStyle: 'capsule' | 'card';
+  loupeInfo: boolean;
   pasteChip: boolean;
   keepHistory: boolean;
   // ---- 顯示
@@ -143,6 +153,14 @@ export const DEFAULTS: Settings = {
   slashMenu: false,
   mdYieldNative: true,
   readingLite: true,
+  padRow: true,
+  padHold: 300,
+  padSpeed: 3,
+  loupeShow: true,
+  loupeZoom: 1.6,
+  loupeWidth: 260,
+  loupeStyle: 'capsule',
+  loupeInfo: true,
   pasteChip: true,
   keepHistory: true,
   // 顯示

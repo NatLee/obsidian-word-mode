@@ -2,8 +2,7 @@
 // 何時顯示成作用中或停用，以及自己的下拉面板；分頁、群組、按鈕的 DOM 與兩條功能區共用的按鈕外觀在 ribbon.ts。
 // 版面可在設定中調整：分頁、全部排成一行（可左右捲動）、全部自動換行；按鈕可只顯示圖示或加上文字；分頁與群組可隱藏
 import * as C from './commands.js';
-import { Loupe } from './loupe.js';
-import { trace } from './trace.js';
+import { Loupe, loupeOptions } from './loupe.js';
 import { undo, redo } from 'prosemirror-history';
 import { schema } from './schema.js';
 import { t, key } from './i18n.js';
@@ -15,10 +14,10 @@ import { buildColorPanel, SHADING } from './colorpicker.js';
 import { ACTIONS as A, RibbonShell, ribbonClass } from './ribbon.js';
 import type { ColorKind } from './colorpicker.js';
 import type { IconFn } from './icons.js';
-import { Selection, TextSelection } from 'prosemirror-state';
+import { NodeSelection, Selection, TextSelection } from 'prosemirror-state';
 import type { Command, EditorState } from 'prosemirror-state';
 import type { EditorView } from 'prosemirror-view';
-import type { Mark, MarkType } from 'prosemirror-model';
+import type { Mark, MarkType, Node as PMNode, ResolvedPos } from 'prosemirror-model';
 import type { Align, CaseKind, Direction } from './commands.js';
 import type { I18nKey } from './i18n.js';
 import type { AnyTabId, ButtonClick, GroupBodies, MenuItem, RibbonAction, RibbonButton, RibbonSettings, TabId } from './ribbon.js';
@@ -44,6 +43,15 @@ export interface ToolbarContext {
     // 最近使用的自訂色彩（最新的在前）
     recentFontColors?: readonly string[];
     recentHighlights?: readonly string[];
+    // 拖曳移動游標（見 settings.ts）
+    padRow?: boolean;
+    padHold?: number;
+    padSpeed?: number;
+    loupeShow?: boolean;
+    loupeZoom?: number;
+    loupeWidth?: number;
+    loupeStyle?: string;
+    loupeInfo?: boolean;
   };
   // 一開始顯示的分頁（上次離開時的分頁）
   initialTab: TabId;
@@ -121,8 +129,66 @@ interface HeadingAttrs { readonly level: number; }
 type DataNumbers = Record<string, string | number | undefined>;
 
 const M = schema.marks;
-// 整列按鈕當觸控板：按住多久不動才開始（短於 iOS 的長按約 0.5 秒，也比一般的點擊長）
-const ROW_HOLD_MS = 300;
+
+// 拖曳移動游標時會停在上面的「物件」：不能打字、但看得到的區塊（方程式與其他原文區塊、分隔線、文件屬性、顯示成結果的程式碼）
+export function isPadObject(view: EditorView, node: PMNode, pos: number): boolean {
+  const name = node.type.name;
+  if (name === 'raw_block' || name === 'horizontal_rule' || name === 'frontmatter') return true;
+  if (name === 'code_block') {
+    const dom = view.nodeDOM(pos);
+    return !!dom && dom.nodeType === 1 && (dom as HTMLElement).classList.contains('has-preview');
+  }
+  return node.isBlock && node.isAtom;
+}
+
+// 從目前的選取往 dir 方向，緊鄰的下一個區塊如果是物件，回傳它的位置；不是就回傳 -1。
+// 游標在段落裡時從這個段落的邊界開始找，到了外層的結尾（清單、引文的最後）就往外一層繼續
+function objectNext(view: EditorView, sel: Selection, dir: number): number {
+  const doc = view.state.doc;
+  let $p: ResolvedPos;
+  if (sel instanceof NodeSelection) $p = doc.resolve(dir > 0 ? sel.to : sel.from);
+  else {
+    const $h = sel.$head;
+    if (!$h.parent.isTextblock || $h.depth === 0) return -1;
+    $p = doc.resolve(dir > 0 ? $h.after() : $h.before());
+  }
+  for (;;) {
+    const node = dir > 0 ? $p.nodeAfter : $p.nodeBefore;
+    if (node) {
+      const pos = dir > 0 ? $p.pos : $p.pos - node.nodeSize;
+      return isPadObject(view, node, pos) ? pos : -1;
+    }
+    if ($p.depth === 0) return -1;
+    // 在表格的儲存格裡：上下的鄰居是上一列、下一列（不是同一列旁邊那一格）。不是第一列、最後一列就沒有物件；
+    // 是的話從整個表格的邊界繼續找
+    const d = $p.depth;
+    const name = $p.node(d).type.name;
+    if ((name === 'table_cell' || name === 'table_header') && d >= 2) {
+      const table = $p.node(d - 2);
+      const row = $p.index(d - 2);
+      if (dir > 0 ? row < table.childCount - 1 : row > 0) return -1;
+      $p = doc.resolve(dir > 0 ? $p.after(d - 2) : $p.before(d - 2));
+      continue;
+    }
+    $p = doc.resolve(dir > 0 ? $p.after() : $p.before());
+  }
+}
+// 整列按鈕當觸控板：按住多久不動才開始（設定，毫秒）。預設比 iOS 的長按（約 0.5 秒）短、比一般的點擊長
+export const PAD_HOLD = { min: 150, max: 800, step: 50, default: 300 } as const;
+// 移動速度（設定 1～5）：手指移動多少 px 走一格；換一行要多拖一點，免得左右拖的時候不小心換行
+const PAD_STEP_X = [18, 15, 12, 9, 7] as const;
+// 速度的設定值整理成 1～5（不是數字就用 3）
+export function padSpeed(v: unknown): number {
+  return typeof v === 'number' && isFinite(v) ? Math.max(1, Math.min(5, Math.round(v))) : 3;
+}
+export function padSteps(speed: unknown): { x: number; y: number } {
+  const x = PAD_STEP_X[padSpeed(speed) - 1];
+  return { x, y: Math.round(x * 2.2) };
+}
+export function padHold(v: unknown): number {
+  const n = typeof v === 'number' && isFinite(v) ? v : PAD_HOLD.default;
+  return Math.round(Math.max(PAD_HOLD.min, Math.min(PAD_HOLD.max, n)) / PAD_HOLD.step) * PAD_HOLD.step;
+}
 
 const SYMBOLS: readonly (readonly [group: I18nKey, chars: string])[] = [
   ['常用', '©®™°±×÷≈≠≤≥∞✓✗★☆●○■□◆◇※§¶†…‰€£¥'],
@@ -170,6 +236,8 @@ export class Toolbar {
   declare popupOwner: HTMLElement | null | undefined;
   // 剛在分頁選單按鈕上拖曳過（caretPad）：接下來的那一下點擊不算
   declare padMoved: boolean | undefined;
+  // 拖曳時上下移動要回到的水平位置（左右移動之後重新記）
+  declare padGoalX: number | null | undefined;
   // 手機的抽屜後面那層變暗的底（openPopup）
   declare popupBackdrop: HTMLElement | null | undefined;
   declare painterBtn: HTMLButtonElement | null;
@@ -197,8 +265,8 @@ export class Toolbar {
     this.build();
     this.showTab(this.shell.usableTab(ctx.initialTab));
     if (ctx.isMobile && this.shell.tabSwitch) this.caretPad(this.shell.tabSwitch);
-    // 整列按鈕也是觸控板：按住一下（不動）再拖，跟分頁選單按鈕一樣移動游標
-    if (ctx.isMobile) this.caretPad(this.shell.bar, ROW_HOLD_MS);
+    // 整列按鈕也是觸控板：按住一下（不動）再拖，跟分頁選單按鈕一樣移動游標（設定可以關）。按住多久每次按下時才讀設定
+    if (ctx.isMobile && S.padRow !== false) this.caretPad(this.shell.bar, () => padHold((this.ctx.settings || {}).padHold));
     this.onDocDown = e => { if (this.popup && !this.popup.contains(e.target as Node | null) && !this.popupOwner!.contains(e.target as Node | null)) this.closePopup(); };
     this.dom.ownerDocument.addEventListener('pointerdown', this.onDocDown, true);
   }
@@ -569,9 +637,13 @@ export class Toolbar {
   // （按鈕列上方出現說明、按鈕變淡），之後的拖曳才移動游標；按住了但沒拖就放開，照常算是按了那顆按鈕。
   // 在按鈕列上拖曳不會碰到文字，iOS 不會接手（文字上的長按 iOS 一定在 0.5 秒左右接手，網頁擋不掉），放大鏡完全是自己的。
   // 分頁選單按鈕自己有一份（不用按住），整列的版本不管從它開始的觸控
-  caretPad(b: HTMLElement, hold = 0): void {
-    const START = 8; const STEP_X = 12; const STEP_Y = 26;
-    let id = -1; let x = 0; let y = 0; let active = false;
+  caretPad(b: HTMLElement, holdMs: number | (() => number) = 0): void {
+    const START = 8;
+    const hold = holdMs !== 0;
+    // 速度與放大鏡每次開始拖的時候才讀設定：設定頁改了馬上生效
+    let STEP_X = 12; let STEP_Y = 26;
+    // 這次觸控的編號；沒有在追蹤時是 null（iOS 的編號可能是負數，不能拿 -1 當「沒有」）
+    let id: number | null = null; let x = 0; let y = 0; let active = false;
     // 整列的版本：按住的計時器、已經可以拖了（還沒拖）、說明
     let timer = 0; let ready = false; let tip: HTMLElement | null = null;
     const win = b.ownerDocument.defaultView || window;
@@ -589,13 +661,14 @@ export class Toolbar {
     b.addEventListener('touchstart', e => {
       unready();
       const target = e.target as Element | null;
-      if (e.touches.length !== 1 || (hold && target && target.nodeType === 1 && target.closest('.wm-tab-switch'))) { id = -1; return; }
+      if (e.touches.length !== 1 || (hold && target && target.nodeType === 1 && target.closest('.wm-tab-switch'))) { id = null; return; }
       const tt = e.touches[0];
       id = tt.identifier; x = tt.clientX; y = tt.clientY; active = false; this.padMoved = false;
       if (!hold) return;
+      const wait = typeof holdMs === 'function' ? holdMs() : holdMs;
       timer = win.setTimeout(() => {
         const v = this.view;
-        if (id < 0 || !v || !v.hasFocus()) return;
+        if (id === null || !v || !v.hasFocus()) return;
         ready = true;
         b.classList.add('is-trackpad');
         // 說明蓋在按鈕列上（固定在畫面上的位置，按鈕列捲動也不跟著動）
@@ -605,8 +678,7 @@ export class Toolbar {
         tip.style.top = Math.round(r.top) + 'px';
         tip.style.width = Math.round(r.width) + 'px';
         tip.style.height = Math.round(r.height) + 'px';
-        trace('pad', 'row ready');
-      }, hold);
+      }, wait);
     }, { passive: true });
     b.addEventListener('touchmove', e => {
       const t = find(e);
@@ -617,33 +689,35 @@ export class Toolbar {
         if (hold && ready && e.cancelable) e.preventDefault();
         if (Math.abs(dx) < START && Math.abs(dy) < START) return;
         // 整列的版本：還沒按夠久就動了，是在捲按鈕列、往上滑按鍵或往下滑收鍵盤，不接手
-        if (hold && !ready) { win.clearTimeout(timer); id = -1; return; }
+        if (hold && !ready) { win.clearTimeout(timer); id = null; return; }
         // 從這裡開始算距離，不然一開始就跳好幾格
         if (hold) { unready(); b.classList.add('is-trackpad'); x = t.clientX; y = t.clientY; dx = 0; dy = 0; }
         // 編輯區沒有焦點（鍵盤沒開）時不啟動：移動游標會把焦點放回去、叫出鍵盤，畫面一重排手指的相對位置就跳掉，游標亂跑
         const v = this.view;
-        if (!v || !v.hasFocus()) { trace('pad', 'not started: editor has no focus'); id = -1; return; }
-        active = true; this.padMoved = true;
-        trace('pad', 'drag start');
+        if (!v || !v.hasFocus()) { id = null; return; }
+        active = true; this.padMoved = true; this.padGoalX = null;
         b.classList.add('is-caret-pad');
         this.closePopup();
-        loupe = new Loupe(v);
+        const S = this.ctx.settings || {};
+        ({ x: STEP_X, y: STEP_Y } = padSteps(S.padSpeed));
+        if (S.loupeShow !== false) loupe = new Loupe(v, loupeOptions(S.loupeZoom, S.loupeWidth, S.loupeStyle, S.loupeInfo));
       }
       if (e.cancelable) e.preventDefault();
       const nx = Math.trunc(dx / STEP_X); const ny = Math.trunc(dy / STEP_Y);
-      if (nx) { x += nx * STEP_X; this.run(C.moveCaretBy(nx)); }
-      if (ny) { y += ny * STEP_Y; this.moveCaretLines(ny); }
-      if ((nx || ny) && loupe) loupe.update();
+      // 走不動（到文件開頭、結尾）時讓放大鏡提示；走得動就收掉提示
+      let edge: 'start' | 'end' | null = null;
+      if (nx) { x += nx * STEP_X; this.padGoalX = null; if (!this.run(C.moveCaretBy(nx))) edge = nx < 0 ? 'start' : 'end'; }
+      if (ny) { y += ny * STEP_Y; if (!this.moveCaretLines(ny)) edge = ny < 0 ? 'start' : 'end'; }
+      if ((nx || ny) && loupe) { loupe.edge(edge); loupe.update(); }
     }, { passive: false });
     const end = (e: TouchEvent) => {
       if (!find(e)) return;
       // 拖曳過：擋掉放開之後的那一下點擊，不然會打開分頁選單
       if (active && e.cancelable) e.preventDefault();
-      if (active) trace('pad', 'drag end (' + e.type + ')');
       // 整列的版本：按住了但沒拖，照常是按了那顆按鈕
       unready();
       b.classList.remove('is-trackpad');
-      id = -1; active = false;
+      id = null; active = false;
       if (loupe) { loupe.destroy(); loupe = null; }
       b.classList.remove('is-caret-pad');
     };
@@ -651,51 +725,75 @@ export class Toolbar {
     b.addEventListener('touchcancel', end);
   }
 
-  // 游標往上（n < 0）或往下移 |n| 行：照畫面上的位置找上一行、下一行同一個水平位置的地方
-  moveCaretLines(n: number): void {
+  // 游標往上（n < 0）或往下移 |n| 行：照畫面上的位置找上一行、下一行同一個水平位置的地方。回傳有沒有移動（到文件頭尾時是 false）。
+  // 水平位置用 padGoalX 記住（像一般編輯器的「目標欄」）：經過比較短的行、表格的窄欄，回到長的行時還在原本那一欄。
+  // 這個方向緊鄰的是方程式、圖表、分隔線、文件屬性這類不能打字的區塊時，先停在它上面（整個選取，放大鏡旁寫出是什麼），
+  // 不會直接跳過去；下一步再離開
+  moveCaretLines(n: number): boolean {
     const v = this.view;
-    if (!v) return;
+    if (!v) return false;
+    const dir = n < 0 ? -1 : 1;
+    let moved = false;
     for (let i = 0; i < Math.abs(n); i++) {
-      const head = v.state.selection.head;
-      const c = v.coordsAtPos(head);
-      const h = Math.max(8, c.bottom - c.top);
-      // 上一行、下一行不一定緊貼著：段落之間有間距、表格儲存格有內距，只往外探半行會落在空白裡、查回來還是原來的位置，
-      // 游標就卡住。一次多探半行，直到找到畫面上真的在另一行的位置（最多探六行的距離）
-      // 只停在可以打字的地方（textOnly）：分隔線、圖片、方程式、文件屬性這類區塊旁邊的位置不在文字裡，
-      // 停在那裡放大鏡沒有東西可以放大（會消失），再往下一行找時也可能卡住
-      const dir = n < 0 ? -1 : 1;
-      const textAt = (pos: number): number => {
-        const sel = Selection.findFrom(v.state.doc.resolve(Math.max(0, Math.min(pos, v.state.doc.content.size))), dir, true);
-        return sel ? sel.head : -1;
-      };
-      const otherLine = (pos: number): boolean => {
-        if (pos < 0 || pos === head) return false;
-        const at = v.coordsAtPos(pos);
-        return n < 0 ? at.bottom <= c.top + 1 : at.top >= c.bottom - 1;
-      };
-      let to = -1;
-      for (let k = 1; k <= 12 && to < 0; k++) {
-        const hit = v.posAtCoords({ left: c.left, top: n < 0 ? c.top - h * k / 2 : c.bottom + h * k / 2 });
-        if (!hit) continue;
-        const near = textAt(hit.pos);
-        if (otherLine(near)) to = near;
+      const doc = v.state.doc;
+      const sel = v.state.selection;
+      // 現在在哪裡：游標那一行，或選取的區塊的外框
+      let top: number; let bottom: number; let left: number;
+      if (sel instanceof NodeSelection) {
+        const dom = v.nodeDOM(sel.from);
+        if (!dom || dom.nodeType !== 1) return moved;
+        const r = (dom as HTMLElement).getBoundingClientRect();
+        top = r.top; bottom = r.bottom; left = r.left;
+      } else {
+        const c = v.coordsAtPos(sel.head);
+        top = c.top; bottom = c.bottom; left = c.left;
+        if (this.padGoalX == null) this.padGoalX = left;
       }
+      const x = this.padGoalX != null ? this.padGoalX : left;
+      const h = sel instanceof NodeSelection ? 20 : Math.max(8, bottom - top);
+      const lineOf = (pos: number) => v.coordsAtPos(pos);
+      const otherLine = (pos: number): boolean => {
+        if (pos < 0) return false;
+        const at = lineOf(pos);
+        return dir < 0 ? at.bottom <= top + 1 : at.top >= bottom - 1;
+      };
+      const textAt = (pos: number): number => {
+        const found = Selection.findFrom(doc.resolve(Math.max(0, Math.min(pos, doc.content.size))), dir, true);
+        return found ? found.head : -1;
+      };
+      // 1. 上一行、下一行可以打字的地方。不一定緊貼著（段落間距、儲存格內距），一次多探半行，最多探六行的距離。
+      //    先只收落在文字裡的位置：探到段落之間的空隙時，往回找文字會跑到表格最後一格這種水平位置不對的地方
+      let to = -1;
+      const probe = (k: number) => v.posAtCoords({ left: x, top: dir < 0 ? top - h * k / 2 : bottom + h * k / 2 });
+      for (let k = 1; k <= 12 && to < 0; k++) {
+        const hit = probe(k);
+        if (hit && doc.resolve(hit.pos).parent.inlineContent && otherLine(hit.pos)) to = hit.pos;
+      }
+      for (let k = 1; k <= 12 && to < 0; k++) {
+        const hit = probe(k);
+        if (hit) { const near = textAt(hit.pos); if (otherLine(near)) to = near; }
+      }
+      // 2. 這個方向緊鄰的區塊是不能打字的東西，而且在找到的那一行之前：停在它上面
+      const obj = objectNext(v, sel, dir);
+      if (obj >= 0 && (to < 0 || (dir > 0 ? to > obj : to < obj))) {
+        v.dispatch(v.state.tr.setSelection(NodeSelection.create(doc, obj)).scrollIntoView());
+        // 手指一次拖很遠（一次要走好幾行）時也先停在這裡，看得到經過了什麼；剩下的距離不算
+        return true;
+      }
+      // 3. 探不到：中間隔著很高的區塊。跳到這個方向最近的一段文字
       if (to < 0) {
-        // 探不到：中間隔著很高的區塊（圖片、圖表），或緊鄰的是不能放游標的區塊。跳到這個方向最近的一段文字
-        const $h = v.state.selection.$head;
-        const far = textAt(n < 0 ? $h.start() - 1 : $h.end() + 1);
+        const far = sel instanceof NodeSelection ? textAt(dir > 0 ? sel.to : sel.from) : textAt(dir > 0 ? sel.$head.end() + 1 : sel.$head.start() - 1);
         if (otherLine(far)) to = far;
       }
-      if (to < 0) { trace('pad', 'no line ' + (n < 0 ? 'above' : 'below') + ' @' + head); return; }
-      // 找到的位置可能是那一行的頭或尾（探到的是段落之間的空隙）：照原本的水平位置落在同一行上
-      const at = v.coordsAtPos(to);
-      const same = v.posAtCoords({ left: c.left, top: (at.top + at.bottom) / 2 });
-      if (same) {
-        const $same = v.state.doc.resolve(same.pos);
-        if ($same.parent.inlineContent && $same.parent === v.state.doc.resolve(to).parent && otherLine(same.pos)) to = same.pos;
-      }
-      v.dispatch(v.state.tr.setSelection(TextSelection.create(v.state.doc, to)).scrollIntoView());
+      if (to < 0) return moved;
+      // 找到的位置可能是那一行的頭或尾：照目標欄的水平位置落在同一行上（同一行可以是旁邊的儲存格）
+      const at = lineOf(to);
+      const same = v.posAtCoords({ left: x, top: (at.top + at.bottom) / 2 });
+      if (same && doc.resolve(same.pos).parent.inlineContent && otherLine(same.pos) && Math.abs(lineOf(same.pos).top - at.top) < h / 2) to = same.pos;
+      v.dispatch(v.state.tr.setSelection(TextSelection.create(doc, to)).scrollIntoView());
+      moved = true;
     }
+    return moved;
   }
 
   // ----------------------------------------------------------- 彈出選單

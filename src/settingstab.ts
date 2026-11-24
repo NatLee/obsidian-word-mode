@@ -3,6 +3,8 @@ import { PluginSettingTab, Setting, Notice, Platform } from 'obsidian';
 import { t, withKey, key, setLanguage, getLanguage, LANGUAGES, LANGUAGE_NAMES } from './i18n.js';
 import { DEFAULTS } from './settings.js';
 import { caretLook, caretPeriod, CARET_PERIOD } from './caret.js';
+import { PAD_HOLD, padHold, padSpeed } from './toolbar.js';
+import { LOUPE_WIDTH, LOUPE_ZOOM, loupeOptions } from './loupe.js';
 import { renderMathInto } from './mathrender.js';
 import { mdToolbarMode } from './mdbar.js';
 import { TABS } from './ribbon.js';
@@ -163,6 +165,26 @@ function settingSections(settingTab: WordModeSettings): SettingSection[] {
         t('手機上在 Markdown 模式打字時，Obsidian 自己的工具列會出現在鍵盤上方。開啟時這個外掛的工具列先藏起來，不會疊成兩列；鍵盤收起來就回來。'), 'mdYieldNative', () => p.refreshToolbars()),
       toggleRow(t('閱讀模式的工具列只留能用的按鈕'),
         t('手機的閱讀模式不能編輯，大半的按鈕按不了。開啟時工具列縮成一列，只留切換模式、大綱、屬性與設定。'), 'readingLite', () => p.refreshToolbars()),
+      // 拖曳移動游標（手機、平板）：改了下一次拖曳就生效，不用重建工具列（整列觸控板的開關例外）
+      toggleRow(t('鍵盤上方整列當觸控板'),
+        t('手機、平板的鍵盤開著時，在鍵盤上方那一列按住一下、等按鈕變淡，再拖曳就能移動游標。關閉時只有最前面的分頁選單按鈕可以拖。'), 'padRow', () => p.refreshToolbars()),
+      row(t('觸控板：按住多久開始'), t('按住按鈕列多久（毫秒）才變成觸控板。太短容易在捲動或點按鈕時不小心觸發，太長要等比較久。預設 300。'),
+        s => s.addSlider(sl => sl.setLimits(PAD_HOLD.min, PAD_HOLD.max, PAD_HOLD.step).setValue(padHold(S.padHold)).setDynamicTooltip()
+          .onChange(async v => { S.padHold = padHold(v); await save(); }))),
+      row(t('拖曳移動游標的速度'), t('1 最慢、5 最快：手指移動同樣的距離，游標走的格數不同。想要一個字一個字慢慢對準就調慢。預設 3。'),
+        s => s.addSlider(sl => sl.setLimits(1, 5, 1).setValue(padSpeed(S.padSpeed)).setDynamicTooltip()
+          .onChange(async v => { S.padSpeed = padSpeed(v); await save(); }))),
+      toggleRow(t('拖曳時顯示放大鏡'), t('拖曳移動游標時，在游標上方顯示放大的那一段文字，看得清楚游標停在哪兩個字中間。'), 'loupeShow'),
+      toggleRow(t('放大鏡旁顯示位置資訊'), t('在放大鏡旁邊顯示游標現在在哪裡：哪一種段落（內文、標題、清單、表格第幾列第幾欄…）以及在這一段的第幾個字。'), 'loupeInfo'),
+      row(t('放大鏡的外觀'), t('「膠囊」是圓頭的長條（像 iOS 的放大鏡）；「卡片」是圓角方框，下方有一個指向游標的小尖角。'),
+        s => s.addDropdown(d => d.addOptions({ capsule: t('膠囊'), card: t('卡片') })
+          .setValue(loupeOptions(S.loupeZoom, S.loupeWidth, S.loupeStyle).style).onChange(async v => { S.loupeStyle = v === 'card' ? 'card' : 'capsule'; await save(); }))),
+      row(t('放大鏡的倍率'), t('放大幾倍。預設 1.6。'),
+        s => s.addSlider(sl => sl.setLimits(LOUPE_ZOOM.min, LOUPE_ZOOM.max, LOUPE_ZOOM.step).setValue(loupeOptions(S.loupeZoom, S.loupeWidth, S.loupeStyle).scale).setDynamicTooltip()
+          .onChange(async v => { S.loupeZoom = loupeOptions(v, S.loupeWidth, S.loupeStyle).scale; await save(); }))),
+      row(t('放大鏡的寬度'), t('放大鏡有多寬（px），越寬看得到游標前後越多字。預設 260。'),
+        s => s.addSlider(sl => sl.setLimits(LOUPE_WIDTH.min, LOUPE_WIDTH.max, LOUPE_WIDTH.step).setValue(loupeOptions(S.loupeZoom, S.loupeWidth, S.loupeStyle).width).setDynamicTooltip()
+          .onChange(async v => { S.loupeWidth = loupeOptions(S.loupeZoom, v, S.loupeStyle).width; await save(); }))),
       { kind: 'grid', name: t('分頁名稱'), desc: t('可以把分頁改成自己習慣的名稱；留白就用預設名稱。'), cls: 'wm-settings-groups wm-settings-tabnames', fill: box => {
         for (const [tab, tabLabel] of TABS) {
           const l = box.createEl('label', { cls: 'wm-settings-tabname' });
