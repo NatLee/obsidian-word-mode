@@ -198,7 +198,7 @@ Không lệnh nào có phím tắt mặc định. Bạn có thể tự gán tron
 
 ## Hạn chế đã biết
 
-- Chưa thử nghiệm trên thiết bị di động thật.
+- Trên điện thoại và máy tính bảng, mới chỉ thử nghiệm trên iPhone thật; chưa thử trên thiết bị Android và iPad thật.
 - Một số nút trên thanh công cụ ở chế độ Markdown và chế độ đọc gọi các lệnh có sẵn của Obsidian và chưa được kiểm tra riêng từng nút.
 - Các bản dịch ngoài tiếng Trung phồn thể và tiếng Anh chưa được người bản ngữ hiệu đính.
 - Với tiếng Ả Rập và tiếng Do Thái, văn bản đã được dịch nhưng thanh công cụ và hộp thoại vẫn giữ bố cục từ trái sang phải.

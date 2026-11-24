@@ -198,7 +198,7 @@ Aucune commande n'a de raccourci par défaut. Vous pouvez attribuer les vôtres 
 
 ## Limites connues
 
-- L'utilisation sur mobile n'a pas été testée sur de vrais appareils.
+- Sur téléphone et tablette, seul un vrai iPhone a servi aux tests ; les appareils Android et l’iPad n’ont pas été testés sur du vrai matériel.
 - Certains boutons de la barre d'outils affichée en mode Markdown et lecture appellent des commandes intégrées d'Obsidian et n'ont pas tous été testés individuellement.
 - Les traductions autres que le chinois traditionnel et l'anglais n'ont pas été relues par des locuteurs natifs.
 - En arabe et en hébreu, le texte est traduit mais la barre d'outils et les boîtes de dialogue gardent leur disposition de gauche à droite.

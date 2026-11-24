@@ -196,7 +196,7 @@ No command has a default hotkey. You can assign your own under **Settings → Ho
 
 ## Known limitations
 
-- Mobile use hasn't been tested on real devices.
+- On phones and tablets it has been tested on a real iPhone only; Android devices and iPad haven't been tested on real hardware.
 - Some buttons on the toolbar shown in Markdown and reading mode call built-in Obsidian commands and haven't all been tested individually.
 - The translations other than Traditional Chinese and English haven't been reviewed by native speakers.
 - In Arabic and Hebrew, the text is translated but the toolbar and dialogs keep their left-to-right layout.
