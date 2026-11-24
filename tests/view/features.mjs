@@ -1295,6 +1295,32 @@ await fresh('---\ntags:\n  - 會議\n  - 專案\ndate: 2026-11-16\ndone: false\n
     assert(!document.querySelector('.wm-loupe'), '放開：放大的預覽收掉');
     pad.remove();
     view.toolbar.padMoved = false;
+    // 整列按鈕的版本：按住 0.3 秒不動才變成觸控板；沒按夠久就動是捲動，按住了沒拖照常是按按鈕
+    const row = document.body.appendChild(document.createElement('div'));
+    const key = row.appendChild(document.createElement('button'));
+    view.toolbar.caretPad(row, 300);
+    const rev = (type, x, target = key) => { const pt = [{ identifier: 8, clientX: x, clientY: 0 }]; target.dispatchEvent(Object.assign(new Event(type, { bubbles: true, cancelable: true }), { touches: type === 'touchend' ? [] : pt, changedTouches: pt })); };
+    const wait = ms => new Promise(r => setTimeout(r, ms));
+    pm.focus();
+    const h0 = pm.state.selection.head;
+    rev('touchstart', 100); await wait(100); rev('touchmove', 140); await wait(300); rev('touchend', 140);
+    assert(pm.state.selection.head === h0 && !row.classList.contains('is-trackpad') && !document.querySelector('.wm-pad-tip'), '整列：沒按夠久就移動（捲動按鈕列）不接手');
+    rev('touchstart', 100); await wait(350);
+    assert(row.classList.contains('is-trackpad') && document.querySelector('.wm-pad-tip'), '整列：按住 0.3 秒，按鈕變淡、出現說明');
+    let tapped = true;
+    const endEv = Object.assign(new Event('touchend', { bubbles: true, cancelable: true }), { touches: [], changedTouches: [{ identifier: 8, clientX: 100, clientY: 0 }] });
+    key.dispatchEvent(endEv); tapped = !endEv.defaultPrevented;
+    assert(tapped && !row.classList.contains('is-trackpad') && !document.querySelector('.wm-pad-tip') && pm.state.selection.head === h0, '整列：按住了沒拖就放開，照常是按了按鈕（不擋點擊）');
+    rev('touchstart', 100); await wait(350); rev('touchmove', 110); rev('touchmove', 137);
+    assert(pm.state.selection.head > h0 && document.querySelector('.wm-loupe.is-shown') && !document.querySelector('.wm-pad-tip'), '整列：按住再拖，游標移動、出現放大的預覽、說明收掉');
+    rev('touchend', 137);
+    assert(!row.classList.contains('is-trackpad') && !document.querySelector('.wm-loupe'), '整列：放開後恢復');
+    const chip = row.appendChild(document.createElement('button')); chip.className = 'wm-tab-switch';
+    rev('touchstart', 100, chip); await wait(350);
+    assert(!row.classList.contains('is-trackpad'), '整列：從分頁選單按鈕開始的觸控不管（它自己就是觸控板）');
+    rev('touchend', 100, chip);
+    row.remove();
+    view.toolbar.padMoved = false;
   }
   // 手機的觸控手勢（touch.ts）、成對的括號、往上滑的按鍵、表格的最小寬度
   {
