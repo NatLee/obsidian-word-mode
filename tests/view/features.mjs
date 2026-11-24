@@ -1531,22 +1531,24 @@ await fresh('---\ntags:\n  - 會議\n  - 專案\ndate: 2026-11-16\ndone: false\n
   assert(view.pm.state.doc.childCount === 4, '三個空行：兩個空白段落，得到 ' + view.pm.state.doc.childCount);
 }
 
-// ======== 手機長按拖曳游標：拖曳中不讓編輯器讀系統的選取（兩邊會互搶），放開時才照系統最後的位置設定；一般的點擊不受影響 ========
+// ======== 手機長按拖曳游標、拉選取範圍：拖曳中不讓編輯器讀系統的選取（兩邊會互搶），放開時才照系統最後的位置設定；一般的點擊不受影響 ========
 {
   await fresh('第一段文字\n\n---\n\n第二段文字\n');
-  const host = document.body.createDiv();
-  let hasFocus = true;
   const pm = view.pm;
-  const fake = { dom: pm.dom, get state() { return pm.state; }, hasFocus: () => hasFocus, dispatch: tr => pm.dispatch(tr), posAtDOM: (n, o) => pm.posAtDOM(n, o), posAtCoords: () => null };
+  const host = view.page;
+  const fake = { dom: pm.dom, get state() { return pm.state; }, hasFocus: () => false, dispatch: tr => pm.dispatch(tr), posAtDOM: (n, o) => pm.posAtDOM(n, o), posAtCoords: () => null };
   const stop = B.installTouch(host, () => fake);
   const realNow = Date.now; let now = 1000; Date.now = () => now;
-  const ev = (type, x, y) => host.dispatchEvent(Object.assign(new Event(type, { bubbles: true }), { touches: type === 'touchend' ? [] : [{ identifier: 1, clientX: x, clientY: y }], changedTouches: [{ identifier: 1, clientX: x, clientY: y }] }));
+  const para = pm.dom.firstChild;
+  const ev = (type, x, y, target = para) => target.dispatchEvent(Object.assign(new Event(type, { bubbles: true }), { touches: type === 'touchend' ? [] : [{ identifier: 1, clientX: x, clientY: y }], changedTouches: [{ identifier: 1, clientX: x, clientY: y }] }));
   let seen = 0;
   const count = () => { seen++; };
   document.addEventListener('selectionchange', count);
   const fire = () => document.dispatchEvent(new Event('selectionchange'));
-  const second = pm.dom.children[2].firstChild; // 「第二段文字」的文字節點
-  // 點一下：選取的變動照常送到編輯器
+  const first = para.firstChild, second = pm.dom.children[2].firstChild;
+  const caretAt = (n, o) => window.getSelection().collapse(n, o);
+  caretAt(first, 1);
+  // 點一下：照常
   ev('touchstart', 10, 10); fire(); ev('touchend', 10, 10);
   assert(seen === 1, '點一下：selectionchange 照常送出');
   // 按住很久但沒移動（長按選字）：照常
@@ -1555,12 +1557,12 @@ await fresh('---\ntags:\n  - 會議\n  - 專案\ndate: 2026-11-16\ndone: false\n
   // 沒按夠久就移動（捲動）：照常
   ev('touchstart', 10, 10); now += 100; ev('touchmove', 40, 40); fire(); ev('touchend', 40, 40);
   assert(seen === 3, '很快地滑動：照常');
-  // 按下去時編輯區沒有焦點：照常
-  hasFocus = false; ev('touchstart', 10, 10); now += 600; ev('touchmove', 40, 40); fire(); ev('touchend', 40, 40); hasFocus = true;
-  assert(seen === 4, '按下時編輯區沒有焦點：照常');
-  // 長按拖曳：擋下來；放開時照系統最後的位置設定編輯器的選取
+  // 在編輯區外面按下（工具列、屬性）：照常
+  ev('touchstart', 10, 10, host); now += 600; ev('touchmove', 40, 40, host); fire(); ev('touchend', 40, 40, host);
+  assert(seen === 4, '在編輯區外面按下：照常');
+  // 長按拖曳（編輯區沒有焦點也算：鍵盤收著時長按）：擋下來；放開時照系統最後的位置設定編輯器的選取
   ev('touchstart', 10, 10); now += 600; ev('touchmove', 40, 40);
-  window.getSelection().collapse(second, 2);
+  caretAt(second, 2);
   fire(); fire();
   assert(seen === 4, '長按拖曳中：編輯器收不到 selectionchange');
   ev('touchend', 40, 40);
@@ -1568,9 +1570,18 @@ await fresh('---\ntags:\n  - 會議\n  - 專案\ndate: 2026-11-16\ndone: false\n
   assert(pm.state.selection.empty && pm.state.selection.head === want, '放開時照系統最後的位置設定選取：' + pm.state.selection.head + ' / ' + want);
   fire();
   assert(seen === 5, '放開之後照常');
+  // 已經選取一段文字時拖曳（拉選取範圍的一端）：不用按住很久也擋；放開時設定成範圍
+  window.getSelection().setBaseAndExtent(first, 1, first, 3);
+  ev('touchstart', 10, 10); now += 50; ev('touchmove', 40, 40);
+  window.getSelection().setBaseAndExtent(first, 1, second, 3);
+  fire();
+  assert(seen === 5, '拉選取範圍中：編輯器收不到 selectionchange');
+  ev('touchend', 40, 40);
+  assert(pm.state.selection.from === pm.posAtDOM(first, 1) && pm.state.selection.to === pm.posAtDOM(second, 3), '放開時設定成範圍：' + pm.state.selection.from + '-' + pm.state.selection.to);
   // 拖曳停在分隔線上（不能打字）：找最近的文字
+  caretAt(first, 1);
   ev('touchstart', 10, 10); now += 600; ev('touchmove', 40, 40);
-  window.getSelection().collapse(pm.dom, 1);
+  caretAt(pm.dom, 1);
   ev('touchend', 40, 40);
   assert(pm.state.selection.$head.parent.inlineContent, '停在分隔線旁邊：落到旁邊的文字，得到 ' + pm.state.selection.$head.parent.type.name);
   // 放開的事件漏掉：過一陣子就不再擋
@@ -1581,7 +1592,6 @@ await fresh('---\ntags:\n  - 會議\n  - 專案\ndate: 2026-11-16\ndone: false\n
   stop();
   Date.now = realNow;
   document.removeEventListener('selectionchange', count);
-  host.remove();
 }
 
 // ======== 觸控與游標的紀錄（trace.ts）：記得到事件與選取，而且不含筆記的文字 ========
