@@ -287,6 +287,10 @@ export function openTableMenu(view: WordModeView, kind: 'row' | 'col' | 'table',
     m.addItem(i => i.setTitle(t('複製為 Markdown')).setIcon('file-code').onClick(() => view.copyText(view.selectionMarkdown())));
     cmd('表格轉成文字', 'text', T.toText);
     m.addSeparator();
+    // 表格的上下沒有段落時（兩個表格相鄰、表格在文件頭尾），手機上沒有別的方法在那裡打字
+    cmd('在表格上方插入段落', 'arrow-up-from-line', T.before);
+    cmd('在表格下方插入段落', 'arrow-down-from-line', T.exit);
+    m.addSeparator();
     cmd('清除內容', 'eraser', T.clearCells);
     cmd('刪除表格', 'trash-2', T.deleteTable);
   }

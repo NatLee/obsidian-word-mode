@@ -17,7 +17,7 @@ export type AnyTabId = TabId | ContextTabId;
 export const CONTEXT_TABS: readonly ContextTabId[] = ['tabletab'];
 // 按鈕群組 id（GROUPS 的第一欄；也是設定 hiddenGroups 存的值）
 export type GroupId =
-  | 'undo' | 'clipboard' | 'styles' | 'font' | 'paragraph' | 'editing'
+  | 'undo' | 'arrows' | 'clipboard' | 'styles' | 'font' | 'paragraph' | 'editing'
   | 'tables' | 'illustrations' | 'links' | 'code' | 'text' | 'obsidian'
   | 'proofing' | 'stats' | 'comments'
   | 'views' | 'show' | 'zoom' | 'help';
@@ -36,7 +36,8 @@ export type TabStyle = 'text' | 'icon' | 'both' | 'menu';
 // 分頁與群組（設定頁用同一份清單，讓使用者勾選要顯示的項目）
 export const TABS: readonly TabEntry[] = [['home', '常用'], ['insert', '插入'], ['review', '校閱'], ['viewtab', '檢視']];
 export const GROUPS: readonly GroupEntry[] = [
-  ['undo', 'home', '復原'], ['clipboard', 'home', '剪貼簿'], ['styles', 'home', '樣式'], ['font', 'home', '字型'],
+  // 方向鍵只在手機、平板的 Word 模式有（螢幕鍵盤沒有方向鍵）；其他地方 RibbonShell 不建立這個群組
+  ['undo', 'home', '復原'], ['arrows', 'home', '方向鍵'], ['clipboard', 'home', '剪貼簿'], ['styles', 'home', '樣式'], ['font', 'home', '字型'],
   ['paragraph', 'home', '段落'], ['editing', 'home', '編輯'],
   ['tables', 'insert', '表格'], ['illustrations', 'insert', '圖例'], ['links', 'insert', '連結'], ['code', 'insert', '程式碼'],
   ['text', 'insert', '文字'], ['obsidian', 'insert', 'Obsidian'],
@@ -309,6 +310,8 @@ export class RibbonShell {
     this.hideViewLabels = S.viewButtonLabels === false;
     this.richHints = !!S.richHints && !o.isMobile;
     this.hiddenGroups = new Set(S.hiddenGroups || []);
+    // 方向鍵：電腦有實體的方向鍵，Markdown 模式用 Obsidian 自己的編輯器，都不需要
+    if (!o.isMobile || o.side !== 'word') this.hiddenGroups.add('arrows');
     const hiddenTabs = new Set<string>(S.hiddenTabs || []);
     this.tabsEl = el('div', 'wm-tabs', root);
     this.bar = el('div', 'wm-toolbar', root);

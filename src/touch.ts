@@ -2,9 +2,16 @@
 // 1. 表格儲存格：編輯中再點儲存格，自己放游標。交給 iOS 的話，點在游標所在的位置會跳出系統的選單（貼上、選取…），
 //    儲存格很小、幾乎每一下都點在游標上，選單又剛好蓋住下一列，下一列就怎麼點都沒反應。
 // 2. 兩指點一下：選取那一整段（Editorial 的做法）。
+// 5. 編輯中點一般的文字（設定 tapNoMenu，預設開）：也自己放游標，iOS 就不會在點到游標所在位置時跳出「貼上、選取、全選」的選單
+//    （網頁改不了那個選單的項目，只能不讓它出現）。連點兩下自己選取那個詞；長按、拖曳照常交給 iOS（放大鏡、拉選取範圍）。
+// 6. 點兩個表格（或其他不能打字的區塊）之間的縫隙：在那裡插入一個空段落並把游標放進去。手機沒有 Ctrl+Enter，原本沒辦法在那裡打字
 import { NodeSelection, Selection, TextSelection } from 'prosemirror-state';
 import type { EditorView } from 'prosemirror-view';
+import type { Node as PMNode } from 'prosemirror-model';
 import { selectBlockAt } from './commands.js';
+
+// installTouch 的選項：tapNoMenu 每次點擊時讀（設定改了馬上生效）
+export interface TouchOptions { tapNoMenu?: () => boolean; }
 
 // 多久以內放開、移動多少以內算「點一下」
 const TAP_MS = 350;
@@ -26,6 +33,65 @@ export function cellTapPos(view: EditorView, target: EventTarget | null, x: numb
   if (!el.closest('td, th') || el.closest(OWN_CLICK)) return null;
   const hit = view.posAtCoords({ left: x, top: y });
   return hit ? hit.pos : null;
+}
+
+// 編輯中點一般的文字時要把游標放在哪裡（見第 5 點）；不該接手時回傳 null。
+// 正在用輸入法組字（注音、拼音的候選字）時不接手：組字的範圍由 iOS 管，自己移游標會打斷組字
+export function textTapPos(view: EditorView, target: EventTarget | null, x: number, y: number): number | null {
+  const el = target as Element | null;
+  if (!view.hasFocus() || view.composing || !el || el.nodeType !== 1 || !view.dom.contains(el) || el.closest(OWN_CLICK)) return null;
+  const hit = view.posAtCoords({ left: x, top: y });
+  if (!hit) return null;
+  const $p = view.state.doc.resolve(hit.pos);
+  return $p.parent.inlineContent ? hit.pos : null;
+}
+
+// 連點兩下選取的詞：pos 所在的那一段裡，包含 pos 的那個詞（中文、日文用瀏覽器的斷詞；沒有斷詞功能時用英數字與空白分）。
+// 點在詞與詞之間的空白、標點上時選那一個字元
+export function wordAt(doc: PMNode, pos: number): { from: number; to: number } | null {
+  const $p = doc.resolve(pos);
+  const parent = $p.parent;
+  if (!parent.inlineContent || !parent.content.size) return null;
+  const start = $p.start();
+  // 不是文字的行內節點（圖片、方程式）算一個字元，位置才對得上
+  const text = parent.textBetween(0, parent.content.size, undefined, '\ufffc');
+  const off = Math.min($p.parentOffset, text.length - 1);
+  type Seg = { segment: string; index: number; isWordLike?: boolean };
+  const Seg = (Intl as unknown as { Segmenter?: new (l?: string, o?: { granularity: string }) => { segment(t: string): Iterable<Seg> } }).Segmenter;
+  let from = off; let to = off + 1;
+  if (Seg) {
+    for (const g of new Seg(undefined, { granularity: 'word' }).segment(text)) {
+      if (g.index <= off && off < g.index + g.segment.length) { from = g.index; to = g.index + g.segment.length; break; }
+    }
+  } else {
+    const word = /[\p{L}\p{N}_]/u;
+    if (word.test(text[off])) {
+      while (from > 0 && word.test(text[from - 1])) from--;
+      while (to < text.length && word.test(text[to])) to++;
+    }
+  }
+  return { from: start + from, to: start + to };
+}
+
+// 點在兩個區塊之間的縫隙時，要插入段落的位置（見第 6 點）；不是這種地方時回傳 null。
+// 只管兩邊都不能直接打字的縫隙（表格、程式碼、圖表、方程式之間）：旁邊是一般段落時點那個段落就好
+export function gapTapPos(view: EditorView, target: EventTarget | null, y: number): number | null {
+  // 手指碰到的要是編輯區本身（縫隙裡沒有別的元素），點在表格、段落上的照常處理
+  if (target !== view.dom) return null;
+  const doc = view.state.doc;
+  const typable = (n: PMNode | null | undefined) => !!n && (n.isTextblock || n.type.name === 'bullet_list' || n.type.name === 'ordered_list' || n.type.name === 'blockquote');
+  let prev: { node: PMNode; end: number; bottom: number } | null = null;
+  let found: number | null = null;
+  doc.forEach((node, offset) => {
+    if (found != null) return;
+    const dom = view.nodeDOM(offset);
+    if (!dom || dom.nodeType !== 1) { prev = null; return; }
+    const r = (dom as HTMLElement).getBoundingClientRect();
+    const p = prev;
+    if (p && y > p.bottom && y < r.top && !typable(p.node) && !typable(node)) found = p.end;
+    prev = { node, end: offset + node.nodeSize, bottom: r.bottom };
+  });
+  return found;
 }
 
 // 3. 長按拖曳游標（iOS 內建的手勢與放大鏡）：拖曳中 iOS 一直在改系統的選取，ProseMirror 每收到一次就讀進來，
@@ -86,7 +152,7 @@ function tapInBlock(view: EditorView, x: number, y: number, before: Selection): 
 }
 
 // 回傳拆掉的函式（selectionchange 掛在 window 上，檢視關掉時要拿掉）
-export function installTouch(host: HTMLElement, getView: () => EditorView | null): () => void {
+export function installTouch(host: HTMLElement, getView: () => EditorView | null, opts: TouchOptions = {}): () => void {
   // 這一次觸控：按下的時間與位置、是不是在編輯區裡按下的、按下時有沒有選取範圍、有沒有移動過、最後一次收到事件的時間
   let down = false; let inEditor = false; let ranged = false; let downAt = 0; let moved = false; let seen = 0;
   let startX = 0; let startY = 0;
@@ -178,14 +244,28 @@ export function installTouch(host: HTMLElement, getView: () => EditorView | null
       const x = d.x, y = d.y, before = view.state.selection;
       window.setTimeout(() => tapInBlock(view, x, y, before), ISLAND_WAIT_MS);
     }
-    const pos = cellTapPos(view, e.target, d.x, d.y);
+    // 兩個表格之間的縫隙：插入一個空段落（第 6 點）
+    const gap = view.editable ? gapTapPos(view, e.target, d.y) : null;
+    if (gap != null) {
+      if (e.cancelable) e.preventDefault();
+      if (!view.hasFocus()) view.focus();
+      const tr = view.state.tr.insert(gap, view.state.schema.nodes.paragraph.create());
+      view.dispatch(tr.setSelection(TextSelection.create(tr.doc, gap + 1)).scrollIntoView());
+      return;
+    }
+    const cell = cellTapPos(view, e.target, d.x, d.y);
+    const pos = cell != null ? cell : opts.tapNoMenu && opts.tapNoMenu() ? textTapPos(view, e.target, d.x, d.y) : null;
     if (pos == null) return;
     // 擋掉之後 iOS 不會移動游標、也不會跳出選單，鍵盤維持開著（編輯區本來就有焦點）
     if (e.cancelable) e.preventDefault();
     const again = last && d.t - last.t < DOUBLE_MS && Math.abs(d.x - last.x) < DOUBLE_DIST && Math.abs(d.y - last.y) < DOUBLE_DIST;
     last = again ? null : d;
-    // 連點兩下：選取這一格的整段文字（iOS 的連點選字被上面擋掉了，儲存格裡通常就是要整格）
-    if (again && selectBlockAt(pos)(view.state, view.dispatch)) return;
+    // 連點兩下：儲存格選取這一格的整段文字（儲存格裡通常就是要整格）；一般的文字選取那個詞（iOS 的連點選字被上面擋掉了）
+    if (again && cell != null && selectBlockAt(pos)(view.state, view.dispatch)) return;
+    if (again) {
+      const w = wordAt(view.state.doc, pos);
+      if (w) { view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, w.from, w.to))); return; }
+    }
     const $p = view.state.doc.resolve(pos);
     const sel = $p.parent.inlineContent ? TextSelection.create(view.state.doc, pos) : Selection.near($p);
     view.dispatch(view.state.tr.setSelection(sel));

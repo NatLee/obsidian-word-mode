@@ -41,6 +41,8 @@ export interface Settings {
   // ---- 拖曳移動游標（手機、平板；toolbar.ts 的 caretPad、loupe.ts）：整列按鈕當觸控板、按住多久開始、移動速度（1 慢～5 快）、
   // 放大鏡要不要顯示、倍率、寬度、外觀
   padRow: boolean;
+  // 手機、平板編輯中點文字時自己放游標，不讓 iOS 跳出「貼上、選取、全選」的選單（touch.ts）
+  tapNoMenu: boolean;
   padHold: number;
   padSpeed: number;
   loupeShow: boolean;
@@ -154,6 +156,7 @@ export const DEFAULTS: Settings = {
   mdYieldNative: true,
   readingLite: true,
   padRow: true,
+  tapNoMenu: true,
   padHold: 300,
   padSpeed: 3,
   loupeShow: true,

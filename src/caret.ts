@@ -1,9 +1,11 @@
-// 自己畫的游標（桌機）：瀏覽器內建的游標只能改顏色，粗細、形狀、閃爍的方式、移動時的滑動都改不了。
+// 自己畫的游標：瀏覽器內建的游標只能改顏色，粗細、形狀、閃爍的方式、移動時的滑動都改不了。
 // 做法是把內建的游標變透明（CSS），在頁面上放一個絕對定位的元素，每次選取或版面變動時移到游標的位置。
 // 這幾種情況交還給內建的游標或直接不顯示：輸入法組字中（組字的底線與游標由瀏覽器畫）、有選取範圍、
 // 選到整個節點、編輯區沒有焦點。
 // 手機、平板（touch）也畫，但只在沒有選取範圍時藏起系統的游標（.wm-caret-on）：選取的把手、iOS 的選取顏色跟著 caret-color，
-// 一直透明會看不到把手。長按準備拖曳時（系統的放大鏡會接手，放大鏡裡畫的是系統的游標）暫時交回系統的游標，放開再換回來
+// 一直透明會看不到把手。手指按著的時候（點、長按拖曳、iOS 的放大鏡）每一格都照系統目前的選取畫：
+// 長按拖曳時 touch.ts 不讓 ProseMirror 讀選取，只照編輯器的狀態畫的話，游標會停在原地，跟放大鏡裡的位置對不上。
+// （1.34.0 長按時改交回系統的游標，但手指稍微一動就沒換到，放大鏡拖的是透明的游標；換到時又像游標突然變回原本的樣子）
 import { Plugin, TextSelection } from 'prosemirror-state';
 import type { EditorView } from 'prosemirror-view';
 
@@ -30,17 +32,15 @@ export function caretPeriod(v: unknown): number {
   return Math.round(Math.max(CARET_PERIOD.min, Math.min(CARET_PERIOD.max, n)) * 10) / 10;
 }
 
-// 手機上按住多久算長按（系統的放大鏡、拖曳選取要開始了）：交回系統的游標。iOS 約 0.5 秒接手，提早一點換
-const HOLD_MS = 350;
-// 手指移動超過這個距離就是在捲動，不是長按
-const MOVE_PX = 8;
+// 手指放開之後再照系統的選取畫多久：iOS 放開後還會調整一次選取，touch.ts 也是放開時才把它交給編輯器
+const TOUCH_TAIL_MS = 400;
 
 export interface CaretContext {
   // 目前的設定；shape 是 native 時不畫（用內建的游標）
   look(): CaretLook;
   // 游標畫在這個元素裡（頁面，position: relative，可能有 CSS zoom）
   host(): HTMLElement;
-  // 手機、平板：長按時交回系統的游標（見檔案開頭）
+  // 手機、平板：手指按著時照系統的選取畫（見檔案開頭）
   touch?: boolean;
 }
 
@@ -61,17 +61,17 @@ class CaretView {
   // 別的外掛、裝飾的更新也會呼叫 update，每次都重來的話游標會一直亮著不閃
   declare last: string;
   declare poked: boolean;
-  // 手機：長按中（交回系統的游標）、長按的計時器、按下的位置
-  declare held: boolean;
-  declare holdTimer: number;
-  declare touchAt: { x: number; y: number } | null;
+  // 手機：手指按著（或剛放開）時照系統的選取畫，follow 是那段時間的每一格（requestAnimationFrame）
+  declare touching: boolean;
+  declare touchUntil: number;
+  declare follow: number;
   declare touchEvents: [string, (e: TouchEvent) => void][];
 
   constructor(readonly view: EditorView, readonly ctx: CaretContext) {
     const doc = view.dom.ownerDocument;
     this.el = ctx.host().createDiv({ cls: 'wm-caret', attr: { 'aria-hidden': 'true' } });
     this.shown = false; this.frame = 0; this.last = ''; this.poked = false;
-    this.held = false; this.holdTimer = 0; this.touchAt = null; this.touchEvents = [];
+    this.touching = false; this.touchUntil = 0; this.follow = 0; this.touchEvents = [];
     // 焦點、組字不會產生 transaction；等這一輪事件處理完（ProseMirror 的 composing 才是新的值）再重畫
     this.onFocus = () => this.later();
     for (const ev of ['focus', 'blur', 'compositionstart', 'compositionend']) view.dom.addEventListener(ev, this.onFocus);
@@ -100,44 +100,70 @@ class CaretView {
     this.ctx.host().classList.remove('wm-caret-on');
   }
 
-  // 手機：按住不動 HOLD_MS 就交回系統的游標；捲動（手指移動）、放開都取消。放開之後換回自己的游標
+  // 手機：手指按著到放開後 TOUCH_TAIL_MS，每一格照系統的選取畫；之後回到照編輯器的狀態畫
   watchTouch(): void {
     const win = this.view.dom.ownerDocument.defaultView;
     if (!win) return;
-    const release = () => {
-      win.clearTimeout(this.holdTimer);
-      this.touchAt = null;
-      if (this.held) { this.held = false; this.poked = true; this.later(); }
+    const tick = (): void => {
+      this.follow = 0;
+      if (!this.touching && win.performance.now() > this.touchUntil) { this.poked = true; this.update(); return; }
+      this.followDom();
+      this.follow = win.requestAnimationFrame(tick);
     };
-    this.touchEvents = [
-      ['touchstart', e => {
-        release();
-        if (e.touches.length !== 1) return;
-        this.touchAt = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-        this.holdTimer = win.setTimeout(() => { if (!this.touchAt) return; this.held = true; this.hide(); }, HOLD_MS);
-      }],
-      ['touchmove', e => {
-        const t = e.touches[0];
-        if (!this.touchAt || !t || this.held) return;
-        if (Math.abs(t.clientX - this.touchAt.x) > MOVE_PX || Math.abs(t.clientY - this.touchAt.y) > MOVE_PX) { win.clearTimeout(this.holdTimer); this.touchAt = null; }
-      }],
-      ['touchend', release],
-      ['touchcancel', release],
-    ];
+    const start = (): void => { this.touching = true; if (!this.follow) this.follow = win.requestAnimationFrame(tick); };
+    const release = (e: TouchEvent): void => {
+      if (e.touches.length) return;
+      this.touching = false;
+      this.touchUntil = win.performance.now() + TOUCH_TAIL_MS;
+    };
+    this.touchEvents = [['touchstart', start], ['touchend', release], ['touchcancel', release]];
     for (const [ev, fn] of this.touchEvents) this.view.dom.addEventListener(ev, fn as EventListener, { passive: true });
+  }
+
+  // 照系統目前的選取（DOM 的選取）畫；選取不在編輯區裡、或是一段範圍時交給 update 的規則
+  followDom(): void {
+    const view = this.view;
+    const s = view.dom.ownerDocument.getSelection();
+    if (!s || !s.anchorNode || !view.dom.contains(s.anchorNode)) { this.fromState(); return; }
+    if (!s.isCollapsed) { this.hide(); return; }
+    let pos: number;
+    try { pos = view.posAtDOM(s.anchorNode, s.anchorOffset); } catch { this.fromState(); return; }
+    if (!this.visible() || pos < 0 || pos > view.state.doc.content.size) { this.hide(); return; }
+    // 跟著手指：不滑動，滑過去會落後手指
+    this.draw(pos, false);
+  }
+
+  // 現在能不能畫自己的游標（不看選取）
+  visible(): boolean {
+    const view = this.view;
+    return this.ctx.look().shape !== 'native' && !view.composing && view.editable && view.hasFocus();
   }
 
   update(): void {
     const view = this.view;
-    const look = this.ctx.look();
-    const sel = view.state.selection;
     const host = this.ctx.host();
     // 組字中把內建的游標放回來（CSS 用這個類別），自己的收起來
     host.classList.toggle('wm-caret-composing', view.composing);
-    if (look.shape === 'native' || this.held || view.composing || !view.editable || !(sel instanceof TextSelection) || !sel.empty || !view.hasFocus()) { this.hide(); return; }
+    // 手指按著時由 followDom 畫（照系統的選取），這裡不要用編輯器還沒更新的選取蓋掉
+    if (this.touching && this.follow) return;
+    this.fromState();
+  }
+
+  // 照編輯器的選取畫
+  fromState(): void {
+    const sel = this.view.state.selection;
+    if (!this.visible() || !(sel instanceof TextSelection) || !sel.empty) { this.hide(); return; }
+    this.draw(sel.head, this.ctx.look().smooth);
+  }
+
+  // 把游標畫在 pos；smooth 是要不要從上一個位置滑過去
+  draw(pos: number, smooth: boolean): void {
+    const view = this.view;
+    const look = this.ctx.look();
+    const host = this.ctx.host();
     let c: { left: number; top: number; bottom: number };
     let box: DOMRect;
-    try { c = view.coordsAtPos(sel.head); box = host.getBoundingClientRect(); } catch { this.hide(); return; }
+    try { c = view.coordsAtPos(pos); box = host.getBoundingClientRect(); } catch { this.hide(); return; }
     if (!(c.bottom > c.top)) { this.hide(); return; }
     // 頁面有 CSS zoom 時，量到的是放大後的座標，寫回去的是放大前的
     const scale = host.offsetWidth ? box.width / host.offsetWidth || 1 : 1;
@@ -148,7 +174,7 @@ class CaretView {
     el.dataset.shape = look.shape;
     el.dataset.blink = look.blink;
     // 剛出現（點進編輯區、選取收起來）直接到位，不要從上一次的位置滑過來
-    el.classList.toggle('is-smooth', look.smooth && this.shown);
+    el.classList.toggle('is-smooth', smooth && this.shown);
     el.style.setProperty('--wm-caret-x', x.toFixed(2) + 'px');
     el.style.setProperty('--wm-caret-y', y.toFixed(2) + 'px');
     el.style.setProperty('--wm-caret-h', h.toFixed(2) + 'px');
@@ -164,7 +190,7 @@ class CaretView {
 
   destroy(): void {
     const win = this.view.dom.ownerDocument.defaultView;
-    if (win) { win.clearTimeout(this.holdTimer); if (this.frame) win.cancelAnimationFrame(this.frame); }
+    if (win) { if (this.frame) win.cancelAnimationFrame(this.frame); if (this.follow) win.cancelAnimationFrame(this.follow); }
     for (const ev of ['focus', 'blur', 'compositionstart', 'compositionend']) this.view.dom.removeEventListener(ev, this.onFocus);
     for (const ev of ['mousedown', 'keydown']) this.view.dom.removeEventListener(ev, this.onPoke);
     for (const [ev, fn] of this.touchEvents) this.view.dom.removeEventListener(ev, fn as EventListener);

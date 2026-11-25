@@ -918,6 +918,8 @@ export interface TableCommands {
   clearCells: Command;
   // 在表格後面新增段落並把游標移過去
   exit: Command;
+  // 在表格前面新增段落並把游標移過去
+  before: Command;
   // 表格轉成文字
   toText: Command;
   // 只設定選取的儲存格
@@ -1085,6 +1087,42 @@ const exitTable: Command = (state, dispatch) => {
   if (dispatch) {
     const end = t.pos + t.node.nodeSize;
     const tr = state.tr.insert(end, N.paragraph.create());
+    tr.setSelection(TextSelection.create(tr.doc, end + 1));
+    dispatch(tr.scrollIntoView());
+  }
+  return true;
+};
+
+// 在表格前面新增一個空段落並把游標移過去（表格在文件最前面、兩個表格之間沒有段落時，很難在表格上面打字）
+const paragraphBeforeTable: Command = (state, dispatch) => {
+  const t = tableAt(state);
+  if (!t) return false;
+  if (dispatch) {
+    const tr = state.tr.insert(t.pos, N.paragraph.create());
+    tr.setSelection(TextSelection.create(tr.doc, t.pos + 1));
+    dispatch(tr.scrollIntoView());
+  }
+  return true;
+};
+
+// 最後一列的儲存格裡，游標在空的最後一行（剛按過 Enter，前面是換行）時再按 Enter：拿掉那個換行，
+// 跳到表格後面新增的段落（像清單連按兩次 Enter 結束清單）。手機沒有 Ctrl+Enter，兩個表格中間原本很難插入段落
+const enterOutOfTable: Command = (state, dispatch) => {
+  const sel = state.selection;
+  if (!(sel instanceof TextSelection) || !sel.empty) return false;
+  const t = tableAt(state);
+  if (!t) return false;
+  const $p = sel.$from;
+  const before = $p.nodeBefore;
+  if (!before || before.type !== N.hard_break || $p.parentOffset !== $p.parent.content.size) return false;
+  // 段落是儲存格裡的最後一段，儲存格在最後一列
+  if ($p.index($p.depth - 1) !== $p.node($p.depth - 1).childCount - 1) return false;
+  const $t = state.doc.resolve(t.pos);
+  if ($p.index($t.depth + 1) !== t.node.childCount - 1) return false;
+  if (dispatch) {
+    const tr = state.tr.delete($p.pos - before.nodeSize, $p.pos);
+    const end = tr.mapping.map(t.pos + t.node.nodeSize);
+    tr.insert(end, N.paragraph.create());
     tr.setSelection(TextSelection.create(tr.doc, end + 1));
     dispatch(tr.scrollIntoView());
   }
@@ -1262,7 +1300,7 @@ export const table: TableCommands = {
   isIn: state => !!tableAt(state),
   addRowBefore, addRowAfter, addColumnBefore, addColumnAfter, deleteRow: removeRows, deleteColumn, deleteTable: removeTable,
   selectCell: selectCells('cell'), selectRow: selectCells('row'), selectColumn: selectCells('col'), selectTable,
-  clearCells, exit: exitTable, toText: tableToText,
+  clearCells, exit: exitTable, before: paragraphBeforeTable, toText: tableToText,
   align: (a: CellAlign) => setCellAttr('align', a),
   // Markdown 的對齊是整欄的：一次設定整欄
   alignColumn(a: CellAlign): Command {
@@ -1606,6 +1644,7 @@ export function buildKeymap(): Record<string, Command> {
     'Mod-Enter': chainCommands(exitCode, (s, d) => (inTableCell(s) ? exitTable(s, d) : false), insertHardBreak),
     Enter: chainCommands(
       autoformatEnter,
+      enterOutOfTable,
       (s, d) => (inTableCell(s) ? insertHardBreak(s, d) : false),
       splitListItem(N.list_item),
       enterAfterHeading,

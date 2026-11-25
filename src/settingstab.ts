@@ -215,6 +215,7 @@ function settingSections(settingTab: WordModeSettings): SettingSection[] {
       row(t('拖曳移動游標的速度'), t('1 最慢、5 最快：手指移動同樣的距離，游標走的格數不同。想要一個字一個字慢慢對準就調慢。預設 3。'),
         s => s.addSlider(sl => sl.setLimits(1, 5, 1).setValue(padSpeed(S.padSpeed)).setDynamicTooltip()
           .onChange(async v => { S.padSpeed = padSpeed(v); await save(); }))),
+      toggleRow(t('點文字時不跳出系統的編輯選單'), t('iOS 上點到游標所在的位置時，會跳出「貼上、選取、全選」的選單，要關掉又容易點到別行。開啟時點文字由 Word 模式自己放游標，不出現這個選單；連點兩下選取一個詞，長按照常是系統的放大鏡與選取。貼上可以用工具列的按鈕。'), 'tapNoMenu'),
       sub('放大鏡'),
       toggleRow(t('拖曳時顯示放大鏡'), t('拖曳移動游標時，在游標上方顯示放大的那一段文字，看得清楚游標停在哪兩個字中間。'), 'loupeShow'),
       toggleRow(t('放大鏡旁顯示位置資訊'), t('在放大鏡旁邊顯示游標現在在哪裡：哪一種段落（內文、標題、清單、表格第幾列第幾欄…）以及在這一段的第幾個字。'), 'loupeInfo'),
