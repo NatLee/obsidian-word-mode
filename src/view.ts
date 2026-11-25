@@ -246,7 +246,7 @@ export class WordModeView extends TextFileView {
     }).catch(() => { /* 沒有 Prism 就不上色 */ });
     this.status = 'saved';
     // 手機沒有 Obsidian 狀態列：在畫面下方放自己的狀態列；桌機則整合進 Obsidian 右下角的狀態列
-    if (Platform.isMobile) this.buildBottomBar(this.contentEl.createDiv('wm-bottombar'), false);
+    if (Platform.isMobile) this.buildBottomBar(this.contentEl.createDiv('wm-bottombar' + (Platform.isPhone ? ' mod-raised' : '')), false);
     // 螢幕鍵盤升起、收起時調整版面（keyboard.ts；桌機沒有這個）
     if (this.plugin.keyboard) {
       this.register(this.plugin.keyboard.subscribe(() => this.syncKeyboard()));
@@ -259,7 +259,7 @@ export class WordModeView extends TextFileView {
       }
     }
     // 觸控手勢：表格儲存格自己放游標、兩指點一下選整段（touch.ts）
-    if (Platform.isMobile) this.register(installTouch(this.page, () => this.pm));
+    if (Platform.isMobile) this.register(installTouch(this.page, () => this.pm, { tapNoMenu: () => this.plugin.settings.tapNoMenu !== false }));
     this.applyZoom();
     this.applyPropsLook();
     this.applyCaretLook();
@@ -369,6 +369,8 @@ export class WordModeView extends TextFileView {
         notice: msg => new Notice(msg),
       },
     });
+    // 手機：Obsidian 的 mod-raised（浮動導覽列的毛玻璃底、陰影、iOS 的細邊框），換佈景主題也跟著變；形狀與間距在樣式表
+    if (Platform.isPhone) this.toolbar.dom.addClass('mod-raised');
     if (this.pm) this.toolbar.update(this.pm.state);
   }
 

@@ -205,9 +205,9 @@ await fresh('一段文字\n');
   const clean = () => { S.hiddenTabs = []; S.hiddenGroups = []; S.groupNames = {}; S.groupTabs = {}; S.groupOrder = []; S.tabLabels = {}; };
   clean();
   const of = (list, tab) => list.filter(g => g.tab === tab).map(g => g.id).join();
-  assert(of(B.TB.groupLayout(null), 'home') === 'undo,clipboard,styles,font,paragraph,editing' && B.TB.groupLayout({}).length === B.TB.GROUPS.length, '沒有自訂：預設的分頁與順序');
+  assert(of(B.TB.groupLayout(null), 'home') === 'undo,arrows,clipboard,styles,font,paragraph,editing' && B.TB.groupLayout({}).length === B.TB.GROUPS.length, '沒有自訂：預設的分頁與順序');
   const odd = B.TB.groupLayout({ groupTabs: { font: 'nowhere', nope: 'home' }, groupOrder: ['nope', 'editing', 'editing'], groupNames: { font: '  ', undo: ' 回上一步 ' } });
-  assert(of(odd, 'home') === 'editing,undo,clipboard,styles,font,paragraph' && odd.find(g => g.id === 'font').name === '字型' && odd.find(g => g.id === 'undo').name === '回上一步',
+  assert(of(odd, 'home') === 'editing,undo,arrows,clipboard,styles,font,paragraph' && odd.find(g => g.id === 'font').name === '字型' && odd.find(g => g.id === 'undo').name === '回上一步',
     '設定檔裡不認得的分頁、群組、空白名稱都忽略；沒列在順序裡的群組排在後面：' + of(odd, 'home'));
   assert(B.TB.moveGroup(null, 'undo', -1) === null && B.TB.moveGroup(null, 'editing', 1) === null, '已經在分頁的最前或最後：不能再移');
 
@@ -224,7 +224,7 @@ await fresh('一段文字\n');
   const col = tab => [...grid.querySelectorAll('.wm-settings-groups-col[data-tab="' + tab + '"] .wm-settings-grow')].map(r => r.dataset.group).join();
   const shown = panel => [...panel.querySelectorAll('.wm-group[class*="wm-group-"]')].map(g => [...g.classList].find(c => c.startsWith('wm-group-')).slice(9)).join();
   const change = el => el.dispatchEvent(new Event('change', { bubbles: true }));
-  assert(col('home') === 'undo,clipboard,styles,font,paragraph,editing' && col('viewtab') === 'views,show,zoom,help' && grid.querySelector('.wm-settings-greset').disabled, '設定頁：每個分頁一欄，群組照預設順序；沒改過時「還原」停用');
+  assert(col('home') === 'undo,arrows,clipboard,styles,font,paragraph,editing' && col('viewtab') === 'views,show,zoom,help' && grid.querySelector('.wm-settings-greset').disabled, '設定頁：每個分頁一欄，群組照預設順序；沒改過時「還原」停用');
   assert(row('undo').querySelector('.wm-settings-gup').disabled && !row('undo').querySelector('.wm-settings-gdown').disabled && row('editing').querySelector('.wm-settings-gdown').disabled, '最前面的群組不能上移，最後面的不能下移');
 
   // 改名稱
@@ -233,13 +233,13 @@ await fresh('一段文字\n');
   name.value = ' 字體 '; change(name);
   assert(S.groupNames.font === '字體' && view.toolbar.dom.querySelector('.wm-group-font .wm-group-name').textContent === '字體' && bar.dom.querySelector('.wm-group-font .wm-group-name').textContent === '字體', '改群組名稱：兩條功能區都換成新名稱');
 
-  // 調順序
+  // 調順序（方向鍵的群組只有手機的 Word 模式有：設定頁列出來，電腦的兩條功能區都沒有）
   click(row('font').querySelector('.wm-settings-gup'));
-  assert(col('home') === 'undo,clipboard,font,styles,paragraph,editing' && shown(view.toolbar.panels.home) === col('home') && shown(bar.panels.home) === 'undo,font,styles,paragraph,editing',
+  assert(col('home') === 'undo,arrows,clipboard,font,styles,paragraph,editing' && shown(view.toolbar.panels.home) === 'undo,clipboard,font,styles,paragraph,editing' && shown(bar.panels.home) === 'undo,font,styles,paragraph,editing',
     '上移一格：設定頁與兩條功能區的順序一致：' + shown(view.toolbar.panels.home) + '｜' + shown(bar.panels.home));
   assert(document.activeElement === row('font').querySelector('.wm-settings-gup') && row('font').querySelector('.wm-settings-gname').value === '字體', '重畫後焦點留在同一個群組的箭頭上，名稱還在');
-  click(row('font').querySelector('.wm-settings-gup')); click(row('font').querySelector('.wm-settings-gup'));
-  assert(col('home') === 'font,undo,clipboard,styles,paragraph,editing' && document.activeElement === row('font').querySelector('.wm-settings-gdown'), '移到最前面：上移停用，焦點換到下移');
+  click(row('font').querySelector('.wm-settings-gup')); click(row('font').querySelector('.wm-settings-gup')); click(row('font').querySelector('.wm-settings-gup'));
+  assert(col('home') === 'font,undo,arrows,clipboard,styles,paragraph,editing' && document.activeElement === row('font').querySelector('.wm-settings-gdown'), '移到最前面：上移停用，焦點換到下移');
 
   // 換分頁
   const tabSel = row('font').querySelector('.wm-settings-gtab');
@@ -250,7 +250,7 @@ await fresh('一段文字\n');
   assert(btn('粗體').closest('.wm-panel') === view.toolbar.panels.insert, '按鈕跟著群組走');
   const back = row('font').querySelector('.wm-settings-gtab');
   back.value = 'home'; change(back);
-  assert(!('font' in S.groupTabs) && col('home') === 'undo,clipboard,styles,paragraph,editing,font', '移回原本的分頁：設定裡不留紀錄');
+  assert(!('font' in S.groupTabs) && col('home') === 'undo,arrows,clipboard,styles,paragraph,editing,font', '移回原本的分頁：設定裡不留紀錄');
 
   // 群組都移走的分頁
   for (const id of ['proofing', 'stats', 'comments']) { const s = row(id).querySelector('.wm-settings-gtab'); s.value = 'viewtab'; change(s); }
@@ -269,7 +269,7 @@ await fresh('一段文字\n');
   const before = changes;
   assert(!grid.querySelector('.wm-settings-greset').disabled, '改過之後可以還原');
   click(grid.querySelector('.wm-settings-greset'));
-  assert(changes === before + 1 && !Object.keys(S.groupNames).length && !Object.keys(S.groupTabs).length && !S.groupOrder.length && col('review') === 'proofing,stats,comments' && col('home') === 'undo,clipboard,styles,font,paragraph,editing'
+  assert(changes === before + 1 && !Object.keys(S.groupNames).length && !Object.keys(S.groupTabs).length && !S.groupOrder.length && col('review') === 'proofing,stats,comments' && col('home') === 'undo,arrows,clipboard,styles,font,paragraph,editing'
     && S.hiddenGroups.join() === 'font' && S.hiddenTabs.join() === 'home', '還原預設的群組名稱與排列（顯示／隱藏的勾選不變）');
 
   clean();
@@ -1884,7 +1884,7 @@ await fresh('前面\n\n| 甲 | 乙 |\n| --- | --- |\n| a1 | b1 |\n| a2 | b2 |\n\
   click(tab);
   assert(!view.toolbar.panels.tabletab.classList.contains('is-hidden') && plugin.lastTab === 'home', '切到「表格」分頁：顯示表格工具，但不記成下次開啟的分頁');
   const groupNames = [...view.toolbar.panels.tabletab.querySelectorAll('.wm-group-name')].map(x => x.textContent).join();
-  assert(groupNames === '表格,列與欄,移動,對齊,排序', '「表格」分頁的群組：' + groupNames);
+  assert(groupNames === '表格,列與欄,段落,移動,對齊,排序', '「表格」分頁的群組：' + groupNames);
 
   // 欄把手：選取整欄、開選單；選單裡的指令作用在選取的那一欄
   click(grips('col')[1]);
@@ -1927,7 +1927,7 @@ await fresh('前面\n\n| 甲 | 乙 |\n| --- | --- |\n| a1 | b1 |\n\n後面\n');
   const sel = view.pm.state.selection;
   const menu = mock.Menu.last.items.map(i => i.title);
   assert(typeof sel.isColSelection === 'function' && sel.isRowSelection() && sel.isColSelection(), '表格選項：先選取整張表');
-  assert(menu.join() === '選取表格,複製為 Markdown,表格轉成文字,清除內容,刪除表格', '表格選項的選單：' + menu.join());
+  assert(menu.join() === '選取表格,複製為 Markdown,表格轉成文字,在表格上方插入段落,在表格下方插入段落,清除內容,刪除表格', '表格選項的選單：' + menu.join());
   const text = view.pm.someProp('clipboardTextSerializer', f => f(view.pm.state.selection.content(), view.pm));
   assert(text === '甲\t乙\na1\tb1', '複製整張表：純文字是 Tab 分隔（貼到 Excel 會分好欄）：' + JSON.stringify(text));
   mock.Menu.last.items.find(i => i.title === '表格轉成文字').fn();
@@ -1971,7 +1971,7 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
   view.buildToolbar();
   await fresh('前面\n\n| 甲 | 乙 |\n| --- | --- |\n| a1 | b1 |\n');
   const groups = () => [...view.toolbar.dom.querySelectorAll('.wm-table-tools')];
-  assert(groups().length === 5 && groups().every(g => g.classList.contains('is-hidden')) && !view.toolbar.tabBtns.tabletab, '不分頁的版面：表格工具平常隱藏，沒有情境分頁');
+  assert(groups().length === 6 && groups().every(g => g.classList.contains('is-hidden')) && !view.toolbar.tabBtns.tabletab, '不分頁的版面：表格工具平常隱藏，沒有情境分頁');
   select(posOf('a1') + 1, posOf('a1') + 1);
   assert(groups().every(g => !g.classList.contains('is-hidden')), '游標在表格裡：表格工具出現');
   plugin.settings.ribbonLayout = 'tabs';
@@ -2204,6 +2204,119 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
 }
 
 
+// ======== 手機：點文字不跳出 iOS 的選單、連點兩下選詞、點兩個表格之間的縫隙（touch.ts）========
+{
+  await fresh('hello world 今天天氣很好\n\n| a |\n| --- |\n| 1 |\n\n| b |\n| --- |\n| 2 |\n\n[連結](https://example.com) 後面');
+  const P = view.pm.constructor;
+  const St = view.pm.state.constructor;
+  const host = document.body.createDiv();
+  const v = new P(host.createDiv(), { state: St.create({ doc: view.pm.state.doc, schema: view.pm.state.schema }) });
+  v.hasFocus = () => true;
+  let tapPos = 3;
+  v.posAtCoords = () => ({ pos: tapPos, inside: -1 });
+  let noMenu = true;
+  const stop = B.installTouch(host, () => v, { tapNoMenu: () => noMenu });
+  const touch = (target, type, x = 10, y = 10) => {
+    const list = [{ clientX: x, clientY: y }];
+    const e = Object.assign(new Event(type, { bubbles: true, cancelable: true }), { touches: type === 'touchend' ? [] : list, changedTouches: list });
+    target.dispatchEvent(e);
+    return e;
+  };
+  const tap = (target, x, y) => { touch(target, 'touchstart', x, y); return touch(target, 'touchend', x, y); };
+  const para = v.dom.querySelector('p');
+  assert(tap(para).defaultPrevented && v.state.selection.empty && v.state.selection.head === 3, '點文字：自己放游標，擋掉系統的處理（不跳出貼上／選取的選單）');
+  await sleep(400);
+  tapPos = 4;
+  tap(para); const second = tap(para);
+  assert(second.defaultPrevented && v.state.doc.textBetween(v.state.selection.from, v.state.selection.to) === 'hello', '連點兩下：選取那個詞：' + v.state.doc.textBetween(v.state.selection.from, v.state.selection.to));
+  await sleep(400);
+  noMenu = false;
+  assert(!tap(para).defaultPrevented, '設定關掉：照常交給系統');
+  noMenu = true;
+  await sleep(400);
+  const link = v.dom.querySelector('a');
+  assert(link && !tap(link).defaultPrevented, '點連結：交給連結自己處理');
+  await sleep(400);
+  v.hasFocus = () => false;
+  assert(!tap(para).defaultPrevented, '編輯區沒有焦點（鍵盤收著）：交給系統，靠它叫出鍵盤');
+  v.hasFocus = () => true;
+  // 連點兩下選詞：中文用瀏覽器的斷詞，詞的範圍包含點的位置
+  const doc = v.state.doc;
+  const cjk = 1 + 'hello world '.length + 1;
+  const w = B.TOUCH.wordAt(doc, cjk);
+  assert(w && w.from <= cjk && cjk < w.to && w.to - w.from >= 1 && w.to - w.from <= 4, '中文的詞：' + doc.textBetween(w.from, w.to));
+  assert(JSON.stringify(B.TOUCH.wordAt(doc, 9)) === JSON.stringify({ from: 7, to: 12 }), '英文的詞：world');
+  // 兩個表格之間的縫隙：插入空段落。jsdom 沒有版面，替每個區塊給假的位置（每個區塊高 40、間隔 20）
+  const tops = new Map();
+  let y0 = 0;
+  v.state.doc.forEach((n, off) => { const d = v.nodeDOM(off); tops.set(d, y0); y0 += 60; });
+  for (const [d, top] of tops) d.getBoundingClientRect = () => ({ left: 0, right: 300, top, bottom: top + 40, width: 300, height: 40 });
+  const t1 = [...tops.keys()][1];
+  const gap = tops.get(t1) + 50;
+  assert(B.TOUCH.gapTapPos(v, v.dom, tops.get([...tops.keys()][0]) + 50) === null, '段落與表格之間：不插入（點段落就好）');
+  assert(B.TOUCH.gapTapPos(v, para, gap) === null, '手指碰到的不是編輯區本身（點在內容上）：不管');
+  const end = tap(v.dom, 10, gap);
+  const kids = []; v.state.doc.forEach(n => kids.push(n.type.name + (n.childCount ? '' : '(空)')));
+  assert(end.defaultPrevented && kids.join() === 'paragraph,table,paragraph(空),table,paragraph' && v.state.selection.$head.parent.type.name === 'paragraph' && v.state.selection.$head.parent.content.size === 0,
+    '點兩個表格之間的縫隙：插入空段落並把游標放進去：' + kids.join());
+  stop();
+  v.destroy();
+  host.remove();
+}
+
+// ======== 表格：在最後一列的空行再按 Enter 跳出表格、在表格上方／下方插入段落 ========
+{
+  await fresh('| a | b |\n| --- | --- |\n| 1 | 2 |\n\n| c |\n| --- |\n| 3 |');
+  const pm = view.pm;
+  let p2 = -1; pm.state.doc.descendants((n, pos) => { if (p2 < 0 && n.isText && n.text === '2') p2 = pos + 1; });
+  pm.dispatch(pm.state.tr.setSelection(TextSelection.create(pm.state.doc, p2)));
+  press(view, 'Enter');
+  const cellText = () => { let c = null; pm.state.doc.descendants(n => { if (!c && n.type.name === 'table_cell' && n.textContent === '2') c = n; }); return c; };
+  assert(cellText() && cellText().firstChild.lastChild.type.name === 'hard_break', '在儲存格裡按 Enter：格子裡換行（跟以前一樣）');
+  press(view, 'Enter');
+  const kids = []; pm.state.doc.forEach(n => kids.push(n.type.name));
+  assert(kids.join() === 'table,paragraph,table' && pm.state.selection.$head.parent.type.name === 'paragraph' && cellText().firstChild.lastChild.type.name === 'text',
+    '最後一列的空行再按 Enter：拿掉那個換行，跳到表格後面的新段落：' + kids.join());
+  // 第一列的空行按 Enter 只是換行（不是最後一列）
+  await fresh('| a |\n| --- |\n| 1 |');
+  let pa = -1; pm.state.doc.descendants((n, pos) => { if (pa < 0 && n.isText && n.text === 'a') pa = pos + 1; });
+  pm.dispatch(pm.state.tr.setSelection(TextSelection.create(pm.state.doc, pa)));
+  press(view, 'Enter'); press(view, 'Enter');
+  assert(pm.state.doc.childCount === 1, '不是最後一列：連按 Enter 都留在格子裡');
+  // 在表格上方、下方插入段落
+  assert(B.C.table.before(pm.state, tr => pm.dispatch(tr)) && pm.state.doc.firstChild.type.name === 'paragraph' && pm.state.selection.$head.parent === pm.state.doc.firstChild, '在表格上方插入段落：游標移過去');
+  pm.dispatch(pm.state.tr.setSelection(TextSelection.create(pm.state.doc, pa + 2)));
+  assert(B.C.table.exit(pm.state, tr => pm.dispatch(tr)) && pm.state.doc.lastChild.type.name === 'paragraph' && pm.state.doc.childCount === 3, '在表格下方插入段落');
+  assert(!B.C.table.before(pm.state), '游標不在表格裡：不能用');
+}
+
+// ======== 方向鍵：只有手機的 Word 模式有；點一下一格、按住連續走 ========
+{
+  const shell = (side, isMobile) => { const root = document.body.createDiv(); const s = new B.RibbonShell(root, { side, settings: {}, isMobile, icon: () => {}, openMenu: () => {}, pickTab: () => {} }); root.remove(); return s; };
+  assert(shell('word', true).groups.arrows && !shell('word', false).groups.arrows && !shell('md', true).groups.arrows, '方向鍵的群組：只有手機、平板的 Word 模式');
+  assert(!view.toolbar.dom.querySelector('.wm-group-arrows'), '電腦的功能區沒有方向鍵');
+  const box = document.body.createDiv();
+  let n = 0; let ok = true;
+  view.toolbar.arrowKey(box, { icon: 'arrow-left', title: '游標往左', text: '←', desc: '點一下移動一格，按住不放會連續移動。' }, () => { n++; return ok; });
+  const b = box.querySelector('button.wm-arrow-key');
+  b.click();
+  assert(b && n === 1, '點一下：走一格');
+  n = 0;
+  b.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+  await sleep(600);
+  b.dispatchEvent(new Event('pointerup', { bubbles: true }));
+  const held = n;
+  b.click();
+  await sleep(200);
+  assert(held >= 3 && n === held, '按住：連續走（' + held + ' 格），放開就停，放開後的那一下點擊不再多走一格');
+  n = 0; ok = false;
+  b.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+  await sleep(600);
+  b.dispatchEvent(new Event('pointerup', { bubbles: true }));
+  assert(n === 1, '走不動（到文件頭尾）：不再連續走');
+  box.remove();
+}
+
 // ======== 放大鏡裡的游標標記跟編輯區的游標同一個形狀 ========
 {
   await fresh('第一段文字');
@@ -2216,6 +2329,14 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
   const { readFileSync } = await import('node:fs');
   const css = readFileSync(new URL('../../styles/word-mode.css', import.meta.url), 'utf8');
   assert(['thick', 'block', 'underline'].every(k => css.includes('.wm-loupe .wm-loupe-caret[data-shape="' + k + '"]')) && css.includes('.wm-loupe .wm-loupe-caret { height: var(--wm-mark-h'), '標記的形狀與高度在樣式表');
+}
+
+// ======== 手機：功能區與狀態列用 Obsidian 的 mod-raised（浮動導覽列的毛玻璃膠囊）========
+{
+  const { readFileSync } = await import('node:fs');
+  const css = readFileSync(new URL('../../styles/word-mode.css', import.meta.url), 'utf8');
+  assert(css.includes('.is-floating-nav .wm-phone .wm-ribbon.mod-raised {') && css.includes('.is-floating-nav .wm-phone .wm-bottombar.mod-raised {') && css.includes('body:not(.is-floating-nav) .wm-ribbon.mod-raised {'), '膠囊只在浮動導覽列時；不是浮動的時候蓋回原本的底色');
+  assert(!view.toolbar.dom.classList.contains('mod-raised'), '電腦：不加 mod-raised');
 }
 
 finish();

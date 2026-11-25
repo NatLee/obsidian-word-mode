@@ -180,6 +180,9 @@ function objectNext(view: EditorView, sel: Selection, dir: number): number {
 export const PAD_HOLD = { min: 150, max: 800, step: 50, default: 300 } as const;
 // 移動速度（設定 1～5）：手指移動多少 px 走一格；換一行要多拖一點，免得左右拖的時候不小心換行
 const PAD_STEP_X = [18, 15, 12, 9, 7] as const;
+// 方向鍵按住多久開始連續移動、之後每隔多久走一格（毫秒）
+const ARROW_DELAY = 380;
+const ARROW_REPEAT = 70;
 // 速度的設定值整理成 1～5（不是數字就用 3）
 export function padSpeed(v: unknown): number {
   return typeof v === 'number' && isFinite(v) ? Math.max(1, Math.min(5, Math.round(v))) : 3;
@@ -187,6 +190,14 @@ export function padSpeed(v: unknown): number {
 export function padSteps(speed: unknown): { x: number; y: number } {
   const x = PAD_STEP_X[padSpeed(speed) - 1];
   return { x, y: Math.round(x * 2.2) };
+}
+// 觸控板的加速度（像筆電的觸控板）：手指移動的速度（px/ms）換成倍數。慢慢移動時倍數小，一格一格對準；
+// 快速滑過去倍數大，一下子走很遠。速度設定（padSteps）決定基本的距離，倍數乘在手指移動的距離上
+export const PAD_GAIN = { slow: 0.12, fast: 1.2, min: 0.5, max: 2.2 } as const;
+export function padGain(speed: number): number {
+  const v = isFinite(speed) && speed > 0 ? speed : 0;
+  const k = Math.max(0, Math.min(1, (v - PAD_GAIN.slow) / (PAD_GAIN.fast - PAD_GAIN.slow)));
+  return PAD_GAIN.min + (PAD_GAIN.max - PAD_GAIN.min) * k;
 }
 export function padHold(v: unknown): number {
   const n = typeof v === 'number' && isFinite(v) ? v : PAD_HOLD.default;
@@ -241,6 +252,8 @@ export class Toolbar {
   declare padMoved: boolean | undefined;
   // 拖曳時上下移動要回到的水平位置（左右移動之後重新記）
   declare padGoalX: number | null | undefined;
+  // 方向鍵上一次上下移動後的選取（arrowLine 用來判斷目標欄還算不算數）
+  declare arrowSel: Selection | null | undefined;
   // 手機的抽屜後面那層變暗的底（openPopup）
   declare popupBackdrop: HTMLElement | null | undefined;
   declare painterBtn: HTMLButtonElement | null;
@@ -365,6 +378,16 @@ export class Toolbar {
     this.button(g, A.undo, { cmd: undo, enabled: s => undo(s) });
     this.button(g, A.redo, { cmd: redo, enabled: s => redo(s) });
 
+    // 方向鍵（只有手機、平板的 Word 模式建立這個群組）：短距離移動游標，點一下一格、按住連續走
+    g = G.arrows;
+    if (g) {
+      const desc: I18nKey = '點一下移動一格，按住不放會連續移動。';
+      this.arrowKey(g, { icon: 'arrow-left', title: '游標往左', text: '←', desc }, () => { this.padGoalX = null; return this.run(C.moveCaretBy(-1)); });
+      this.arrowKey(g, { icon: 'arrow-up', title: '游標往上一行', text: '↑', desc }, () => this.arrowLine(-1));
+      this.arrowKey(g, { icon: 'arrow-down', title: '游標往下一行', text: '↓', desc }, () => this.arrowLine(1));
+      this.arrowKey(g, { icon: 'arrow-right', title: '游標往右', text: '→', desc }, () => { this.padGoalX = null; return this.run(C.moveCaretBy(1)); });
+    }
+
     g = G.clipboard;
     this.button(g, { icon: 'clipboard-paste', title: '貼上', keys: 'Mod+V', label: '貼上', text: '貼', desc: '貼上剪貼簿的內容。Excel 範圍會變成表格。', demo: 'paste' }, { onClick: () => this.d.paste('auto') });
     this.arrow(g, '貼上選項', (e, b) => this.openMenu(b, [
@@ -485,6 +508,9 @@ export class Toolbar {
       tb(g, 'arrow-down-to-line', '在下方插入列', T.addRowAfter, '↓列');
       tb(g, 'arrow-left-to-line', '在左側插入欄', T.addColumnBefore, '←欄');
       tb(g, 'arrow-right-to-line', '在右側插入欄', T.addColumnAfter, '→欄');
+      g = group('段落');
+      tb(g, 'arrow-up-from-line', '在表格上方插入段落', T.before, '↑段');
+      tb(g, 'arrow-down-from-line', '在表格下方插入段落', T.exit, '↓段');
       g = group('移動');
       tb(g, 'arrow-up', '列上移', C.moveBlock(-1), '列↑');
       tb(g, 'arrow-down', '列下移', C.moveBlock(1), '列↓');
@@ -647,6 +673,8 @@ export class Toolbar {
     let STEP_X = 12; let STEP_Y = 26;
     // 這次觸控的編號；沒有在追蹤時是 null（iOS 的編號可能是負數，不能拿 -1 當「沒有」）
     let id: number | null = null; let x = 0; let y = 0; let active = false;
+    // 加速度：上一次的時間、乘上倍數之後還沒用掉的距離（不滿一格的留到下一次）
+    let lastT = 0; let ax = 0; let ay = 0;
     // 整列的版本：按住的計時器、已經可以拖了（還沒拖）、說明
     let timer = 0; let ready = false; let tip: HTMLElement | null = null;
     const win = b.ownerDocument.defaultView || window;
@@ -664,9 +692,10 @@ export class Toolbar {
     b.addEventListener('touchstart', e => {
       unready();
       const target = e.target as Element | null;
-      if (e.touches.length !== 1 || (hold && target && target.nodeType === 1 && target.closest('.wm-tab-switch'))) { id = null; return; }
+      if (e.touches.length !== 1 || (hold && target && target.nodeType === 1 && target.closest('.wm-tab-switch, .wm-arrow-key'))) { id = null; return; }
       const tt = e.touches[0];
       id = tt.identifier; x = tt.clientX; y = tt.clientY; active = false; this.padMoved = false;
+      lastT = e.timeStamp; ax = 0; ay = 0;
       if (!hold) return;
       const wait = typeof holdMs === 'function' ? holdMs() : holdMs;
       timer = win.setTimeout(() => {
@@ -694,7 +723,7 @@ export class Toolbar {
         // 整列的版本：還沒按夠久就動了，是在捲按鈕列、往上滑按鍵或往下滑收鍵盤，不接手
         if (hold && !ready) { win.clearTimeout(timer); id = null; return; }
         // 從這裡開始算距離，不然一開始就跳好幾格
-        if (hold) { unready(); b.classList.add('is-trackpad'); x = t.clientX; y = t.clientY; dx = 0; dy = 0; }
+        if (hold) { unready(); b.classList.add('is-trackpad'); x = t.clientX; y = t.clientY; dx = 0; dy = 0; lastT = e.timeStamp; }
         // 編輯區沒有焦點（鍵盤沒開）時不啟動：移動游標會把焦點放回去、叫出鍵盤，畫面一重排手指的相對位置就跳掉，游標亂跑
         const v = this.view;
         if (!v || !v.hasFocus()) { id = null; return; }
@@ -706,11 +735,16 @@ export class Toolbar {
         if (S.loupeShow !== false) loupe = new Loupe(v, { ...loupeOptions(S.loupeZoom, S.loupeWidth, S.loupeStyle, S.loupeInfo), caret: caretLook(S.caretShape, null, null).shape });
       }
       if (e.cancelable) e.preventDefault();
-      const nx = Math.trunc(dx / STEP_X); const ny = Math.trunc(dy / STEP_Y);
+      // 這一段的速度決定倍數；乘上倍數的距離累積起來，滿一格走一格
+      const gain = padGain(Math.hypot(dx, dy) / Math.max(1, e.timeStamp - lastT));
+      ax += dx * gain; ay += dy * gain;
+      x = t.clientX; y = t.clientY; lastT = e.timeStamp;
+      const nx = Math.trunc(ax / STEP_X); const ny = Math.trunc(ay / STEP_Y);
+      ax -= nx * STEP_X; ay -= ny * STEP_Y;
       // 走不動（到文件開頭、結尾）時讓放大鏡提示；走得動就收掉提示
       let edge: 'start' | 'end' | null = null;
-      if (nx) { x += nx * STEP_X; this.padGoalX = null; if (!this.run(C.moveCaretBy(nx))) edge = nx < 0 ? 'start' : 'end'; }
-      if (ny) { y += ny * STEP_Y; if (!this.moveCaretLines(ny)) edge = ny < 0 ? 'start' : 'end'; }
+      if (nx) { this.padGoalX = null; if (!this.run(C.moveCaretBy(nx))) edge = nx < 0 ? 'start' : 'end'; }
+      if (ny) { if (!this.moveCaretLines(ny)) edge = ny < 0 ? 'start' : 'end'; }
       if ((nx || ny) && loupe) { loupe.edge(edge); loupe.update(); }
     }, { passive: false });
     const end = (e: TouchEvent) => {
@@ -726,6 +760,37 @@ export class Toolbar {
     };
     b.addEventListener('touchend', end);
     b.addEventListener('touchcancel', end);
+  }
+
+  // 方向鍵的一顆：點一下執行一次 step；按住 ARROW_DELAY 之後每 ARROW_REPEAT 執行一次（像實體鍵盤按住不放）。
+  // step 回傳 false（到文件頭尾）時停止連續移動
+  arrowKey(parent: HTMLElement, look: { icon: string; title: I18nKey; text: string; desc: I18nKey }, step: () => boolean): void {
+    let repeated = false;
+    const b = this.button(parent, look, { onClick: () => { if (repeated) { repeated = false; return; } step(); } });
+    if (!b) return;
+    b.classList.add('wm-arrow-key');
+    const win = b.ownerDocument.defaultView || window;
+    let wait = 0; let loop = 0;
+    const stop = (): void => { win.clearTimeout(wait); win.clearInterval(loop); wait = 0; loop = 0; };
+    b.addEventListener('pointerdown', () => {
+      stop(); repeated = false;
+      wait = win.setTimeout(() => {
+        repeated = true;
+        if (!step()) return;
+        loop = win.setInterval(() => { if (!step()) stop(); }, ARROW_REPEAT);
+      }, ARROW_DELAY);
+    });
+    for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) b.addEventListener(ev, stop);
+  }
+
+  // 方向鍵的上下：連續按上下時記住目標欄（經過短的行再回到長的行，還在原本那一欄）；中間游標被別的方式移動過就重新記
+  arrowLine(n: number): boolean {
+    const v = this.view;
+    if (!v) return false;
+    if (v.state.selection !== this.arrowSel) this.padGoalX = null;
+    const ok = this.moveCaretLines(n);
+    this.arrowSel = v.state.selection;
+    return ok;
   }
 
   // 游標往上（n < 0）或往下移 |n| 行：照畫面上的位置找上一行、下一行同一個水平位置的地方。回傳有沒有移動（到文件頭尾時是 false）。

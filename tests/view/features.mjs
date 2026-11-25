@@ -1323,6 +1323,26 @@ await fresh('---\ntags:\n  - 會議\n  - 專案\ndate: 2026-11-16\ndone: false\n
     view.toolbar.padMoved = false;
     // 設定：速度、按住的時間、放大鏡的開關與外觀
     assert(B.padSteps(1).x > B.padSteps(3).x && B.padSteps(3).x > B.padSteps(5).x && B.padSteps('x').x === B.padSteps(3).x && B.padSteps(99).x === B.padSteps(5).x, '速度 1～5：越快走一格要的距離越短，不認得的值用 3');
+    assert(B.padGain(0.05) === 0.5 && B.padGain(5) === 2.2 && B.padGain(0.5) > 0.5 && B.padGain(0.5) < 2.2 && B.padGain(NaN) === 0.5, '加速度：慢慢移動倍數小（一格一格對準），快速滑倍數大');
+    // 同樣拖 60px：慢慢拖（600ms）走的格數比快速一下（20ms）少
+    {
+      const pad3 = document.body.appendChild(document.createElement('button'));
+      view.toolbar.caretPad(pad3);
+      const at = (type, x, ts) => { const pt = [{ identifier: 11, clientX: x, clientY: 0 }]; const e = Object.assign(new Event(type, { bubbles: true, cancelable: true }), { touches: type === 'touchend' ? [] : pt, changedTouches: pt }); Object.defineProperty(e, 'timeStamp', { value: ts }); pad3.dispatchEvent(e); };
+      pm.focus();
+      const keepSel = pm.state.selection;
+      pm.dispatch(pm.state.tr.setSelection(B.TextSelection.atStart(pm.state.doc)));
+      const s0 = pm.state.selection.head;
+      at('touchstart', 100, 0); for (let i = 1; i <= 6; i++) at('touchmove', 100 + i * 10, i * 100); at('touchend', 160, 700);
+      const slowN = pm.state.selection.head - s0;
+      pm.dispatch(pm.state.tr.setSelection(B.TextSelection.atStart(pm.state.doc)));
+      at('touchstart', 100, 1000); at('touchmove', 110, 1005); at('touchmove', 160, 1020); at('touchend', 160, 1030);
+      const fastN = pm.state.selection.head - s0;
+      assert(slowN > 0 && fastN > slowN * 2, '加速度：同樣 60px，慢慢拖走 ' + slowN + ' 格、快速滑走 ' + fastN + ' 格');
+      pad3.remove();
+      pm.dispatch(pm.state.tr.setSelection(keepSel));
+      view.toolbar.padMoved = false;
+    }
     assert(B.padHold(10) === 150 && B.padHold(9999) === 800 && B.padHold('x') === 300 && B.padHold(320) === 300, '按住的時間限制在 150～800，以 50 為單位');
     const LO = B.LOUPE.loupeOptions;
     assert(JSON.stringify(LO()) === JSON.stringify({ scale: 1.6, width: 260, style: 'capsule', info: true }) && LO(1, 1, 'x', false).info === false && LO(9, 9, 'card').scale === 2.5 && LO(9, 9, 'card').width === 180 && LO(9, 9, 'card').style === 'card', '放大鏡的設定值整理：預設膠囊 1.6 倍 260px，超出範圍的收回來');
@@ -1342,11 +1362,13 @@ await fresh('---\ntags:\n  - 會議\n  - 專案\ndate: 2026-11-16\ndone: false\n
     assert(!document.querySelector('.wm-loupe'), '關掉放大鏡：拖曳時不顯示');
     ev2('touchend', 130);
     S0.loupeShow = true; S0.padSpeed = 5;
+    pm.dispatch(pm.state.tr.setSelection(B.TextSelection.atStart(pm.state.doc)));
     const p0 = pm.state.selection.head;
     ev2('touchstart', 100); ev2('touchmove', 130);
     const fast = pm.state.selection.head - p0;
     ev2('touchend', 130);
     S0.padSpeed = 1;
+    pm.dispatch(pm.state.tr.setSelection(B.TextSelection.atStart(pm.state.doc)));
     const p1 = pm.state.selection.head;
     ev2('touchstart', 100); ev2('touchmove', 130);
     const slow = pm.state.selection.head - p1;
