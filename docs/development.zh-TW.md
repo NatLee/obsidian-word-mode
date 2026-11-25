@@ -121,13 +121,13 @@ Word 模式的功能區（`src/toolbar.ts`）與 Markdown、閱讀模式的功�
 | `src/settingsearch.ts` | 設定搜尋的比對與排序：設定名稱、說明、下拉選單的選項、其他語言的名稱與同義詞。純函式。 |
 | `src/colorpicker.ts` | 字型色彩與醒目提示的色彩面板。 |
 | `src/mdbar.ts` | Markdown 與閱讀模式的功能區：每個按鈕對 Markdown 編輯器做什麼。 |
-| `src/statusbar.ts` | 狀態列的內容（字數、存檔狀態、檢視切換、文件屬性、縮放），Word 模式與 Markdown、閱讀模式共用。 |
+| `src/statusbar.ts` | 狀態列的內容（字數、存檔狀態、檢視切換、文件屬性、縮放），Word 模式與 Markdown、閱讀模式共用。手機預設不放狀態列（設定 `phoneStatus`）：文件屬性在標題列右上角，字數統計與閱讀模式在「⋯」選單。 |
 | `src/paths.ts` | 檔案的路徑：狀態列上的顯示，以及「複製路徑」的項目（筆記自己、文件裡連結與圖片指向的檔案）。 |
 | `src/caret.ts` | 自己畫的游標（形狀、閃爍、平滑移動）與設定頁的游標預覽。內建的游標用 CSS 藏起來，輸入法組字時放回來；手機、平板只在自己的游標畫出來時藏（選取的把手跟著 `caret-color`）；手指按著的時候每一格照系統的選取畫，長按拖曳時才會跟 iOS 的放大鏡同步。 |
 | `src/keyrow.ts` | 手機、平板的控制鍵列（Esc、Tab、Ctrl／⌘、Shift、方向鍵、Home、End）。修飾鍵點一下作用一次、連點兩下鎖住；Ctrl 加上打的字改送成鍵盤事件，讓編輯器自己的快速鍵處理。游標由各模式自己移動：`toolbar.ts`（Word 模式）與 `mdbar.ts`（Markdown）各有一個 `keyMove`。 |
 | `src/trackpad.ts` | 工具列當觸控板的手勢（按住一下再拖曳移動游標）、速度與加速度。Word 模式（`toolbar.ts`）、Markdown 工具列（`mdbar.ts`）與 Obsidian 自己的手機工具列（`nativebar.ts`）各自給 hooks 決定怎麼移動游標。 |
 | `src/nativebar.ts` | Markdown 編輯時在 Obsidian 自己的手機工具列加上控制鍵的開關（「切換鍵盤」左邊）、控制鍵列與觸控板。它的 DOM 不是公開 API，找不到時什麼都不做。 |
-| `src/props.ts`、`src/propview.ts` | 文件屬性的值（類型、轉換、讀出文件屬性），以及查看文件屬性的小視窗與固定在上方的屬性列。 |
+| `src/props.ts`、`src/propview.ts` | 文件屬性的值（類型、轉換、讀出文件屬性），以及查看文件屬性的小視窗（手機上是彈出的視窗，`showProps`）與固定在上方的屬性列。 |
 | `src/bubble.ts` | 連結與圖片的浮動工具列。 |
 | `src/tablegrips.ts` | 游標所在表格的列與欄把手（選取整列或整欄並開選單）。 |
 | `src/nodeviews.ts` | 連結、圖片、表格、原文區塊的畫面。 |
