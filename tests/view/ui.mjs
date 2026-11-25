@@ -2659,6 +2659,23 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
   v2.onPaneMenu(menu, 'more-options');
   const titles = menu.items.map(x => x.title);
   assert(titles.some(x => x.startsWith('字數統計：')) && titles.includes('閱讀模式'), '「⋯」選單有字數統計（帶著字數）與閱讀模式：' + titles.join('、'));
+  assert(titles.includes('尋找與取代'), '手機：功能區右邊的放大鏡拿掉了，「⋯」選單有尋找與取代');
+  v2.toolbar.d.outline(document.body.createDiv());
+  assert(document.querySelector('.wm-popup.wm-outline-popup'), '手機：大綱用抽屜（不另外開分頁）');
+  v2.toolbar.closePopup();
+  {
+    // Markdown 模式的大綱：Obsidian 的選單，點標題捲過去
+    let line = null;
+    const fake = {
+      view: { file: new mock.TFile('a.md'), setEphemeralState: st => { line = st.line; } },
+      plugin: { app: { metadataCache: { getFileCache: () => ({ headings: [{ heading: '一', level: 1, position: { start: { line: 0 } } }, { heading: '二', level: 2, position: { start: { line: 5 } } }] }) } } },
+    };
+    B.MarkdownBar.prototype.outlineMenu.call(fake, document.body.createDiv());
+    const items = mock.Menu.last.items;
+    assert(items.map(x => x.title).join('|') === '一|　二', 'Markdown 模式的大綱：選單列出標題，依層級縮排：' + items.map(x => x.title).join('|'));
+    items[1].fn();
+    assert(line === 5, '點標題：捲到那一行');
+  }
   menu.items.find(x => x.title === '閱讀模式').fn();
   assert(e2.plugin.switched === 1, '「⋯」選單的閱讀模式：切換過去');
   v2.peekProperties(v2.propsAction);
@@ -2824,6 +2841,7 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
   assert(css.includes('.wm-kb-compact .wm-toolbar button.wm-tab-switch :is(.wm-tab-text, .wm-tab-switch-arrow) { display: none; }'), '鍵盤開著的精簡功能區：切換分頁的按鈕只留圖示');
   assert(/\.wm-pad-tip \{[^}]*z-index: calc\(var\(--layer-menu, 65\) \+ 1\)/.test(css), '觸控板的說明蓋得過 Obsidian 的手機工具列（--layer-menu）');
   assert(css.includes('.is-phone .modal-container .modal.wm-props-modal { position: fixed;') && css.includes('.wm-kb-up .wm-props-modal .wm-acc { display: flex; }'), '手機的文件屬性視窗貼著鍵盤上緣，擴充列在鍵盤開著時出現');
+  assert(css.includes('body.is-phone .wm-tabs-quick { display: none; }'), '手機：功能區右邊的放大鏡、切換模式拿掉（在右上角與「⋯」選單）');
 }
 
 // ======== 提示框裡獨立一行的方程式：跟外面一樣是方程式區塊，有編輯按鈕（markdown.ts 的 displayMathBlock）========

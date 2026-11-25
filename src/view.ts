@@ -374,7 +374,8 @@ export class WordModeView extends TextFileView {
         wordCount: () => this.openWordCount(),
         comment: () => this.insertComment(),
         foldAll: fold => this.foldAll(fold),
-        outline: b => { if (this.plugin.settings.outlinePlace === 'popup') this.toolbar.openOutlinePopup(b); else void this.plugin.toggleOutline(); },
+        // 手機：大綱是從下面滑上來的抽屜（點一個標題就跳過去），不另外開一個分頁蓋住筆記
+        outline: b => { if (Platform.isPhone || this.plugin.settings.outlinePlace === 'popup') this.toolbar.openOutlinePopup(b); else void this.plugin.toggleOutline(); },
         toggleFullWidth: () => { void this.plugin.setFullWidth(!this.plugin.settings.fullWidth); },
         zoom: d => { this.plugin.setZoom(d === 0 ? 100 : (this.plugin.settings.zoom || 100) + d); },
         settings: () => this.plugin.openSettings(),
@@ -396,6 +397,8 @@ export class WordModeView extends TextFileView {
     menu.addItem(i => i.setTitle(withKey('切換到 Markdown 編輯', 'Mod+E')).setIcon('code-2').setSection('pane').onClick(() => this.plugin.switchToMarkdown(this.leaf)));
     // 手機：原本在畫面下方狀態列的字數統計與閱讀模式
     if (Platform.isPhone) {
+      // 功能區右邊的放大鏡在手機上拿掉了（樣式表），尋找放在這裡；Markdown 模式 Obsidian 的選單本來就有「尋找」
+      menu.addItem(i => i.setTitle(t('尋找與取代')).setIcon('search').setSection('pane').onClick(() => { this.findBar.open(false); this.findBar.showReplace(false); }));
       const count = this.countEl ? (this.countEl.textContent || '').trim() : '';
       menu.addItem(i => i.setTitle(count ? t('字數統計') + t('：') + count : t('字數統計')).setIcon('text').setSection('pane').onClick(() => this.openWordCount()));
       menu.addItem(i => i.setTitle(t('閱讀模式')).setIcon('book-open').setSection('pane').onClick(() => { void this.plugin.switchToMarkdown(this.leaf, 'preview'); }));
