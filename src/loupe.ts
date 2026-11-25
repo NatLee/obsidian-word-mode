@@ -6,6 +6,7 @@ import type { EditorView } from 'prosemirror-view';
 import { NodeSelection } from 'prosemirror-state';
 import type { Node as PMNode, ResolvedPos } from 'prosemirror-model';
 import { el, visibleBottom } from './dom.js';
+import type { CaretShape } from './caret.js';
 import { t } from './i18n.js';
 
 // 鏡片與游標的距離（卡片樣式含指向游標的小尖角）、鏡片離畫面邊緣至少多遠
@@ -15,7 +16,8 @@ const EDGE = 8;
 // 外觀（設定）：膠囊是圓頭的長條、沒有尖角（像 iOS 的放大鏡）；卡片是圓角方框加一個指向游標的小尖角（1.32 以前的樣子）
 export type LoupeStyle = 'capsule' | 'card';
 // info：鏡片外面顯示游標所在的位置（哪一種區塊、第幾個字）
-export interface LoupeOptions { scale: number; width: number; style: LoupeStyle; info: boolean; }
+// caret：鏡片裡游標標記的形狀，跟編輯區的游標一樣（設定；caret.ts）
+export interface LoupeOptions { scale: number; width: number; style: LoupeStyle; info: boolean; caret?: CaretShape; }
 // 位置資訊跟鏡片的距離。資訊的高度不固定（放不下一行時換行），每次量實際的高度
 const INFO_GAP = 6;
 // 位置資訊每一段的角色：edge 是走到文件頭尾的提示、where 是哪一種段落、pos 是第幾個字、side 是旁邊緊貼的物件、
@@ -125,6 +127,7 @@ export class Loupe {
     // 四邊的淡出（蓋在內容上面的一層漸層）：上下露出一點的鄰行、左右被切到的字是淡出去的
     el('div', 'wm-loupe-fade', lens);
     this.mark = el('div', 'wm-loupe-caret', lens);
+    this.mark.dataset.shape = this.opts.caret || 'line';
     // 位置資訊：在鏡片外面（鏡片會裁切），放在離游標遠的那一邊
     this.info = this.opts.info ? el('div', 'wm-loupe-info', this.dom) : null;
     // 游標移到畫面外時編輯區會捲動（有時晚一格才捲）：捲了就重新對位，不然鏡片留在原地、跟游標分開
@@ -252,7 +255,7 @@ export class Loupe {
     this.dom.style.transform = 'translate3d(' + Math.round(left) + 'px,' + Math.round(top) + 'px,0)';
     this.body.style.transform = 'translate3d(' + (markX - (c.left - r.left) * SCALE).toFixed(1) + 'px,' + (height / 2 - ((c.top + c.bottom) / 2 - r.top) * SCALE).toFixed(1) + 'px,0) scale(' + SCALE + ')';
     this.mark.style.transform = 'translate3d(' + markX.toFixed(1) + 'px,0,0)';
-    this.mark.style.height = Math.round(lineH * SCALE) + 'px';
+    this.mark.style.setProperty('--wm-mark-h', Math.round(lineH * SCALE) + 'px');
     this.tail.style.transform = 'translate3d(' + Math.max(TAIL_INSET, Math.min(markX, WIDTH - TAIL_INSET)).toFixed(1) + 'px,0,0) rotate(45deg)';
     this.centerInfo(win, left, WIDTH);
     this.dom.classList.add('is-shown');

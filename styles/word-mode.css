@@ -2288,3 +2288,8 @@ button.wm-kb-hide { display: none; }
 @media (prefers-reduced-motion: reduce) { .wm-loupe.is-edge .wm-loupe-lens { animation: none; } }
 .wm-loupe.is-object { height: 0; }
 .wm-loupe.is-object .wm-loupe-info { top: 0; bottom: auto; max-width: 100%; justify-content: flex-start; }
+/* 鏡片裡的游標標記：顏色與形狀跟編輯區的游標一樣（loupe.ts 寫上 data-shape 與高度 --wm-mark-h；顏色是 .wm-view 上的 --wm-caret-paint） */
+.wm-loupe .wm-loupe-caret { height: var(--wm-mark-h, 20px); background: var(--wm-caret-paint, var(--interactive-accent)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--wm-caret-paint, var(--interactive-accent)) 22%, transparent); }
+.wm-loupe .wm-loupe-caret[data-shape="thick"] { left: -2px; width: 4px; }
+.wm-loupe .wm-loupe-caret[data-shape="block"] { left: 0; width: calc(var(--wm-mark-h, 20px) * .5); background: color-mix(in srgb, var(--wm-caret-paint, var(--interactive-accent)) 40%, transparent); box-shadow: none; }
+.wm-loupe .wm-loupe-caret[data-shape="underline"] { left: 0; top: calc(11px + var(--wm-mark-h, 20px) - 3px); width: calc(var(--wm-mark-h, 20px) * .5); height: 3px; box-shadow: none; }

@@ -3,6 +3,7 @@
 // 版面可在設定中調整：分頁、全部排成一行（可左右捲動）、全部自動換行；按鈕可只顯示圖示或加上文字；分頁與群組可隱藏
 import * as C from './commands.js';
 import { Loupe, loupeOptions } from './loupe.js';
+import { caretLook } from './caret.js';
 import { undo, redo } from 'prosemirror-history';
 import { schema } from './schema.js';
 import { t, key } from './i18n.js';
@@ -52,6 +53,8 @@ export interface ToolbarContext {
     loupeWidth?: number;
     loupeStyle?: string;
     loupeInfo?: boolean;
+    // 放大鏡裡的游標標記跟編輯區的游標同一個形狀
+    caretShape?: string;
   };
   // 一開始顯示的分頁（上次離開時的分頁）
   initialTab: TabId;
@@ -700,7 +703,7 @@ export class Toolbar {
         this.closePopup();
         const S = this.ctx.settings || {};
         ({ x: STEP_X, y: STEP_Y } = padSteps(S.padSpeed));
-        if (S.loupeShow !== false) loupe = new Loupe(v, loupeOptions(S.loupeZoom, S.loupeWidth, S.loupeStyle, S.loupeInfo));
+        if (S.loupeShow !== false) loupe = new Loupe(v, { ...loupeOptions(S.loupeZoom, S.loupeWidth, S.loupeStyle, S.loupeInfo), caret: caretLook(S.caretShape, null, null).shape });
       }
       if (e.cancelable) e.preventDefault();
       const nx = Math.trunc(dx / STEP_X); const ny = Math.trunc(dy / STEP_Y);

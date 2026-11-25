@@ -2089,25 +2089,32 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
   v.destroy();
   assert(!host.querySelector('.wm-caret') && !host.classList.contains('wm-caret-on'), '拿掉外掛：游標的元素與類別都清掉');
 
-  // 手機：按住不動就交回系統的游標，放開再換回來；手指移動（捲動）不算
+  // 手機：手指按著時照系統的選取（DOM 的選取）畫，不等編輯器（長按拖曳時 touch.ts 不讓編輯器讀選取）；放開一會兒後回到照編輯器畫
   const m = make(true);
   const el2 = host.querySelector('.wm-caret');
   const touch = (type, x, y) => m.dom.dispatchEvent(Object.assign(new Event(type, { bubbles: true }), { touches: type === 'touchend' ? [] : [{ clientX: x, clientY: y }] }));
+  const caretX = () => parseFloat(el2.style.getPropertyValue('--wm-caret-x'));
+  const domAt = pos => { const p = m.domAtPos(pos); document.getSelection().collapse(p.node, p.offset); };
+  m.dispatch(m.state.tr.setSelection(TextSelection.create(m.state.doc, 2)));
   touch('touchstart', 50, 50);
-  await sleep(200);
-  assert(el2.classList.contains('is-shown'), '按下還不到長按：自己的游標還在（點一下不會閃一下系統的游標）');
-  await sleep(250);
-  assert(!el2.classList.contains('is-shown') && !host.classList.contains('wm-caret-on'), '長按：交回系統的游標（系統的放大鏡裡畫的是它）');
-  m.dispatch(m.state.tr.setSelection(TextSelection.create(m.state.doc, 4)));
-  assert(!el2.classList.contains('is-shown'), '長按中選取改變：仍然用系統的游標');
-  touch('touchend', 50, 50);
+  domAt(4);
   await frame();
-  assert(el2.classList.contains('is-shown') && host.classList.contains('wm-caret-on'), '放開：換回自己的游標');
-  touch('touchstart', 50, 50);
-  touch('touchmove', 50, 80);
-  await sleep(450);
-  assert(el2.classList.contains('is-shown'), '手指移動（捲動）：不算長按');
-  touch('touchend', 50, 80);
+  assert(caretX() === 40 && el2.classList.contains('is-shown'), '按著：游標照系統的選取畫：' + caretX());
+  assert(!el2.classList.contains('is-smooth'), '跟著手指時不滑動（滑過去會落後）');
+  domAt(5);
+  await sleep(500);
+  assert(caretX() === 50 && el2.classList.contains('is-shown') && host.classList.contains('wm-caret-on'), '長按很久：還是自己的游標，不會換回系統的樣子：' + caretX());
+  m.dispatch(m.state.tr.setMeta('別的外掛', true));
+  assert(caretX() === 50, '按著時編輯器的更新不會把游標拉回舊的位置');
+  const s = document.getSelection(); const p0 = m.domAtPos(3); const p1 = m.domAtPos(5);
+  s.setBaseAndExtent(p0.node, p0.offset, p1.node, p1.offset);
+  await frame();
+  assert(!el2.classList.contains('is-shown') && !host.classList.contains('wm-caret-on'), '按著時變成一段範圍：不畫，系統的把手照常顯示');
+  domAt(5);
+  touch('touchend', 50, 50);
+  m.dispatch(m.state.tr.setSelection(TextSelection.create(m.state.doc, 6)));
+  await sleep(500);
+  assert(caretX() === 60, '放開一會兒後：回到照編輯器的選取畫：' + caretX());
   m.destroy();
   host.remove();
   assert(view.contentEl.classList.contains('wm-caret-touch') === false, '電腦：沒有 wm-caret-touch（一直藏內建的游標）');
@@ -2194,6 +2201,21 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
   assert(total === rowsIn, '1.13：每一列都在某個群組裡（小節標題不算一列）：' + total + '／' + rowsIn);
   const css = readFileSync(new URL('../../styles/word-mode.css', import.meta.url), 'utf8');
   assert(css.includes('.setting-group.wm-set-nav ~ .setting-group.wm-set-sec.wm-set-first {'), '只有每一類的第一個群組貼近分類列，小節之間照 Obsidian 的間距');
+}
+
+
+// ======== 放大鏡裡的游標標記跟編輯區的游標同一個形狀 ========
+{
+  await fresh('第一段文字');
+  const pm = view.pm;
+  pm.dispatch(pm.state.tr.setSelection(TextSelection.create(pm.state.doc, 2)));
+  const lp = new B.LOUPE.Loupe(pm, { ...B.LOUPE.loupeOptions(), caret: 'block' });
+  const mark = document.querySelector('.wm-loupe-caret');
+  assert(mark.dataset.shape === 'block', '方塊游標：鏡片裡也是方塊');
+  lp.destroy();
+  const { readFileSync } = await import('node:fs');
+  const css = readFileSync(new URL('../../styles/word-mode.css', import.meta.url), 'utf8');
+  assert(['thick', 'block', 'underline'].every(k => css.includes('.wm-loupe .wm-loupe-caret[data-shape="' + k + '"]')) && css.includes('.wm-loupe .wm-loupe-caret { height: var(--wm-mark-h'), '標記的形狀與高度在樣式表');
 }
 
 finish();
