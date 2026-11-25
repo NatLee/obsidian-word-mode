@@ -2307,12 +2307,12 @@ button.wm-kb-hide { display: none; }
 .wm-phone .wm-tabs-quick .wm-quick-keys, .is-phone .wm-mdbar .wm-tabs-quick .wm-quick-keys { display: none; }
 
 /* ---------- 控制鍵列（keyrow.ts；手機、平板，Word 模式與 Markdown 模式共用）----------
-   Esc、Tab、Ctrl（⌘）、Shift、方向鍵、Home、End 排成一列，左右捲動。開關有兩顆：鍵盤開著時在「收起鍵盤」左邊
-   （跟它一樣的圓形按鈕，按鈕列多讓出一顆的位置），鍵盤收著時在分頁列右邊的快速按鈕裡。
+   Esc、Tab、Ctrl（⌘）、Shift、方向鍵、Home、End 排成一列，左右捲動。開關在「收起鍵盤」左邊（跟它一樣的圓形按鈕，
+   按鈕列多讓出一顆的位置）。兩者都只在螢幕鍵盤開著時出現（body 的 wm-kb-up）：鍵盤收著時沒有打字的地方，這些鍵沒有作用。
    控制鍵列不在功能區裡面（放在裡面會把「收起鍵盤」的位置擠歪）：Word 模式放在功能區的同一個容器，
    功能區在下方時排在功能區上面；Markdown 模式由 mdbar.ts 放在工具列旁邊 */
 .wm-keyrow { display: none; }
-.wm-keyrow.is-open { display: flex; flex: 0 0 auto; align-items: center; gap: 6px; padding: 5px 8px; overflow-x: auto; overscroll-behavior-x: contain; --scrollbar-native-width: none; background: var(--background-primary); border-top: 1px solid var(--background-modifier-border); user-select: none; }
+.wm-kb-up .wm-keyrow.is-open { display: flex; flex: 0 0 auto; align-items: center; gap: 6px; padding: 5px 8px; overflow-x: auto; overscroll-behavior-x: contain; --scrollbar-native-width: none; background: var(--background-primary); border-top: 1px solid var(--background-modifier-border); user-select: none; }
 .wm-keyrow::-webkit-scrollbar { display: none; }
 .wm-keyrow button.wm-key { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; min-width: 42px; height: 34px; padding: 0 10px; border: 0; border-radius: 8px; background: var(--interactive-normal); box-shadow: none; color: var(--text-normal); font-size: var(--font-ui-small); font-weight: 600; }
 .wm-keyrow button.wm-key svg { width: 18px; height: 18px; }
@@ -2334,8 +2334,6 @@ button.wm-keys-btn { display: none; }
 .wm-kb-up .wm-ribbon > button.wm-keys-btn:active { transform: scale(.92); }
 .wm-kb-up .wm-ribbon.has-keys > .wm-toolbar { padding-inline-end: 102px; }
 .wm-kb-up .wm-kb-compact .wm-ribbon.has-keys > .wm-toolbar { margin-inline-end: 102px; padding-inline-end: 4px; }
-/* 鍵盤開著時分頁列裡的那顆藏起來（改用上面那顆） */
-.wm-kb-up .wm-tabs-quick .wm-keys-quick { display: none; }
 
 /* ---------- 手機的 Markdown／閱讀模式：工具列下方的狀態列（mdbar.ts 的 syncStatus）----------
    跟 Word 模式同一個位置、同樣的內容；外層有 wm-phone，Word 模式手機狀態列的樣式一起套上。
@@ -2344,14 +2342,34 @@ button.wm-keys-btn { display: none; }
 .is-phone .wm-mdbar.wm-mdbar-bottom.has-status { margin-bottom: 0; }
 .wm-kb-up .wm-mdbar-status { display: none; }
 
-/* ---------- 表格上下的「＋ 段落」（tablegrips.ts）----------
-   游標在表格裡、而且那一邊沒有地方可以打字時才出現。不佔版面（高度 0），按鈕壓在表格的上緣或下緣、置中 */
-.wm-editor .wm-table-para { position: relative; height: 0; z-index: 2; }
-.wm-editor .wm-table-para button.wm-table-para-btn { position: absolute; left: 50%; transform: translateX(-50%); height: 24px; padding: 0 10px; border: 1px solid hsla(var(--wm-accent-hsl), .45); border-radius: 12px; background: var(--background-primary); box-shadow: var(--wm-shadow-pop); color: var(--text-accent); font-family: var(--font-interface); font-size: var(--font-ui-smaller); line-height: 22px; white-space: nowrap; cursor: pointer; }
-.wm-editor .wm-table-para.is-before button.wm-table-para-btn { bottom: -4px; }
-.wm-editor .wm-table-para.is-after button.wm-table-para-btn { top: -4px; }
+/* ---------- 表格上下的「＋ 段落」（nodeviews.ts 的 WordTableView；tablegrips.ts 決定哪一邊要有）----------
+   按鈕跟著表格的外框：上方的在表格外框上面、下方的在下面，都靠開頭那一邊（右上角是表格自己的工具按鈕，不會疊在一起）。
+   只在那一邊沒有文字時出現，而且那些地方平常就留好空間（見下面），按鈕不會蓋到字，游標進出表格時版面也不會跳 */
+.wm-editor .wm-table > .wm-table-para { display: none; position: absolute; inset-inline-start: 0; z-index: 3; }
+.wm-editor .wm-table.has-para-before > .wm-table-para.is-before, .wm-editor .wm-table.has-para-after > .wm-table-para.is-after { display: block; }
+.wm-editor .wm-table > .wm-table-para.is-before { bottom: calc(100% + 2px); }
+.wm-editor .wm-table > .wm-table-para.is-after { top: calc(100% + 4px); }
+.wm-editor .wm-table-para button.wm-table-para-btn { display: block; height: 24px; padding: 0 10px; border: 1px solid hsla(var(--wm-accent-hsl), .45); border-radius: 12px; background: var(--background-primary); box-shadow: var(--wm-shadow-pop); color: var(--text-accent); font-family: var(--font-interface); font-size: var(--font-ui-smaller); line-height: 22px; white-space: nowrap; cursor: pointer; }
 .wm-mobile .wm-editor .wm-table-para button.wm-table-para-btn { height: 30px; padding: 0 14px; border-radius: 15px; line-height: 28px; font-size: var(--font-ui-small); }
-.wm-editor .wm-table-para button.wm-table-para-btn:hover { background: hsla(var(--wm-accent-hsl), .12); }
-/* 手機的分頁列：右邊的快速按鈕（尋找、切換模式、控制鍵的開關）黏在右端，分頁多（例如出現「表格」情境分頁）時從它底下捲過去，
-   開關一直按得到。左邊一點陰影，看得出底下還有分頁 */
+@media (hover: hover) { .wm-editor .wm-table-para button.wm-table-para-btn:hover { background: hsla(var(--wm-accent-hsl), .12); } }
+/* 會出現「＋ 段落」的地方（那一邊是另一張表、程式碼、方程式、分隔線、文件屬性，或是文件、提示框、引文的頭尾）一律留出空間，
+   按鈕落在空白裡，不會壓到旁邊的東西；旁邊是文字時按鈕不會出現，不用留 */
+.wm-editor :is(.wm-table, .wm-codeblock, .wm-raw-block, hr, .wm-props) + .wm-table, .wm-editor .wm-table + :is(.wm-codeblock, .wm-raw-block, hr) { margin-top: 40px; }
+.wm-editor > .wm-table:first-child, .wm-editor :is(blockquote, .callout-content) > .wm-table:first-child { margin-top: 36px; }
+.wm-editor > .wm-table:last-child, .wm-editor :is(blockquote, .callout-content) > .wm-table:last-child { margin-bottom: 40px; }
+/* 手機的表格工具按鈕在表格右上方：引文開頭的表格跟提示框一樣多留一點，不會疊到引文外面的東西 */
+.wm-mobile .wm-editor blockquote > .wm-table:first-child { margin-top: 52px; }
+/* Word 模式裡提示框不裁切：表格的工具按鈕、「＋ 段落」會超出內容的範圍，被 Obsidian 的 overflow: hidden 切掉；
+   .callout-content 的 overflow-x: auto 也會讓它們冒出內層的上下捲軸。表格自己會左右捲（.tableWrapper），不需要外層捲 */
+.wm-editor .callout.wm-callout, .wm-editor .callout.wm-callout > .callout-content { overflow: visible; }
+/* 手機的分頁列：右邊的快速按鈕（尋找、切換模式）黏在右端，分頁多（例如出現「表格」情境分頁）時從它底下捲過去，
+   一直按得到。左邊一點陰影，看得出底下還有分頁 */
 .wm-mobile .wm-tabs > .wm-tabs-quick, .wm-mobile.wm-ribbon .wm-tabs > .wm-tabs-quick { position: sticky; inset-inline-end: 0; z-index: 1; padding-inline-start: 4px; background: var(--background-primary); box-shadow: -10px 0 10px -8px rgba(0, 0, 0, .25); }
+
+/* ---------- Obsidian 自己的手機工具列（nativebar.ts）：控制鍵 ----------
+   控制鍵列在 Obsidian 工具列（.mobile-toolbar，position: absolute）的正上方；開著時把 Obsidian 留給工具列的空間加高一列，
+   編輯區的最後幾行不會被蓋住。開關是跟 Obsidian「切換鍵盤」一樣的圓形按鈕（Obsidian 的類別），亮起來時用強調色 */
+.mobile-toolbar > .wm-keyrow.wm-native-keyrow { position: absolute; left: 0; right: 0; bottom: 100%; z-index: 1; }
+body.wm-kb-up.wm-native-keys-open .mobile-toolbar-spacer { height: calc(var(--mobile-toolbar-height, 48px) + 46px); }
+.mobile-toolbar-floating-options.wm-native-keys { margin-inline-end: 6px; }
+.mobile-toolbar-floating-options.wm-native-keys.is-active .mobile-toolbar-option { color: var(--text-accent); }

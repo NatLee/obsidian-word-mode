@@ -303,7 +303,7 @@ export class RibbonShell {
   declare pickTab: (id: AnyTabId) => void;
   // 觸控裝置：功能（按鈕的 title）→ 按鈕，給「往上滑」找另一個功能的按鈕用；桌機是 null
   declare byTitle: Map<string, HTMLButtonElement> | null;
-  // 控制鍵列與它的開關（鍵盤開著時在「收起鍵盤」左邊、鍵盤收著時在分頁列右邊的快速按鈕裡）
+  // 控制鍵列與它的開關（在「收起鍵盤」左邊，跟它一樣只在螢幕鍵盤開著時出現）
   declare keyRow: KeyRow | null;
   declare keyToggles: HTMLButtonElement[];
   declare keyOpts: ShellOptions['keys'];
@@ -584,12 +584,10 @@ export class RibbonShell {
     if (tabRow) el('div', 'wm-tabs-spacer', this.tabsEl);
     const quick = el('div', 'wm-tabs-quick', this.all || (tabRow ? this.tabsEl : this.bar));
     this.tabsEl.classList.toggle('is-hidden', !tabRow);
-    // 鍵盤收著時控制鍵的開關放在這裡（鍵盤開著時這顆藏起來，改用「收起鍵盤」左邊那顆）
-    if (this.keyRow) this.keyToggle(quick, 'wm-btn wm-keys-quick');
     return quick;
   }
 
-  // 控制鍵的開關（兩顆做同一件事）。按鈕不能搶走打字位置的焦點
+  // 控制鍵的開關。按鈕不能搶走打字位置的焦點
   keyToggle(parent: HTMLElement, cls: string): HTMLButtonElement {
     const b = el('button', cls, parent);
     b.type = 'button';
@@ -598,7 +596,7 @@ export class RibbonShell {
     keepFocus(b);
     b.addEventListener('click', e => { e.preventDefault(); this.setKeysOpen(!(this.keyRow && this.keyRow.el.classList.contains('is-open')), true); });
     this.keyToggles.push(b);
-    // 晚建立的這顆（分頁列裡的，finish() 才建立）照目前的狀態亮起來
+    // 照目前的狀態亮起來
     const open = !!this.keyRow && this.keyRow.el.classList.contains('is-open');
     b.classList.toggle('is-active', open);
     b.setAttribute('aria-pressed', open ? 'true' : 'false');

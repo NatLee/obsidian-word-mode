@@ -2395,17 +2395,21 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
   const shell = new B.RibbonShell(root, { side: 'word', settings: {}, isMobile: true, icon: () => {}, openMenu: () => {}, pickTab: () => {},
     keys: { list: ['left', 'right'], open: false, setOpen: v => { saved = v; }, move: () => true, mount: r => place.appendChild(r) } });
   const quick = shell.finish();
-  const toggles = [root.querySelector('button.wm-keys-btn'), quick.querySelector('button.wm-keys-quick')];
-  assert(toggles.every(Boolean) && place.querySelector('.wm-keyrow') && !place.querySelector('.wm-keyrow.is-open') && root.classList.contains('has-keys'), '兩顆開關（鍵盤旁、分頁列右邊），控制鍵列放在功能區外面，一開始關著');
-  toggles[1].click();
-  assert(place.querySelector('.wm-keyrow.is-open') && saved === true && toggles.every(b => b.classList.contains('is-active')), '按開關：展開控制鍵列、兩顆開關一起亮、記進設定');
+  const toggles = [root.querySelector('button.wm-keys-btn')];
+  assert(toggles.every(Boolean) && !quick.querySelector('.wm-keys-quick') && place.querySelector('.wm-keyrow') && !place.querySelector('.wm-keyrow.is-open') && root.classList.contains('has-keys'), '開關只在「收起鍵盤」旁邊（分頁列裡沒有），控制鍵列放在功能區外面，一開始關著');
+  const { readFileSync: rf } = await import('node:fs');
+  const kcss = rf(new URL('../../styles/word-mode.css', import.meta.url), 'utf8');
+  assert(kcss.includes('.wm-kb-up .wm-keyrow.is-open { display: flex;') && kcss.includes('button.wm-keys-btn { display: none; }'), '控制鍵列與開關只在螢幕鍵盤開著時出現（鍵盤收著時沒有打字的地方）');
+  toggles[0].click();
+  assert(place.querySelector('.wm-keyrow.is-open') && saved === true && toggles.every(b => b.classList.contains('is-active')), '按開關：展開控制鍵列、開關亮起來、記進設定');
   toggles[0].click();
   assert(!place.querySelector('.wm-keyrow.is-open') && saved === false, '再按一下：收起來');
   shell.destroy();
   assert(!place.querySelector('.wm-keyrow'), '功能區拿掉：控制鍵列一起拿掉');
   const reopened = new B.RibbonShell(document.body.createDiv(), { side: 'md', settings: {}, isMobile: true, icon: () => {}, openMenu: () => {}, pickTab: () => {}, keys: { list: ['left'], open: true, setOpen() {}, move: () => true, mount: r => place.appendChild(r) } });
-  const q2 = reopened.finish().querySelector('.wm-keys-quick');
-  assert(q2.classList.contains('is-active') && place.querySelector('.wm-keyrow.is-open'), '上次開著：重建後控制鍵列開著，分頁列那顆開關也亮著');
+  reopened.finish();
+  const q2 = place.parentElement ? document.querySelector('.wm-keys-btn.is-active') : null;
+  assert(q2 && place.querySelector('.wm-keyrow.is-open'), '上次開著：重建後控制鍵列開著，開關亮著');
   reopened.destroy();
   const desk = new B.RibbonShell(document.body.createDiv(), { side: 'word', settings: {}, isMobile: false, icon: () => {}, openMenu: () => {}, pickTab: () => {}, keys: { list: ['left'], open: true, setOpen() {}, move: () => true, mount() {} } });
   assert(!desk.keyRow, '電腦：不放控制鍵列');
@@ -2512,23 +2516,116 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
   await fresh('| a |\n| --- |\n| 1 |\n\n| b |\n| --- |\n| 2 |\n\n後面');
   const pm = view.pm;
   const inCell = text => { let p = -1; pm.state.doc.descendants((n, pos) => { if (p < 0 && n.isText && n.text === text) p = pos + 1; }); pm.dispatch(pm.state.tr.setSelection(TextSelection.create(pm.state.doc, p))); };
-  const btns = () => [...pm.dom.querySelectorAll('.wm-table-para')].map(e => e.classList.contains('is-before') ? 'before' : 'after').join();
+  // 按鈕在每張表格裡，表格加上 has-para-before／has-para-after 才顯示（樣式表）
+  const btns = () => [...pm.dom.querySelectorAll('.wm-table')].flatMap(e => [e.classList.contains('has-para-before') ? 'before' : '', e.classList.contains('has-para-after') ? 'after' : '']).filter(Boolean).join();
   inCell('1');
   assert(btns() === 'before,after', '第一張表：上面是文件開頭、下面緊接著另一張表，兩邊都有：' + btns());
   inCell('2');
   assert(btns() === 'before', '第二張表：上面是表格才有；下面是段落，點那裡就能打字：' + btns());
   pm.dispatch(pm.state.tr.setSelection(TextSelection.atEnd(pm.state.doc)));
   assert(btns() === '', '游標不在表格裡：不顯示');
+  await fresh('| a |\n| --- |\n| 1 |\n\n\x60\x60\x60js\nx\n\x60\x60\x60\n');
   inCell('1');
-  const after = pm.dom.querySelector('.wm-table-para.is-after button');
+  assert(btns() === 'before,after', '下面是程式碼區塊：也有「＋ 段落」（在程式碼區塊裡打的不是段落）：' + btns());
+  await fresh('| a |\n| --- |\n| 1 |\n\n| b |\n| --- |\n| 2 |\n\n後面');
+  inCell('1');
+  const after = pm.dom.querySelector('.wm-table.has-para-after .wm-table-para.is-after button');
   assert(after.getAttribute('aria-label') === '在表格下方插入段落' && after.textContent === '＋ 段落', '按鈕寫「＋ 段落」，螢幕閱讀器念得出是哪一邊');
   after.click();
   const kids = []; pm.state.doc.forEach(n => kids.push(n.type.name + (n.content.size ? '' : '(空)')));
   assert(kids.join() === 'table,paragraph(空),table,paragraph' && pm.state.selection.$head.parent.type.name === 'paragraph' && pm.state.selection.$head.parent.content.size === 0,
     '按下方的「＋ 段落」：兩張表中間多一個空段落，游標放進去：' + kids.join());
   inCell('1');
-  pm.dom.querySelector('.wm-table-para.is-before button').click();
+  pm.dom.querySelector('.wm-table.has-para-before .wm-table-para.is-before button').click();
   assert(pm.state.doc.firstChild.type.name === 'paragraph' && pm.state.selection.$head.parent === pm.state.doc.firstChild, '按上方的「＋ 段落」：表格上面多一個段落');
+}
+
+
+// ======== 提示框、引文裡的表格：工具按鈕與「＋ 段落」不被裁掉、不冒出內層捲軸 ========
+{
+  const { readFileSync } = await import('node:fs');
+  const css = readFileSync(new URL('../../styles/word-mode.css', import.meta.url), 'utf8');
+  assert(css.includes('.wm-editor .callout.wm-callout, .wm-editor .callout.wm-callout > .callout-content { overflow: visible; }'), 'Word 模式的提示框不裁切（Obsidian 的 overflow: hidden／overflow-x: auto 會切掉按鈕、冒出上下捲軸）');
+  assert(css.includes('.wm-editor :is(.wm-table, .wm-codeblock, .wm-raw-block, hr, .wm-props) + .wm-table, .wm-editor .wm-table + :is(.wm-codeblock, .wm-raw-block, hr) { margin-top: 40px; }') && css.includes('.wm-editor > .wm-table:last-child, .wm-editor :is(blockquote, .callout-content) > .wm-table:last-child { margin-bottom: 40px; }'), '需要「＋ 段落」的地方平常就留好空間（進出表格時版面不跳）');
+  await fresh('> [!tip] 提示\n> | a |\n> | --- |\n> | 1 |\n\n> | b |\n> | --- |\n> | 2 |\n\n後面');
+  const pm = view.pm;
+  const go = text => { let p = -1; pm.state.doc.descendants((n, pos) => { if (p < 0 && n.isText && n.text === text) p = pos + 1; }); pm.dispatch(pm.state.tr.setSelection(TextSelection.create(pm.state.doc, p))); };
+  go('1');
+  const t1 = pm.dom.querySelector('.callout .wm-table');
+  assert(t1.classList.contains('has-para-before') && t1.classList.contains('has-para-after'), '提示框裡只有一張表：上下都沒地方打字，兩邊都有「＋ 段落」');
+  t1.querySelector('.wm-table-para.is-after button').click();
+  const callout = pm.state.doc.firstChild;
+  assert(callout.lastChild.type.name === 'paragraph' && pm.state.selection.$head.parent === callout.lastChild, '提示框裡按下方的「＋ 段落」：段落加在提示框裡、表格後面');
+  go('2');
+  const t2 = pm.dom.querySelector('blockquote .wm-table');
+  assert(t2.classList.contains('has-para-before') && t2.classList.contains('has-para-after'), '引文裡只有一張表：上下都有');
+}
+
+
+// ======== Markdown 模式：Obsidian 自己的手機工具列加上控制鍵與觸控板（nativebar.ts），我們的工具列也能當觸控板 ========
+{
+  const keep = { mobile: mock.Platform.isMobile, open: plugin.settings.keyRowOpen, hold: plugin.settings.padHold };
+  mock.Platform.isMobile = true;
+  // 照 Obsidian 1.15 的手機工具列做一份 DOM
+  const w = document.body.createDiv('mobile-toolbar');
+  const container = w.createDiv('mobile-toolbar-options-container');
+  const list = container.createDiv('mobile-toolbar-options-list-container mod-raised');
+  list.createDiv('mobile-toolbar-options-list').createDiv('mobile-toolbar-option');
+  const kbBtn = container.createDiv('mobile-toolbar-floating-options mod-raised');
+  kbBtn.createDiv('mobile-toolbar-option');
+  // 假的 Obsidian 編輯器：兩行字
+  const lines = ['hello world', 'second line'];
+  let anchor = { line: 0, ch: 2 }; let head = { line: 0, ch: 2 };
+  const off = p => p.line === 0 ? p.ch : lines[0].length + 1 + p.ch;
+  const pos = o => o <= lines[0].length ? { line: 0, ch: o } : { line: 1, ch: o - lines[0].length - 1 };
+  const ed = {
+    getCursor: w2 => w2 === 'anchor' ? anchor : head, getLine: n => lines[n], lastLine: () => 1,
+    posToOffset: off, offsetToPos: pos, somethingSelected: () => false, hasFocus: () => true,
+    setCursor: p => { anchor = head = p; }, setSelection: (a, h) => { anchor = a; head = h; },
+    exec: c => { if (c === 'goDown') anchor = head = { line: 1, ch: head.ch }; },
+  };
+  const fakePlugin = { app: { mobileToolbar: { wrapperEl: w }, workspace: { activeEditor: { editor: ed }, getActiveViewOfType: () => null } }, settings: plugin.settings, saveSettings() {} };
+  plugin.settings.keyRowOpen = false;
+  const nb = new B.NATIVE.NativeBar(fakePlugin);
+  nb.sync();
+  const toggle = container.querySelector('.wm-native-keys');
+  assert(toggle && toggle.nextElementSibling === kbBtn && toggle.classList.contains('mobile-toolbar-floating-options') && toggle.querySelector('.mobile-toolbar-option[role="button"]'),
+    'Obsidian 的工具列：控制鍵的開關是跟「切換鍵盤」一樣的圓形按鈕，放在它左邊');
+  const row = w.querySelector('.wm-keyrow.wm-native-keyrow');
+  assert(row && !row.classList.contains('is-open') && list.dataset.wmPad === 'true', '控制鍵列放在 Obsidian 的工具列上（一開始關著）；按鈕列裝上觸控板');
+  toggle.querySelector('.mobile-toolbar-option').click();
+  assert(row.classList.contains('is-open') && toggle.classList.contains('is-active') && document.body.classList.contains('wm-native-keys-open') && plugin.settings.keyRowOpen === true,
+    '按開關：展開控制鍵列、記進設定，Obsidian 留給工具列的空間加高（編輯區不被蓋住）');
+  row.querySelector('.wm-key.is-right').click();
+  assert(head.ch === 3, '控制鍵在 Obsidian 的編輯器裡移動游標');
+  // 觸控板：在 Obsidian 的按鈕列按住一下再拖
+  plugin.settings.padHold = 150;
+  const t = (type, x) => { const pt = [{ identifier: 3, clientX: x, clientY: 0 }]; list.dispatchEvent(Object.assign(new Event(type, { bubbles: true, cancelable: true }), { touches: type === 'touchend' ? [] : pt, changedTouches: pt })); };
+  const before = off(head);
+  t('touchstart', 100); await sleep(250); t('touchmove', 112); t('touchmove', 170); t('touchend', 170);
+  assert(off(head) > before, '在 Obsidian 的按鈕列上按住再拖：游標往後移（' + before + ' → ' + off(head) + '）');
+  nb.sync();
+  assert(container.querySelectorAll('.wm-native-keys').length === 1, '重複檢查：不會多裝一份');
+  nb.refresh();
+  assert(container.querySelectorAll('.wm-native-keys').length === 1 && w.querySelectorAll('.wm-native-keyrow').length === 1, '設定改了：拿掉重裝');
+  nb.remove();
+  assert(!container.querySelector('.wm-native-keys') && !w.querySelector('.wm-keyrow') && !document.body.classList.contains('wm-native-keys-open'), '停用外掛：加進去的東西都拿掉');
+  w.remove();
+
+  // 我們自己的 Markdown 工具列（打字時不讓給 Obsidian 的時候）也是觸控板
+  const containerEl = document.body.createDiv();
+  const contentEl = containerEl.createDiv('view-content');
+  anchor = head = { line: 0, ch: 2 };
+  const md = { containerEl, contentEl, leaf: {}, mode: 'source', getMode() { return this.mode; }, editor: ed, getState() { return {}; }, async setState(st) { this.mode = st.mode; } };
+  const bar = new B.MarkdownBar(plugin, md);
+  const barEl = bar.shell.bar;
+  const t2 = (type, x) => { const pt = [{ identifier: 4, clientX: x, clientY: 0 }]; barEl.dispatchEvent(Object.assign(new Event(type, { bubbles: true, cancelable: true }), { touches: type === 'touchend' ? [] : pt, changedTouches: pt })); };
+  t2('touchstart', 100); await sleep(250); t2('touchmove', 112); t2('touchmove', 170); t2('touchend', 170);
+  assert(off(head) > 2 && bar.padMoved, 'Markdown 模式的工具列：按住再拖移動游標，放開後那一下點擊不開選單');
+  bar.destroy();
+  containerEl.remove();
+  Object.assign(plugin.settings, { keyRowOpen: keep.open, padHold: keep.hold });
+  mock.Platform.isMobile = keep.mobile;
 }
 
 finish();

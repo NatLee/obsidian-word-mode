@@ -10,6 +10,7 @@ import { MarkdownConverter } from './markdown.js';
 import { WordModeView, VIEW_TYPE } from './view.js';
 import { OutlineView, OUTLINE_TYPE } from './outline.js';
 import { MarkdownBar, mdToolbarMode, wantsMdBar } from './mdbar.js';
+import { NativeBar } from './nativebar.js';
 import { KeyboardWatch } from './keyboard.js';
 import { MdStatusBar } from './statusbar.js';
 import { closePropsPeek } from './propview.js';
@@ -68,6 +69,8 @@ export default class WordModePlugin extends Plugin {
   declare settings: Settings;
   // 螢幕鍵盤蓋住多少（只有手機、平板有）
   declare keyboard?: KeyboardWatch;
+  // Obsidian 自己的手機工具列上的控制鍵與觸控板（nativebar.ts）；電腦上沒有
+  declare nativeBar?: NativeBar;
   declare converter: MarkdownConverter;
   declare forceMarkdown: WeakMap<WorkspaceLeaf, string>;
   declare mdActions: Map<MarkdownView, HTMLElement>;
@@ -110,6 +113,11 @@ export default class WordModePlugin extends Plugin {
       const kb = new KeyboardWatch(window);
       this.keyboard = kb;
       this.register(kb.start());
+      // Obsidian 的手機工具列在打字時才出現：鍵盤開關、換分頁時檢查裝好了沒有
+      const nb = new NativeBar(this);
+      this.nativeBar = nb;
+      this.register(kb.subscribe(() => nb.sync()));
+      this.register(() => nb.remove());
       this.addCommand({
         id: 'copy-keyboard-report', name: t('複製螢幕鍵盤的診斷資訊'),
         callback: () => {
@@ -197,6 +205,11 @@ export default class WordModePlugin extends Plugin {
     // Markdown／閱讀模式上方的工具列
     this.registerEvent(this.app.workspace.on('layout-change', () => this.syncMdBars()));
     this.registerEvent(this.app.workspace.on('active-leaf-change', () => this.syncMdBars()));
+    if (this.nativeBar) {
+      const nb = this.nativeBar;
+      this.registerEvent(this.app.workspace.on('active-leaf-change', () => nb.sync()));
+      this.registerEvent(this.app.workspace.on('layout-change', () => nb.sync()));
+    }
     this.registerInterval(window.setInterval(() => {
       for (const b of this.mdBars.values()) b.update();
       // Markdown 的編輯／閱讀切換沒有事件：定時讓狀態列的按鈕跟上（Word 模式的狀態列自己會更新）
@@ -308,6 +321,7 @@ export default class WordModePlugin extends Plugin {
   // 設定改變：重建所有工具列
   refreshToolbars(): void {
     for (const v of this.views()) v.buildToolbar();
+    if (this.nativeBar) this.nativeBar.refresh();
     for (const b of this.mdBars.values()) b.destroy();
     this.mdBars.clear();
     this.syncMdBars();

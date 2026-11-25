@@ -216,7 +216,7 @@ function settingSections(settingTab: WordModeSettings): SettingSection[] {
       row(t('拖曳移動游標的速度'), t('1 最慢、5 最快：手指移動同樣的距離，游標走的格數不同。想要一個字一個字慢慢對準就調慢。預設 3。'),
         s => s.addSlider(sl => sl.setLimits(1, 5, 1).setValue(padSpeed(S.padSpeed)).setDynamicTooltip()
           .onChange(async v => { S.padSpeed = padSpeed(v); await save(); }))),
-      toggleRow(t('控制鍵'), t('在「收起鍵盤」左邊（鍵盤收著時在分頁列右邊）放一顆開關，按下去在工具列上方展開一排螢幕鍵盤沒有的鍵：Esc、Tab、Ctrl（Apple 的裝置是 ⌘）、Shift、方向鍵、Home、End。Ctrl、Shift 點一下作用在下一個鍵，連點兩下鎖住；Ctrl 開著時用鍵盤打字母就是快速鍵（例如 Ctrl＋B 粗體）。方向鍵按住不放會連續移動。Word 模式與 Markdown 編輯都能用。'), 'keyRow', () => p.refreshToolbars()),
+      toggleRow(t('控制鍵'), t('在「收起鍵盤」左邊放一顆開關（鍵盤開著時才出現），按下去在工具列上方展開一排螢幕鍵盤沒有的鍵：Esc、Tab、Ctrl（Apple 的裝置是 ⌘）、Shift、方向鍵、Home、End。Ctrl、Shift 點一下作用在下一個鍵，連點兩下鎖住；Ctrl 開著時用鍵盤打字母就是快速鍵（例如 Ctrl＋B 粗體）。方向鍵按住不放會連續移動。Word 模式與 Markdown 編輯都能用，包括 Obsidian 自己的工具列。'), 'keyRow', () => p.refreshToolbars()),
       { kind: 'grid', name: t('控制鍵列要顯示的鍵'), desc: t('取消勾選用不到的鍵，控制鍵列就短一點，不用左右捲。'), cls: 'wm-settings-groups wm-settings-keys', fill: box => {
         for (const k of KEY_IDS) {
           const l = box.createEl('label', { cls: 'wm-settings-group' });
