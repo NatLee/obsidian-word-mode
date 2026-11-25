@@ -70,7 +70,8 @@ export class TextFileView {
   }
   load() { this._loaded = true; }
   registerDomEvent(el, type, fn, opt) { el.addEventListener(type, fn, opt); }
-  addAction() { return document.createElement('div'); }
+  // 右上角的按鈕：記下圖示與名稱，點一下執行（真的 Obsidian 也是這樣）
+  addAction(icon, title, cb) { const d = document.createElement('div'); d.dataset.icon = icon; d.setAttribute('aria-label', title); if (cb) d.addEventListener('click', cb); (this.actions || (this.actions = [])).push(d); return d; }
   registerEvent() {}
   register() {}
   onPaneMenu() {}

@@ -42,7 +42,7 @@ import { buildStatusBar, renderSaveStatus, renderCount, showWordCount, showZoom 
 import { showProps, propertyWidget, fillPropsPeek, fillPinSummary, markOverflow } from './propview.js';
 import { isRtl, hiddenBelow, layoutHeight } from './dom.js';
 import { installTouch } from './touch.js';
-import { frontmatterBody, peekData } from './props.js';
+import { frontmatterBody, peekData, wrapFrontmatter } from './props.js';
 import { t, key, withKey } from './i18n.js';
 import type { Modifier, TAbstractFile, WorkspaceLeaf } from 'obsidian';
 import type { Command, EditorState, Plugin, Transaction } from 'prosemirror-state';
@@ -305,6 +305,8 @@ export class WordModeView extends TextFileView {
     reg(['Mod'], '`', cmd(C.toggleCode), true);
     reg(['Mod', 'Shift'], 'h', cmd(C.toggleHighlight), true);
     reg(['Mod', 'Shift'], 'x', cmd(C.toggleStrike), true);
+    // 右上角：閱讀模式、Markdown 編輯（跟 Markdown 模式一樣，右上角可以直接換到另外兩種）。addAction 放在既有按鈕的左邊
+    this.addAction('book-open', t('閱讀模式'), () => { void this.plugin.switchToMarkdown(this.leaf, 'preview'); });
     this.addAction('code-2', withKey('切換到 Markdown 編輯', 'Mod+E'), () => this.plugin.switchToMarkdown(this.leaf));
     // 手機：文件屬性放在右上角（字數統計、閱讀模式在「⋯」選單，見 onPaneMenu），畫面下方就不用放一列小按鈕。
     // 設定 phoneStatus 是 bar（畫面下方的狀態列）時藏起來（buildToolbar）
@@ -324,6 +326,7 @@ export class WordModeView extends TextFileView {
     const header = !!Platform.isPhone && S.phoneStatus !== 'bar';
     this.contentEl.toggleClass('wm-status-header', header);
     if (this.propsAction) this.propsAction.toggle(header);
+    this.syncIdle();
     const pos = S.toolbarPosition || 'auto';
     this.contentEl.toggleClass('wm-toolbar-bottom', pos === 'bottom' || (pos === 'auto' && !!Platform.isPhone));
     this.toolbar = new Toolbar(this.toolbarHost, {
@@ -401,7 +404,15 @@ export class WordModeView extends TextFileView {
       menu.addItem(i => i.setTitle(t('尋找與取代')).setIcon('search').setSection('pane').onClick(() => { this.findBar.open(false); this.findBar.showReplace(false); }));
       const count = this.countEl ? (this.countEl.textContent || '').trim() : '';
       menu.addItem(i => i.setTitle(count ? t('字數統計') + t('：') + count : t('字數統計')).setIcon('text').setSection('pane').onClick(() => this.openWordCount()));
-      menu.addItem(i => i.setTitle(t('閱讀模式')).setIcon('book-open').setSection('pane').onClick(() => { void this.plugin.switchToMarkdown(this.leaf, 'preview'); }));
+      // 鍵盤收著時功能區藏起來（設定 phoneIdle 是 hidden）：不用打字也能做的幾項放在這裡
+      if (this.plugin.settings.phoneIdle === 'hidden' && this.toolbar) {
+        const d = this.toolbar.d;
+        const at = this.contentEl;
+        menu.addItem(i => i.setTitle(t('大綱')).setIcon('list-tree').setSection('pane').onClick(() => d.outline(at)));
+        menu.addItem(i => i.setTitle(t('插入圖片')).setIcon('image').setSection('pane').onClick(() => d.image(at)));
+        menu.addItem(i => i.setTitle(t('插入方程式')).setIcon('sigma').setSection('pane').onClick(() => d.equation()));
+        menu.addItem(i => i.setTitle(t('插入圖表（Mermaid）')).setIcon('workflow').setSection('pane').onClick(() => d.mermaid()));
+      }
     }
     super.onPaneMenu(menu, source);
   }
@@ -434,6 +445,7 @@ export class WordModeView extends TextFileView {
     this.contentEl.toggleClass('wm-kb-open', kb.open);
     // 打字時精簡功能區：分頁列收成選單、按鈕只顯示圖示（樣式表的 wm-kb-compact），鍵盤收起來就恢復
     this.contentEl.toggleClass('wm-kb-compact', kb.open && this.plugin.settings.compactOnKeyboard !== false);
+    this.syncIdle();
     if (inset !== this.kbInset) this.contentEl.style.setProperty('--wm-kb-inset', inset + 'px');
     this.slideToolbar();
     if (inset === this.kbInset) return;
@@ -446,6 +458,15 @@ export class WordModeView extends TextFileView {
       // 編輯區變矮了，游標要留在看得到的地方
       if (this.pm && this.pm.hasFocus()) this.pm.dispatch(this.pm.state.tr.scrollIntoView());
     });
+  }
+
+  // 手機上鍵盤收著時的功能區（設定 phoneIdle）：short 只顯示不用打字的短列（toolbar.ts 的 buildIdle），hidden 整條藏起來，
+  // full 照舊。鍵盤開著時一律是平常（精簡）的功能區
+  syncIdle(): void {
+    const kb = this.plugin.keyboard;
+    const idle = Platform.isPhone && !(kb && kb.open) ? (this.plugin.settings.phoneIdle || 'short') : 'full';
+    this.contentEl.toggleClass('wm-idle-short', idle === 'short');
+    this.contentEl.toggleClass('wm-idle-hidden', idle === 'hidden');
   }
 
   // 鍵盤升起、收起時功能區的位置是一格就換過去的（我們留的高度、Obsidian 把 app 縮到鍵盤上方都是瞬間的），看起來是用跳的。
@@ -884,7 +905,10 @@ export class WordModeView extends TextFileView {
         read: () => this.propsPeekData(),
         commit: obj => this.writeProperties('---\n' + (Object.keys(obj).length ? stringifyYaml(obj).replace(/\s+$/, '') + '\n' : '') + '---'),
         ctx: this.nodeViewContext(),
-        raw: () => this.editPropertiesSource(),
+        yaml: {
+          read: () => { const f = this.pm && this.pm.state.doc.firstChild; return f && f.type === schema.nodes.frontmatter ? frontmatterBody((f.attrs as FrontmatterAttrs).src) : ''; },
+          write: body => this.writeProperties(wrapFrontmatter(body)),
+        },
       } : undefined,
     });
   }
@@ -901,17 +925,6 @@ export class WordModeView extends TextFileView {
     this.pm.dispatch(tr);
   }
 
-  // 用 YAML 原文編輯文件屬性（手機的文件屬性視窗；格式特殊、表單顯示不了的時候）
-  editPropertiesSource(): void {
-    const first = this.pm && this.pm.state.doc.firstChild;
-    const cur = first && first.type === schema.nodes.frontmatter ? (first.attrs as FrontmatterAttrs).src : '---\n---';
-    new SourceModal(this.app, t('編輯文件屬性（YAML 原文）'), cur, value => {
-      let v = value.replace(/\s+$/, '');
-      if (!/^---\r?\n/.test(v)) v = '---\n' + v;
-      if (!/\n(---|\.\.\.)$/.test(v)) v += '\n---';
-      this.writeProperties(v);
-    }).open();
-  }
 
   openEquation(existing?: MathTarget): void {
     if (!this.pm || (!existing && this.blockedInCode())) return;

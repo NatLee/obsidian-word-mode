@@ -1341,4 +1341,13 @@ export default {
  "標成鍵盤按鍵": "Đánh dấu là phím bàn phím",
  "標成按鍵": "Đánh dấu phím",
  "把選取的文字標成鍵盤按鍵的樣子（寫操作說明時常見的 Ctrl＋C 小方框），存成 <kbd>。這不是用來輸入的按鍵：要按 Ctrl、方向鍵，請用鍵盤上方的控制鍵。": "Đánh dấu chữ đang chọn thành hình phím bàn phím (ô nhỏ như Ctrl+C trong hướng dẫn), lưu thành <kbd>. Đây không phải phím để gõ: muốn bấm Ctrl hay phím mũi tên, hãy dùng các phím điều khiển phía trên bàn phím.",
+ "手機上鍵盤收著時的工具列": "Thanh công cụ trên điện thoại khi bàn phím ẩn",
+ "功能區大部分的按鈕按下去都會把游標放回筆記、叫出鍵盤，鍵盤收著時用不太到。「只留不用打字的按鈕」：一列插入圖片、方程式、圖表、大綱與「開始打字」。「藏起來」：畫面全部留給筆記，這幾項放在右上角的「⋯」選單。「完整的工具列」：跟以前一樣。點一下文字叫出鍵盤時，一律換成打字用的精簡工具列。只影響手機。": "Phần lớn nút trên ruy-băng sẽ đưa con trỏ về ghi chú và bật bàn phím, nên khi bàn phím ẩn chúng ít có ích. “Chỉ các nút không cần gõ”: một hàng gồm chèn ảnh, công thức, sơ đồ, dàn ý và “Bắt đầu gõ”. “Ẩn”: dành cả màn hình cho ghi chú, các mục này chuyển vào menu “⋯” ở góc trên bên phải. “Thanh công cụ đầy đủ”: như trước. Chạm vào chữ để bật bàn phím thì luôn chuyển sang thanh công cụ gõ thu gọn. Chỉ áp dụng cho điện thoại.",
+ "只留不用打字的按鈕（建議）": "Chỉ các nút không cần gõ (khuyên dùng)",
+ "藏起來": "Ẩn",
+ "完整的工具列": "Thanh công cụ đầy đủ",
+ "開始打字": "Bắt đầu gõ",
+ "打字": "Gõ",
+ "把游標放回筆記、叫出鍵盤，換成打字用的工具列。": "Đưa con trỏ về ghi chú và bật bàn phím, chuyển sang thanh công cụ để gõ.",
+ "返回表單": "Quay lại biểu mẫu",
 };

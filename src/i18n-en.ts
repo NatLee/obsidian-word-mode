@@ -1341,4 +1341,13 @@ export default {
  "標成鍵盤按鍵": "Mark as keyboard key",
  "標成按鍵": "Mark as key",
  "把選取的文字標成鍵盤按鍵的樣子（寫操作說明時常見的 Ctrl＋C 小方框），存成 <kbd>。這不是用來輸入的按鍵：要按 Ctrl、方向鍵，請用鍵盤上方的控制鍵。": "Marks the selected text as a keyboard key (the little boxes like Ctrl+C in how-to notes), saved as <kbd>. It is not a key you type with: for Ctrl or arrow keys, use the control keys above the keyboard.",
+ "手機上鍵盤收著時的工具列": "Toolbar on phones while the keyboard is down",
+ "功能區大部分的按鈕按下去都會把游標放回筆記、叫出鍵盤，鍵盤收著時用不太到。「只留不用打字的按鈕」：一列插入圖片、方程式、圖表、大綱與「開始打字」。「藏起來」：畫面全部留給筆記，這幾項放在右上角的「⋯」選單。「完整的工具列」：跟以前一樣。點一下文字叫出鍵盤時，一律換成打字用的精簡工具列。只影響手機。": "Most ribbon buttons put the cursor back in the note and bring up the keyboard, so they are of little use while it is down. “Only buttons that need no typing”: one row with insert image, equation, diagram, outline and “Start typing”. “Hidden”: the whole screen goes to the note and these items move to the top-right “⋯” menu. “Full toolbar”: as before. Tapping text to bring up the keyboard always switches to the compact typing toolbar. Phones only.",
+ "只留不用打字的按鈕（建議）": "Only buttons that need no typing (recommended)",
+ "藏起來": "Hidden",
+ "完整的工具列": "Full toolbar",
+ "開始打字": "Start typing",
+ "打字": "Type",
+ "把游標放回筆記、叫出鍵盤，換成打字用的工具列。": "Puts the cursor back in the note and brings up the keyboard, switching to the typing toolbar.",
+ "返回表單": "Back to form",
 };

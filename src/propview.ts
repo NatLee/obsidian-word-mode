@@ -42,8 +42,8 @@ export interface PropsEdit {
   // 寫回整份屬性；沒有文件屬性時新增
   commit(obj: PropValues): void;
   ctx: PropsFormHost['ctx'];
-  // 用 YAML 原文編輯（格式特殊、表單顯示不了的時候）；沒有時不顯示這顆按鈕
-  raw?: () => void;
+  // 用 YAML 原文編輯（格式特殊、表單顯示不了的時候）：讀寫的是 --- 之間的本文；沒有時不顯示這顆按鈕
+  yaml?: { read(): string; write(body: string): void };
 }
 
 // 屬性超過這個數量才顯示篩選框
@@ -240,27 +240,43 @@ function editSheet(m: Modal, edit: PropsEdit, o: PropsPeekOptions): void {
   const box = m.contentEl.createDiv('wm-props wm-props-sheet');
   // 寫回之後重畫（文字欄位打字中先不重畫，離開欄位時才畫，見 PropsForm 的 quiet）
   const form = new PropsForm({ ctx: edit.ctx, commit: obj => { edit.commit(obj); if (!form.quiet) draw(); }, render: () => draw() });
+  // YAML 原文：在同一個視窗裡換成一個文字框（不另外跳一個視窗），套用之後回到表單
+  let yamlMode = false;
   const draw = (): void => {
     form.drawn++;
     form.keeper.redraw(box, () => {
       box.replaceChildren();
+      box.classList.toggle('is-yaml', yamlMode);
+      const foot = (): HTMLElement => el('div', 'wm-peek-foot wm-props-sheet-foot', box);
+      const button = (parent: HTMLElement, icon: string, label: string, run: () => void, cta = false): void => {
+        const b = form.keeper.keep('foot-' + icon, el('button', 'wm-peek-go' + (cta ? ' mod-cta' : ''), parent));
+        b.type = 'button';
+        o.icon(el('span', 'wm-peek-go-icon', b), icon, '');
+        el('span', null, b, label);
+        b.addEventListener('click', run);
+      };
+      if (yamlMode && edit.yaml) {
+        const y = edit.yaml;
+        const ta = form.keeper.keep('yaml', keyboardHints(el('textarea', 'wm-props-yaml', box), { plain: true }));
+        ta.value = y.read();
+        ta.rows = Math.min(16, Math.max(4, ta.value.split('\n').length + 1));
+        ta.spellcheck = false;
+        const f = foot();
+        button(f, 'arrow-left', t('返回表單'), () => { yamlMode = false; draw(); });
+        button(f, 'check', t('套用'), () => { y.write(ta.value); yamlMode = false; draw(); }, true);
+        return;
+      }
       const d = edit.read();
       const body = el('div', 'wm-props-body', box);
       if (d.kind === 'raw') {
         el('div', 'wm-props-note', body, t('這份文件屬性的格式比較特殊，請用「編輯 YAML 原文」修改。'));
         el('pre', 'wm-fm-body', body, d.text);
       } else form.fill(body, d.kind === 'props' ? d.values : {});
-      if (!edit.raw && !o.go) return;
-      const foot = el('div', 'wm-peek-foot wm-props-sheet-foot', box);
-      const button = (icon: string, label: string, run: () => void): void => {
-        const b = form.keeper.keep('foot-' + icon, el('button', 'wm-peek-go', foot));
-        b.type = 'button';
-        o.icon(el('span', 'wm-peek-go-icon', b), icon, '');
-        el('span', null, b, label);
-        b.addEventListener('click', () => { m.close(); run(); });
-      };
-      if (edit.raw) button('code-2', t('編輯 YAML 原文'), edit.raw);
-      if (o.go && d.kind !== 'none') button('arrow-up-to-line', t('前往文件屬性'), o.go);
+      if (!edit.yaml && !o.go) return;
+      const f = foot();
+      if (edit.yaml) button(f, 'code-2', t('編輯 YAML 原文'), () => { yamlMode = true; draw(); });
+      const go = o.go;
+      if (go && d.kind !== 'none') button(f, 'arrow-up-to-line', t('前往文件屬性'), () => { m.close(); go(); });
     });
   };
   draw();

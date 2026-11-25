@@ -1341,4 +1341,13 @@ export default {
  "標成鍵盤按鍵": "Marquer comme touche du clavier",
  "標成按鍵": "Marquer comme touche",
  "把選取的文字標成鍵盤按鍵的樣子（寫操作說明時常見的 Ctrl＋C 小方框），存成 <kbd>。這不是用來輸入的按鍵：要按 Ctrl、方向鍵，請用鍵盤上方的控制鍵。": "Affiche le texte sélectionné comme une touche du clavier (les petites cases comme Ctrl+C dans les modes d’emploi), enregistré en <kbd>. Ce n’est pas une touche pour taper : pour Ctrl ou les flèches, utilisez les touches de contrôle au-dessus du clavier.",
+ "手機上鍵盤收著時的工具列": "Barre d’outils sur téléphone quand le clavier est masqué",
+ "功能區大部分的按鈕按下去都會把游標放回筆記、叫出鍵盤，鍵盤收著時用不太到。「只留不用打字的按鈕」：一列插入圖片、方程式、圖表、大綱與「開始打字」。「藏起來」：畫面全部留給筆記，這幾項放在右上角的「⋯」選單。「完整的工具列」：跟以前一樣。點一下文字叫出鍵盤時，一律換成打字用的精簡工具列。只影響手機。": "La plupart des boutons du ruban remettent le curseur dans la note et font apparaître le clavier ; ils servent peu quand il est masqué. « Seulement les boutons sans saisie » : une rangée avec insérer une image, une équation, un diagramme, le plan et « Commencer à écrire ». « Masquée » : tout l’écran pour la note, ces éléments passent dans le menu « ⋯ » en haut à droite. « Barre complète » : comme avant. Toucher le texte pour faire apparaître le clavier passe toujours à la barre de saisie compacte. Téléphones uniquement.",
+ "只留不用打字的按鈕（建議）": "Seulement les boutons sans saisie (recommandé)",
+ "藏起來": "Masquée",
+ "完整的工具列": "Barre complète",
+ "開始打字": "Commencer à écrire",
+ "打字": "Écrire",
+ "把游標放回筆記、叫出鍵盤，換成打字用的工具列。": "Remet le curseur dans la note et fait apparaître le clavier, avec la barre de saisie.",
+ "返回表單": "Retour au formulaire",
 };
