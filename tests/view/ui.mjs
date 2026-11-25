@@ -2317,4 +2317,40 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
   assert(!view.toolbar.dom.classList.contains('mod-raised'), '電腦：不加 mod-raised');
 }
 
+// ======== 設定頁的搜尋框：手機上收得起鍵盤（settingsnav.ts）========
+{
+  const box = document.body.createDiv();
+  const el = box.createDiv();
+  const docs = [{ name: '頁面縮放', desc: '', terms: [], alt: [], section: '顯示', icon: 'monitor', el }];
+  const picked = [];
+  const { input } = B.SETNAV.buildSettingSearch(box, () => docs, (item, byKeyboard) => picked.push(item.name + ':' + byKeyboard));
+  const outside = document.body.createDiv();
+  const key = k => { const e = new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }); input.dispatchEvent(e); return e; };
+  const type = v => { input.value = v; input.dispatchEvent(new Event('input')); };
+  const keep = mock.Platform.isMobile;
+  mock.Platform.isMobile = true;
+  input.focus();
+  outside.dispatchEvent(new Event('touchstart', { bubbles: true }));
+  assert(document.activeElement !== input, '手機：手指在搜尋框以外的地方按下（捲動、點別的設定），搜尋框失去焦點、鍵盤收起來');
+  input.focus();
+  box.querySelector('.wm-set-find-box').dispatchEvent(new Event('touchstart', { bubbles: true }));
+  assert(document.activeElement === input, '手機：按在搜尋框裡不收');
+  type('縮放');
+  key('Enter');
+  assert(picked.join() === '頁面縮放:true' && document.activeElement !== input, '手機：按鍵盤的「搜尋」鍵選了結果，鍵盤也收起來');
+  input.focus();
+  type('沒有這個設定');
+  const e = key('Enter');
+  assert(document.activeElement !== input && e.defaultPrevented, '手機：沒有結果時按「搜尋」鍵：收起鍵盤');
+  mock.Platform.isMobile = false;
+  input.focus();
+  type('縮放');
+  key('Enter');
+  assert(document.activeElement === input, '電腦：用 Enter 選的不收（焦點交給設定頁移到那一列）');
+  mock.Platform.isMobile = keep;
+  outside.dispatchEvent(new Event('touchstart', { bubbles: true }));
+  input.blur();
+  box.remove(); outside.remove();
+}
+
 finish();

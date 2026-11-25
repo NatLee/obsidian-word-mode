@@ -1,6 +1,6 @@
 // 設定頁上方的分類列：設定分成幾類，一次只顯示一類；分類列上方的搜尋框可以直接找到某個設定。
 // 從 main.ts 獨立出來是為了能在介面測試裡實際操作（main.ts 整個外掛進入點沒辦法放進測試）
-import { Scope, setIcon } from 'obsidian';
+import { Platform, Scope, setIcon } from 'obsidian';
 import type { Keymap } from 'obsidian';
 import { t } from './i18n.js';
 import { keepFocus, keyboardHints } from './dom.js';
@@ -227,8 +227,9 @@ export function buildSettingSearch<T extends SettingSearchItem>(host: HTMLElemen
   };
   const pick = (item: T, byKeyboard: boolean) => {
     close();
-    // 用滑鼠或手指選的：讓搜尋框失去焦點，手機的螢幕鍵盤才會收起來，看得到捲過去的那一列
-    if (!byKeyboard) input.blur();
+    // 用滑鼠或手指選的：讓搜尋框失去焦點，手機的螢幕鍵盤才會收起來，看得到捲過去的那一列。
+    // 手機上按鍵盤的「搜尋」鍵選的也一樣（電腦上焦點會移到那一列的控制項，手機上不移，不收的話鍵盤就一直開著）
+    if (!byKeyboard || Platform.isMobile) input.blur();
     onPick(item, byKeyboard);
   };
   const addRow = (item: T, hit: SearchHit<T> | null) => {
@@ -292,9 +293,23 @@ export function buildSettingSearch<T extends SettingSearchItem>(host: HTMLElemen
     syncScope();
   };
 
-  input.addEventListener('focus', () => { all = items(); render(); });
+  // 手機：搜尋框有焦點時，手指在搜尋框以外的地方按下（捲動設定頁、點別的設定）就讓它失去焦點、收起鍵盤。
+  // iOS 點在不能取得焦點的地方不會自己收鍵盤，設定頁又沒有其他收鍵盤的方法。結果清單裡的點擊由 pick 處理
+  const doc = input.ownerDocument;
+  const outside = (e: TouchEvent): void => {
+    const target = e.target as Node | null;
+    if (target && wrap.contains(target)) return;
+    input.blur();
+  };
+  input.addEventListener('focus', () => {
+    all = items(); render();
+    if (Platform.isMobile) doc.addEventListener('touchstart', outside, { capture: true, passive: true });
+  });
   input.addEventListener('input', render);
-  input.addEventListener('blur', close);
+  input.addEventListener('blur', () => {
+    close();
+    doc.removeEventListener('touchstart', outside, { capture: true });
+  });
   input.addEventListener('keydown', e => {
     if (e.isComposing) return;
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
@@ -305,7 +320,8 @@ export function buildSettingSearch<T extends SettingSearchItem>(host: HTMLElemen
       if (!rows.length) return;
       mark((active + (e.key === 'ArrowDown' ? 1 : -1) + rows.length) % rows.length, true);
     } else if (e.key === 'Enter') {
-      if (pop.hidden || !shown[active]) return;
+      // 手機上沒有結果可以選時按「搜尋」鍵：當成打完了，收起鍵盤
+      if (pop.hidden || !shown[active]) { if (Platform.isMobile) { e.preventDefault(); input.blur(); } return; }
       e.preventDefault();
       e.stopPropagation();
       pick(shown[active], true);
