@@ -124,6 +124,7 @@ All styles are in `styles/word-mode.css`, and every class starts with `wm-`. The
 | `src/statusbar.ts` | Status bar contents (word count, save status, view switch, properties, zoom), shared by Word mode and Markdown and reading mode. |
 | `src/paths.ts` | File paths: the path shown in the status bar and the "copy path" entries (for the note itself and for files that links and images point to). |
 | `src/caret.ts` | The custom cursor (shape, blinking, smooth movement) and its live preview on the settings page. The built-in caret is hidden with CSS and comes back during IME composition; on phones and tablets it is hidden only while the custom cursor is drawn (selection handles follow `caret-color`), and while a finger is down the custom cursor follows the system selection every frame, so it stays with the iOS magnifier during a long-press drag. |
+| `src/keyrow.ts` | The control key row on phones and tablets (Esc, Tab, Ctrl/⌘, Shift, arrows, Home, End). One-shot and locked modifiers; Ctrl plus a typed letter is re-sent as a key event so the editor's own shortcuts run. Each mode moves the cursor itself: `toolbar.ts` (Word mode) and `mdbar.ts` (Markdown) both have a `keyMove`. |
 | `src/props.ts`, `src/propview.ts` | Property values (types, conversion, reading the frontmatter), and the properties popover and the pinned properties bar. |
 | `src/bubble.ts` | Floating toolbar for links and images. |
 | `src/tablegrips.ts` | Row and column handles on the table at the cursor (select a whole row or column and open its menu). |

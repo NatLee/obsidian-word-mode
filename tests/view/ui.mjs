@@ -205,9 +205,9 @@ await fresh('一段文字\n');
   const clean = () => { S.hiddenTabs = []; S.hiddenGroups = []; S.groupNames = {}; S.groupTabs = {}; S.groupOrder = []; S.tabLabels = {}; };
   clean();
   const of = (list, tab) => list.filter(g => g.tab === tab).map(g => g.id).join();
-  assert(of(B.TB.groupLayout(null), 'home') === 'undo,arrows,clipboard,styles,font,paragraph,editing' && B.TB.groupLayout({}).length === B.TB.GROUPS.length, '沒有自訂：預設的分頁與順序');
+  assert(of(B.TB.groupLayout(null), 'home') === 'undo,clipboard,styles,font,paragraph,editing' && B.TB.groupLayout({}).length === B.TB.GROUPS.length, '沒有自訂：預設的分頁與順序');
   const odd = B.TB.groupLayout({ groupTabs: { font: 'nowhere', nope: 'home' }, groupOrder: ['nope', 'editing', 'editing'], groupNames: { font: '  ', undo: ' 回上一步 ' } });
-  assert(of(odd, 'home') === 'editing,undo,arrows,clipboard,styles,font,paragraph' && odd.find(g => g.id === 'font').name === '字型' && odd.find(g => g.id === 'undo').name === '回上一步',
+  assert(of(odd, 'home') === 'editing,undo,clipboard,styles,font,paragraph' && odd.find(g => g.id === 'font').name === '字型' && odd.find(g => g.id === 'undo').name === '回上一步',
     '設定檔裡不認得的分頁、群組、空白名稱都忽略；沒列在順序裡的群組排在後面：' + of(odd, 'home'));
   assert(B.TB.moveGroup(null, 'undo', -1) === null && B.TB.moveGroup(null, 'editing', 1) === null, '已經在分頁的最前或最後：不能再移');
 
@@ -224,7 +224,7 @@ await fresh('一段文字\n');
   const col = tab => [...grid.querySelectorAll('.wm-settings-groups-col[data-tab="' + tab + '"] .wm-settings-grow')].map(r => r.dataset.group).join();
   const shown = panel => [...panel.querySelectorAll('.wm-group[class*="wm-group-"]')].map(g => [...g.classList].find(c => c.startsWith('wm-group-')).slice(9)).join();
   const change = el => el.dispatchEvent(new Event('change', { bubbles: true }));
-  assert(col('home') === 'undo,arrows,clipboard,styles,font,paragraph,editing' && col('viewtab') === 'views,show,zoom,help' && grid.querySelector('.wm-settings-greset').disabled, '設定頁：每個分頁一欄，群組照預設順序；沒改過時「還原」停用');
+  assert(col('home') === 'undo,clipboard,styles,font,paragraph,editing' && col('viewtab') === 'views,show,zoom,help' && grid.querySelector('.wm-settings-greset').disabled, '設定頁：每個分頁一欄，群組照預設順序；沒改過時「還原」停用');
   assert(row('undo').querySelector('.wm-settings-gup').disabled && !row('undo').querySelector('.wm-settings-gdown').disabled && row('editing').querySelector('.wm-settings-gdown').disabled, '最前面的群組不能上移，最後面的不能下移');
 
   // 改名稱
@@ -233,13 +233,13 @@ await fresh('一段文字\n');
   name.value = ' 字體 '; change(name);
   assert(S.groupNames.font === '字體' && view.toolbar.dom.querySelector('.wm-group-font .wm-group-name').textContent === '字體' && bar.dom.querySelector('.wm-group-font .wm-group-name').textContent === '字體', '改群組名稱：兩條功能區都換成新名稱');
 
-  // 調順序（方向鍵的群組只有手機的 Word 模式有：設定頁列出來，電腦的兩條功能區都沒有）
+  // 調順序
   click(row('font').querySelector('.wm-settings-gup'));
-  assert(col('home') === 'undo,arrows,clipboard,font,styles,paragraph,editing' && shown(view.toolbar.panels.home) === 'undo,clipboard,font,styles,paragraph,editing' && shown(bar.panels.home) === 'undo,font,styles,paragraph,editing',
+  assert(col('home') === 'undo,clipboard,font,styles,paragraph,editing' && shown(view.toolbar.panels.home) === col('home') && shown(bar.panels.home) === 'undo,font,styles,paragraph,editing',
     '上移一格：設定頁與兩條功能區的順序一致：' + shown(view.toolbar.panels.home) + '｜' + shown(bar.panels.home));
   assert(document.activeElement === row('font').querySelector('.wm-settings-gup') && row('font').querySelector('.wm-settings-gname').value === '字體', '重畫後焦點留在同一個群組的箭頭上，名稱還在');
-  click(row('font').querySelector('.wm-settings-gup')); click(row('font').querySelector('.wm-settings-gup')); click(row('font').querySelector('.wm-settings-gup'));
-  assert(col('home') === 'font,undo,arrows,clipboard,styles,paragraph,editing' && document.activeElement === row('font').querySelector('.wm-settings-gdown'), '移到最前面：上移停用，焦點換到下移');
+  click(row('font').querySelector('.wm-settings-gup')); click(row('font').querySelector('.wm-settings-gup'));
+  assert(col('home') === 'font,undo,clipboard,styles,paragraph,editing' && document.activeElement === row('font').querySelector('.wm-settings-gdown'), '移到最前面：上移停用，焦點換到下移');
 
   // 換分頁
   const tabSel = row('font').querySelector('.wm-settings-gtab');
@@ -250,7 +250,7 @@ await fresh('一段文字\n');
   assert(btn('粗體').closest('.wm-panel') === view.toolbar.panels.insert, '按鈕跟著群組走');
   const back = row('font').querySelector('.wm-settings-gtab');
   back.value = 'home'; change(back);
-  assert(!('font' in S.groupTabs) && col('home') === 'undo,arrows,clipboard,styles,paragraph,editing,font', '移回原本的分頁：設定裡不留紀錄');
+  assert(!('font' in S.groupTabs) && col('home') === 'undo,clipboard,styles,paragraph,editing,font', '移回原本的分頁：設定裡不留紀錄');
 
   // 群組都移走的分頁
   for (const id of ['proofing', 'stats', 'comments']) { const s = row(id).querySelector('.wm-settings-gtab'); s.value = 'viewtab'; change(s); }
@@ -269,7 +269,7 @@ await fresh('一段文字\n');
   const before = changes;
   assert(!grid.querySelector('.wm-settings-greset').disabled, '改過之後可以還原');
   click(grid.querySelector('.wm-settings-greset'));
-  assert(changes === before + 1 && !Object.keys(S.groupNames).length && !Object.keys(S.groupTabs).length && !S.groupOrder.length && col('review') === 'proofing,stats,comments' && col('home') === 'undo,arrows,clipboard,styles,font,paragraph,editing'
+  assert(changes === before + 1 && !Object.keys(S.groupNames).length && !Object.keys(S.groupTabs).length && !S.groupOrder.length && col('review') === 'proofing,stats,comments' && col('home') === 'undo,clipboard,styles,font,paragraph,editing'
     && S.hiddenGroups.join() === 'font' && S.hiddenTabs.join() === 'home', '還原預設的群組名稱與排列（顯示／隱藏的勾選不變）');
 
   clean();
@@ -2268,33 +2268,6 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
   assert(!B.C.table.before(pm.state), '游標不在表格裡：不能用');
 }
 
-// ======== 方向鍵：只有手機的 Word 模式有；點一下一格、按住連續走 ========
-{
-  const shell = (side, isMobile) => { const root = document.body.createDiv(); const s = new B.RibbonShell(root, { side, settings: {}, isMobile, icon: () => {}, openMenu: () => {}, pickTab: () => {} }); root.remove(); return s; };
-  assert(shell('word', true).groups.arrows && !shell('word', false).groups.arrows && !shell('md', true).groups.arrows, '方向鍵的群組：只有手機、平板的 Word 模式');
-  assert(!view.toolbar.dom.querySelector('.wm-group-arrows'), '電腦的功能區沒有方向鍵');
-  const box = document.body.createDiv();
-  let n = 0; let ok = true;
-  view.toolbar.arrowKey(box, { icon: 'arrow-left', title: '游標往左', text: '←', desc: '點一下移動一格，按住不放會連續移動。' }, () => { n++; return ok; });
-  const b = box.querySelector('button.wm-arrow-key');
-  b.click();
-  assert(b && n === 1, '點一下：走一格');
-  n = 0;
-  b.dispatchEvent(new Event('pointerdown', { bubbles: true }));
-  await sleep(600);
-  b.dispatchEvent(new Event('pointerup', { bubbles: true }));
-  const held = n;
-  b.click();
-  await sleep(200);
-  assert(held >= 3 && n === held, '按住：連續走（' + held + ' 格），放開就停，放開後的那一下點擊不再多走一格');
-  n = 0; ok = false;
-  b.dispatchEvent(new Event('pointerdown', { bubbles: true }));
-  await sleep(600);
-  b.dispatchEvent(new Event('pointerup', { bubbles: true }));
-  assert(n === 1, '走不動（到文件頭尾）：不再連續走');
-  box.remove();
-}
-
 // ======== 放大鏡裡的游標標記跟編輯區的游標同一個形狀 ========
 {
   await fresh('第一段文字');
@@ -2309,36 +2282,14 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
   assert(['thick', 'block', 'underline'].every(k => css.includes('.wm-loupe .wm-loupe-caret[data-shape="' + k + '"]')) && css.includes('.wm-loupe .wm-loupe-caret { height: var(--wm-mark-h'), '標記的形狀與高度在樣式表');
 }
 
-// ======== 手機：功能區與狀態列合成一張浮動的毛玻璃卡片（view.ts 的 placeBottomBar）========
+// ======== 手機：功能區的捲動條與 hover（Word 模式與 Markdown 模式共用）========
 {
   const { readFileSync } = await import('node:fs');
   const css = readFileSync(new URL('../../styles/word-mode.css', import.meta.url), 'utf8');
-  assert(css.includes('.is-floating-nav .wm-phone:not(.wm-kb-open) .wm-toolbar-host.mod-raised {') && css.includes('body:not(.is-floating-nav) .wm-phone .wm-toolbar-host.mod-raised, .wm-phone.wm-kb-open .wm-toolbar-host.mod-raised { --raised: none; }'),
-    '卡片只在浮動導覽列、鍵盤收著時；其他時候用 --raised: none 關掉 Obsidian 的 mod-raised');
-  assert(!view.toolbarHost.classList.contains('mod-raised') && !view.toolbar.dom.classList.contains('mod-raised'), '電腦：不加 mod-raised');
-  const keep = { phone: mock.Platform.isPhone, pos: plugin.settings.toolbarPosition };
-  mock.Platform.isPhone = true;
-  view.bottomBarEl = view.contentEl.createDiv('wm-bottombar');
-  plugin.settings.toolbarPosition = 'bottom';
-  view.buildToolbar();
-  assert(view.toolbarHost.classList.contains('mod-raised') && view.bottomBarEl.parentElement === view.toolbarHost && view.toolbarHost.lastElementChild === view.bottomBarEl && view.contentEl.classList.contains('wm-dock'),
-    '手機、功能區在下方：外層掛 mod-raised，狀態列放進同一張卡片的最下面');
-  view.buildToolbar();
-  assert(view.bottomBarEl.parentElement === view.toolbarHost && view.toolbarHost.querySelectorAll('.wm-ribbon').length === 1, '重建功能區（會清空外層）：狀態列放回卡片裡');
-  plugin.settings.toolbarPosition = 'top';
-  view.buildToolbar();
-  assert(view.bottomBarEl.parentElement === view.contentEl && !view.contentEl.classList.contains('wm-dock'), '功能區在上方：狀態列留在檢視的最下面');
-  assert(css.includes('.wm-phone .wm-tabs-quick :is(.wm-quick-keys, .wm-quick-md) { display: none; }') && view.toolbar.dom.querySelector('.wm-quick-keys') && view.toolbar.dom.querySelector('.wm-quick-md'), '手機：分頁列右邊的快速鍵說明與 Markdown 按鈕由樣式表藏起來');
-  view.bottomBarEl.remove();
-  view.bottomBarEl = undefined;
-  mock.Platform.isPhone = keep.phone;
-  plugin.settings.toolbarPosition = keep.pos;
-  view.toolbarHost.classList.remove('mod-raised');
-  view.contentEl.classList.remove('wm-dock');
-  view.buildToolbar();
+  assert(!css.includes('mod-raised') && !view.toolbarHost.classList.contains('mod-raised'), '手機回到貼齊兩邊的功能區：不用 Obsidian 的 mod-raised 卡片');
+  assert(css.includes('.wm-mobile .wm-toolbar, .wm-mobile .wm-tabs, .wm-mobile.wm-ribbon .wm-tabs { --scrollbar-native-width: none; }') && css.includes('@media (hover: none)'), '藏起捲動條；觸控螢幕不用 hover 的底色（iOS 點過之後會卡住）');
+  assert(view.toolbar.dom.querySelector('.wm-quick-keys') && !view.toolbar.dom.querySelector('.wm-quick-md'), '快速鍵說明有類別讓手機藏起來；切到 Markdown 的按鈕兩種模式都留著');
 }
-
-
 // ======== 設定頁的搜尋框：手機上收得起鍵盤（settingsnav.ts）========
 {
   const box = document.body.createDiv();
@@ -2373,6 +2324,211 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
   outside.dispatchEvent(new Event('touchstart', { bubbles: true }));
   input.blur();
   box.remove(); outside.remove();
+}
+
+
+// ======== 控制鍵列（keyrow.ts）：Ctrl／Shift 點一下、連點兩下鎖住；方向鍵交給各模式；Tab、Esc、Ctrl＋打字送成鍵盤事件 ========
+{
+  const K = B.KEYS;
+  assert(K.keyRowKeys(undefined).join() === K.KEY_IDS.join() && K.keyRowKeys(['end', 'x', 'left', 'left']).join() === 'left,end', '設定的鍵：照固定順序，認不得的、重複的拿掉；沒有設定時全部');
+  const host = document.body.createDiv();
+  const ed = host.createDiv();
+  ed.contentEditable = 'true';
+  // jsdom 的 contentEditable 用 focus() 拿不到焦點，加上 tabIndex 才行
+  ed.tabIndex = 0;
+  const moves = [];
+  let canMove = true;
+  const row = new K.KeyRow(host, { keys: K.KEY_IDS, icon: (e, n, fb) => { e.textContent = fb; }, move: (k, m) => { moves.push(k + (m.mod ? '+mod' : '') + (m.shift ? '+shift' : '')); return canMove; } });
+  const btn = k => row.el.querySelector('.wm-key.is-' + k);
+  assert(row.el.getAttribute('role') === 'toolbar' && [...row.el.querySelectorAll('.wm-key')].length === 10, '十顆鍵排成一列');
+  btn('left').click();
+  assert(moves.join() === 'left', '方向鍵：交給各模式移動');
+  btn('shift').click();
+  assert(btn('shift').classList.contains('is-on') && btn('shift').getAttribute('aria-pressed') === 'true', 'Shift 點一下：作用在下一個鍵');
+  btn('right').click();
+  assert(moves.join() === 'left,right+shift' && !btn('shift').classList.contains('is-on'), '用過一次就放開');
+  btn('mod').click(); btn('mod').click();
+  assert(btn('mod').classList.contains('is-locked'), 'Ctrl 連點兩下：鎖住');
+  btn('home').click(); btn('end').click();
+  assert(moves.slice(-2).join() === 'home+mod,end+mod' && btn('mod').classList.contains('is-locked'), '鎖住的 Ctrl 一直作用');
+  btn('mod').click();
+  assert(!btn('mod').classList.contains('is-locked') && !btn('mod').classList.contains('is-on'), '再點一下：取消');
+  // Tab、Esc：送鍵盤事件給目前有焦點的地方
+  const got = [];
+  ed.addEventListener('keydown', e => got.push(e.key + (e.shiftKey ? '+shift' : '') + (e.ctrlKey || e.metaKey ? '+mod' : '')));
+  ed.focus();
+  btn('shift').click(); btn('tab').click(); btn('esc').click();
+  assert(got.join() === 'Tab+shift,Escape', 'Tab、Esc 送給正在打字的地方（Shift＋Tab 也行）：' + got.join());
+  // Ctrl 開著時打一個字：改送成快速鍵，字不會打進去
+  btn('mod').click();
+  const typed = new InputEvent('beforeinput', { inputType: 'insertText', data: 'b', bubbles: true, cancelable: true });
+  ed.dispatchEvent(typed);
+  assert(typed.defaultPrevented && got.slice(-1)[0] === 'b+mod' && !btn('mod').classList.contains('is-on'), 'Ctrl＋用鍵盤打的 b：送出 Ctrl＋B，字不打進去，Ctrl 放開');
+  const plain = new InputEvent('beforeinput', { inputType: 'insertText', data: 'c', bubbles: true, cancelable: true });
+  ed.dispatchEvent(plain);
+  assert(!plain.defaultPrevented && got.length === 3, 'Ctrl 沒開：照常打字');
+  // 按住方向鍵連續移動，走不動就停；放開之後那一下點擊不再多走
+  moves.length = 0;
+  btn('down').dispatchEvent(new Event('pointerdown', { bubbles: true }));
+  await sleep(600);
+  btn('down').dispatchEvent(new Event('pointerup', { bubbles: true }));
+  const held = moves.length;
+  btn('down').click();
+  await sleep(150);
+  assert(held >= 3 && moves.length === held, '按住方向鍵：連續移動（' + held + ' 次），放開就停');
+  moves.length = 0; canMove = false;
+  btn('up').dispatchEvent(new Event('pointerdown', { bubbles: true }));
+  await sleep(600);
+  btn('up').dispatchEvent(new Event('pointerup', { bubbles: true }));
+  assert(moves.length === 1, '走不動：不再連續移動');
+  row.destroy();
+  btn('mod');
+  const after = new InputEvent('beforeinput', { inputType: 'insertText', data: 'x', bubbles: true, cancelable: true });
+  ed.dispatchEvent(after);
+  assert(!after.defaultPrevented && !host.querySelector('.wm-keyrow'), '拿掉控制鍵列：元素與 document 上的事件都清掉');
+  host.remove();
+
+  // 功能區：手機的 Word 模式與 Markdown 模式都有開關；控制鍵列放在 mount 指定的地方
+  const root = document.body.createDiv();
+  const place = document.body.createDiv();
+  let saved = null;
+  const shell = new B.RibbonShell(root, { side: 'word', settings: {}, isMobile: true, icon: () => {}, openMenu: () => {}, pickTab: () => {},
+    keys: { list: ['left', 'right'], open: false, setOpen: v => { saved = v; }, move: () => true, mount: r => place.appendChild(r) } });
+  const quick = shell.finish();
+  const toggles = [root.querySelector('button.wm-keys-btn'), quick.querySelector('button.wm-keys-quick')];
+  assert(toggles.every(Boolean) && place.querySelector('.wm-keyrow') && !place.querySelector('.wm-keyrow.is-open') && root.classList.contains('has-keys'), '兩顆開關（鍵盤旁、分頁列右邊），控制鍵列放在功能區外面，一開始關著');
+  toggles[1].click();
+  assert(place.querySelector('.wm-keyrow.is-open') && saved === true && toggles.every(b => b.classList.contains('is-active')), '按開關：展開控制鍵列、兩顆開關一起亮、記進設定');
+  toggles[0].click();
+  assert(!place.querySelector('.wm-keyrow.is-open') && saved === false, '再按一下：收起來');
+  shell.destroy();
+  assert(!place.querySelector('.wm-keyrow'), '功能區拿掉：控制鍵列一起拿掉');
+  const reopened = new B.RibbonShell(document.body.createDiv(), { side: 'md', settings: {}, isMobile: true, icon: () => {}, openMenu: () => {}, pickTab: () => {}, keys: { list: ['left'], open: true, setOpen() {}, move: () => true, mount: r => place.appendChild(r) } });
+  const q2 = reopened.finish().querySelector('.wm-keys-quick');
+  assert(q2.classList.contains('is-active') && place.querySelector('.wm-keyrow.is-open'), '上次開著：重建後控制鍵列開著，分頁列那顆開關也亮著');
+  reopened.destroy();
+  const desk = new B.RibbonShell(document.body.createDiv(), { side: 'word', settings: {}, isMobile: false, icon: () => {}, openMenu: () => {}, pickTab: () => {}, keys: { list: ['left'], open: true, setOpen() {}, move: () => true, mount() {} } });
+  assert(!desk.keyRow, '電腦：不放控制鍵列');
+  root.remove(); place.remove();
+}
+
+// ======== 控制鍵的移動：Word 模式（toolbar.ts 的 keyMove）與 Markdown 模式（mdbar.ts 的 keyMove）========
+{
+  await fresh('hello world again\n\n第二段');
+  const pm = view.pm;
+  const tb = view.toolbar;
+  const at = p => pm.dispatch(pm.state.tr.setSelection(TextSelection.create(pm.state.doc, p)));
+  const sel = () => pm.state.selection.anchor + '-' + pm.state.selection.head;
+  at(3);
+  tb.keyMove('right', { mod: false, shift: false });
+  assert(sel() === '4-4', '右：一格');
+  tb.keyMove('right', { mod: false, shift: true }); tb.keyMove('right', { mod: false, shift: true });
+  assert(sel() === '4-6', 'Shift＋右：延伸選取，起點不動');
+  tb.keyMove('left', { mod: false, shift: false });
+  assert(sel() === '4-4', '有選取時按左：游標到範圍的開頭');
+  tb.keyMove('right', { mod: true, shift: false });
+  assert(sel() === '6-6', 'Ctrl＋右：到這個詞的結尾：' + sel());
+  tb.keyMove('right', { mod: true, shift: false });
+  assert(sel() === '12-12', 'Ctrl＋右：下一個詞的結尾：' + sel());
+  tb.keyMove('left', { mod: true, shift: true });
+  assert(sel() === '12-7', 'Ctrl＋Shift＋左：選到這個詞的開頭：' + sel());
+  tb.keyMove('end', { mod: false, shift: false });
+  assert(sel() === '18-18', 'End：這一行的結尾（量不到畫面時用段落的結尾）：' + sel());
+  tb.keyMove('home', { mod: false, shift: true });
+  assert(sel() === '18-1', 'Shift＋Home：選到行首');
+  tb.keyMove('end', { mod: true, shift: false });
+  assert(pm.state.selection.head === pm.state.doc.content.size - 1, 'Ctrl＋End：文件的結尾');
+  at(5);
+  assert(B.paragraphEdge(pm.state, 1) === 18 && B.paragraphEdge(pm.state, -1) === 1, 'Ctrl＋上下：這一段的開頭、結尾');
+  at(18);
+  assert(B.paragraphEdge(pm.state, 1) === pm.state.doc.content.size - 1, '已經在段落結尾：到下一段的結尾');
+  assert(!tb.keyMove('home', { mod: true, shift: false }) || pm.state.selection.head === 1, 'Ctrl＋Home：文件的開頭');
+  assert(!tb.keyMove('left', { mod: false, shift: false }), '文件開頭按左：走不動（連續移動會停）');
+
+  // Markdown 模式：用 Obsidian 編輯器的指令移動
+  const lines = ['hello world', 'second line'];
+  let anchor = { line: 0, ch: 3 }; let head = { line: 0, ch: 3 };
+  const cmp = (a, b) => a.line - b.line || a.ch - b.ch;
+  const off = p => p.line === 0 ? p.ch : lines[0].length + 1 + p.ch;
+  const pos = o => o <= lines[0].length ? { line: 0, ch: o } : { line: 1, ch: o - lines[0].length - 1 };
+  const fake = {
+    getCursor: w => w === 'anchor' ? anchor : w === 'head' ? head : w === 'from' ? (cmp(anchor, head) < 0 ? anchor : head) : (cmp(anchor, head) < 0 ? head : anchor),
+    getLine: n => lines[n], lastLine: () => lines.length - 1, getValue: () => lines.join('\n'),
+    posToOffset: off, offsetToPos: pos, somethingSelected: () => cmp(anchor, head) !== 0,
+    setCursor: p => { anchor = head = p; }, setSelection: (a, h) => { anchor = a; head = h; },
+    exec: c => { if (c === 'goDown') anchor = head = { line: 1, ch: Math.min(head.ch, lines[1].length) }; else if (c === 'goWordRight') anchor = head = { line: head.line, ch: 5 }; },
+    focus() {},
+  };
+  const containerEl = document.createElement('div');
+  const contentEl = containerEl.createDiv('view-content');
+  const md = { containerEl, contentEl, leaf: {}, mode: 'source', getMode() { return this.mode; }, editor: fake, getState() { return {}; }, async setState(st) { this.mode = st.mode; } };
+  const bar = new B.MarkdownBar(plugin, md);
+  const mdSel = () => anchor.line + ':' + anchor.ch + '-' + head.line + ':' + head.ch;
+  bar.keyMove('right', { mod: false, shift: true });
+  assert(mdSel() === '0:3-0:4', 'Markdown：Shift＋右延伸選取');
+  bar.keyMove('down', { mod: false, shift: true });
+  assert(mdSel() === '0:3-1:4', 'Markdown：Shift＋下：用編輯器的「往下」再把起點放回去');
+  bar.keyMove('end', { mod: false, shift: false });
+  assert(mdSel() === '1:11-1:11', 'Markdown：End 到行尾');
+  bar.keyMove('home', { mod: true, shift: false });
+  assert(mdSel() === '0:0-0:0', 'Markdown：Ctrl＋Home 到文件開頭');
+  bar.keyMove('right', { mod: true, shift: false });
+  assert(mdSel() === '0:5-0:5', 'Markdown：Ctrl＋右用編輯器的「下一個詞」');
+  md.mode = 'preview';
+  assert(!bar.keyMove('right', { mod: false, shift: false }), '閱讀模式：不移動');
+  bar.destroy();
+}
+
+// ======== 手機的 Markdown／閱讀模式：工具列下方的狀態列，跟 Word 模式一樣（mdbar.ts 的 syncStatus）========
+{
+  const keep = { phone: mock.Platform.isPhone, mobile: mock.Platform.isMobile, st: plugin.settings.mdStatusBar };
+  mock.Platform.isPhone = true; mock.Platform.isMobile = true;
+  const containerEl = document.body.createDiv();
+  const contentEl = containerEl.createDiv('view-content');
+  const md = { containerEl, contentEl, leaf: {}, mode: 'source', file: new mock.TFile('筆記/測試.md'), getMode() { return this.mode; }, editor: { focus() {}, getValue: () => 'abc', getSelection: () => '' }, getState() { return {}; }, async setState(st) { this.mode = st.mode; } };
+  const bar = new B.MarkdownBar(plugin, md);
+  const wrap = containerEl.querySelector('.wm-mdbar-status');
+  assert(wrap && wrap.classList.contains('wm-phone') && wrap.querySelector('.wm-bottombar .wm-bb-views') && bar.dom.classList.contains('has-status') && containerEl.lastElementChild === wrap,
+    '手機：Markdown 模式也在工具列下方放狀態列（外層有 wm-phone，跟 Word 模式同樣的樣式）');
+  assert(containerEl.querySelector('.wm-keyrow.wm-mdbar-keys') && bar.dom.querySelector('.wm-keys-btn'), '手機：Markdown 編輯也有控制鍵');
+  const first = wrap.querySelector('.wm-bottombar');
+  md.mode = 'preview';
+  bar.update();
+  assert(wrap.querySelector('.wm-bottombar') !== first, '換成閱讀模式：狀態列重建（按鈕不一樣）');
+  bar.render();
+  assert(!containerEl.querySelector('.wm-mdbar-keys'), '閱讀模式：不放控制鍵');
+  plugin.settings.mdStatusBar = false;
+  bar.update();
+  assert(!containerEl.querySelector('.wm-mdbar-status') && !bar.dom.classList.contains('has-status'), '設定關掉：拿掉狀態列');
+  plugin.settings.mdStatusBar = keep.st;
+  bar.destroy();
+  assert(!containerEl.querySelector('.wm-mdbar-status, .wm-keyrow'), '工具列拿掉：狀態列與控制鍵列一起拿掉');
+  containerEl.remove();
+  mock.Platform.isPhone = keep.phone; mock.Platform.isMobile = keep.mobile;
+}
+
+// ======== 表格上下的「＋ 段落」：那一邊沒有地方可以打字時才出現（tablegrips.ts）========
+{
+  await fresh('| a |\n| --- |\n| 1 |\n\n| b |\n| --- |\n| 2 |\n\n後面');
+  const pm = view.pm;
+  const inCell = text => { let p = -1; pm.state.doc.descendants((n, pos) => { if (p < 0 && n.isText && n.text === text) p = pos + 1; }); pm.dispatch(pm.state.tr.setSelection(TextSelection.create(pm.state.doc, p))); };
+  const btns = () => [...pm.dom.querySelectorAll('.wm-table-para')].map(e => e.classList.contains('is-before') ? 'before' : 'after').join();
+  inCell('1');
+  assert(btns() === 'before,after', '第一張表：上面是文件開頭、下面緊接著另一張表，兩邊都有：' + btns());
+  inCell('2');
+  assert(btns() === 'before', '第二張表：上面是表格才有；下面是段落，點那裡就能打字：' + btns());
+  pm.dispatch(pm.state.tr.setSelection(TextSelection.atEnd(pm.state.doc)));
+  assert(btns() === '', '游標不在表格裡：不顯示');
+  inCell('1');
+  const after = pm.dom.querySelector('.wm-table-para.is-after button');
+  assert(after.getAttribute('aria-label') === '在表格下方插入段落' && after.textContent === '＋ 段落', '按鈕寫「＋ 段落」，螢幕閱讀器念得出是哪一邊');
+  after.click();
+  const kids = []; pm.state.doc.forEach(n => kids.push(n.type.name + (n.content.size ? '' : '(空)')));
+  assert(kids.join() === 'table,paragraph(空),table,paragraph' && pm.state.selection.$head.parent.type.name === 'paragraph' && pm.state.selection.$head.parent.content.size === 0,
+    '按下方的「＋ 段落」：兩張表中間多一個空段落，游標放進去：' + kids.join());
+  inCell('1');
+  pm.dom.querySelector('.wm-table-para.is-before button').click();
+  assert(pm.state.doc.firstChild.type.name === 'paragraph' && pm.state.selection.$head.parent === pm.state.doc.firstChild, '按上方的「＋ 段落」：表格上面多一個段落');
 }
 
 finish();

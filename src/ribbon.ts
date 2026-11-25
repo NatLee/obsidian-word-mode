@@ -4,6 +4,8 @@
 import { t, key } from './i18n.js';
 import { attachHint, hideHint } from './hints.js';
 import { el, keepFocus, keyboardHideButton, hideKeyboard } from './dom.js';
+import { KeyRow } from './keyrow.js';
+import type { KeyId, KeyRowOptions } from './keyrow.js';
 import type { DemoName } from './hints.js';
 import type { IconFn } from './icons.js';
 import type { I18nKey } from './i18n.js';
@@ -17,7 +19,7 @@ export type AnyTabId = TabId | ContextTabId;
 export const CONTEXT_TABS: readonly ContextTabId[] = ['tabletab'];
 // 按鈕群組 id（GROUPS 的第一欄；也是設定 hiddenGroups 存的值）
 export type GroupId =
-  | 'undo' | 'arrows' | 'clipboard' | 'styles' | 'font' | 'paragraph' | 'editing'
+  | 'undo' | 'clipboard' | 'styles' | 'font' | 'paragraph' | 'editing'
   | 'tables' | 'illustrations' | 'links' | 'code' | 'text' | 'obsidian'
   | 'proofing' | 'stats' | 'comments'
   | 'views' | 'show' | 'zoom' | 'help';
@@ -36,8 +38,7 @@ export type TabStyle = 'text' | 'icon' | 'both' | 'menu';
 // 分頁與群組（設定頁用同一份清單，讓使用者勾選要顯示的項目）
 export const TABS: readonly TabEntry[] = [['home', '常用'], ['insert', '插入'], ['review', '校閱'], ['viewtab', '檢視']];
 export const GROUPS: readonly GroupEntry[] = [
-  // 方向鍵只在手機、平板的 Word 模式有（螢幕鍵盤沒有方向鍵）；其他地方 RibbonShell 不建立這個群組
-  ['undo', 'home', '復原'], ['arrows', 'home', '方向鍵'], ['clipboard', 'home', '剪貼簿'], ['styles', 'home', '樣式'], ['font', 'home', '字型'],
+  ['undo', 'home', '復原'], ['clipboard', 'home', '剪貼簿'], ['styles', 'home', '樣式'], ['font', 'home', '字型'],
   ['paragraph', 'home', '段落'], ['editing', 'home', '編輯'],
   ['tables', 'insert', '表格'], ['illustrations', 'insert', '圖例'], ['links', 'insert', '連結'], ['code', 'insert', '程式碼'],
   ['text', 'insert', '文字'], ['obsidian', 'insert', 'Obsidian'],
@@ -261,6 +262,9 @@ export interface ShellOptions {
   openMenu(owner: HTMLElement, items: MenuItem[]): void;
   // 使用者選了分頁（分頁按鈕或選單）
   pickTab(id: AnyTabId): void;
+  // 手機、平板的控制鍵列（keyrow.ts）；沒有時不放開關（電腦、閱讀模式、設定關掉）。
+  // mount 把控制鍵列放到功能區旁邊（它不在功能區裡面：放在裡面會把「收起鍵盤」那顆按鈕的位置擠歪）
+  keys?: { list: readonly KeyId[]; open: boolean; setOpen(open: boolean): void; move: KeyRowOptions['move']; mount(row: HTMLElement): void } | null;
 }
 
 // 功能區最外層元素的 class（版面、按鈕樣式、分頁列樣式、要不要顯示群組名稱）
@@ -299,6 +303,10 @@ export class RibbonShell {
   declare pickTab: (id: AnyTabId) => void;
   // 觸控裝置：功能（按鈕的 title）→ 按鈕，給「往上滑」找另一個功能的按鈕用；桌機是 null
   declare byTitle: Map<string, HTMLButtonElement> | null;
+  // 控制鍵列與它的開關（鍵盤開著時在「收起鍵盤」左邊、鍵盤收著時在分頁列右邊的快速按鈕裡）
+  declare keyRow: KeyRow | null;
+  declare keyToggles: HTMLButtonElement[];
+  declare keyOpts: ShellOptions['keys'];
 
   constructor(root: HTMLElement, o: ShellOptions) {
     const S = o.settings;
@@ -310,8 +318,6 @@ export class RibbonShell {
     this.hideViewLabels = S.viewButtonLabels === false;
     this.richHints = !!S.richHints && !o.isMobile;
     this.hiddenGroups = new Set(S.hiddenGroups || []);
-    // 方向鍵：電腦有實體的方向鍵，Markdown 模式用 Obsidian 自己的編輯器，都不需要
-    if (!o.isMobile || o.side !== 'word') this.hiddenGroups.add('arrows');
     const hiddenTabs = new Set<string>(S.hiddenTabs || []);
     this.tabsEl = el('div', 'wm-tabs', root);
     this.bar = el('div', 'wm-toolbar', root);
@@ -334,6 +340,14 @@ export class RibbonShell {
       // 收起鍵盤：放在功能區最外層、疊在按鈕列的結尾（樣式表用 absolute），不跟著按鈕左右捲。
       // 放在按鈕列裡用 sticky 的話，按鈕列一捲它就跟著跑（面板本身比按鈕列寬，它的原位不在內容的最後面）
       keyboardHideButton(root, t('收起鍵盤'), this.icon);
+    }
+    this.keyRow = null; this.keyToggles = []; this.keyOpts = o.keys;
+    if (o.isMobile && o.keys) {
+      this.keyRow = new KeyRow(root, { keys: o.keys.list, icon: this.icon, move: o.keys.move });
+      o.keys.mount(this.keyRow.el);
+      root.classList.add('has-keys');
+      this.keyToggle(root, 'wm-keys-btn');
+      this.setKeysOpen(o.keys.open, false);
     }
     if (this.layout === 'tabs') {
       const menuTabs = this.tabStyle === 'menu';
@@ -570,6 +584,36 @@ export class RibbonShell {
     if (tabRow) el('div', 'wm-tabs-spacer', this.tabsEl);
     const quick = el('div', 'wm-tabs-quick', this.all || (tabRow ? this.tabsEl : this.bar));
     this.tabsEl.classList.toggle('is-hidden', !tabRow);
+    // 鍵盤收著時控制鍵的開關放在這裡（鍵盤開著時這顆藏起來，改用「收起鍵盤」左邊那顆）
+    if (this.keyRow) this.keyToggle(quick, 'wm-btn wm-keys-quick');
     return quick;
+  }
+
+  // 控制鍵的開關（兩顆做同一件事）。按鈕不能搶走打字位置的焦點
+  keyToggle(parent: HTMLElement, cls: string): HTMLButtonElement {
+    const b = el('button', cls, parent);
+    b.type = 'button';
+    b.setAttribute('aria-label', t('控制鍵'));
+    this.icon(b, 'move', '⌨');
+    keepFocus(b);
+    b.addEventListener('click', e => { e.preventDefault(); this.setKeysOpen(!(this.keyRow && this.keyRow.el.classList.contains('is-open')), true); });
+    this.keyToggles.push(b);
+    // 晚建立的這顆（分頁列裡的，finish() 才建立）照目前的狀態亮起來
+    const open = !!this.keyRow && this.keyRow.el.classList.contains('is-open');
+    b.classList.toggle('is-active', open);
+    b.setAttribute('aria-pressed', open ? 'true' : 'false');
+    return b;
+  }
+
+  setKeysOpen(open: boolean, save: boolean): void {
+    if (!this.keyRow) return;
+    this.keyRow.el.classList.toggle('is-open', open);
+    for (const b of this.keyToggles) { b.classList.toggle('is-active', open); b.setAttribute('aria-pressed', open ? 'true' : 'false'); }
+    if (save && this.keyOpts) this.keyOpts.setOpen(open);
+  }
+
+  // 功能區拿掉之前呼叫：控制鍵列在功能區外面，而且在 document 上掛了事件
+  destroy(): void {
+    if (this.keyRow) { this.keyRow.destroy(); this.keyRow = null; }
   }
 }

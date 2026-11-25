@@ -4,6 +4,8 @@
 import * as C from './commands.js';
 import { Loupe, loupeOptions } from './loupe.js';
 import { caretLook } from './caret.js';
+import { keyRowKeys } from './keyrow.js';
+import type { KeyMods, MoveKey } from './keyrow.js';
 import { undo, redo } from 'prosemirror-history';
 import { schema } from './schema.js';
 import { t, key } from './i18n.js';
@@ -55,7 +57,13 @@ export interface ToolbarContext {
     loupeInfo?: boolean;
     // 放大鏡裡的游標標記跟編輯區的游標同一個形狀
     caretShape?: string;
+    // 控制鍵列（keyrow.ts）：要不要放開關、要顯示哪些鍵、上次是不是開著
+    keyRow?: boolean;
+    keyRowKeys?: readonly string[];
+    keyRowOpen?: boolean;
   };
+  // 控制鍵列開著或關起來（記進設定，下次開筆記、重建功能區時照樣）
+  setKeyRowOpen?(open: boolean): void;
   // 一開始顯示的分頁（上次離開時的分頁）
   initialTab: TabId;
   // 使用者切換分頁時通知，讓下次開啟時回到同一個分頁
@@ -180,9 +188,6 @@ function objectNext(view: EditorView, sel: Selection, dir: number): number {
 export const PAD_HOLD = { min: 150, max: 800, step: 50, default: 300 } as const;
 // 移動速度（設定 1～5）：手指移動多少 px 走一格；換一行要多拖一點，免得左右拖的時候不小心換行
 const PAD_STEP_X = [18, 15, 12, 9, 7] as const;
-// 方向鍵按住多久開始連續移動、之後每隔多久走一格（毫秒）
-const ARROW_DELAY = 380;
-const ARROW_REPEAT = 70;
 // 速度的設定值整理成 1～5（不是數字就用 3）
 export function padSpeed(v: unknown): number {
   return typeof v === 'number' && isFinite(v) ? Math.max(1, Math.min(5, Math.round(v))) : 3;
@@ -199,6 +204,56 @@ export function padGain(speed: number): number {
   const k = Math.max(0, Math.min(1, (v - PAD_GAIN.slow) / (PAD_GAIN.fast - PAD_GAIN.slow)));
   return PAD_GAIN.min + (PAD_GAIN.max - PAD_GAIN.min) * k;
 }
+// 控制鍵的 Ctrl＋左右：這一段裡上一個、下一個詞的邊界（中文用瀏覽器的斷詞）；已經在段落頭尾時跨到旁邊那一段
+export function wordEdge(st: EditorState, dir: -1 | 1): number {
+  const { $head } = st.selection;
+  const parent = $head.parent;
+  const off = $head.parentOffset;
+  if ((dir < 0 && off === 0) || (dir > 0 && off === parent.content.size) || !parent.inlineContent) {
+    const next = Selection.findFrom(st.doc.resolve(Math.max(0, Math.min($head.pos + dir, st.doc.content.size))), dir, true);
+    return next ? next.head : -1;
+  }
+  const text = parent.textBetween(0, parent.content.size, undefined, '\ufffc');
+  type Seg = { segment: string; index: number; isWordLike?: boolean };
+  const Seg = (Intl as unknown as { Segmenter?: new (l?: string, o?: { granularity: string }) => { segment(t: string): Iterable<Seg> } }).Segmenter;
+  // 詞的起點（往左）或終點（往右）
+  const stops: number[] = [];
+  if (Seg) {
+    for (const g of new Seg(undefined, { granularity: 'word' }).segment(text)) if (g.isWordLike !== false) stops.push(dir < 0 ? g.index : g.index + g.segment.length);
+  } else {
+    const re = /[\p{L}\p{N}_]+/gu;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(text))) stops.push(dir < 0 ? m.index : m.index + m[0].length);
+  }
+  const hit = dir < 0 ? stops.filter(x => x < off).pop() : stops.find(x => x > off);
+  return $head.start() + (hit != null ? hit : dir < 0 ? 0 : parent.content.size);
+}
+
+// 控制鍵的 Ctrl＋上下：這一段的開頭、結尾；已經在那裡時到上一段的開頭、下一段的結尾
+export function paragraphEdge(st: EditorState, dir: -1 | 1): number {
+  const { $head } = st.selection;
+  const edge = dir < 0 ? $head.start() : $head.end();
+  if ($head.pos !== edge) return edge;
+  const next = Selection.findFrom(st.doc.resolve(Math.max(0, Math.min($head.pos + dir, st.doc.content.size))), dir, true);
+  if (!next) return -1;
+  return dir < 0 ? next.$head.start() : next.$head.end();
+}
+
+// 控制鍵的 Home／End：畫面上這一行的開頭、結尾（段落換行成好幾行時，是游標那一行）；量不到位置時用段落的頭尾
+function lineEdge(v: EditorView, dir: -1 | 1): number {
+  const { $head } = v.state.selection;
+  try {
+    const c = v.coordsAtPos($head.pos);
+    const dom = v.nodeDOM($head.before());
+    const r = dom && dom.nodeType === 1 ? (dom as HTMLElement).getBoundingClientRect() : null;
+    if (r && r.width) {
+      const hit = v.posAtCoords({ left: dir < 0 ? r.left + 1 : r.right - 1, top: (c.top + c.bottom) / 2 });
+      if (hit && hit.pos >= $head.start() && hit.pos <= $head.end()) return hit.pos;
+    }
+  } catch { /* 量不到：用段落的頭尾 */ }
+  return dir < 0 ? $head.start() : $head.end();
+}
+
 export function padHold(v: unknown): number {
   const n = typeof v === 'number' && isFinite(v) ? v : PAD_HOLD.default;
   return Math.round(Math.max(PAD_HOLD.min, Math.min(PAD_HOLD.max, n)) / PAD_HOLD.step) * PAD_HOLD.step;
@@ -252,7 +307,7 @@ export class Toolbar {
   declare padMoved: boolean | undefined;
   // 拖曳時上下移動要回到的水平位置（左右移動之後重新記）
   declare padGoalX: number | null | undefined;
-  // 方向鍵上一次上下移動後的選取（arrowLine 用來判斷目標欄還算不算數）
+  // 控制鍵上一次上下移動後的選取（keyMove 用來判斷目標欄還算不算數）
   declare arrowSel: Selection | null | undefined;
   // 手機的抽屜後面那層變暗的底（openPopup）
   declare popupBackdrop: HTMLElement | null | undefined;
@@ -277,6 +332,13 @@ export class Toolbar {
       // 剛在選單按鈕上拖曳移動過游標：放開時的那一下點擊不開選單
       openMenu: (owner, items) => { if (this.padMoved) { this.padMoved = false; return; } this.openMenu(owner, items); },
       pickTab: id => this.showTab(id),
+      // 控制鍵列放在功能區的同一個容器裡（樣式表依功能區在上方或下方決定它在上面或下面）
+      keys: ctx.isMobile && S.keyRow !== false ? {
+        list: keyRowKeys(S.keyRowKeys), open: !!S.keyRowOpen,
+        setOpen: open => { if (this.ctx.setKeyRowOpen) this.ctx.setKeyRowOpen(open); },
+        move: (key, mods) => this.keyMove(key, mods),
+        mount: row => container.appendChild(row),
+      } : null,
     });
     this.build();
     this.showTab(this.shell.usableTab(ctx.initialTab));
@@ -288,6 +350,7 @@ export class Toolbar {
   }
 
   destroy(): void {
+    this.shell.destroy();
     // 格式刷還開著就重建功能區（改了設定）：不停掉的話，編輯區會留著舊功能區的事件與刷子游標
     this.stopPainter();
     this.dom.ownerDocument.removeEventListener('pointerdown', this.onDocDown, true);
@@ -360,7 +423,7 @@ export class Toolbar {
       this.button(quick, A.findQuick, { onClick: () => this.d.find(), active: () => this.isFindOpen() });
       if (!shell.hiddenGroups.has('help')) this.button(quick, { icon: 'help-circle', title: '快速鍵說明', keys: 'Mod+/', text: '?', demo: 'kbd', desc: '列出所有快速鍵；點一列可以看動畫示範。', cls: 'wm-quick-keys' }, { onClick: () => this.d.shortcuts() });
       // 跟「檢視」分頁的 Markdown 按鈕是同一個功能：這裡只有圖示，說明多了怎麼切回來
-      this.button(quick, { ...A.markdownMode, label: undefined, big: false, desc: '用 Obsidian 原本的 Markdown 編輯這份筆記，再按一次（或在 Markdown 畫面按同樣的快速鍵）切回 Word 模式。', cls: 'wm-quick-md' }, { onClick: () => this.d.markdown() });
+      this.button(quick, { ...A.markdownMode, label: undefined, big: false, desc: '用 Obsidian 原本的 Markdown 編輯這份筆記，再按一次（或在 Markdown 畫面按同樣的快速鍵）切回 Word 模式。' }, { onClick: () => this.d.markdown() });
     });
   }
 
@@ -377,16 +440,6 @@ export class Toolbar {
     let g = G.undo;
     this.button(g, A.undo, { cmd: undo, enabled: s => undo(s) });
     this.button(g, A.redo, { cmd: redo, enabled: s => redo(s) });
-
-    // 方向鍵（只有手機、平板的 Word 模式建立這個群組）：短距離移動游標，點一下一格、按住連續走
-    g = G.arrows;
-    if (g) {
-      const desc: I18nKey = '點一下移動一格，按住不放會連續移動。';
-      this.arrowKey(g, { icon: 'arrow-left', title: '游標往左', text: '←', desc }, () => { this.padGoalX = null; return this.run(C.moveCaretBy(-1)); });
-      this.arrowKey(g, { icon: 'arrow-up', title: '游標往上一行', text: '↑', desc }, () => this.arrowLine(-1));
-      this.arrowKey(g, { icon: 'arrow-down', title: '游標往下一行', text: '↓', desc }, () => this.arrowLine(1));
-      this.arrowKey(g, { icon: 'arrow-right', title: '游標往右', text: '→', desc }, () => { this.padGoalX = null; return this.run(C.moveCaretBy(1)); });
-    }
 
     g = G.clipboard;
     this.button(g, { icon: 'clipboard-paste', title: '貼上', keys: 'Mod+V', label: '貼上', text: '貼', desc: '貼上剪貼簿的內容。Excel 範圍會變成表格。', demo: 'paste' }, { onClick: () => this.d.paste('auto') });
@@ -692,7 +745,7 @@ export class Toolbar {
     b.addEventListener('touchstart', e => {
       unready();
       const target = e.target as Element | null;
-      if (e.touches.length !== 1 || (hold && target && target.nodeType === 1 && target.closest('.wm-tab-switch, .wm-arrow-key'))) { id = null; return; }
+      if (e.touches.length !== 1 || (hold && target && target.nodeType === 1 && target.closest('.wm-tab-switch'))) { id = null; return; }
       const tt = e.touches[0];
       id = tt.identifier; x = tt.clientX; y = tt.clientY; active = false; this.padMoved = false;
       lastT = e.timeStamp; ax = 0; ay = 0;
@@ -762,46 +815,19 @@ export class Toolbar {
     b.addEventListener('touchcancel', end);
   }
 
-  // 方向鍵的一顆：點一下執行一次 step；按住 ARROW_DELAY 之後每 ARROW_REPEAT 執行一次（像實體鍵盤按住不放）。
-  // step 回傳 false（到文件頭尾）時停止連續移動
-  arrowKey(parent: HTMLElement, look: { icon: string; title: I18nKey; text: string; desc: I18nKey }, step: () => boolean): void {
-    let repeated = false;
-    const b = this.button(parent, look, { onClick: () => { if (repeated) { repeated = false; return; } step(); } });
-    if (!b) return;
-    b.classList.add('wm-arrow-key');
-    const win = b.ownerDocument.defaultView || window;
-    let wait = 0; let loop = 0;
-    const stop = (): void => { win.clearTimeout(wait); win.clearInterval(loop); wait = 0; loop = 0; };
-    b.addEventListener('pointerdown', () => {
-      stop(); repeated = false;
-      wait = win.setTimeout(() => {
-        repeated = true;
-        if (!step()) return;
-        loop = win.setInterval(() => { if (!step()) stop(); }, ARROW_REPEAT);
-      }, ARROW_DELAY);
-    });
-    for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) b.addEventListener(ev, stop);
-  }
 
-  // 方向鍵的上下：連續按上下時記住目標欄（經過短的行再回到長的行，還在原本那一欄）；中間游標被別的方式移動過就重新記
-  arrowLine(n: number): boolean {
-    const v = this.view;
-    if (!v) return false;
-    if (v.state.selection !== this.arrowSel) this.padGoalX = null;
-    const ok = this.moveCaretLines(n);
-    this.arrowSel = v.state.selection;
-    return ok;
-  }
 
   // 游標往上（n < 0）或往下移 |n| 行：照畫面上的位置找上一行、下一行同一個水平位置的地方。回傳有沒有移動（到文件頭尾時是 false）。
   // 水平位置用 padGoalX 記住（像一般編輯器的「目標欄」）：經過比較短的行、表格的窄欄，回到長的行時還在原本那一欄。
   // 這個方向緊鄰的是方程式、圖表、分隔線、文件屬性這類不能打字的區塊時，先停在它上面（整個選取，放大鏡旁寫出是什麼），
   // 不會直接跳過去；下一步再離開
-  moveCaretLines(n: number): boolean {
+  // extend：延伸選取（控制鍵的 Shift），選取的起點不動，也不停在物件上
+  moveCaretLines(n: number, extend = false): boolean {
     const v = this.view;
     if (!v) return false;
     const dir = n < 0 ? -1 : 1;
     let moved = false;
+    const anchor = v.state.selection.anchor;
     for (let i = 0; i < Math.abs(n); i++) {
       const doc = v.state.doc;
       const sel = v.state.selection;
@@ -842,7 +868,7 @@ export class Toolbar {
         if (hit) { const near = textAt(hit.pos); if (otherLine(near)) to = near; }
       }
       // 2. 這個方向緊鄰的區塊是不能打字的東西，而且在找到的那一行之前：停在它上面
-      const obj = objectNext(v, sel, dir);
+      const obj = extend ? -1 : objectNext(v, sel, dir);
       if (obj >= 0 && (to < 0 || (dir > 0 ? to > obj : to < obj))) {
         v.dispatch(v.state.tr.setSelection(NodeSelection.create(doc, obj)).scrollIntoView());
         // 手指一次拖很遠（一次要走好幾行）時也先停在這裡，看得到經過了什麼；剩下的距離不算
@@ -858,10 +884,50 @@ export class Toolbar {
       const at = lineOf(to);
       const same = v.posAtCoords({ left: x, top: (at.top + at.bottom) / 2 });
       if (same && doc.resolve(same.pos).parent.inlineContent && otherLine(same.pos) && Math.abs(lineOf(same.pos).top - at.top) < h / 2) to = same.pos;
-      v.dispatch(v.state.tr.setSelection(TextSelection.create(doc, to)).scrollIntoView());
+      v.dispatch(v.state.tr.setSelection(extend ? TextSelection.between(doc.resolve(anchor), doc.resolve(to)) : TextSelection.create(doc, to)).scrollIntoView());
       moved = true;
     }
     return moved;
+  }
+
+  // 控制鍵（keyrow.ts）的方向鍵、Home、End：Shift 延伸選取；Ctrl（⌘）跳得比較遠：
+  // 左右是上一個、下一個詞，上下是這一段的開頭、結尾（已經在開頭、結尾時到上一段、下一段），Home／End 是整份文件的開頭、結尾。
+  // 回傳有沒有移動（按住連續移動時，走不動就停）
+  keyMove(key: MoveKey, mods: KeyMods): boolean {
+    const v = this.view;
+    if (!v) return false;
+    if (key === 'up' || key === 'down') {
+      const dir = key === 'up' ? -1 : 1;
+      if (mods.mod) return this.setHead(paragraphEdge(v.state, dir), mods.shift);
+      if (v.state.selection !== this.arrowSel) this.padGoalX = null;
+      const ok = this.moveCaretLines(dir, mods.shift);
+      this.arrowSel = v.state.selection;
+      return ok;
+    }
+    this.padGoalX = null;
+    const st = v.state;
+    if (key === 'left' || key === 'right') {
+      const dir = key === 'left' ? -1 : 1;
+      if (mods.mod) return this.setHead(wordEdge(st, dir), mods.shift);
+      // 有選取範圍又不延伸時，像一般的鍵盤：游標放到範圍的那一頭
+      if (!mods.shift && !st.selection.empty) return this.setHead(dir < 0 ? st.selection.from : st.selection.to, false);
+      const step = Selection.findFrom(st.doc.resolve(Math.max(0, Math.min(st.selection.head + dir, st.doc.content.size))), dir, true);
+      return !!step && this.setHead(step.head, mods.shift);
+    }
+    if (mods.mod) return this.setHead(key === 'home' ? Selection.atStart(st.doc).head : Selection.atEnd(st.doc).head, mods.shift);
+    return this.setHead(lineEdge(v, key === 'home' ? -1 : 1), mods.shift);
+  }
+
+  // 把游標（extend 時是選取的終點）移到 pos；位置沒變回傳 false
+  setHead(pos: number, extend: boolean): boolean {
+    const v = this.view;
+    if (!v || pos < 0) return false;
+    const st = v.state;
+    const $to = st.doc.resolve(Math.max(0, Math.min(pos, st.doc.content.size)));
+    const sel = extend ? TextSelection.between(st.selection.$anchor, $to) : TextSelection.between($to, $to);
+    if (sel.eq(st.selection)) return false;
+    v.dispatch(st.tr.setSelection(sel).scrollIntoView());
+    return true;
   }
 
   // ----------------------------------------------------------- 彈出選單
