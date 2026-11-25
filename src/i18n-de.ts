@@ -1332,4 +1332,12 @@ export default {
  "「放到右上角」：文件屬性是右上角的一顆按鈕，字數統計與閱讀模式在右上角的「⋯」選單裡，畫面下方不放狀態列，編輯區比較大。「畫面下方的狀態列」：跟 1.37 以前一樣，放在工具列下方。只影響手機。": "„Oben rechts“: Die Eigenschaften werden zu einer Schaltfläche oben rechts, Wortzahl und Lesemodus stehen im Menü „⋯“ oben rechts. Unten gibt es keine Statusleiste, der Editor bekommt mehr Platz. „Statusleiste unten“: wie vor 1.37, unter der Werkzeugleiste. Nur auf Smartphones.",
  "放到右上角與「⋯」選單（建議）": "Oben rechts und im Menü „⋯“ (empfohlen)",
  "畫面下方的狀態列": "Statusleiste unten",
+ "收起或叫出鍵盤": "Tastatur aus- oder einblenden",
+ "游標往前": "Cursor zurück",
+ "游標往後": "Cursor vor",
+ "換行": "Zeilenumbruch",
+ "上一欄": "Vorheriges Feld",
+ "下一欄": "Nächstes Feld",
+ "縮排": "Einrücken",
+ "這份文件屬性的格式比較特殊，請用「編輯 YAML 原文」修改。": "Diese Eigenschaften haben ein ungewöhnliches Format. Ändern Sie sie mit „YAML-Quelltext bearbeiten“.",
 };

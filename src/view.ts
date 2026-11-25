@@ -876,7 +876,38 @@ export class WordModeView extends TextFileView {
       typeHint: k => propertyWidget(this.app, k),
       go: () => this.openProperties(),
       isMobile: !!Platform.isMobile,
+      // 手機的彈出視窗可以直接編輯：改的是文件開頭的文件屬性（可以復原）
+      edit: Platform.isPhone ? {
+        read: () => this.propsPeekData(),
+        commit: obj => this.writeProperties('---\n' + (Object.keys(obj).length ? stringifyYaml(obj).replace(/\s+$/, '') + '\n' : '') + '---'),
+        ctx: this.nodeViewContext(),
+        raw: () => this.editPropertiesSource(),
+      } : undefined,
     });
+  }
+
+  // 寫回文件開頭的文件屬性（YAML 原文，含前後的 ---）；還沒有文件屬性時加在最前面
+  writeProperties(src: string): void {
+    if (!this.pm) return;
+    const st = this.pm.state;
+    const first = st.doc.firstChild;
+    const fm = schema.nodes.frontmatter;
+    const tr = first && first.type === fm
+      ? st.tr.setNodeMarkup(0, null, Object.assign({}, first.attrs, { src }))
+      : st.tr.insert(0, fm.create({ src }));
+    this.pm.dispatch(tr);
+  }
+
+  // 用 YAML 原文編輯文件屬性（手機的文件屬性視窗；格式特殊、表單顯示不了的時候）
+  editPropertiesSource(): void {
+    const first = this.pm && this.pm.state.doc.firstChild;
+    const cur = first && first.type === schema.nodes.frontmatter ? (first.attrs as FrontmatterAttrs).src : '---\n---';
+    new SourceModal(this.app, t('編輯文件屬性（YAML 原文）'), cur, value => {
+      let v = value.replace(/\s+$/, '');
+      if (!/^---\r?\n/.test(v)) v = '---\n' + v;
+      if (!/\n(---|\.\.\.)$/.test(v)) v += '\n---';
+      this.writeProperties(v);
+    }).open();
   }
 
   openEquation(existing?: MathTarget): void {

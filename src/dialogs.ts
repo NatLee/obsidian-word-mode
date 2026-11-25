@@ -11,6 +11,7 @@ import { t, key, isMac } from './i18n.js';
 import type { App, TFile } from 'obsidian';
 import type { WeirdKindId } from './marks.js';
 import { EditingModal } from './confirmclose.js';
+import { Accessory, moveCaret } from './accessory.js';
 import type WordModePlugin from './main.js';
 import type { WordModeView } from './view.js';
 import type { I18nKey } from './i18n.js';
@@ -363,6 +364,11 @@ export class EquationModal extends EditingModal {
   declare visualTools: HTMLButtonElement[];
   // 視覺化的格子目前對應的 LaTeX（LaTeX 那一格跟它不同，表示在 LaTeX 模式改過）；還沒建立格子時是 null
   declare fieldSrc: string | null;
+  // 手機：鍵盤上方的擴充列（accessory.ts），LaTeX 模式才顯示的那一組鍵
+  declare acc?: Accessory;
+  declare latexKeys?: HTMLDivElement;
+  // 擴充列裡視覺化時才顯示的那一組（上一格、下一格、拿掉結構、復原）
+  declare visualKeys?: HTMLElement;
   // 跟打開時的方程式不一樣（前後的空白不算）
   hasChanges(): boolean { return !!this.ta && this.ta.value.trim() !== (this.init.src || '').trim(); }
   constructor(app: App, init: EquationInit, render: MathRenderer, onSave: EquationSaveCallback, plugin?: WordModePlugin | null) {
@@ -533,6 +539,7 @@ export class EquationModal extends EditingModal {
       });
     }
     this.prev = pvBox.createDiv('wm-eq-preview');
+    if (Platform.isPhone) this.phoneBar(palBox, tools);
 
     const bar = buttonBar(this);
     if (this.init.existing && this.init.onDelete) {
@@ -565,11 +572,30 @@ export class EquationModal extends EditingModal {
     this.fieldHost.toggle(mode === 'visual');
     this.fieldHint.toggle(mode === 'visual');
     for (const b of this.visualTools) b.toggle(mode === 'visual');
+    if (this.latexKeys) this.latexKeys.toggle(mode === 'latex');
+    if (this.visualKeys) this.visualKeys.toggle(mode === 'visual');
     this.ta.toggle(mode === 'latex');
     if (mode === 'visual') {
       if (this.fieldSrc !== this.ta.value) { this.field.setLatex(this.ta.value, this.fieldSrc != null); this.fieldSrc = this.ta.value; }
       if (focus) window.setTimeout(() => this.field.focus(true), 10);
     } else if (focus) window.setTimeout(() => { this.ta.focus(); this.ta.setSelectionRange(this.ta.value.length, this.ta.value.length); }, 10);
+  }
+  // 手機：鍵盤上方的擴充列。上一格、下一格、拿掉結構、復原（視覺化）或 LaTeX 常用但 iOS 鍵盤要切換才打得到的字元，
+  // 下面是符號的分類與一列符號（原本在對話框中間，打字時要上下捲才拿得到）
+  phoneBar(palBox: HTMLElement, tools: HTMLElement): void {
+    const acc = this.acc = new Accessory(this.modalEl, iconOr, () => { if (this.editMode === 'visual') this.field.focus(true); else this.ta.focus(); });
+    tools.addClass('wm-acc-group');
+    this.visualKeys = tools;
+    acc.keys.appendChild(tools);
+    const raw = (ch: string, label?: string) => ({ text: ch, label: label || ch, run: () => this.insertRaw(ch) });
+    this.latexKeys = acc.group('wm-eq-latexkeys', [
+      { icon: 'arrow-left', text: '←', label: t('游標往前'), run: () => moveCaret(this.ta, -1) },
+      { icon: 'arrow-right', text: '→', label: t('游標往後'), run: () => moveCaret(this.ta, 1) },
+      raw('\\'), raw('{'), raw('}'), raw('^'), raw('_'), raw('('), raw(')'), raw('['), raw(']'), raw('&'), raw('\\\\', t('換行')),
+    ]);
+    this.latexKeys.hide();
+    palBox.addClass('wm-acc-palette');
+    acc.el.appendChild(palBox);
   }
   insertRaw(text: string): void {
     if (this.editMode === 'visual') { this.field.insert(text); return; }

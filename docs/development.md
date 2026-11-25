@@ -128,6 +128,8 @@ All styles are in `styles/word-mode.css`, and every class starts with `wm-`. The
 | `src/trackpad.ts` | The toolbar-as-trackpad gesture (hold, then drag to move the cursor) with speed and acceleration. Word mode (`toolbar.ts`), the Markdown toolbar (`mdbar.ts`) and Obsidian's own mobile toolbar (`nativebar.ts`) each pass hooks for how to move the cursor. |
 | `src/nativebar.ts` | Adds the control-key toggle (left of Obsidian's keyboard button), the key row and the trackpad to Obsidian's own mobile toolbar in Markdown editing. Its DOM is not public API, so if it cannot be found nothing happens. |
 | `src/props.ts`, `src/propview.ts` | Property values (types, conversion, reading the frontmatter), and the properties popover (a pop-up window on phones, `showProps`) and the pinned properties bar. |
+| `src/propform.ts` | The properties form (rows, add, change type, rename) and `FocusKeeper`, which keeps focus across redraws. Shared by the properties block in Word mode (`FrontmatterView` in `nodeviews.ts`) and the phone properties window; the host supplies reading and writing. |
+| `src/accessory.ts` | The extra row above the keyboard in the phone equation and diagram editors (keys, symbols, hide/show keyboard). |
 | `src/bubble.ts` | Floating toolbar for links and images. |
 | `src/tablegrips.ts` | Row and column handles on the table at the cursor (select a whole row or column and open its menu). |
 | `src/nodeviews.ts` | Rendering of links, images, tables, and raw blocks. |

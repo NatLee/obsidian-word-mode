@@ -1332,4 +1332,12 @@ export default {
  "「放到右上角」：文件屬性是右上角的一顆按鈕，字數統計與閱讀模式在右上角的「⋯」選單裡，畫面下方不放狀態列，編輯區比較大。「畫面下方的狀態列」：跟 1.37 以前一樣，放在工具列下方。只影響手機。": "“Top right”: properties are a button in the top-right corner, and word count and reading view are in the top-right “⋯” menu. There is no status bar at the bottom, so the editor gets more room. “Status bar at the bottom”: as before 1.37, below the toolbar. Phones only.",
  "放到右上角與「⋯」選單（建議）": "Top right and the “⋯” menu (recommended)",
  "畫面下方的狀態列": "Status bar at the bottom",
+ "收起或叫出鍵盤": "Hide or show the keyboard",
+ "游標往前": "Move cursor back",
+ "游標往後": "Move cursor forward",
+ "換行": "Line break",
+ "上一欄": "Previous field",
+ "下一欄": "Next field",
+ "縮排": "Indent",
+ "這份文件屬性的格式比較特殊，請用「編輯 YAML 原文」修改。": "These properties use an unusual format. Use “Edit YAML source” to change them.",
 };

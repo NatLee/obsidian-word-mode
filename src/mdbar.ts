@@ -2,7 +2,10 @@
 // 編輯模式用 Obsidian 編輯器的指令；閱讀模式只能檢視，編輯按鈕會停用並說明原因。
 // 版面跟 Word 模式的功能區一樣（同樣的分頁、群組、按鈕大小與位置），切換模式時畫面不會跳動：
 // 外殼與按鈕的外觀都來自 ribbon.ts，這裡只決定每個按鈕對 Markdown 編輯器做什麼
-import { MarkdownView, Menu, Platform, parseYaml } from 'obsidian';
+import { MarkdownView, Menu, Platform, parseYaml, stringifyYaml } from 'obsidian';
+import { PromptModal } from './dialogs.js';
+import type { PropsEdit } from './propview.js';
+import type { NodeViewMenuItem, PropValues } from './nodeviews.js';
 import { t } from './i18n.js';
 import { hideHint } from './hints.js';
 import { CODE_LANGUAGES } from './commands.js';
@@ -425,7 +428,55 @@ export function openMarkdownPeek(plugin: WordModePlugin, view: MarkdownView, btn
   showProps(plugin.app, btn, data, {
     icon: iconOr,
     typeHint: k => propertyWidget(plugin.app, k), go, isMobile: !!Platform.isMobile,
+    edit: Platform.isPhone ? markdownPropsEdit(plugin, view) : undefined,
   });
+}
+
+// 筆記開頭的文件屬性（含前後的 ---）：Obsidian 認得的寫法，結尾也可以是 ...
+const FRONTMATTER = /^---\r?\n(?:[\s\S]*?\r?\n)?(?:---|\.\.\.)[ \t]*(?=\r?\n|$)/;
+
+// 手機的文件屬性視窗在 Markdown／閱讀模式也能直接編輯。編輯模式改編輯器裡的原文（可以復原、游標不跳）；
+// 閱讀模式沒有編輯器，用 Obsidian 的 processFrontMatter 寫回檔案。寫檔是非同步的，視窗裡先顯示剛寫的內容
+function markdownPropsEdit(plugin: WordModePlugin, view: MarkdownView): PropsEdit {
+  let latest: PropValues | null = null;
+  const app = plugin.app;
+  return {
+    read: () => {
+      if (latest) return { kind: 'props', values: latest };
+      let text = '';
+      try { text = view.getViewData(); } catch { /* 檢視還沒載入完成 */ }
+      return peekData(frontmatterOf(text), yaml => parseYaml(yaml) as unknown);
+    },
+    commit: obj => {
+      latest = obj;
+      const keys = Object.keys(obj);
+      const block = '---\n' + (keys.length ? stringifyYaml(obj).replace(/\s+$/, '') + '\n' : '') + '---';
+      const ed = (!view.getMode || view.getMode() === 'source') ? view.editor : null;
+      if (ed) {
+        const m = FRONTMATTER.exec(ed.getValue());
+        if (m) ed.replaceRange(block, ed.offsetToPos(0), ed.offsetToPos(m[0].length));
+        else ed.replaceRange(block + '\n', { line: 0, ch: 0 });
+        return;
+      }
+      if (!view.file) return;
+      void app.fileManager.processFrontMatter(view.file, (fm: Record<string, unknown>) => {
+        for (const k of Object.keys(fm)) delete fm[k];
+        Object.assign(fm, obj);
+      });
+    },
+    ctx: {
+      icon: iconOr,
+      menu: (evt: MouseEvent, items: NodeViewMenuItem[]) => {
+        evt.preventDefault();
+        const m = new Menu();
+        for (const it of items) m.addItem(i => { i.setTitle(it.title); if (it.icon) i.setIcon(it.icon); i.onClick(it.run); });
+        m.showAtMouseEvent(evt);
+      },
+      prompt: (title, value, placeholder, cb) => new PromptModal(app, title, value, placeholder, cb).open(),
+      openLink: (target, newLeaf) => { void app.workspace.openLinkText(target, view.file ? view.file.path : '', newLeaf); },
+      propertyType: key => propertyWidget(app, key),
+    },
+  };
 }
 
 // 在 Markdown 編輯模式新增文件屬性：用 Obsidian 的「新增檔案屬性」指令；沒有這個指令時直接在最前面加上 ---

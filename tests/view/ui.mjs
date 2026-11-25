@@ -2663,8 +2663,50 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
   assert(e2.plugin.switched === 1, '「⋯」選單的閱讀模式：切換過去');
   v2.peekProperties(v2.propsAction);
   const m = mock.Modal.last;
-  assert(m && m.modalEl.classList.contains('wm-props-modal') && m.contentEl.querySelector('.wm-peek.is-sheet') && !document.querySelector('body > .wm-peek'), '手機：文件屬性用彈出的視窗，不是按鈕旁的小框');
+  const press = el => el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+  assert(m && m.modalEl.classList.contains('wm-props-modal') && m.contentEl.querySelector('.wm-props-sheet .wm-prop') && !document.querySelector('body > .wm-peek'), '手機：文件屬性用彈出的視窗，裡面是可以編輯的表單');
+  const addName = m.contentEl.querySelector('.wm-prop-add input');
+  addName.value = 'status';
+  press(m.contentEl.querySelector('.wm-prop-addbtn'));
+  assert(/^---\ntags:[\s\S]*status:/.test(v2.getViewData()), '視窗裡新增屬性：寫進文件開頭：' + JSON.stringify(v2.getViewData()));
+  const statusRow = [...m.contentEl.querySelectorAll('.wm-prop')].find(r => r.querySelector('.wm-prop-name') && r.querySelector('.wm-prop-name').textContent === 'status');
+  const val = statusRow.querySelector('input.wm-prop-input');
+  val.value = 'done';
+  val.dispatchEvent(new Event('change'));
+  val.dispatchEvent(new Event('blur'));
+  assert(/status: done/.test(v2.getViewData()) && m.contentEl.isConnected, '視窗裡改值：文件跟著改，視窗留著：' + JSON.stringify(v2.getViewData()));
+  const tagsRow = [...m.contentEl.querySelectorAll('.wm-prop')].find(r => r.querySelector('.wm-prop-name') && r.querySelector('.wm-prop-name').textContent === 'tags');
+  press(tagsRow.querySelector('.wm-prop-del'));
+  assert(!/tags/.test(v2.getViewData()) && /status: done/.test(v2.getViewData()), '視窗裡刪除屬性');
+  assert([...m.contentEl.querySelectorAll('.wm-props-sheet-foot button')].map(b => b.textContent).join('、') === '編輯 YAML 原文、前往文件屬性', '視窗下方：編輯 YAML 原文、前往文件屬性');
   m.close();
+  // 沒有文件屬性的筆記：在視窗裡新增就加在最前面
+  await e2.open('筆記/手機2.md', '內文');
+  v2.peekProperties(v2.propsAction);
+  const m2 = mock.Modal.last;
+  m2.contentEl.querySelector('.wm-prop-add input').value = 'title';
+  press(m2.contentEl.querySelector('.wm-prop-addbtn'));
+  // 新加的文件屬性跟內文之間空一行（跟 openProperties 加的一樣）
+  assert(/^---\ntitle: *\n---\n\n?內文/.test(v2.getViewData()), '沒有文件屬性：在視窗裡新增，文件開頭多一段文件屬性：' + JSON.stringify(v2.getViewData()));
+  m2.close();
+
+  // Markdown 編輯模式：改的是編輯器裡的原文
+  {
+    let text = '---\ntags: a\n---\n內文';
+    const lineStart = n => text.split('\n').slice(0, n).reduce((x, l) => x + l.length + 1, 0);
+    const ed = {
+      getValue: () => text,
+      offsetToPos: o => { const before = text.slice(0, o).split('\n'); return { line: before.length - 1, ch: before[before.length - 1].length }; },
+      replaceRange: (str, from, to) => { const a = lineStart(from.line) + from.ch; const b = to ? lineStart(to.line) + to.ch : a; text = text.slice(0, a) + str + text.slice(b); },
+    };
+    const md = { getViewData: () => text, getMode: () => 'source', editor: ed, file: new mock.TFile('筆記/md.md'), currentMode: { applyScroll() {} } };
+    B.openMarkdownPeek(e2.plugin, md, document.body.createDiv());
+    const mm = mock.Modal.last;
+    mm.contentEl.querySelector('.wm-prop-add input').value = 'status';
+    press(mm.contentEl.querySelector('.wm-prop-addbtn'));
+    assert(text === '---\ntags:\n  - a\nstatus: \n---\n內文' || /^---\n[\s\S]*status:[\s\S]*\n---\n內文$/.test(text), 'Markdown 編輯模式：視窗裡新增屬性，改的是編輯器的原文，內文不動：' + JSON.stringify(text));
+    mm.close();
+  }
   e2.plugin.settings.phoneStatus = 'bar';
   v2.buildToolbar();
   assert(v2.propsAction.style.display === 'none' && !v2.contentEl.classList.contains('wm-status-header'), '設定改成畫面下方的狀態列：右上角的按鈕藏起來，狀態列回來');
@@ -2705,9 +2747,63 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
   plugin.settings.mathMode = mode;
   mock.Platform.isPhone = keep;
 }
+// ======== 手機：方程式、圖表編輯器鍵盤上方的擴充列（accessory.ts）========
+{
+  const keep = mock.Platform.isPhone;
+  mock.Platform.isPhone = true;
+  await fresh('');
+  view.openEquation();
+  const eq = mock.Modal.last;
+  const acc = eq.modalEl.querySelector('.wm-acc');
+  assert(acc && acc.querySelector('.wm-eq-tools') && acc.querySelector('.wm-eq-palbox .wm-eq-cats') && !eq.contentEl.querySelector('.wm-eq-palbox'),
+    '手機的方程式編輯器：上一格、下一格與符號移到鍵盤上方的擴充列（不在對話框中間）');
+  const latexKeys = acc.querySelector('.wm-eq-latexkeys');
+  assert(latexKeys.style.display === 'none', '視覺化編輯時不顯示 LaTeX 的字元鍵');
+  eq.setEdit('latex');
+  assert(latexKeys.style.display === '', 'LaTeX 模式：顯示 \\ { } ^ _ 這些 iOS 鍵盤要切換才打得到的字元');
+  eq.ta.value = 'x';
+  eq.ta.setSelectionRange(1, 1);
+  [...latexKeys.querySelectorAll('button')].find(b => b.textContent === '^').click();
+  [...latexKeys.querySelectorAll('button')].find(b => b.textContent === '{').click();
+  assert(eq.ta.value === 'x^{', 'LaTeX 的字元鍵：插在游標的位置：' + eq.ta.value);
+  latexKeys.querySelector('button[aria-label="游標往前"]').click();
+  assert(eq.ta.selectionStart === 2, '往前鍵：游標往前一格');
+  document.body.classList.add('wm-kb-up');
+  eq.ta.focus();
+  acc.querySelector('.wm-acc-kb').click();
+  assert(document.activeElement !== eq.ta, '鍵盤按鈕：鍵盤開著時收起來（編輯器留著）');
+  document.body.classList.remove('wm-kb-up');
+  acc.querySelector('.wm-acc-kb').click();
+  assert(document.activeElement === eq.ta, '鍵盤按鈕：鍵盤收著時把焦點放回欄位、叫出鍵盤');
+  eq.close();
+
+  view.openMermaid();
+  const mm = mock.Modal.last;
+  const macc = mm.modalEl.querySelector('.wm-acc');
+  const formKeys = macc.querySelector('.wm-mmd-formkeys'); const codeKeys = macc.querySelector('.wm-mmd-codekeys');
+  assert(formKeys.style.display === '' && codeKeys.style.display === 'none', '手機的圖表編輯器：表單時是上一欄、下一欄');
+  formKeys.querySelector('button[aria-label="下一欄"]').click();
+  assert(mm.visualPane.contains(document.activeElement) && document.activeElement.tagName !== 'SELECT', '下一欄：焦點放進表單的第一個欄位');
+  mm.setTab('code');
+  const tokens = [...codeKeys.querySelectorAll('button')].map(b => b.textContent);
+  assert(codeKeys.style.display === '' && tokens.includes('-->') && tokens.includes('[]'), '程式碼：放這種圖表常用的符號（流程圖的箭頭、括號）：' + tokens.join(' '));
+  mm.ta.value = 'flowchart LR\n    A';
+  mm.ta.setSelectionRange(mm.ta.value.length, mm.ta.value.length);
+  [...codeKeys.querySelectorAll('button')].find(b => b.textContent === '[]').click();
+  assert(mm.ta.value.endsWith('A[]') && mm.ta.selectionStart === mm.ta.value.length - 1 && mm.src === mm.ta.value, '成對的括號：游標放在中間，程式碼跟著更新');
+  mm.ta.value = 'sequenceDiagram\n'; mm.ta.dispatchEvent(new Event('input'));
+  assert([...codeKeys.querySelectorAll('button')].some(b => b.textContent === '->>'), '換成循序圖：符號跟著換成循序圖的箭頭');
+  mm.close();
+  mock.Platform.isPhone = false;
+  view.openEquation();
+  assert(!mock.Modal.last.modalEl.querySelector('.wm-acc'), '電腦：沒有擴充列');
+  mock.Modal.last.close();
+  mock.Platform.isPhone = keep;
+}
 {
   const { readFileSync } = await import('node:fs');
   const css = readFileSync(new URL('../../styles/word-mode.css', import.meta.url), 'utf8');
+  assert(css.includes('.is-phone .modal-container .modal:is(.wm-eq-modal, .wm-mmd-modal) { position: fixed;') && css.includes('bottom: var(--wm-kb-cover, 0px);'), '手機的方程式、圖表編輯器是整個畫面，下緣貼著鍵盤（收起鍵盤時不會跑掉）');
   assert(css.includes('.wm-kb-compact .wm-toolbar button.wm-tab-switch :is(.wm-tab-text, .wm-tab-switch-arrow) { display: none; }'), '鍵盤開著的精簡功能區：切換分頁的按鈕只留圖示');
   assert(/\.wm-pad-tip \{[^}]*z-index: calc\(var\(--layer-menu, 65\) \+ 1\)/.test(css), '觸控板的說明蓋得過 Obsidian 的手機工具列（--layer-menu）');
 }

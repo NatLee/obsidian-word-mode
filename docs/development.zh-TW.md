@@ -128,6 +128,8 @@ Word 模式的功能區（`src/toolbar.ts`）與 Markdown、閱讀模式的功�
 | `src/trackpad.ts` | 工具列當觸控板的手勢（按住一下再拖曳移動游標）、速度與加速度。Word 模式（`toolbar.ts`）、Markdown 工具列（`mdbar.ts`）與 Obsidian 自己的手機工具列（`nativebar.ts`）各自給 hooks 決定怎麼移動游標。 |
 | `src/nativebar.ts` | Markdown 編輯時在 Obsidian 自己的手機工具列加上控制鍵的開關（「切換鍵盤」左邊）、控制鍵列與觸控板。它的 DOM 不是公開 API，找不到時什麼都不做。 |
 | `src/props.ts`、`src/propview.ts` | 文件屬性的值（類型、轉換、讀出文件屬性），以及查看文件屬性的小視窗（手機上是彈出的視窗，`showProps`）與固定在上方的屬性列。 |
+| `src/propform.ts` | 文件屬性的表單（每一列、新增、換類型、改名）與重畫時留住焦點的 `FocusKeeper`。Word 模式文件開頭的屬性（`nodeviews.ts` 的 `FrontmatterView`）與手機的文件屬性視窗共用，讀寫由 host 提供。 |
+| `src/accessory.ts` | 手機的方程式、圖表編輯器貼在鍵盤上方的擴充列（鍵、符號、收起／叫出鍵盤）。 |
 | `src/bubble.ts` | 連結與圖片的浮動工具列。 |
 | `src/tablegrips.ts` | 游標所在表格的列與欄把手（選取整列或整欄並開選單）。 |
 | `src/nodeviews.ts` | 連結、圖片、表格、原文區塊的畫面。 |
