@@ -548,15 +548,22 @@ export default class WordModePlugin extends Plugin {
     this.updateStatus(null);
   }
 
+  // 切換模式之後要不要把焦點放進新的編輯器。手機、平板上焦點一放進去螢幕鍵盤就出來：只有切換前鍵盤就開著
+  // （正在打字）才放，只是想換個方式看筆記時不叫出鍵盤。電腦照舊放（直接可以打字）
+  typingNow(): boolean {
+    return !Platform.isMobile || activeDocument.body.classList.contains('wm-kb-up');
+  }
+
   // 切換 Obsidian 的 Markdown 編輯／閱讀模式
   async setMarkdownMode(view: MarkdownView, mode: MarkdownViewModeType): Promise<void> {
+    const typing = this.typingNow();
     const st = view.getState() as Record<string, unknown>;
     st.mode = mode;
     if (mode === 'source') st.source = false;
     await view.setState(st, { history: false });
     for (const b of this.mdBars.values()) b.update();
     this.updateStatus(null);
-    if (mode === 'source' && view.editor) view.editor.focus();
+    if (mode === 'source' && view.editor && typing) view.editor.focus();
   }
 
 
@@ -608,6 +615,7 @@ export default class WordModePlugin extends Plugin {
     const v = leaf.view;
     if (!(v instanceof WordModeView) || !v.file) return;
     const path = v.file.path;
+    const typing = this.typingNow();
     await v.save();
     v.cacheHistory();
     // 切過去之後停在同一個地方：長筆記切換模式就跳回最上面的話，手機上要捲很久才找得回來
@@ -617,18 +625,19 @@ export default class WordModePlugin extends Plugin {
     await leaf.setViewState({ type: 'markdown', state, active: true }, line == null ? undefined : { line });
     // 馬上放上 Markdown 的工具列（不等版面事件），切換時上方不會空一下
     this.syncMdBars();
-    window.setTimeout(() => { const nv: LeafView = leaf.view; if (nv && nv.editor && mode !== 'preview') nv.editor.focus(); }, 50);
+    if (typing) window.setTimeout(() => { const nv: LeafView = leaf.view; if (nv && nv.editor && mode !== 'preview') nv.editor.focus(); }, 50);
   }
 
   async switchToWord(leaf: WorkspaceLeaf): Promise<void> {
     const v = leaf.view;
     if (!(v instanceof MarkdownView) || !v.file) return;
     const path = v.file.path;
+    const typing = this.typingNow();
     await v.save();
     const line = markdownLine(v);
     this.forceMarkdown.delete(leaf);
     await leaf.setViewState({ type: VIEW_TYPE, state: { file: path }, active: true }, line == null ? undefined : { line });
-    window.setTimeout(() => { const nv: LeafView = leaf.view; if (nv && nv.pm) nv.pm.focus(); }, 50);
+    if (typing) window.setTimeout(() => { const nv: LeafView = leaf.view; if (nv && nv.pm) nv.pm.focus(); }, 50);
   }
 }
 
