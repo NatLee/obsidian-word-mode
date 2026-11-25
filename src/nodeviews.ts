@@ -6,6 +6,7 @@ import { el, whenVisible, onPress, onKeyPress, keepFocus, keyboardHints } from '
 import { propType, isTagKey, summarize, propLink, convertProp, renameProp, propsSummary, PROP_ICONS as TYPE_ICON, frontmatterBody } from './props.js';
 import type { PropType } from './props.js';
 import type { Attrs, Node as PMNode } from 'prosemirror-model';
+import { TextSelection } from 'prosemirror-state';
 import type { Selection } from 'prosemirror-state';
 import type { EditorView, NodeView, NodeViewConstructor, ViewMutationRecord } from 'prosemirror-view';
 import type { EmbedHandle, MediaKind } from './embeds.js';
@@ -1175,6 +1176,8 @@ class WordTableView extends TableView {
   declare getPos: GetPos;
   declare tools: HTMLDivElement;
   declare copyBtn: HTMLButtonElement;
+  // 表格上方、下方的「＋ 段落」：平常藏著，tablegrips.ts 在那一邊沒有地方打字時加上 has-para-before／has-para-after 才出現
+  declare paras: HTMLDivElement[];
   constructor(node: PMNode, view: EditorView, getPos: GetPos, ctx: NodeViewContext) {
     super(node, 90);
     this.view = view;
@@ -1198,6 +1201,25 @@ class WordTableView extends TableView {
       deleteTableAt(pos)(this.view.state, tr => this.view.dispatch(tr));
       this.view.focus();
     });
+    this.paras = (['before', 'after'] as const).map(where => {
+      const box = el('div', 'wm-table-para is-' + where, this.dom);
+      box.contentEditable = 'false';
+      const b = el('button', 'wm-table-para-btn', box, t('＋ 段落'));
+      b.type = 'button';
+      b.setAttribute('aria-label', t(where === 'before' ? '在表格上方插入段落' : '在表格下方插入段落'));
+      // 不要讓按鈕拿走焦點（手機的鍵盤會收起來）
+      b.addEventListener('mousedown', e => e.preventDefault());
+      b.addEventListener('click', e => {
+        e.preventDefault();
+        const pos = this.getPos();
+        if (pos == null) return;
+        const at = where === 'before' ? pos : pos + this.node.nodeSize;
+        const tr = this.view.state.tr.insert(at, this.view.state.schema.nodes.paragraph.create());
+        this.view.dispatch(tr.setSelection(TextSelection.create(tr.doc, at + 1)).scrollIntoView());
+        this.view.focus();
+      });
+      return box;
+    });
     this.dom.appendChild(scroll);
     this.looseMinWidth();
   }
@@ -1213,11 +1235,12 @@ class WordTableView extends TableView {
     const s = this.table.style;
     if (s.minWidth) { s.setProperty('--wm-min-width', s.minWidth); s.minWidth = ''; } else if (s.width) s.removeProperty('--wm-min-width');
   }
-  stopEvent(e: Event): boolean { return this.tools.contains(e.target as Node | null); }
+  own(n: Node | null): boolean { return !!n && (this.tools.contains(n) || this.paras.some(p => p.contains(n))); }
+  stopEvent(e: Event): boolean { return this.own(e.target as Node | null); }
   ignoreMutation(m: ViewMutationRecord): boolean {
     // 節點裝飾改的是外層的 class
     if (m.target === this.dom && m.type === 'attributes') return true;
-    return this.tools.contains(m.target) || super.ignoreMutation(m);
+    return this.own(m.target) || super.ignoreMutation(m);
   }
 }
 

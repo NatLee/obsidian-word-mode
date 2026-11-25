@@ -14,6 +14,8 @@ import { ACTIONS as A, RibbonShell, ribbonClass } from './ribbon.js';
 import type { ButtonClick, MenuItem, RibbonAction, RibbonButton, TabId } from './ribbon.js';
 import type { App, Editor, EditorPosition, MarkdownViewModeType } from 'obsidian';
 import { keyRowKeys } from './keyrow.js';
+import { installTrackpad, padHold } from './trackpad.js';
+import type { TrackpadHooks } from './trackpad.js';
 import type { KeyMods, MoveKey } from './keyrow.js';
 import { MdStatusBar } from './statusbar.js';
 import type WordModePlugin from './main.js';
@@ -119,6 +121,8 @@ export class MarkdownBar {
   declare statusKey: string;
   // 這個檢視的工具列在下方（控制鍵列放在它上面、狀態列放在它下面）
   declare bottom: boolean;
+  // 剛在工具列上拖曳移動過游標（trackpad.ts）：放開時那一下點擊不開分頁選單
+  declare padMoved: boolean;
 
   constructor(plugin: WordModePlugin, view: MarkdownView) {
     this.plugin = plugin;
@@ -171,32 +175,27 @@ export class MarkdownBar {
     this.dom.addClass('has-status');
   }
 
-  // 控制鍵（keyrow.ts）的方向鍵、Home、End：用 Obsidian 編輯器的指令移動，Shift 延伸選取時把選取的起點放回去。
-  // Ctrl（⌘）：左右跳一個詞，上下到這一行的開頭、結尾（已經在那裡時到上一行、下一行），Home／End 是文件的開頭、結尾
+  // 控制鍵（keyrow.ts）的方向鍵、Home、End（見 editorKeyMove）。閱讀模式不能編輯
   keyMove(key: MoveKey, mods: KeyMods): boolean {
     const ed = this.view.editor;
     if (!ed || this.isReading()) return false;
-    const anchor = ed.getCursor('anchor');
-    const head = ed.getCursor('head');
-    const line = head.line;
-    const lineLen = (n: number) => ed.getLine(n).length;
-    let to: EditorPosition | null = null;
-    if (key === 'left' || key === 'right') {
-      const dir = key === 'left' ? -1 : 1;
-      if (mods.mod) { ed.exec(dir < 0 ? 'goWordLeft' : 'goWordRight'); to = ed.getCursor('head'); }
-      else if (!mods.shift && ed.somethingSelected()) to = dir < 0 ? ed.getCursor('from') : ed.getCursor('to');
-      else to = ed.offsetToPos(Math.max(0, Math.min(ed.posToOffset(head) + dir, ed.getValue().length)));
-    } else if (key === 'up' || key === 'down') {
-      const dir = key === 'up' ? -1 : 1;
-      if (mods.mod) {
-        const edge = dir < 0 ? 0 : lineLen(line);
-        const next = line + dir;
-        to = head.ch !== edge || next < 0 || next > ed.lastLine() ? { line, ch: edge } : { line: next, ch: dir < 0 ? 0 : lineLen(next) };
-      } else { ed.exec(dir < 0 ? 'goUp' : 'goDown'); to = ed.getCursor('head'); }
-    } else if (mods.mod) to = key === 'home' ? { line: 0, ch: 0 } : { line: ed.lastLine(), ch: lineLen(ed.lastLine()) };
-    else to = { line, ch: key === 'home' ? 0 : lineLen(line) };
-    if (mods.shift) ed.setSelection(anchor, to); else ed.setCursor(to);
-    return to.line !== head.line || to.ch !== head.ch;
+    return editorKeyMove(ed, key, mods);
+  }
+
+  // 工具列當觸控板（trackpad.ts）：跟 Word 模式一樣，分頁選單按鈕直接拖、整列按鈕按住一下再拖；用 Obsidian 編輯器的指令移動
+  trackpad(shell: RibbonShell): void {
+    const S = this.plugin.settings;
+    const hooks: TrackpadHooks = {
+      focused: () => !this.isReading() && !!this.view.editor && this.view.editor.hasFocus(),
+      speed: () => this.plugin.settings.padSpeed,
+      moved: m => { this.padMoved = m; },
+      skip: '.wm-tab-switch',
+      begin: () => { /* Markdown 模式沒有放大鏡 */ },
+      step: (nx, ny) => editorStep(this.view.editor, nx, ny),
+      end: () => { /* 沒有要收的東西 */ },
+    };
+    if (shell.tabSwitch) installTrackpad(shell.tabSwitch, 0, hooks);
+    if (S.padRow !== false) installTrackpad(shell.bar, () => padHold(this.plugin.settings.padHold), hooks);
   }
 
   syncHeight(): void { this.view.containerEl.style.setProperty('--wm-mdbar-height', this.dom.offsetHeight + 'px'); }
@@ -232,7 +231,8 @@ export class MarkdownBar {
     const S = this.plugin.settings;
     const shell = new RibbonShell(this.dom, {
       side: 'md', settings: S, isMobile: !!Platform.isMobile, icon: iconOr,
-      openMenu: (owner, items) => this.menu(owner, items),
+      // 剛在分頁選單按鈕上拖曳移動過游標：放開時的那一下點擊不開選單
+      openMenu: (owner, items) => { if (this.padMoved) { this.padMoved = false; return; } this.menu(owner, items); },
       // Markdown 的功能區沒有情境分頁
       pickTab: id => { if (id !== 'tabletab') this.showTab(id); },
       // 控制鍵列：閱讀模式不能編輯，不放。位置跟 Word 模式一樣：工具列在下方時放在它上面
@@ -249,6 +249,7 @@ export class MarkdownBar {
       } : null,
     });
     this.shell = shell;
+    if (Platform.isMobile && !this.isReading()) this.trackpad(shell);
     const G = shell.groups;
     const E = (fn: (ed: Editor) => void) => () => { const ed = this.editor; if (ed) { fn(ed); ed.focus(); } };
     const find: MdHandler = { run: this.cmd('editor:open-search'), always: true };
@@ -434,4 +435,44 @@ function addMarkdownProperty(plugin: WordModePlugin, view: MarkdownView): void {
   ed.replaceRange('---\n\n---\n', { line: 0, ch: 0 });
   ed.setCursor({ line: 1, ch: 0 });
   ed.focus();
+}
+
+// 控制鍵的方向鍵、Home、End 在 Obsidian 的編輯器（Markdown 模式）：用編輯器的指令移動，Shift 延伸選取時把選取的起點放回去。
+// Ctrl（⌘）：左右跳一個詞，上下到這一行的開頭、結尾（已經在那裡時到上一行、下一行），Home／End 是文件的開頭、結尾。
+// mdbar.ts 的工具列與 nativebar.ts（Obsidian 自己的手機工具列）共用。回傳有沒有移動（按住連續移動時，走不動就停）
+export function editorKeyMove(ed: Editor, key: MoveKey, mods: KeyMods): boolean {
+  const anchor = ed.getCursor('anchor');
+  const head = ed.getCursor('head');
+  const line = head.line;
+  const lineLen = (n: number) => ed.getLine(n).length;
+  let to: EditorPosition;
+  if (key === 'left' || key === 'right') {
+    const dir = key === 'left' ? -1 : 1;
+    if (mods.mod) { ed.exec(dir < 0 ? 'goWordLeft' : 'goWordRight'); to = ed.getCursor('head'); }
+    else if (!mods.shift && ed.somethingSelected()) to = dir < 0 ? ed.getCursor('from') : ed.getCursor('to');
+    else to = offsetBy(ed, head, dir);
+  } else if (key === 'up' || key === 'down') {
+    const dir = key === 'up' ? -1 : 1;
+    if (mods.mod) {
+      const edge = dir < 0 ? 0 : lineLen(line);
+      const next = line + dir;
+      to = head.ch !== edge || next < 0 || next > ed.lastLine() ? { line, ch: edge } : { line: next, ch: dir < 0 ? 0 : lineLen(next) };
+    } else { ed.exec(dir < 0 ? 'goUp' : 'goDown'); to = ed.getCursor('head'); }
+  } else if (mods.mod) to = key === 'home' ? { line: 0, ch: 0 } : { line: ed.lastLine(), ch: lineLen(ed.lastLine()) };
+  else to = { line, ch: key === 'home' ? 0 : lineLen(line) };
+  if (mods.shift) ed.setSelection(anchor, to); else ed.setCursor(to);
+  return to.line !== head.line || to.ch !== head.ch;
+}
+
+// 觸控板在 Obsidian 的編輯器裡走 nx 個字、ny 行
+export function editorStep(ed: Editor, nx: number, ny: number): void {
+  if (nx) ed.setCursor(offsetBy(ed, ed.getCursor('head'), nx));
+  for (let i = 0; i < Math.abs(ny); i++) ed.exec(ny < 0 ? 'goUp' : 'goDown');
+}
+
+// pos 往前、往後 n 個字（收在文件的頭尾之間）。文件的長度用最後一行算，不用整份文字（很長的筆記每一格都要算）
+function offsetBy(ed: Editor, pos: EditorPosition, n: number): EditorPosition {
+  const last = ed.lastLine();
+  const end = ed.posToOffset({ line: last, ch: ed.getLine(last).length });
+  return ed.offsetToPos(Math.max(0, Math.min(ed.posToOffset(pos) + n, end)));
 }

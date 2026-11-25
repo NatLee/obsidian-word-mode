@@ -5,6 +5,7 @@ import * as C from './commands.js';
 import { Loupe, loupeOptions } from './loupe.js';
 import { caretLook } from './caret.js';
 import { keyRowKeys } from './keyrow.js';
+import { installTrackpad, padHold } from './trackpad.js';
 import type { KeyMods, MoveKey } from './keyrow.js';
 import { undo, redo } from 'prosemirror-history';
 import { schema } from './schema.js';
@@ -184,26 +185,8 @@ function objectNext(view: EditorView, sel: Selection, dir: number): number {
     $p = doc.resolve(dir > 0 ? $p.after() : $p.before());
   }
 }
-// 整列按鈕當觸控板：按住多久不動才開始（設定，毫秒）。預設比 iOS 的長按（約 0.5 秒）短、比一般的點擊長
-export const PAD_HOLD = { min: 150, max: 800, step: 50, default: 300 } as const;
-// 移動速度（設定 1～5）：手指移動多少 px 走一格；換一行要多拖一點，免得左右拖的時候不小心換行
-const PAD_STEP_X = [18, 15, 12, 9, 7] as const;
-// 速度的設定值整理成 1～5（不是數字就用 3）
-export function padSpeed(v: unknown): number {
-  return typeof v === 'number' && isFinite(v) ? Math.max(1, Math.min(5, Math.round(v))) : 3;
-}
-export function padSteps(speed: unknown): { x: number; y: number } {
-  const x = PAD_STEP_X[padSpeed(speed) - 1];
-  return { x, y: Math.round(x * 2.2) };
-}
-// 觸控板的加速度（像筆電的觸控板）：手指移動的速度（px/ms）換成倍數。慢慢移動時倍數小，一格一格對準；
-// 快速滑過去倍數大，一下子走很遠。速度設定（padSteps）決定基本的距離，倍數乘在手指移動的距離上
-export const PAD_GAIN = { slow: 0.12, fast: 1.2, min: 0.5, max: 2.2 } as const;
-export function padGain(speed: number): number {
-  const v = isFinite(speed) && speed > 0 ? speed : 0;
-  const k = Math.max(0, Math.min(1, (v - PAD_GAIN.slow) / (PAD_GAIN.fast - PAD_GAIN.slow)));
-  return PAD_GAIN.min + (PAD_GAIN.max - PAD_GAIN.min) * k;
-}
+// 觸控板的速度、按住時間、加速度在 trackpad.ts（Word 模式、Markdown 模式、Obsidian 的工具列共用）
+export { PAD_HOLD, PAD_GAIN, padSpeed, padSteps, padHold, padGain } from './trackpad.js';
 // 控制鍵的 Ctrl＋左右：這一段裡上一個、下一個詞的邊界（中文用瀏覽器的斷詞）；已經在段落頭尾時跨到旁邊那一段
 export function wordEdge(st: EditorState, dir: -1 | 1): number {
   const { $head } = st.selection;
@@ -252,11 +235,6 @@ function lineEdge(v: EditorView, dir: -1 | 1): number {
     }
   } catch { /* 量不到：用段落的頭尾 */ }
   return dir < 0 ? $head.start() : $head.end();
-}
-
-export function padHold(v: unknown): number {
-  const n = typeof v === 'number' && isFinite(v) ? v : PAD_HOLD.default;
-  return Math.round(Math.max(PAD_HOLD.min, Math.min(PAD_HOLD.max, n)) / PAD_HOLD.step) * PAD_HOLD.step;
 }
 
 const SYMBOLS: readonly (readonly [group: I18nKey, chars: string])[] = [
@@ -720,99 +698,30 @@ export class Toolbar {
   // 在按鈕列上拖曳不會碰到文字，iOS 不會接手（文字上的長按 iOS 一定在 0.5 秒左右接手，網頁擋不掉），放大鏡完全是自己的。
   // 分頁選單按鈕自己有一份（不用按住），整列的版本不管從它開始的觸控
   caretPad(b: HTMLElement, holdMs: number | (() => number) = 0): void {
-    const START = 8;
-    const hold = holdMs !== 0;
-    // 速度與放大鏡每次開始拖的時候才讀設定：設定頁改了馬上生效
-    let STEP_X = 12; let STEP_Y = 26;
-    // 這次觸控的編號；沒有在追蹤時是 null（iOS 的編號可能是負數，不能拿 -1 當「沒有」）
-    let id: number | null = null; let x = 0; let y = 0; let active = false;
-    // 加速度：上一次的時間、乘上倍數之後還沒用掉的距離（不滿一格的留到下一次）
-    let lastT = 0; let ax = 0; let ay = 0;
-    // 整列的版本：按住的計時器、已經可以拖了（還沒拖）、說明
-    let timer = 0; let ready = false; let tip: HTMLElement | null = null;
-    const win = b.ownerDocument.defaultView || window;
-    const unready = () => {
-      win.clearTimeout(timer); ready = false;
-      b.classList.remove('is-trackpad');
-      if (tip) { tip.remove(); tip = null; }
-    };
     // 拖曳期間游標上方的放大預覽（loupe.ts）
     let loupe: Loupe | null = null;
-    // 用觸控事件而不是指標事件：拖曳中每一下 touchmove 都擋掉預設行為，iOS 才不會中途把這次觸控收走去做別的
-    // （捲動、系統手勢），指標事件被收走時只會收到 pointercancel、放大鏡跟著不見。
-    // Obsidian 自己的滑動手勢由功能區的 data-ignore-swipe 擋掉（見 ribbon.ts）
-    const find = (e: TouchEvent) => { for (const t of Array.from(e.changedTouches)) if (t.identifier === id) return t; return null; };
-    b.addEventListener('touchstart', e => {
-      unready();
-      const target = e.target as Element | null;
-      if (e.touches.length !== 1 || (hold && target && target.nodeType === 1 && target.closest('.wm-tab-switch'))) { id = null; return; }
-      const tt = e.touches[0];
-      id = tt.identifier; x = tt.clientX; y = tt.clientY; active = false; this.padMoved = false;
-      lastT = e.timeStamp; ax = 0; ay = 0;
-      if (!hold) return;
-      const wait = typeof holdMs === 'function' ? holdMs() : holdMs;
-      timer = win.setTimeout(() => {
-        const v = this.view;
-        if (id === null || !v || !v.hasFocus()) return;
-        ready = true;
-        b.classList.add('is-trackpad');
-        // 說明蓋在按鈕列上（固定在畫面上的位置，按鈕列捲動也不跟著動）
-        const r = b.getBoundingClientRect();
-        tip = el('div', 'wm-pad-tip', b.ownerDocument.body, t('左右拖移動游標，上下拖換行'));
-        tip.style.left = Math.round(r.left) + 'px';
-        tip.style.top = Math.round(r.top) + 'px';
-        tip.style.width = Math.round(r.width) + 'px';
-        tip.style.height = Math.round(r.height) + 'px';
-      }, wait);
-    }, { passive: true });
-    b.addEventListener('touchmove', e => {
-      const t = find(e);
-      if (!t) return;
-      let dx = t.clientX - x; let dy = t.clientY - y;
-      if (!active) {
-        // 整列的版本可以拖了：手指的小晃動也擋掉，按鈕列才不會開始左右捲
-        if (hold && ready && e.cancelable) e.preventDefault();
-        if (Math.abs(dx) < START && Math.abs(dy) < START) return;
-        // 整列的版本：還沒按夠久就動了，是在捲按鈕列、往上滑按鍵或往下滑收鍵盤，不接手
-        if (hold && !ready) { win.clearTimeout(timer); id = null; return; }
-        // 從這裡開始算距離，不然一開始就跳好幾格
-        if (hold) { unready(); b.classList.add('is-trackpad'); x = t.clientX; y = t.clientY; dx = 0; dy = 0; lastT = e.timeStamp; }
-        // 編輯區沒有焦點（鍵盤沒開）時不啟動：移動游標會把焦點放回去、叫出鍵盤，畫面一重排手指的相對位置就跳掉，游標亂跑
-        const v = this.view;
-        if (!v || !v.hasFocus()) { id = null; return; }
-        active = true; this.padMoved = true; this.padGoalX = null;
-        b.classList.add('is-caret-pad');
+    installTrackpad(b, holdMs, {
+      focused: () => !!this.view && this.view.hasFocus(),
+      speed: () => (this.ctx.settings || {}).padSpeed,
+      moved: m => { this.padMoved = m; },
+      // 分頁選單按鈕自己有一份（不用按住），整列的版本不管從它開始的觸控
+      skip: '.wm-tab-switch',
+      begin: () => {
+        this.padGoalX = null;
         this.closePopup();
         const S = this.ctx.settings || {};
-        ({ x: STEP_X, y: STEP_Y } = padSteps(S.padSpeed));
-        if (S.loupeShow !== false) loupe = new Loupe(v, { ...loupeOptions(S.loupeZoom, S.loupeWidth, S.loupeStyle, S.loupeInfo), caret: caretLook(S.caretShape, null, null).shape });
-      }
-      if (e.cancelable) e.preventDefault();
-      // 這一段的速度決定倍數；乘上倍數的距離累積起來，滿一格走一格
-      const gain = padGain(Math.hypot(dx, dy) / Math.max(1, e.timeStamp - lastT));
-      ax += dx * gain; ay += dy * gain;
-      x = t.clientX; y = t.clientY; lastT = e.timeStamp;
-      const nx = Math.trunc(ax / STEP_X); const ny = Math.trunc(ay / STEP_Y);
-      ax -= nx * STEP_X; ay -= ny * STEP_Y;
-      // 走不動（到文件開頭、結尾）時讓放大鏡提示；走得動就收掉提示
-      let edge: 'start' | 'end' | null = null;
-      if (nx) { this.padGoalX = null; if (!this.run(C.moveCaretBy(nx))) edge = nx < 0 ? 'start' : 'end'; }
-      if (ny) { if (!this.moveCaretLines(ny)) edge = ny < 0 ? 'start' : 'end'; }
-      if ((nx || ny) && loupe) { loupe.edge(edge); loupe.update(); }
-    }, { passive: false });
-    const end = (e: TouchEvent) => {
-      if (!find(e)) return;
-      // 拖曳過：擋掉放開之後的那一下點擊，不然會打開分頁選單
-      if (active && e.cancelable) e.preventDefault();
-      // 整列的版本：按住了但沒拖，照常是按了那顆按鈕
-      unready();
-      b.classList.remove('is-trackpad');
-      id = null; active = false;
-      if (loupe) { loupe.destroy(); loupe = null; }
-      b.classList.remove('is-caret-pad');
-    };
-    b.addEventListener('touchend', end);
-    b.addEventListener('touchcancel', end);
+        const v = this.view;
+        if (v && S.loupeShow !== false) loupe = new Loupe(v, { ...loupeOptions(S.loupeZoom, S.loupeWidth, S.loupeStyle, S.loupeInfo), caret: caretLook(S.caretShape, null, null).shape });
+      },
+      step: (nx, ny) => {
+        // 走不動（到文件開頭、結尾）時讓放大鏡提示；走得動就收掉提示
+        let edge: 'start' | 'end' | null = null;
+        if (nx) { this.padGoalX = null; if (!this.run(C.moveCaretBy(nx))) edge = nx < 0 ? 'start' : 'end'; }
+        if (ny) { if (!this.moveCaretLines(ny)) edge = ny < 0 ? 'start' : 'end'; }
+        if (loupe) { loupe.edge(edge); loupe.update(); }
+      },
+      end: () => { if (loupe) { loupe.destroy(); loupe = null; } },
+    });
   }
 
 

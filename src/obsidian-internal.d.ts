@@ -67,6 +67,8 @@ declare module 'obsidian' {
     internalPlugins?: InternalPlugins;
     dragManager?: DragManager;
     metadataTypeManager?: MetadataTypeManager;
+    // 手機版鍵盤上方的工具列（Markdown 模式打字時出現）：wrapperEl 是 .mobile-toolbar，只建立一次（nativebar.ts）
+    mobileToolbar?: { wrapperEl?: HTMLElement };
   }
   interface SettingTab {
     // Obsidian 1.13 起：點設定搜尋的結果時，用這個方法找出那項設定畫在哪個元素上，再捲過去。

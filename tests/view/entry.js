@@ -29,6 +29,7 @@ export * as CARET from '../../src/caret.js';
 export * as LOUPE from '../../src/loupe.js';
 export * as TOUCH from '../../src/touch.js';
 export * as KEYS from '../../src/keyrow.js';
+export * as NATIVE from '../../src/nativebar.js';
 export { wordEdge, paragraphEdge } from '../../src/toolbar.js';
 export { WordModeSettings } from '../../src/settingstab.js';
 export { padSteps, padHold, padSpeed, padGain } from '../../src/toolbar.js';
