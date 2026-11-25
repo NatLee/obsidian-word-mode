@@ -142,6 +142,15 @@ export class Loupe {
     if (!kind) this.dom.classList.remove('is-edge');
   }
 
+  // 放大鏡可以放的範圍：編輯區看得到的那一塊（捲動區的上下緣，再扣掉被鍵盤蓋住的部分）。
+  // 不能用整個視窗：上面是 Obsidian 的檢視標題列與 iOS 的狀態列、瀏海，下面是功能區，放到那裡會被蓋住
+  private bounds(win: Window): { top: number; bottom: number } {
+    const r = this.scroller ? this.scroller.getBoundingClientRect() : null;
+    const top = Math.max(r ? r.top : 0, 0) + 4;
+    const bottom = Math.min(r ? r.bottom : win.innerHeight, visibleBottom(win)) - 4;
+    return { top, bottom: Math.max(bottom, top + 40) };
+  }
+
   private fillInfo(parts: string[]): void {
     const box = this.info || el('div', 'wm-loupe-info', this.dom);
     this.info = box;
@@ -164,13 +173,16 @@ export class Loupe {
       const rect = (dom as HTMLElement).getBoundingClientRect();
       const width = this.opts.width;
       const left = Math.max(EDGE, Math.min(rect.left, win.innerWidth - width - EDGE));
-      const below = rect.bottom + INFO_H + 6 + 56 <= visibleBottom(win) || rect.top - INFO_H - 6 < EDGE;
+      const area = this.bounds(win);
+      const below = rect.bottom + INFO_H + 6 <= area.bottom || rect.top - INFO_H - 6 < area.top;
       this.dom.classList.add('is-object');
       this.dom.classList.toggle('is-below', below);
       this.dom.style.width = width + 'px';
       // 高度在樣式表（is-object 是 0）：拿掉文字模式留下的高度
       this.dom.style.removeProperty('height');
-      this.dom.style.transform = 'translate3d(' + Math.round(left) + 'px,' + Math.round(below ? Math.min(rect.bottom, win.innerHeight - INFO_H - EDGE) : rect.top) + 'px,0)';
+      // 物件很高、邊緣已經捲出看得到的範圍時，資訊貼著範圍的邊緣，不要跟著物件跑出去
+      const y = below ? Math.max(area.top - 6, Math.min(rect.bottom, area.bottom - INFO_H - 6)) : Math.min(area.bottom, Math.max(rect.top, area.top + INFO_H + 6));
+      this.dom.style.transform = 'translate3d(' + Math.round(left) + 'px,' + Math.round(y) + 'px,0)';
       this.fillInfo(this.edgeKind ? [this.edgeKind === 'start' ? t('已到文件開頭') : t('已到文件結尾')] : [objectLabel(sel.node, dom), t('已選取')]);
       this.block = null;
       this.dom.classList.add('is-shown');
@@ -201,10 +213,19 @@ export class Loupe {
     }
     // 鏡片水平置中在游標上，超出畫面就往內收；鏡片裡的標記跟著游標實際的位置偏移
     const left = Math.max(EDGE, Math.min(c.left - WIDTH / 2, win.innerWidth - WIDTH - EDGE));
+    // 上下的位置：先放游標上方（手指在下面的功能區，不會擋到）。上方放不下（游標在看得到的範圍頂端）才放下方；
+    // 兩邊都放不下（範圍很矮）就放空間比較大的那一邊，再收進範圍裡（寧可稍微蓋到游標那一行，也不要被標題列、功能區蓋住）。
+    // 位置資訊在離游標遠的那一邊，也要算進去
+    const area = this.bounds(win);
+    const infoH = this.opts.info || this.edgeKind ? INFO_H : 0;
     const above = c.top - height - GAP[style];
-    // 位置資訊在鏡片上方：鏡片放在游標上面時，它也要放得下
-    const below = above - (this.info ? INFO_H : 0) < EDGE;
-    const top = below ? c.bottom + GAP[style] : above;
+    const belowTop = c.bottom + GAP[style];
+    const fitsAbove = above - infoH >= area.top;
+    const fitsBelow = belowTop + height + infoH <= area.bottom;
+    const below = !fitsAbove && (fitsBelow || area.bottom - c.bottom > c.top - area.top);
+    const top = below
+      ? Math.max(area.top, Math.min(belowTop, area.bottom - height - infoH))
+      : Math.min(area.bottom - height, Math.max(above, area.top + infoH));
     const markX = c.left - left;
     this.dom.classList.toggle('is-below', below);
     this.dom.style.width = WIDTH + 'px';
