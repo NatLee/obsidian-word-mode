@@ -2252,22 +2252,24 @@ button.wm-kb-hide { display: none; }
 }
 
 /* ---------- 放大鏡旁的位置資訊（設定；loupe.ts 的 caretInfo）----------
-   在鏡片離游標遠的那一邊：鏡片在游標上面時放在鏡片上方，鏡片在游標下面時放在鏡片下方，不會蓋到游標那一行 */
-.wm-loupe .wm-loupe-info { position: absolute; left: 50%; bottom: calc(100% + 6px); display: flex; align-items: center; gap: 6px; max-width: 100%; padding: 3px 10px; border-radius: 999px; background: var(--background-primary); box-shadow: inset 0 0 0 .5px var(--background-modifier-border-hover); color: var(--text-muted); font-family: var(--font-interface); font-size: 12px; line-height: 16px; white-space: nowrap; transform: translateX(-50%); }
+   在鏡片離游標遠的那一邊：鏡片在游標上面時放在鏡片上方，鏡片在游標下面時放在鏡片下方，不會蓋到游標那一行。
+   字多時不截斷：可以比鏡片寬（loupe.ts 的 centerInfo 以鏡片為中心、收在畫面內），再放不下就換行，每一段不從中間斷開。
+   圓角是一行的高度的一半：一行時是膠囊，換行時是圓角方框 */
+.wm-loupe .wm-loupe-info { position: absolute; left: 0; bottom: calc(100% + 6px); display: flex; flex-wrap: wrap; justify-content: center; align-items: center; row-gap: 2px; box-sizing: border-box; width: max-content; max-width: calc(100vw - 16px); padding: 3px 10px; border-radius: 11px; background: var(--background-primary); box-shadow: inset 0 0 0 .5px var(--background-modifier-border-hover); color: var(--text-muted); font-family: var(--font-interface); font-size: 12px; line-height: 16px; text-align: center; }
 .wm-loupe.is-below .wm-loupe-info { bottom: auto; top: calc(100% + 6px); }
-.wm-loupe .wm-loupe-info-part:first-child { color: var(--text-normal); font-weight: 600; }
-.wm-loupe .wm-loupe-info-dot { opacity: .5; }
-.wm-loupe .wm-loupe-info-part { overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.wm-loupe .wm-loupe-info-part { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.wm-loupe .wm-loupe-info-part + .wm-loupe-info-part::before { content: '·'; margin: 0 6px; opacity: .5; }
+.wm-loupe .wm-loupe-info-part:is(.is-where, .is-object) { color: var(--text-normal); font-weight: 600; }
 
 /* ---------- 放大鏡：停在物件上、到文件頭尾（loupe.ts）----------
    物件（方程式、圖表、分隔線…）沒有文字可以放大，只留資訊那一條，寫出是什麼；物件本身照 ProseMirror 的選取外框標出來。
-   到文件開頭、結尾時資訊變成強調色的提示，鏡片左右晃一下 */
+   資訊壓在物件框的下緣、靠左，寬度不超過物件（loupe.ts 把整個放大鏡的寬度設成物件的寬度）。
+   到文件開頭、結尾時，資訊最前面多一段強調色的提示，後面照常是位置；鏡片左右晃一下 */
 .wm-loupe.is-object .wm-loupe-lens, .wm-loupe.is-object .wm-loupe-tail { display: none; }
-.wm-loupe.is-edge .wm-loupe-info { color: var(--interactive-accent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--interactive-accent) 45%, transparent); }
-.wm-loupe.is-edge .wm-loupe-info .wm-loupe-info-part:first-child { color: var(--interactive-accent); }
+.wm-loupe.is-edge .wm-loupe-info { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--interactive-accent) 45%, transparent); }
+.wm-loupe .wm-loupe-info-part.is-edge { color: var(--interactive-accent); font-weight: 600; }
 .wm-loupe.is-edge .wm-loupe-lens { animation: wm-loupe-nudge .32s cubic-bezier(.36, .07, .19, .97); }
 @keyframes wm-loupe-nudge { 20% { transform: translateX(-5px); } 45% { transform: translateX(4px); } 70% { transform: translateX(-2px); } 100% { transform: none; } }
 @media (prefers-reduced-motion: reduce) { .wm-loupe.is-edge .wm-loupe-lens { animation: none; } }
 .wm-loupe.is-object { height: 0; }
-/* 物件的資訊對齊物件左邊（loupe.ts 把整個放大鏡的左邊放在物件左邊） */
-.wm-loupe.is-object .wm-loupe-info { left: 0; transform: none; }
+.wm-loupe.is-object .wm-loupe-info { top: 0; bottom: auto; max-width: 100%; justify-content: flex-start; }

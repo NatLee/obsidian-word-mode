@@ -2048,4 +2048,34 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
   view.applyCaretLook();
 }
 
+
+// ======== 放大鏡的位置資訊：文件頭尾、停在物件上（loupe.ts）========
+{
+  await fresh('第一段文字\n\n$$\nx^2\n$$\n\n最後一段');
+  const pm = view.pm;
+  pm.dispatch(pm.state.tr.setSelection(TextSelection.create(pm.state.doc, 1)));
+  const lp = new B.LOUPE.Loupe(pm, B.LOUPE.loupeOptions(1.6, 260, 'capsule', true));
+  const parts = () => [...document.querySelectorAll('.wm-loupe-info-part')].map(p => p.className.replace('wm-loupe-info-part is-', '') + ':' + p.textContent).join(' | ');
+  assert(parts() === 'where:內文 | pos:第 0／5 字', '一般：哪一種段落與第幾個字：' + parts());
+  assert(!document.querySelector('.wm-loupe-info-dot'), '分隔的點由樣式表畫（換行時跟著後面那一段）');
+  lp.edge('start'); lp.update();
+  assert(parts() === 'edge:已到文件開頭 | where:內文 | pos:第 0／5 字', '到文件開頭：提示放在最前面，後面照常寫位置：' + parts());
+  lp.edge(null);
+  let mathPos = -1; pm.state.doc.forEach((n, off) => { if (mathPos < 0 && n.type.name === 'raw_block') mathPos = off; });
+  pm.dispatch(pm.state.tr.setSelection(B.NodeSelection.create(pm.state.doc, mathPos)));
+  lp.update();
+  const lens = document.querySelector('.wm-loupe');
+  assert(lens.classList.contains('is-object') && parts() === 'object:方程式 | state:已選取', '停在方程式上：寫出名稱：' + parts());
+  lp.edge('end'); lp.update();
+  assert(parts() === 'edge:已到文件結尾 | object:方程式 | state:已選取', '物件上到頭尾：提示加在前面：' + parts());
+  lp.destroy();
+  const off = new B.LOUPE.Loupe(pm, B.LOUPE.loupeOptions(1.6, 260, 'capsule', false));
+  pm.dispatch(pm.state.tr.setSelection(TextSelection.create(pm.state.doc, 1)));
+  off.update();
+  assert(!document.querySelector('.wm-loupe-info'), '關掉位置資訊：不顯示');
+  off.edge('start'); off.update();
+  assert(parts() === 'edge:已到文件開頭', '關掉位置資訊時到文件頭尾：只寫提示');
+  off.destroy();
+}
+
 finish();

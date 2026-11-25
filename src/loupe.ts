@@ -16,8 +16,11 @@ const EDGE = 8;
 export type LoupeStyle = 'capsule' | 'card';
 // info：鏡片外面顯示游標所在的位置（哪一種區塊、第幾個字）
 export interface LoupeOptions { scale: number; width: number; style: LoupeStyle; info: boolean; }
-// 位置資訊那一條的高度與跟鏡片的距離（決定鏡片放在游標上面還是下面時要算進去）
-const INFO_H = 26;
+// 位置資訊跟鏡片的距離。資訊的高度不固定（放不下一行時換行），每次量實際的高度
+const INFO_GAP = 6;
+// 位置資訊每一段的角色：edge 是走到文件頭尾的提示、where 是哪一種段落、pos 是第幾個字、side 是旁邊緊貼的物件、
+// object 是停在上面的物件名稱、state 是「已選取」
+type InfoRole = 'edge' | 'where' | 'pos' | 'side' | 'object' | 'state';
 // 設定的範圍與預設值（設定頁的拉桿也用這份）
 export const LOUPE_ZOOM = { min: 1.2, max: 2.5, step: 0.1, default: 1.6 } as const;
 export const LOUPE_WIDTH = { min: 180, max: 340, step: 20, default: 260 } as const;
@@ -151,11 +154,23 @@ export class Loupe {
     return { top, bottom: Math.max(bottom, top + 40) };
   }
 
-  private fillInfo(parts: string[]): void {
+  // 填入位置資訊，回傳它佔的高度（含跟鏡片的距離）。走到文件頭尾時，提示放在最前面，後面照常寫出位置
+  // （只寫「已到文件開頭」看不出停在哪一段的哪裡）
+  private fillInfo(parts: [string, InfoRole][]): number {
+    if (this.edgeKind) parts = [[this.edgeKind === 'start' ? t('已到文件開頭') : t('已到文件結尾'), 'edge'], ...parts];
     const box = this.info || el('div', 'wm-loupe-info', this.dom);
     this.info = box;
     box.replaceChildren();
-    parts.forEach((p, i) => { if (i) el('span', 'wm-loupe-info-dot', box, '·'); el('span', 'wm-loupe-info-part', box, p); });
+    for (const [text, role] of parts) el('span', 'wm-loupe-info-part is-' + role, box, text);
+    return box.offsetHeight + INFO_GAP;
+  }
+
+  // 位置資訊比鏡片寬時（字多、語言比較長），以鏡片為中心往兩邊長，但不超出畫面
+  private centerInfo(win: Window, lensLeft: number, lensWidth: number): void {
+    if (!this.info) return;
+    const w = this.info.offsetWidth;
+    const left = Math.max(EDGE, Math.min(lensLeft + (lensWidth - w) / 2, win.innerWidth - EDGE - w));
+    this.info.style.left = Math.round(left - lensLeft) + 'px';
   }
 
   // 依目前的游標位置更新內容與位置
@@ -164,26 +179,26 @@ export class Loupe {
     const sel = view.state.selection;
     const { $head, head } = sel;
     const win = view.dom.ownerDocument.defaultView || window;
-    // 停在方程式、圖表這類物件上：不放大（沒有文字），只在物件旁邊寫出是什麼。這時一定顯示資訊。
-    // 放在物件下方、對齊左邊：物件上方右邊是它自己的按鈕列、左上角是「按兩下編輯」的標籤，放上面會疊在一起。
-    // 下方放不下（被功能區、鍵盤擋住）才放上方
+    // 停在方程式、圖表這類物件上：不放大（沒有文字），只寫出是什麼。這時一定顯示資訊。
+    // 資訊壓在物件框的下緣、靠左（物件上緣右邊是它自己的按鈕列、左邊是「按兩下編輯」的標籤），
+    // 寬度不超過物件：放在物件外面會蓋住下一段的字，看起來像字跑出框外。
+    // 物件很高、下緣捲出看得到的範圍時，資訊貼著範圍的下緣，不要跟著物件跑出去
     if (sel instanceof NodeSelection) {
       const dom = view.nodeDOM(sel.from);
       if (!dom || dom.nodeType !== 1) { this.dom.classList.remove('is-shown'); return; }
       const rect = (dom as HTMLElement).getBoundingClientRect();
-      const width = this.opts.width;
-      const left = Math.max(EDGE, Math.min(rect.left, win.innerWidth - width - EDGE));
       const area = this.bounds(win);
-      const below = rect.bottom + INFO_H + 6 <= area.bottom || rect.top - INFO_H - 6 < area.top;
+      const left = Math.max(EDGE, rect.left + 8);
+      const width = Math.max(120, Math.min(rect.right - 8, win.innerWidth - EDGE) - left);
       this.dom.classList.add('is-object');
-      this.dom.classList.toggle('is-below', below);
+      this.dom.classList.remove('is-below');
       this.dom.style.width = width + 'px';
       // 高度在樣式表（is-object 是 0）：拿掉文字模式留下的高度
       this.dom.style.removeProperty('height');
-      // 物件很高、邊緣已經捲出看得到的範圍時，資訊貼著範圍的邊緣，不要跟著物件跑出去
-      const y = below ? Math.max(area.top - 6, Math.min(rect.bottom, area.bottom - INFO_H - 6)) : Math.min(area.bottom, Math.max(rect.top, area.top + INFO_H + 6));
+      const h = this.fillInfo([[objectLabel(sel.node, dom), 'object'], [t('已選取'), 'state']]) - INFO_GAP;
+      if (this.info) this.info.style.removeProperty('left');
+      const y = Math.max(area.top, Math.min(rect.bottom - h / 2, area.bottom - h));
       this.dom.style.transform = 'translate3d(' + Math.round(left) + 'px,' + Math.round(y) + 'px,0)';
-      this.fillInfo(this.edgeKind ? [this.edgeKind === 'start' ? t('已到文件開頭') : t('已到文件結尾')] : [objectLabel(sel.node, dom), t('已選取')]);
       this.block = null;
       this.dom.classList.add('is-shown');
       return;
@@ -217,7 +232,11 @@ export class Loupe {
     // 兩邊都放不下（範圍很矮）就放空間比較大的那一邊，再收進範圍裡（寧可稍微蓋到游標那一行，也不要被標題列、功能區蓋住）。
     // 位置資訊在離游標遠的那一邊，也要算進去
     const area = this.bounds(win);
-    const infoH = this.opts.info || this.edgeKind ? INFO_H : 0;
+    // 位置資訊先填好，才量得到它的高度（決定鏡片放在游標上面還是下面要算進去）
+    let infoH = 0;
+    if (this.opts.info) infoH = this.fillInfo(caretInfo($head).map((p, i): [string, InfoRole] => [p, i === 0 ? 'where' : i === 1 ? 'pos' : 'side']));
+    else if (this.edgeKind) infoH = this.fillInfo([]);
+    else if (this.info) { this.info.remove(); this.info = null; }
     const above = c.top - height - GAP[style];
     const belowTop = c.bottom + GAP[style];
     const fitsAbove = above - infoH >= area.top;
@@ -235,9 +254,7 @@ export class Loupe {
     this.mark.style.transform = 'translate3d(' + markX.toFixed(1) + 'px,0,0)';
     this.mark.style.height = Math.round(lineH * SCALE) + 'px';
     this.tail.style.transform = 'translate3d(' + Math.max(TAIL_INSET, Math.min(markX, WIDTH - TAIL_INSET)).toFixed(1) + 'px,0,0) rotate(45deg)';
-    if (this.edgeKind) this.fillInfo([this.edgeKind === 'start' ? t('已到文件開頭') : t('已到文件結尾')]);
-    else if (this.opts.info) this.fillInfo(caretInfo($head));
-    else if (this.info) { this.info.remove(); this.info = null; }
+    this.centerInfo(win, left, WIDTH);
     this.dom.classList.add('is-shown');
     if (this.dom.classList.contains('is-jump')) {
       // 先讓這一格不帶轉場畫出來，再把轉場開回去
