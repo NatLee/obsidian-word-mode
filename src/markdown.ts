@@ -801,11 +801,22 @@ const endsWithBlankLine = (s: string): boolean => /\n[ \t]*\n$/.test(s.slice(-20
 
 const CALLOUT_RE = /^\[!([^\]\s]+)\]([+-]?)[ \t]*/;
 
+// 引文、提示框裡獨立一行的方程式（整段只有 $$…$$）：Markdown 的解析器把它讀成段落裡的一段原文，
+// 顯示成行內的方程式，沒有區塊右上角的編輯按鈕，手機上點不到、改不了。換成跟最外層一樣的方程式區塊；
+// 存檔時兩種寫出來的文字相同（都是原文加上引文的 > ）
+function displayMathBlock(c: PMNode): PMNode {
+  const only = c.type === schema.nodes.paragraph && c.childCount === 1 ? c.firstChild : null;
+  if (!only || only.type !== schema.nodes.raw_inline) return c;
+  const src = (only.attrs as RawInlineAttrs).src;
+  return /^\$\$[\s\S]*\S[\s\S]*\$\$$/.test(src) ? schema.nodes.raw_block.create({ src, kind: 'math' }) : c;
+}
+
 // 把「第一段以 [!type] 開頭的引文」轉成提示框節點（可以巢狀）
 function liftCallouts(node: PMNode, serializeInline: (nodes: PMNode[]) => string): PMNode {
   if (node.isText || node.isLeaf || node.isTextblock) return node;
-  const children: PMNode[] = [];
+  let children: PMNode[] = [];
   node.forEach(c => children.push(liftCallouts(c, serializeInline)));
+  if (node.type === schema.nodes.blockquote) children = children.map(displayMathBlock);
   const first = children[0];
   if (node.type === schema.nodes.blockquote && first && first.type === schema.nodes.paragraph
     && first.firstChild && first.firstChild.isText && CALLOUT_RE.test(first.firstChild.text!)) {
@@ -821,7 +832,7 @@ function liftCallouts(node: PMNode, serializeInline: (nodes: PMNode[]) => string
     const bodyInline = br < 0 ? [] : items.slice(br + 1);
     const title = titleInline.length ? serializeInline(titleInline).trim() : null;
     const content: PMNode[] = [];
-    if (bodyInline.length) content.push(schema.nodes.paragraph.create(null, bodyInline));
+    if (bodyInline.length) content.push(displayMathBlock(schema.nodes.paragraph.create(null, bodyInline)));
     content.push(...children.slice(1));
     if (!content.length) content.push(schema.nodes.paragraph.create());
     return schema.nodes.callout.create({ type: m[1], fold: m[2] || '', title: title || null, bid: (node.attrs as BidAttrs).bid }, content);

@@ -42,6 +42,8 @@ const CASES = {
   noLeadingPipe: 'a | b\n--- | ---\n1 | 2\n',
   calloutFold: '> [!note]- 標題 **粗**\n> 內容\n',
   calloutNested: '> [!tip] 外層\n> 文字\n> > [!warning] 內層\n> > 內文\n',
+  calloutMath: '> [!tip] 提示\n> 文字 $x$\n>\n> $$\n> a+b\n> $$\n',
+  quoteMath: '> $$x$$\n>\n> 後面\n',
   details: '<details>\n<summary>x</summary>\n\n內容 **粗**\n\n</details>\n',
   taskMeta: '- [ ] 任務 📅 2026-01-01 #tag [[x]]\n',
   setext: '標題\n===\n',
@@ -107,6 +109,16 @@ const edited = (src, find) => {
   return c.serialize(st.doc, meta);
 };
 const kinds = src => { const out = []; c.parse(src).doc.forEach(n => out.push(n.type.name + (n.type.name === 'raw_block' ? ':' + n.attrs.kind : ''))); return out.join(','); };
+
+{
+  // 引文、提示框裡獨立一行的方程式是方程式區塊（有編輯按鈕），不是段落裡的行內方程式
+  const kids = []; c.parse(CASES.calloutMath).doc.firstChild.forEach(n => kids.push(n.type.name + (n.attrs.kind ? ':' + n.attrs.kind : '')));
+  ok('提示框裡的 $$…$$ 是方程式區塊', kids.join() === 'paragraph,raw_block:math', kids.join());
+  const q = []; c.parse(CASES.quoteMath).doc.firstChild.forEach(n => q.push(n.type.name + (n.attrs.kind ? ':' + n.attrs.kind : '')));
+  ok('引文裡單行的 $$x$$ 也是方程式區塊', q.join() === 'raw_block:math,paragraph', q.join());
+  const e = edited(CASES.calloutMath, '文字');
+  ok('提示框裡的方程式區塊：編輯同一個提示框後原樣寫回', e === '> [!tip] 提示\n> 新文字 $x$\n>\n> $$\n> a+b\n> $$\n', JSON.stringify(e));
+}
 
 let o = edited(CASES.customTask, '進行中');
 ok('自訂任務狀態：編輯後保留 [/] [-] [>] [X]', o === '- [/] 新進行中\n- [-] 取消\n- [>] 延後\n- [X] 大寫\n- [x] 完成\n- [ ] 待辦\n', JSON.stringify(o));
