@@ -2309,13 +2309,35 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
   assert(['thick', 'block', 'underline'].every(k => css.includes('.wm-loupe .wm-loupe-caret[data-shape="' + k + '"]')) && css.includes('.wm-loupe .wm-loupe-caret { height: var(--wm-mark-h'), '標記的形狀與高度在樣式表');
 }
 
-// ======== 手機：功能區與狀態列用 Obsidian 的 mod-raised（浮動導覽列的毛玻璃膠囊）========
+// ======== 手機：功能區與狀態列合成一張浮動的毛玻璃卡片（view.ts 的 placeBottomBar）========
 {
   const { readFileSync } = await import('node:fs');
   const css = readFileSync(new URL('../../styles/word-mode.css', import.meta.url), 'utf8');
-  assert(css.includes('.is-floating-nav .wm-phone .wm-ribbon.mod-raised {') && css.includes('.is-floating-nav .wm-phone .wm-bottombar.mod-raised {') && css.includes('body:not(.is-floating-nav) .wm-ribbon.mod-raised {'), '膠囊只在浮動導覽列時；不是浮動的時候蓋回原本的底色');
-  assert(!view.toolbar.dom.classList.contains('mod-raised'), '電腦：不加 mod-raised');
+  assert(css.includes('.is-floating-nav .wm-phone:not(.wm-kb-open) .wm-toolbar-host.mod-raised {') && css.includes('body:not(.is-floating-nav) .wm-phone .wm-toolbar-host.mod-raised, .wm-phone.wm-kb-open .wm-toolbar-host.mod-raised { --raised: none; }'),
+    '卡片只在浮動導覽列、鍵盤收著時；其他時候用 --raised: none 關掉 Obsidian 的 mod-raised');
+  assert(!view.toolbarHost.classList.contains('mod-raised') && !view.toolbar.dom.classList.contains('mod-raised'), '電腦：不加 mod-raised');
+  const keep = { phone: mock.Platform.isPhone, pos: plugin.settings.toolbarPosition };
+  mock.Platform.isPhone = true;
+  view.bottomBarEl = view.contentEl.createDiv('wm-bottombar');
+  plugin.settings.toolbarPosition = 'bottom';
+  view.buildToolbar();
+  assert(view.toolbarHost.classList.contains('mod-raised') && view.bottomBarEl.parentElement === view.toolbarHost && view.toolbarHost.lastElementChild === view.bottomBarEl && view.contentEl.classList.contains('wm-dock'),
+    '手機、功能區在下方：外層掛 mod-raised，狀態列放進同一張卡片的最下面');
+  view.buildToolbar();
+  assert(view.bottomBarEl.parentElement === view.toolbarHost && view.toolbarHost.querySelectorAll('.wm-ribbon').length === 1, '重建功能區（會清空外層）：狀態列放回卡片裡');
+  plugin.settings.toolbarPosition = 'top';
+  view.buildToolbar();
+  assert(view.bottomBarEl.parentElement === view.contentEl && !view.contentEl.classList.contains('wm-dock'), '功能區在上方：狀態列留在檢視的最下面');
+  assert(css.includes('.wm-phone .wm-tabs-quick :is(.wm-quick-keys, .wm-quick-md) { display: none; }') && view.toolbar.dom.querySelector('.wm-quick-keys') && view.toolbar.dom.querySelector('.wm-quick-md'), '手機：分頁列右邊的快速鍵說明與 Markdown 按鈕由樣式表藏起來');
+  view.bottomBarEl.remove();
+  view.bottomBarEl = undefined;
+  mock.Platform.isPhone = keep.phone;
+  plugin.settings.toolbarPosition = keep.pos;
+  view.toolbarHost.classList.remove('mod-raised');
+  view.contentEl.classList.remove('wm-dock');
+  view.buildToolbar();
 }
+
 
 // ======== 設定頁的搜尋框：手機上收得起鍵盤（settingsnav.ts）========
 {
