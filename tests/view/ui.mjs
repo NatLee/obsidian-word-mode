@@ -2049,6 +2049,88 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
 }
 
 
+// ======== 游標的閃爍從頭開始、手機長按交回系統的游標（caret.ts）========
+{
+  await fresh('第一段文字\n\n第二段文字');
+  const P = view.pm.constructor;
+  const St = view.pm.state.constructor;
+  const host = document.body.createDiv();
+  const mount = host.createDiv();
+  const look = { shape: 'block', blink: 'blink', smooth: true };
+  const make = touch => {
+    const plugin = B.CARET.caretPlugin({ look: () => look, host: () => host, touch });
+    const v = new P(mount, { state: St.create({ doc: view.pm.state.doc, plugins: [plugin] }) });
+    // jsdom 量不到位置：照游標的位置給假的座標，並當作有焦點
+    v.coordsAtPos = pos => ({ left: pos * 10, right: pos * 10, top: 0, bottom: 20 });
+    v.hasFocus = () => true;
+    v.dispatch(v.state.tr.setMeta('x', 1));
+    return v;
+  };
+  const frame = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));
+  const v = make(false);
+  const el = host.querySelector('.wm-caret');
+  const odd = () => el.classList.contains('is-odd');
+  assert(el.classList.contains('is-shown') && host.classList.contains('wm-caret-on') && el.dataset.shape === 'block', '畫出游標，頁面標上 wm-caret-on');
+  let o = odd();
+  v.dispatch(v.state.tr.setSelection(TextSelection.create(v.state.doc, 3)));
+  assert(odd() !== o, '移動：閃爍從亮的那一半重新開始');
+  o = odd();
+  v.dispatch(v.state.tr.setMeta('別的外掛', true));
+  assert(odd() === o, '位置沒變的更新（別的外掛、裝飾）：不重來，游標照常閃');
+  v.dom.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+  await frame();
+  assert(odd() !== o, '點在原本的位置（選取沒變）：閃爍也從頭開始');
+  o = odd();
+  v.dom.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+  await frame();
+  assert(odd() !== o, '按鍵（例如在文件結尾按右鍵）：閃爍也從頭開始');
+  v.dispatch(v.state.tr.setSelection(TextSelection.create(v.state.doc, 2, 4)));
+  assert(!el.classList.contains('is-shown') && !host.classList.contains('wm-caret-on'), '有選取範圍：不畫，拿掉 wm-caret-on（手機上系統的選取把手要用 caret-color）');
+  v.destroy();
+  assert(!host.querySelector('.wm-caret') && !host.classList.contains('wm-caret-on'), '拿掉外掛：游標的元素與類別都清掉');
+
+  // 手機：按住不動就交回系統的游標，放開再換回來；手指移動（捲動）不算
+  const m = make(true);
+  const el2 = host.querySelector('.wm-caret');
+  const touch = (type, x, y) => m.dom.dispatchEvent(Object.assign(new Event(type, { bubbles: true }), { touches: type === 'touchend' ? [] : [{ clientX: x, clientY: y }] }));
+  touch('touchstart', 50, 50);
+  await sleep(200);
+  assert(el2.classList.contains('is-shown'), '按下還不到長按：自己的游標還在（點一下不會閃一下系統的游標）');
+  await sleep(250);
+  assert(!el2.classList.contains('is-shown') && !host.classList.contains('wm-caret-on'), '長按：交回系統的游標（系統的放大鏡裡畫的是它）');
+  m.dispatch(m.state.tr.setSelection(TextSelection.create(m.state.doc, 4)));
+  assert(!el2.classList.contains('is-shown'), '長按中選取改變：仍然用系統的游標');
+  touch('touchend', 50, 50);
+  await frame();
+  assert(el2.classList.contains('is-shown') && host.classList.contains('wm-caret-on'), '放開：換回自己的游標');
+  touch('touchstart', 50, 50);
+  touch('touchmove', 50, 80);
+  await sleep(450);
+  assert(el2.classList.contains('is-shown'), '手指移動（捲動）：不算長按');
+  touch('touchend', 50, 80);
+  m.destroy();
+  host.remove();
+  assert(view.contentEl.classList.contains('wm-caret-touch') === false, '電腦：沒有 wm-caret-touch（一直藏內建的游標）');
+}
+
+// ======== 設定頁的游標預覽（caret.ts 的 caretDemo）========
+{
+  const { readFileSync } = await import('node:fs');
+  const box = document.body.createDiv();
+  const cur = { shape: 'underline', blink: 'solid', smooth: false, color: 'custom', custom: '#ff0000', period: 0.8 };
+  const demo = B.CARET.caretDemo(box, '像 Word 一樣編輯你的筆記', () => cur);
+  const d = box.querySelector('.wm-caret-demo');
+  assert(d && d.querySelector('.wm-caret-demo-text').textContent === '像 Word 一樣編輯你的筆記' && d.querySelector('.wm-caret') && d.getAttribute('aria-hidden') === 'true', '預覽：範例文字加一個游標，螢幕閱讀器略過');
+  demo.update();
+  assert(d.style.getPropertyValue('--wm-caret-color') === '#ff0000' && d.style.getPropertyValue('--wm-caret-period') === '0.8s', '自訂顏色與速度寫在預覽上');
+  cur.color = 'text'; cur.period = 1.3; demo.update();
+  assert(d.classList.contains('wm-caret-text') && d.style.getPropertyValue('--wm-caret-color') === '' && d.style.getPropertyValue('--wm-caret-period') === '', '跟文字一樣用類別；預設的速度不寫');
+  box.remove();
+  const css = readFileSync(new URL('../../styles/word-mode.css', import.meta.url), 'utf8');
+  assert(css.includes('.wm-view, .wm-caret-demo { --wm-caret-paint:') && css.includes('.wm-view.wm-caret-text, .wm-caret-demo.wm-caret-text {'), '預覽跟編輯區用同一組顏色變數');
+  assert(['wm-caret-fade', 'wm-caret-blink'].every(n => css.includes('@keyframes ' + n + ' ') && css.includes('@keyframes ' + n + '2 ')), '閃爍的動畫各有兩組一樣的（切換 is-odd 才會從頭播放）');
+}
+
 // ======== 放大鏡的位置資訊：文件頭尾、停在物件上（loupe.ts）========
 {
   await fresh('第一段文字\n\n$$\nx^2\n$$\n\n最後一段');

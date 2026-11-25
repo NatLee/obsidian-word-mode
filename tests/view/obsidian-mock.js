@@ -12,6 +12,7 @@ P.createEl = function (tag, o = {}) {
   if (o.text) e.textContent = o.text;
   if (o.type) e.type = o.type;
   if (o.value != null) e.value = o.value;
+  if (o.attr) for (const [k, v] of Object.entries(o.attr)) e.setAttribute(k, String(v));
   this.appendChild(e);
   return e;
 };

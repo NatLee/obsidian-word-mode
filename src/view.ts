@@ -538,7 +538,9 @@ export class WordModeView extends TextFileView {
   applyCaretLook(): void {
     const S = this.plugin.settings;
     const look = caretLook(S.caretShape, S.caretBlink, S.caretSmooth);
-    this.contentEl.toggleClass('wm-caret-custom', !Platform.isMobile && look.shape !== 'native');
+    this.contentEl.toggleClass('wm-caret-custom', look.shape !== 'native');
+    // 手機、平板：只在自己的游標畫出來時藏內建的（見 caret.ts 與樣式表）
+    this.contentEl.toggleClass('wm-caret-touch', Platform.isMobile);
     this.contentEl.toggleClass('wm-caret-text', S.caretColor === 'text');
     const custom = S.caretColor === 'custom' && /^#[0-9a-f]{3,8}$/i.test(S.caretCustom || '') ? S.caretCustom : '';
     if (custom) this.contentEl.style.setProperty('--wm-caret-color', custom);
@@ -693,16 +695,15 @@ export class WordModeView extends TextFileView {
     if (!this.code) this.code = codePlugin(() => this.prism);
     if (!this.suggest) this.suggest = suggestPlugin(suggestContext(this, iconOr));
     const plugins = [this.suggest, this.bubble, findPlugin, this.fold, this.marks, this.code, codeActivePlugin, this.grips];
-    // 自己畫的游標只用在桌機；手機用系統的游標（有把手與放大鏡）
-    if (!Platform.isMobile) {
-      if (!this.caret) {
-        this.caret = caretPlugin({
-          look: () => { const S = this.plugin.settings; return caretLook(S.caretShape, S.caretBlink, S.caretSmooth); },
-          host: () => this.page,
-        });
-      }
-      plugins.push(this.caret);
+    // 自己畫的游標。手機、平板長按時交回系統的游標（系統的放大鏡、選取的把手要用它）
+    if (!this.caret) {
+      this.caret = caretPlugin({
+        look: () => { const S = this.plugin.settings; return caretLook(S.caretShape, S.caretBlink, S.caretSmooth); },
+        host: () => this.page,
+        touch: Platform.isMobile,
+      });
     }
+    plugins.push(this.caret);
     return plugins;
   }
 
