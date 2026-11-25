@@ -195,7 +195,8 @@ export class MdStatusBar {
   // 上次畫出來的存檔狀態（狀態＋修改時間）
   declare stamp: string;
 
-  constructor(plugin: WordModePlugin, el: HTMLElement, view: MarkdownView) {
+  // inStatusBar：放在 Obsidian 右下角的狀態列（電腦）；false 是手機上自己放在工具列下方的那一列（mdbar.ts）
+  constructor(plugin: WordModePlugin, el: HTMLElement, view: MarkdownView, inStatusBar = true) {
     this.plugin = plugin; this.view = view; this.el = el;
     this.mode = view.getMode && view.getMode() === 'preview' ? 'preview' : 'source';
     this.text = null; this.sel = ''; this.seenText = null; this.seenSel = ''; this.dirty = false; this.seq = 0; this.stamp = '';
@@ -203,7 +204,7 @@ export class MdStatusBar {
     const S = plugin.settings;
     el.empty();
     this.parts = buildStatusBar(el, {
-      mode: this.mode, inStatusBar: true, richHints: !!S.richHints, modE: S.ctrlE !== false ? 'word' : null, zoomable: false,
+      mode: this.mode, inStatusBar, richHints: !!S.richHints, modE: S.ctrlE !== false ? 'word' : null, zoomable: false,
       zoom: () => S.zoom || 100, setZoom: () => { /* Markdown／閱讀模式不能縮放 */ },
       onCount: () => this.openWordCount(),
       onMode: m => { if (m === 'word') void plugin.switchToWord(view.leaf); else void plugin.setMarkdownMode(view, m); },

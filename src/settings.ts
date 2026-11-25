@@ -41,6 +41,10 @@ export interface Settings {
   // ---- 拖曳移動游標（手機、平板；toolbar.ts 的 caretPad、loupe.ts）：整列按鈕當觸控板、按住多久開始、移動速度（1 慢～5 快）、
   // 放大鏡要不要顯示、倍率、寬度、外觀
   padRow: boolean;
+  // 控制鍵列（keyrow.ts，手機、平板）：要不要放開關、要顯示哪些鍵（KeyId）、上次是不是開著（不在設定頁上，開關時記下來）
+  keyRow: boolean;
+  keyRowKeys: string[];
+  keyRowOpen: boolean;
   padHold: number;
   padSpeed: number;
   loupeShow: boolean;
@@ -154,6 +158,9 @@ export const DEFAULTS: Settings = {
   mdYieldNative: true,
   readingLite: true,
   padRow: true,
+  keyRow: true,
+  keyRowKeys: ['esc', 'tab', 'mod', 'shift', 'left', 'up', 'down', 'right', 'home', 'end'],
+  keyRowOpen: false,
   padHold: 300,
   padSpeed: 3,
   loupeShow: true,

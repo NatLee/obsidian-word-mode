@@ -1,7 +1,9 @@
 // 表格的列與欄把手（不依賴 Obsidian）：游標所在的表格，每一列開頭、每一欄上方的格線上各有一個小把手，
 // 按一下選取整列或整欄，再開選單（插入、移動、對齊、排序、刪除）。手機沒有右鍵選單，表格靠這個與功能區操作。
-// 同時在游標所在的表格加上 is-active，讓右上角的按鈕一直顯示（nodeviews.ts 的 WordTableView）
-import { Plugin, PluginKey } from 'prosemirror-state';
+// 同時在游標所在的表格加上 is-active，讓右上角的按鈕一直顯示（nodeviews.ts 的 WordTableView）。
+// 表格的上面或下面沒有地方可以打字時（兩個表格相鄰、表格在文件或提示框的最前面、最後面、旁邊是程式碼或方程式），
+// 在那一邊的邊緣放一顆「＋ 段落」，按下去在那裡插入一個空段落。手機沒有 Ctrl+Enter 也沒有方向鍵，原本沒辦法在那裡打字
+import { Plugin, PluginKey, TextSelection } from 'prosemirror-state';
 import { Decoration, DecorationSet } from 'prosemirror-view';
 import { CellSelection } from 'prosemirror-tables';
 import { t } from './i18n.js';
@@ -94,6 +96,34 @@ function grip(pos: number, kind: GripKind, index: number, state: GripState, open
   });
 }
 
+// 旁邊是這些就不用「＋ 段落」：點進去就能打字
+function typable(n: PMNode | null | undefined): boolean {
+  if (!n) return false;
+  const name = n.type.name;
+  return n.isTextblock || name === 'bullet_list' || name === 'ordered_list' || name === 'blockquote' || name === 'callout';
+}
+
+// 表格上方（before）或下方的「＋ 段落」。widget 放在表格與旁邊區塊之間的位置；按下去在那裡插入空段落，游標放進去
+function paraButton(pos: number, where: 'before' | 'after'): Decoration {
+  return Decoration.widget(pos, (view: EditorView, getPos: () => number | undefined) => {
+    const box = el('div', 'wm-table-para is-' + where);
+    const b = el('button', 'wm-table-para-btn', box, t('＋ 段落'));
+    b.type = 'button';
+    b.setAttribute('aria-label', t(where === 'before' ? '在表格上方插入段落' : '在表格下方插入段落'));
+    // 不要讓按鈕拿走焦點（手機的鍵盤會收起來）；按下去才插入
+    b.addEventListener('mousedown', e => e.preventDefault());
+    b.addEventListener('click', e => {
+      e.preventDefault();
+      const at = getPos();
+      if (at == null) return;
+      const tr = view.state.tr.insert(at, N.paragraph.create());
+      view.dispatch(tr.setSelection(TextSelection.create(tr.doc, at + 1)).scrollIntoView());
+      view.focus();
+    });
+    return box;
+  }, { side: where === 'before' ? 1 : -1, ignoreSelection: true, stopEvent: () => true, key: 'wm-table-para-' + where });
+}
+
 function gripState(index: number, current: number, selected: Set<number>): GripState {
   return selected.has(index) ? 'selected' : index === current ? 'current' : null;
 }
@@ -102,6 +132,10 @@ function decorate(state: EditorState, open: OpenGripMenu): DecorationSet | null 
   const tb = activeTable(state);
   if (!tb) return null;
   const decos: Decoration[] = [Decoration.node(tb.pos, tb.pos + tb.node.nodeSize, { class: 'is-active' })];
+  const $t = state.doc.resolve(tb.pos);
+  const $end = state.doc.resolve(tb.pos + tb.node.nodeSize);
+  if (!typable($t.nodeBefore)) decos.push(paraButton(tb.pos, 'before'));
+  if (!typable($end.nodeAfter)) decos.push(paraButton(tb.pos + tb.node.nodeSize, 'after'));
   const f = focusOf(state);
   let rowPos = tb.pos + 1;
   tb.node.forEach((row, _off, r) => {

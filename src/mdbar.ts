@@ -12,7 +12,10 @@ import { frontmatterOf, peekData } from './props.js';
 import { openPropsPeek, closePropsPeek, propertyWidget } from './propview.js';
 import { ACTIONS as A, RibbonShell, ribbonClass } from './ribbon.js';
 import type { ButtonClick, MenuItem, RibbonAction, RibbonButton, TabId } from './ribbon.js';
-import type { App, Editor, MarkdownViewModeType } from 'obsidian';
+import type { App, Editor, EditorPosition, MarkdownViewModeType } from 'obsidian';
+import { keyRowKeys } from './keyrow.js';
+import type { KeyMods, MoveKey } from './keyrow.js';
+import { MdStatusBar } from './statusbar.js';
 import type WordModePlugin from './main.js';
 import type { I18nKey } from './i18n.js';
 
@@ -109,6 +112,13 @@ export class MarkdownBar {
   declare offKeyboard: (() => void) | null;
   // 手機的閱讀模式：只剩一列能用的按鈕（見 update）
   declare lite: boolean;
+  // 手機：工具列下方的狀態列（跟 Word 模式同一個位置與內容）；外層加 wm-phone，Word 模式手機狀態列的樣式就一起套上。
+  // 設定關掉、電腦、平板時是 null（電腦用 Obsidian 右下角的狀態列，main.ts 的 updateStatus）
+  declare statusWrap: HTMLDivElement | null;
+  declare status: MdStatusBar | null;
+  declare statusKey: string;
+  // 這個檢視的工具列在下方（控制鍵列放在它上面、狀態列放在它下面）
+  declare bottom: boolean;
 
   constructor(plugin: WordModePlugin, view: MarkdownView) {
     this.plugin = plugin;
@@ -117,6 +127,8 @@ export class MarkdownBar {
     // 位置跟 Word 模式的功能區一樣（設定的「工具列位置」；自動時手機在下方）：切換編輯模式時工具列不會從下面跳到最上面
     const pos = plugin.settings.toolbarPosition || 'auto';
     const bottom = pos === 'bottom' || (pos === 'auto' && !!Platform.isPhone);
+    this.bottom = bottom;
+    this.statusWrap = null; this.status = null; this.statusKey = '';
     this.dom = el('div', 'wm-ribbon wm-mdbar ' + ribbonClass(plugin.settings) + (Platform.isMobile ? ' wm-mobile' : '') + (bottom ? ' wm-mdbar-bottom' : ''));
     view.containerEl.insertBefore(this.dom, bottom ? view.contentEl.nextSibling : view.contentEl);
     // 螢幕鍵盤開著時跟 Word 模式一樣精簡成一列（樣式表的 wm-kb-compact，掛在這個檢視的外框上）
@@ -131,6 +143,7 @@ export class MarkdownBar {
     // （Pretty Properties 的 BANNER／COVER／ICON 按鈕列），結果疊在這條工具列的分頁上。
     // 把工具列的高度記在 containerEl 的 --wm-mdbar-height，樣式表用它把那些東西往下移。
     // 高度會隨分頁、換行、視窗寬度改變，所以用 ResizeObserver 跟著更新；沒有 ResizeObserver 的環境只設一次
+    this.syncStatus();
     this.syncHeight();
     this.sizer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => this.syncHeight());
     if (this.sizer) this.sizer.observe(this.dom);
@@ -141,6 +154,51 @@ export class MarkdownBar {
     this.view.containerEl.toggleClass('wm-kb-compact', !!kb && kb.open && this.plugin.settings.compactOnKeyboard !== false);
   }
 
+  // 手機的狀態列：要有的時候放在檢視最下面（工具列在下方時就在工具列下面）；換了編輯／閱讀模式重建（按鈕不一樣）
+  syncStatus(): void {
+    const want = !!Platform.isPhone && this.plugin.settings.mdStatusBar !== false && !!this.view.file && /\.md$/i.test(this.view.file.path);
+    if (!want) {
+      if (this.statusWrap) { this.statusWrap.remove(); this.statusWrap = null; this.status = null; this.statusKey = ''; }
+      this.dom.removeClass('has-status');
+      return;
+    }
+    const key = this.view.file!.path + '|' + (this.isReading() ? 'preview' : 'source');
+    if (this.statusWrap && this.status && key === this.statusKey) { this.status.update(); return; }
+    if (!this.statusWrap) this.statusWrap = this.view.containerEl.createDiv('wm-phone wm-mdbar-status');
+    this.statusWrap.empty();
+    this.statusKey = key;
+    this.status = new MdStatusBar(this.plugin, this.statusWrap.createDiv('wm-bottombar'), this.view, false);
+    this.dom.addClass('has-status');
+  }
+
+  // 控制鍵（keyrow.ts）的方向鍵、Home、End：用 Obsidian 編輯器的指令移動，Shift 延伸選取時把選取的起點放回去。
+  // Ctrl（⌘）：左右跳一個詞，上下到這一行的開頭、結尾（已經在那裡時到上一行、下一行），Home／End 是文件的開頭、結尾
+  keyMove(key: MoveKey, mods: KeyMods): boolean {
+    const ed = this.view.editor;
+    if (!ed || this.isReading()) return false;
+    const anchor = ed.getCursor('anchor');
+    const head = ed.getCursor('head');
+    const line = head.line;
+    const lineLen = (n: number) => ed.getLine(n).length;
+    let to: EditorPosition | null = null;
+    if (key === 'left' || key === 'right') {
+      const dir = key === 'left' ? -1 : 1;
+      if (mods.mod) { ed.exec(dir < 0 ? 'goWordLeft' : 'goWordRight'); to = ed.getCursor('head'); }
+      else if (!mods.shift && ed.somethingSelected()) to = dir < 0 ? ed.getCursor('from') : ed.getCursor('to');
+      else to = ed.offsetToPos(Math.max(0, Math.min(ed.posToOffset(head) + dir, ed.getValue().length)));
+    } else if (key === 'up' || key === 'down') {
+      const dir = key === 'up' ? -1 : 1;
+      if (mods.mod) {
+        const edge = dir < 0 ? 0 : lineLen(line);
+        const next = line + dir;
+        to = head.ch !== edge || next < 0 || next > ed.lastLine() ? { line, ch: edge } : { line: next, ch: dir < 0 ? 0 : lineLen(next) };
+      } else { ed.exec(dir < 0 ? 'goUp' : 'goDown'); to = ed.getCursor('head'); }
+    } else if (mods.mod) to = key === 'home' ? { line: 0, ch: 0 } : { line: ed.lastLine(), ch: lineLen(ed.lastLine()) };
+    else to = { line, ch: key === 'home' ? 0 : lineLen(line) };
+    if (mods.shift) ed.setSelection(anchor, to); else ed.setCursor(to);
+    return to.line !== head.line || to.ch !== head.ch;
+  }
+
   syncHeight(): void { this.view.containerEl.style.setProperty('--wm-mdbar-height', this.dom.offsetHeight + 'px'); }
 
   destroy(): void {
@@ -148,6 +206,8 @@ export class MarkdownBar {
     closePropsPeek();
     if (this.sizer) this.sizer.disconnect();
     if (this.offKeyboard) this.offKeyboard();
+    if (this.shell) this.shell.destroy();
+    if (this.statusWrap) this.statusWrap.remove();
     this.view.containerEl.removeClass('wm-kb-compact');
     this.view.containerEl.style.removeProperty('--wm-mdbar-height');
     this.dom.remove();
@@ -162,6 +222,8 @@ export class MarkdownBar {
   cmd(id: string): () => boolean { return () => { const commands = this.app.commands; return commands ? commands.executeCommandById(id) : false; }; }
 
   render(): void {
+    // 舊的控制鍵列在工具列外面，而且在 document 上掛了事件
+    if (this.shell) this.shell.destroy();
     this.dom.replaceChildren();
     this.dom.removeClass('wm-reading-lite');
     this.lite = false;
@@ -173,6 +235,18 @@ export class MarkdownBar {
       openMenu: (owner, items) => this.menu(owner, items),
       // Markdown 的功能區沒有情境分頁
       pickTab: id => { if (id !== 'tabletab') this.showTab(id); },
+      // 控制鍵列：閱讀模式不能編輯，不放。位置跟 Word 模式一樣：工具列在下方時放在它上面
+      keys: Platform.isMobile && S.keyRow !== false && !this.isReading() ? {
+        list: keyRowKeys(S.keyRowKeys), open: !!S.keyRowOpen,
+        setOpen: open => { S.keyRowOpen = open; void this.plugin.saveSettings(); },
+        move: (key, mods) => this.keyMove(key, mods),
+        mount: row => {
+          row.addClass('wm-mdbar-keys');
+          // 打字時讓出 Obsidian 的工具列：控制鍵列跟著一起讓（樣式表）
+          row.toggleClass('wm-yield-native', S.mdYieldNative !== false);
+          this.view.containerEl.insertBefore(row, this.bottom ? this.dom : this.dom.nextSibling);
+        },
+      } : null,
     });
     this.shell = shell;
     const G = shell.groups;
@@ -268,6 +342,7 @@ export class MarkdownBar {
   }
 
   update(): void {
+    this.syncStatus();
     const reading = this.isReading();
     this.mode = reading ? 'preview' : 'source';
     for (const it of this.items) {

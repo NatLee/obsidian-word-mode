@@ -2294,35 +2294,64 @@ button.wm-kb-hide { display: none; }
 .wm-loupe .wm-loupe-caret[data-shape="block"] { left: 0; width: calc(var(--wm-mark-h, 20px) * .5); background: color-mix(in srgb, var(--wm-caret-paint, var(--interactive-accent)) 40%, transparent); box-shadow: none; }
 .wm-loupe .wm-loupe-caret[data-shape="underline"] { left: 0; top: calc(11px + var(--wm-mark-h, 20px) - 3px); width: calc(var(--wm-mark-h, 20px) * .5); height: 3px; box-shadow: none; }
 
-/* ---------- 手機：功能區與狀態列合成一張浮動的毛玻璃卡片（view.ts 的 placeBottomBar）----------
-   外層（.wm-toolbar-host）掛 Obsidian 自己的 mod-raised：導覽列是浮動的時候（is-floating-nav）是毛玻璃的底、陰影，
-   iOS 上再加一圈細邊框，佈景主題、深色模式都跟著 Obsidian 變。功能區在下方時（.wm-dock）狀態列也在卡片裡，排在最下面。
-   由上到下：按鈕（左右淡出，不被圓角硬切）、分頁（目前的分頁是強調色的膠囊）、狀態列（細線隔開、小字）。
-   這裡只管形狀與間距；裡面各層拿掉自己的底色與框線才看得到毛玻璃。
-   導覽列不是浮動的、或螢幕鍵盤開著時（精簡的那一列有自己的膠囊）不要卡片：設 --raised: none，
-   Obsidian 的 mod-raised 規則都寫成 var(--raised, …)，一次關掉底色、模糊、陰影與邊框 */
-.wm-phone .wm-toolbar-host.mod-raised { position: relative; }
-body:not(.is-floating-nav) .wm-phone .wm-toolbar-host.mod-raised, .wm-phone.wm-kb-open .wm-toolbar-host.mod-raised { --raised: none; }
-.is-floating-nav .wm-phone.wm-view { background: var(--background-primary); }
-.is-floating-nav .wm-phone:not(.wm-kb-open) .wm-toolbar-host.mod-raised { --wm-dock-bg: var(--raised-background, var(--background-primary)); margin: 2px 10px 8px; border-radius: 24px; overflow: hidden; }
-/* Obsidian 在 iOS 給 mod-raised 疊一層 :after（z-index: 1，畫細邊框的反光），內容要墊在它上面，不然淺色模式會被洗白 */
-.is-floating-nav .wm-phone:not(.wm-kb-open) .wm-toolbar-host.mod-raised > * { position: relative; z-index: 2; }
-.is-floating-nav .wm-phone:not(.wm-kb-open) .wm-toolbar-host.mod-raised :is(.wm-ribbon, .wm-toolbar, .wm-tabs, .wm-bottombar) { background: transparent; border: 0; }
-/* 按鈕：一整列左右捲動。兩端各蓋一條跟卡片同色的漸層（黏在捲動範圍的兩邊），捲到一半的按鈕是淡出去的；藏起 iOS 的捲動條 */
-.is-floating-nav .wm-phone:not(.wm-kb-open) .wm-toolbar-host.mod-raised .wm-toolbar { padding-block: 6px 2px; padding-inline: 12px; --scrollbar-native-width: none; }
-.is-floating-nav .wm-phone:not(.wm-kb-open) .wm-toolbar-host.mod-raised .wm-toolbar::before,
-.is-floating-nav .wm-phone:not(.wm-kb-open) .wm-toolbar-host.mod-raised .wm-toolbar::after { content: ''; position: sticky; z-index: 3; flex: 0 0 16px; align-self: stretch; pointer-events: none; }
-.is-floating-nav .wm-phone:not(.wm-kb-open) .wm-toolbar-host.mod-raised .wm-toolbar::before { inset-inline-start: 0; margin-inline-end: -16px; background: linear-gradient(to right, var(--wm-dock-bg), transparent); }
-.is-floating-nav .wm-phone:not(.wm-kb-open) .wm-toolbar-host.mod-raised .wm-toolbar::after { inset-inline-end: 0; margin-inline-start: -16px; background: linear-gradient(to left, var(--wm-dock-bg), transparent); }
-/* 分頁：沒有底線、沒有方框；目前的分頁是強調色的膠囊。觸控螢幕點過之後 :hover 會一直留著，這裡不要 hover 的底色 */
-.is-floating-nav .wm-phone:not(.wm-kb-open) .wm-toolbar-host.mod-raised .wm-tabs { gap: 2px; padding: 2px 8px 6px; --scrollbar-native-width: none; }
-.is-floating-nav .wm-phone:not(.wm-kb-open) .wm-toolbar-host.mod-raised .wm-tabs button.wm-tab { height: 32px; padding: 0 14px; border: 0; border-radius: 16px; background: transparent; }
-.is-floating-nav .wm-phone:not(.wm-kb-open) .wm-toolbar-host.mod-raised .wm-tabs button.wm-tab.is-active { background: hsla(var(--wm-accent-hsl), .18); color: var(--text-accent); }
-.is-floating-nav .wm-phone:not(.wm-kb-open) .wm-toolbar-host.mod-raised .wm-tabs-quick button.wm-btn { height: 32px; border-radius: 16px; background: transparent; }
-/* 狀態列：卡片的最下面一列，上面一條細線，小字 */
-.is-floating-nav .wm-phone:not(.wm-kb-open) .wm-toolbar-host.mod-raised .wm-bottombar { min-height: 30px; margin: 0 14px; padding: 2px 0 4px; border-top: .5px solid var(--background-modifier-border); }
-/* 狀態列的按鈕跟分頁一樣是圓的：目前的檢視模式用強調色的淡底，不用方框 */
-.is-floating-nav .wm-phone:not(.wm-kb-open) .wm-toolbar-host.mod-raised .wm-bottombar button.wm-bb-btn { height: 26px; min-width: 30px; border: 0; border-radius: 13px; }
-.is-floating-nav .wm-phone:not(.wm-kb-open) .wm-toolbar-host.mod-raised .wm-bottombar button.wm-bb-btn.is-active { background: hsla(var(--wm-accent-hsl), .18); color: var(--text-accent); }
-/* 手機上分頁列右邊不放「快速鍵說明」（沒有實體鍵盤）與「Markdown」（檢視標題列已經有切換的按鈕），留給分頁 */
-.wm-phone .wm-tabs-quick :is(.wm-quick-keys, .wm-quick-md) { display: none; }
+/* ---------- 手機、平板的功能區（Word 模式與 Markdown／閱讀模式共用）----------
+   按鈕列、分頁列左右捲動時不顯示捲動條（Obsidian 的做法：--scrollbar-native-width）；
+   觸控螢幕點過之後 :hover 會一直留著（iOS），分頁、按鈕看起來像被框住：只在有滑鼠的裝置用 hover 的底色。
+   手機的分頁列右邊不放「快速鍵說明」：沒有實體鍵盤 */
+.wm-mobile .wm-toolbar, .wm-mobile .wm-tabs, .wm-mobile.wm-ribbon .wm-tabs { --scrollbar-native-width: none; }
+@media (hover: none) {
+  .wm-mobile .wm-tabs button.wm-tab:hover, .wm-mobile.wm-ribbon .wm-tabs button.wm-tab:hover { background: transparent; }
+  .wm-mobile .wm-tabs button.wm-tab.is-active:hover, .wm-mobile.wm-ribbon .wm-tabs button.wm-tab.is-active:hover { background: transparent; }
+  .wm-mobile .wm-tabs-quick button.wm-btn:hover, .wm-mobile.wm-ribbon .wm-tabs-quick button.wm-btn:hover { background: transparent; }
+}
+.wm-phone .wm-tabs-quick .wm-quick-keys, .is-phone .wm-mdbar .wm-tabs-quick .wm-quick-keys { display: none; }
+
+/* ---------- 控制鍵列（keyrow.ts；手機、平板，Word 模式與 Markdown 模式共用）----------
+   Esc、Tab、Ctrl（⌘）、Shift、方向鍵、Home、End 排成一列，左右捲動。開關有兩顆：鍵盤開著時在「收起鍵盤」左邊
+   （跟它一樣的圓形按鈕，按鈕列多讓出一顆的位置），鍵盤收著時在分頁列右邊的快速按鈕裡。
+   控制鍵列不在功能區裡面（放在裡面會把「收起鍵盤」的位置擠歪）：Word 模式放在功能區的同一個容器，
+   功能區在下方時排在功能區上面；Markdown 模式由 mdbar.ts 放在工具列旁邊 */
+.wm-keyrow { display: none; }
+.wm-keyrow.is-open { display: flex; flex: 0 0 auto; align-items: center; gap: 6px; padding: 5px 8px; overflow-x: auto; overscroll-behavior-x: contain; --scrollbar-native-width: none; background: var(--background-primary); border-top: 1px solid var(--background-modifier-border); user-select: none; }
+.wm-keyrow::-webkit-scrollbar { display: none; }
+.wm-keyrow button.wm-key { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; min-width: 42px; height: 34px; padding: 0 10px; border: 0; border-radius: 8px; background: var(--interactive-normal); box-shadow: none; color: var(--text-normal); font-size: var(--font-ui-small); font-weight: 600; }
+.wm-keyrow button.wm-key svg { width: 18px; height: 18px; }
+.wm-keyrow button.wm-key:active { background: var(--interactive-hover); transform: scale(.94); }
+/* Ctrl、Shift：作用在下一個鍵時是淡的強調色，鎖住時是實心的強調色 */
+.wm-keyrow button.wm-key.is-on { background: hsla(var(--wm-accent-hsl), .2); color: var(--text-accent); }
+.wm-keyrow button.wm-key.is-locked { background: var(--interactive-accent); color: var(--text-on-accent); }
+.wm-toolbar-bottom .wm-toolbar-host { display: flex; flex-direction: column; }
+.wm-toolbar-bottom .wm-toolbar-host > .wm-keyrow { order: -1; }
+/* Markdown 模式打字時讓出 Obsidian 的工具列（wm-yield-native）：控制鍵列跟著工具列一起讓 */
+.is-phone.mod-toolbar-open .wm-mdbar-keys.wm-yield-native { display: none; }
+/* 開關：鍵盤開著時的那顆（樣式照「收起鍵盤」，往左一顆） */
+button.wm-keys-btn { display: none; }
+.wm-kb-up .wm-ribbon > button.wm-keys-btn { display: inline-flex; align-items: center; justify-content: center; position: absolute; inset-inline-end: 54px; bottom: 3px; width: 40px; height: 40px; padding: 0; border: 0; border-radius: 50%; background: var(--touch-background, var(--background-modifier-hover)); box-shadow: none; color: var(--text-normal); }
+.wm-kb-up .wm-toolbar-bottom .wm-ribbon > button.wm-keys-btn, .wm-kb-up .wm-mdbar.wm-mdbar-bottom > button.wm-keys-btn { bottom: auto; top: 3px; }
+.wm-kb-up .wm-kb-compact .wm-ribbon > button.wm-keys-btn { top: 50%; bottom: auto; margin-top: -20px; }
+.wm-kb-up .wm-ribbon > button.wm-keys-btn svg { width: 20px; height: 20px; }
+.wm-kb-up .wm-ribbon > button.wm-keys-btn.is-active { background: hsla(var(--wm-accent-hsl), .2); color: var(--text-accent); }
+.wm-kb-up .wm-ribbon > button.wm-keys-btn:active { transform: scale(.92); }
+.wm-kb-up .wm-ribbon.has-keys > .wm-toolbar { padding-inline-end: 102px; }
+.wm-kb-up .wm-kb-compact .wm-ribbon.has-keys > .wm-toolbar { margin-inline-end: 102px; padding-inline-end: 4px; }
+/* 鍵盤開著時分頁列裡的那顆藏起來（改用上面那顆） */
+.wm-kb-up .wm-tabs-quick .wm-keys-quick { display: none; }
+
+/* ---------- 手機的 Markdown／閱讀模式：工具列下方的狀態列（mdbar.ts 的 syncStatus）----------
+   跟 Word 模式同一個位置、同樣的內容；外層有 wm-phone，Word 模式手機狀態列的樣式一起套上。
+   Obsidian 的導覽列是浮動的時候，下方留給它的空間改留在狀態列下面；打字時跟 Word 模式一樣收起來 */
+.is-phone .wm-mdbar-status { flex: 0 0 auto; margin-bottom: max(0px, var(--view-bottom-spacing, 0px)); }
+.is-phone .wm-mdbar.wm-mdbar-bottom.has-status { margin-bottom: 0; }
+.wm-kb-up .wm-mdbar-status { display: none; }
+
+/* ---------- 表格上下的「＋ 段落」（tablegrips.ts）----------
+   游標在表格裡、而且那一邊沒有地方可以打字時才出現。不佔版面（高度 0），按鈕壓在表格的上緣或下緣、置中 */
+.wm-editor .wm-table-para { position: relative; height: 0; z-index: 2; }
+.wm-editor .wm-table-para button.wm-table-para-btn { position: absolute; left: 50%; transform: translateX(-50%); height: 24px; padding: 0 10px; border: 1px solid hsla(var(--wm-accent-hsl), .45); border-radius: 12px; background: var(--background-primary); box-shadow: var(--wm-shadow-pop); color: var(--text-accent); font-family: var(--font-interface); font-size: var(--font-ui-smaller); line-height: 22px; white-space: nowrap; cursor: pointer; }
+.wm-editor .wm-table-para.is-before button.wm-table-para-btn { bottom: -4px; }
+.wm-editor .wm-table-para.is-after button.wm-table-para-btn { top: -4px; }
+.wm-mobile .wm-editor .wm-table-para button.wm-table-para-btn { height: 30px; padding: 0 14px; border-radius: 15px; line-height: 28px; font-size: var(--font-ui-small); }
+.wm-editor .wm-table-para button.wm-table-para-btn:hover { background: hsla(var(--wm-accent-hsl), .12); }
+/* 手機的分頁列：右邊的快速按鈕（尋找、切換模式、控制鍵的開關）黏在右端，分頁多（例如出現「表格」情境分頁）時從它底下捲過去，
+   開關一直按得到。左邊一點陰影，看得出底下還有分頁 */
+.wm-mobile .wm-tabs > .wm-tabs-quick, .wm-mobile.wm-ribbon .wm-tabs > .wm-tabs-quick { position: sticky; inset-inline-end: 0; z-index: 1; padding-inline-start: 4px; background: var(--background-primary); box-shadow: -10px 0 10px -8px rgba(0, 0, 0, .25); }

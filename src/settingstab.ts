@@ -5,6 +5,7 @@ import { DEFAULTS } from './settings.js';
 import { caretDemo, caretLook, caretPeriod, CARET_PERIOD } from './caret.js';
 import { PAD_HOLD, padHold, padSpeed } from './toolbar.js';
 import { LOUPE_WIDTH, LOUPE_ZOOM, loupeOptions } from './loupe.js';
+import { KEY_IDS, KEY_LOOK, keyRowKeys } from './keyrow.js';
 import { renderMathInto } from './mathrender.js';
 import { mdToolbarMode } from './mdbar.js';
 import { TABS } from './ribbon.js';
@@ -215,6 +216,22 @@ function settingSections(settingTab: WordModeSettings): SettingSection[] {
       row(t('拖曳移動游標的速度'), t('1 最慢、5 最快：手指移動同樣的距離，游標走的格數不同。想要一個字一個字慢慢對準就調慢。預設 3。'),
         s => s.addSlider(sl => sl.setLimits(1, 5, 1).setValue(padSpeed(S.padSpeed)).setDynamicTooltip()
           .onChange(async v => { S.padSpeed = padSpeed(v); await save(); }))),
+      toggleRow(t('控制鍵'), t('在「收起鍵盤」左邊（鍵盤收著時在分頁列右邊）放一顆開關，按下去在工具列上方展開一排螢幕鍵盤沒有的鍵：Esc、Tab、Ctrl（Apple 的裝置是 ⌘）、Shift、方向鍵、Home、End。Ctrl、Shift 點一下作用在下一個鍵，連點兩下鎖住；Ctrl 開著時用鍵盤打字母就是快速鍵（例如 Ctrl＋B 粗體）。方向鍵按住不放會連續移動。Word 模式與 Markdown 編輯都能用。'), 'keyRow', () => p.refreshToolbars()),
+      { kind: 'grid', name: t('控制鍵列要顯示的鍵'), desc: t('取消勾選用不到的鍵，控制鍵列就短一點，不用左右捲。'), cls: 'wm-settings-groups wm-settings-keys', fill: box => {
+        for (const k of KEY_IDS) {
+          const l = box.createEl('label', { cls: 'wm-settings-group' });
+          const cb = l.createEl('input', { type: 'checkbox' });
+          cb.checked = keyRowKeys(S.keyRowKeys).includes(k);
+          const look = KEY_LOOK[k];
+          l.createSpan({ text: (look.text && look.text !== t(look.label) ? look.text + ' ' : '') + t(look.label) });
+          cb.addEventListener('change', () => {
+            const set = new Set(keyRowKeys(S.keyRowKeys));
+            if (cb.checked) set.add(k); else set.delete(k);
+            S.keyRowKeys = KEY_IDS.filter(x => set.has(x));
+            void rebuild();
+          });
+        }
+      } },
       sub('放大鏡'),
       toggleRow(t('拖曳時顯示放大鏡'), t('拖曳移動游標時，在游標上方顯示放大的那一段文字，看得清楚游標停在哪兩個字中間。'), 'loupeShow'),
       toggleRow(t('放大鏡旁顯示位置資訊'), t('在放大鏡旁邊顯示游標現在在哪裡：哪一種段落（內文、標題、清單、表格第幾列第幾欄…）以及在這一段的第幾個字。'), 'loupeInfo'),
@@ -238,7 +255,7 @@ function settingSections(settingTab: WordModeSettings): SettingSection[] {
           .setValue(mdToolbarMode(S.mdToolbar)).onChange(async v => { S.mdToolbar = mdToolbarMode(v); await rebuild(); }))),
       sub('狀態列與大綱'),
       toggleRow(t('切換到 Markdown／閱讀模式時保留狀態列'),
-        t('Obsidian 右下角的狀態列維持跟 Word 模式一樣：字數、存檔狀態、Word 模式／Markdown／閱讀的切換按鈕、查看文件屬性與縮放（縮放只用在 Word 模式，這時會停用），切換模式時按鈕不會突然不見。這時 Obsidian 內建的字數會藏起來，字數的算法見下一項設定。'), 'mdStatusBar', () => p.updateStatus(null)),
+        t('Obsidian 右下角的狀態列維持跟 Word 模式一樣：字數、存檔狀態、Word 模式／Markdown／閱讀的切換按鈕、查看文件屬性與縮放（縮放只用在 Word 模式，這時會停用），切換模式時按鈕不會突然不見。這時 Obsidian 內建的字數會藏起來，字數的算法見下一項設定。手機沒有 Obsidian 的狀態列：放在工具列下方，跟 Word 模式同一個位置。'), 'mdStatusBar', () => p.updateStatus(null)),
       row(t('字數的算法'), t('狀態列與「字數統計」視窗的字數怎麼算。「只算看得到的文字」像 Word：中文、日文、韓文一字算一個，英文一個單字算一個，Markdown 符號、連結網址與文件屬性不算。「跟 Obsidian 內建的一樣」算 Markdown 原文，符號與連結網址也算，數字跟 Obsidian 內建的字數相同。'),
         s => s.addDropdown(d => d.addOptions({ word: t('只算看得到的文字'), obsidian: t('跟 Obsidian 內建的一樣') })
           .setValue(S.countMethod === 'obsidian' ? 'obsidian' : 'word').onChange(async v => { S.countMethod = v === 'obsidian' ? 'obsidian' : 'word'; await save(); p.refreshCounts(); }))),
