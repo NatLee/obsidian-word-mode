@@ -576,7 +576,7 @@ export class Toolbar {
       () => C.CODE_LANGUAGES.map(([lang, label]) => ({ title: lang ? label : t(label as I18nKey), run: () => this.run(C.insertCodeBlock(lang)) })));
     // 沒有圖示：按鈕本身就畫成一顆鍵帽（樣式表的 wm-btn-kbd），看樣子就知道是「把字變成這樣」。
     // 原本是鍵盤圖示加「按鍵」兩個字，手機上沒有提示可看，會以為跟螢幕鍵盤有關
-    this.button(g, { title: '鍵盤按鍵', text: 'Ctrl', label: '按鍵樣式', big: true, cls: 'wm-btn-kbd', demo: 'kbd', desc: '把文字標成鍵盤按鍵的樣子，例如 Ctrl。' }, { cmd: C.toggleKbd, active: s => C.markActive(s, M.kbd), ...NO_CODE });
+    this.button(g, { title: '標成鍵盤按鍵', text: 'Ctrl', label: '標成按鍵', big: true, cls: 'wm-btn-kbd', demo: 'kbd', desc: '把選取的文字標成鍵盤按鍵的樣子（寫操作說明時常見的 Ctrl＋C 小方框），存成 <kbd>。這不是用來輸入的按鍵：要按 Ctrl、方向鍵，請用鍵盤上方的控制鍵。' }, { cmd: C.toggleKbd, active: s => C.markActive(s, M.kbd), ...NO_CODE });
     g = G.text;
     this.button(g, A.callout, { onClick: (e, b) => this.d.callout(b), ...NO_CODE });
     this.button(g, A.comment, this.commentHandler());

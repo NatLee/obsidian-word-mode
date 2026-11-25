@@ -3,9 +3,8 @@
 // 很長的圖表：表單的清單分批顯示、可以篩選，下拉選單的選項按下去才產生；預覽重畫時先在背後畫好再換上去，捲動位置不會跑掉。
 // opts: { src, existing, mode: 'visual'|'code', render(src, el) → { unload(), ready? }, validate(src) → Promise<錯誤訊息|null> }
 import { Notice, Platform, setIcon } from 'obsidian';
-import { Accessory, insertAt, moveCaret } from './accessory.js';
+import { Accessory, insertAt, moveCaret, stepField } from './accessory.js';
 import { iconOr } from './icons.js';
-import { isTypingTarget } from './keyboard.js';
 import { t, key } from './i18n.js';
 import { keepFocus, keyboardHints } from './dom.js';
 import { buttonBar, mayAutoFocus } from './dialogs.js';
@@ -403,21 +402,8 @@ export class MermaidModal extends EditingModal {
       ...tokens.map(tok => ({ text: tok.trim(), label: tok.trim(), run: () => insertAt(this.ta, tok) })),
     ]);
   }
-  // 表單裡的下一個（d 是 1）或上一個（-1）可以打字的欄位。下拉選單不算：焦點一放上去 iOS 就打開選擇器
-  fieldStep(d: number): void {
-    const doc = this.modalEl.ownerDocument;
-    const shown = (e: HTMLElement): boolean => {
-      for (let p: HTMLElement | null = e; p && p !== this.visualPane; p = p.parentElement) if (p.hidden || p.style.display === 'none') return false;
-      return true;
-    };
-    const list = Array.from(this.visualPane.querySelectorAll<HTMLElement>('input, textarea'))
-      .filter(e => isTypingTarget(e) && !(e as HTMLInputElement).disabled && shown(e));
-    if (!list.length) return;
-    const i = list.indexOf(doc.activeElement as HTMLElement);
-    const next = list[i < 0 ? (d > 0 ? 0 : list.length - 1) : Math.max(0, Math.min(list.length - 1, i + d))];
-    next.focus();
-    if (typeof next.scrollIntoView === 'function') next.scrollIntoView({ block: 'nearest' });
-  }
+  // 表單裡的下一個（d 是 1）或上一個（-1）可以打字的欄位
+  fieldStep(d: number): void { stepField(this.visualPane, d); }
 
   // 目前的內容是不是還沒動過的範本（內建的或自己存的）：是的話換範本不用先問
   pristine(): boolean {

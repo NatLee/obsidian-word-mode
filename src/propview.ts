@@ -7,6 +7,7 @@ import { hideHint } from './hints.js';
 import { propType, summarize, isTagKey, PROP_ICONS } from './props.js';
 import type { PropsPeekData } from './props.js';
 import { PropsForm } from './propform.js';
+import { Accessory, insertAt, stepField, textField } from './accessory.js';
 import type { PropsFormHost } from './propform.js';
 import type { PropValues } from './nodeviews.js';
 import { Modal, Platform } from 'obsidian';
@@ -263,4 +264,17 @@ function editSheet(m: Modal, edit: PropsEdit, o: PropsPeekOptions): void {
     });
   };
   draw();
+  // 鍵盤上方的擴充列（鍵盤開著時才出現）：在欄位間移動、跳到新增屬性，以及連結、標籤常用但 iOS 鍵盤要切換才打得到的符號
+  const doc = m.modalEl.ownerDocument;
+  const put = (tok: string) => () => { const f = textField(doc); if (f) insertAt(f, tok); };
+  const acc = new Accessory(m.modalEl, (target, name, fb) => o.icon(target, name, fb), () => stepField(box, 1));
+  acc.group('wm-props-keys', [
+    { icon: 'chevron-left', text: '‹', label: t('上一欄'), run: () => stepField(box, -1) },
+    { icon: 'chevron-right', text: '›', label: t('下一欄'), run: () => stepField(box, 1) },
+    { icon: 'plus', text: '＋', label: t('新增屬性'), run: () => { const n = box.querySelector<HTMLInputElement>('.wm-prop-add input'); if (n) n.focus(); } },
+    { text: '[[]]', label: t('連結'), run: put('[[]]') },
+    { text: '#', label: '#', run: put('#') },
+    { text: ',', label: ',', run: put(', ') },
+    { text: '"', label: '"', run: put('""') },
+  ]);
 }
