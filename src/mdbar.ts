@@ -11,7 +11,7 @@ import { hideHint } from './hints.js';
 import { CODE_LANGUAGES } from './commands.js';
 import { el } from './dom.js';
 import { iconOr } from './icons.js';
-import { frontmatterOf, peekData } from './props.js';
+import { frontmatterBody, frontmatterOf, peekData, wrapFrontmatter } from './props.js';
 import { closePropsPeek, propertyWidget, showProps } from './propview.js';
 import { ACTIONS as A, RibbonShell, ribbonClass } from './ribbon.js';
 import type { ButtonClick, MenuItem, RibbonAction, RibbonButton, TabId } from './ribbon.js';
@@ -458,25 +458,35 @@ const FRONTMATTER = /^---\r?\n(?:[\s\S]*?\r?\n)?(?:---|\.\.\.)[ \t]*(?=\r?\n|$)/
 function markdownPropsEdit(plugin: WordModePlugin, view: MarkdownView): PropsEdit {
   let latest: PropValues | null = null;
   const app = plugin.app;
+  // 把筆記開頭的文件屬性換成 block（沒有時加在最前面）：編輯模式改編輯器，閱讀模式改檔案
+  const replace = (block: string): void => {
+    const ed = (!view.getMode || view.getMode() === 'source') ? view.editor : null;
+    if (ed) {
+      const m = FRONTMATTER.exec(ed.getValue());
+      if (m) ed.replaceRange(block, ed.offsetToPos(0), ed.offsetToPos(m[0].length));
+      else ed.replaceRange(block + '\n', { line: 0, ch: 0 });
+      return;
+    }
+    if (view.file) void app.vault.process(view.file, text => { const m = FRONTMATTER.exec(text); return m ? block + text.slice(m[0].length) : block + '\n' + text; });
+  };
+  const text = (): string => { try { return view.getViewData(); } catch { return ''; } };
   return {
+    yaml: {
+      read: () => { const m = FRONTMATTER.exec(text()); return m ? frontmatterBody(m[0]) : ''; },
+      write: body => {
+        // 寫檔是非同步的：視窗先顯示剛寫的內容（看不懂的 YAML 就等檔案寫好再讀）
+        try { const v: unknown = parseYaml(body); latest = v && typeof v === 'object' && !Array.isArray(v) ? v as PropValues : null; } catch { latest = null; }
+        replace(wrapFrontmatter(body));
+      },
+    },
     read: () => {
       if (latest) return { kind: 'props', values: latest };
-      let text = '';
-      try { text = view.getViewData(); } catch { /* 檢視還沒載入完成 */ }
-      return peekData(frontmatterOf(text), yaml => parseYaml(yaml) as unknown);
+      return peekData(frontmatterOf(text()), yaml => parseYaml(yaml) as unknown);
     },
     commit: obj => {
       latest = obj;
-      const keys = Object.keys(obj);
-      const block = '---\n' + (keys.length ? stringifyYaml(obj).replace(/\s+$/, '') + '\n' : '') + '---';
       const ed = (!view.getMode || view.getMode() === 'source') ? view.editor : null;
-      if (ed) {
-        const m = FRONTMATTER.exec(ed.getValue());
-        if (m) ed.replaceRange(block, ed.offsetToPos(0), ed.offsetToPos(m[0].length));
-        else ed.replaceRange(block + '\n', { line: 0, ch: 0 });
-        return;
-      }
-      if (!view.file) return;
+      if (ed || !view.file) { replace(wrapFrontmatter(Object.keys(obj).length ? stringifyYaml(obj) : '')); return; }
       void app.fileManager.processFrontMatter(view.file, (fm: Record<string, unknown>) => {
         for (const k of Object.keys(fm)) delete fm[k];
         Object.assign(fm, obj);

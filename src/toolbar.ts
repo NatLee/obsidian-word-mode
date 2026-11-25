@@ -264,6 +264,10 @@ const NO_CODE: Pick<WordHandler, 'enabled' | 'why'> = { enabled: C.notInCode, wh
 const MARKS_BIG: RibbonAction = { icon: 'pilcrow', title: '顯示／隱藏編輯標記', text: '¶', label: '編輯標記', big: true, demo: 'marks', desc: '顯示空白、換行與段落結尾，也會標出奇怪的符號。' };
 
 // 功能區；popup 是目前開著的下拉面板（沒有時是 null 或 undefined），painter 是格式刷記住的格式
+// 插入圖片、圖表：「插入」分頁與手機鍵盤收著時的短列（buildIdle）共用
+const IMAGE: RibbonAction = { icon: 'image', title: '插入圖片', text: '圖', label: '圖片', big: true, demo: 'image', desc: '插入保管庫裡的圖片、電腦上的圖片或網路圖片。' };
+const MERMAID: RibbonAction = { icon: 'workflow', title: '插入圖表（Mermaid）', text: '圖表', label: '圖表', big: true, demo: 'mermaid', desc: '插入流程圖、循序圖、甘特圖、圓餅圖、心智圖等圖表。用表單編輯內容，或直接點預覽圖上的文字修改。' };
+
 export class Toolbar {
   declare ctx: ToolbarContext;
   // 分頁列、面板、群組與按鈕的 DOM（跟 Markdown 的功能區共用同一套）
@@ -402,6 +406,22 @@ export class Toolbar {
       if (!shell.hiddenGroups.has('help')) this.button(quick, { icon: 'help-circle', title: '快速鍵說明', keys: 'Mod+/', text: '?', demo: 'kbd', desc: '列出所有快速鍵；點一列可以看動畫示範。', cls: 'wm-quick-keys' }, { onClick: () => this.d.shortcuts() });
       // 跟「檢視」分頁的 Markdown 按鈕是同一個功能：這裡只有圖示，說明多了怎麼切回來
       this.button(quick, { ...A.markdownMode, label: undefined, big: false, desc: '用 Obsidian 原本的 Markdown 編輯這份筆記，再按一次（或在 Markdown 畫面按同樣的快速鍵）切回 Word 模式。' }, { onClick: () => this.d.markdown() });
+    });
+    if (this.ctx.isMobile) this.buildIdle();
+  }
+
+  // 手機上鍵盤收著時的短列（設定 phoneIdle 是 short；view.ts 的 syncIdle 加上 wm-idle-short，樣式表只顯示這一列）。
+  // 功能區其他的按鈕按下去都會把游標放回筆記、叫出鍵盤（那時換成打字用的精簡功能區），只有這幾個不用打字也能做。
+  // 同一個功能在功能區裡已經放過，用 apart 避開「全部排在一起的版面同一個功能只放一次」
+  buildIdle(): void {
+    const row = el('div', 'wm-idlebar', this.dom);
+    this.shell.apart(() => {
+      this.button(row, IMAGE, { onClick: (e, b) => this.d.image(b), ...NO_CODE });
+      this.button(row, A.equation, { onClick: () => this.d.equation(), ...NO_CODE });
+      this.button(row, MERMAID, { onClick: () => this.d.mermaid(), ...NO_CODE });
+      this.button(row, A.outline, { onClick: (e, b) => this.d.outline(b) });
+      el('div', 'wm-idlebar-spacer', row);
+      this.button(row, { icon: 'keyboard', title: '開始打字', text: '⌨', label: '打字', big: true, desc: '把游標放回筆記、叫出鍵盤，換成打字用的工具列。' }, { onClick: () => { const v = this.view; if (v) v.focus(); } });
     });
   }
 
@@ -561,9 +581,9 @@ export class Toolbar {
   buildInsert(G: GroupBodies): void {
     this.button(G.tables, A.table, { onClick: (e, b) => this.openTablePopup(b), ...NO_CODE });
     let g = G.illustrations;
-    this.button(g, { icon: 'image', title: '插入圖片', text: '圖', label: '圖片', big: true, demo: 'image', desc: '插入保管庫裡的圖片、電腦上的圖片或網路圖片。' }, { onClick: (e, b) => this.d.image(b), ...NO_CODE });
+    this.button(g, IMAGE, { onClick: (e, b) => this.d.image(b), ...NO_CODE });
     this.button(g, A.equation, { onClick: () => this.d.equation(), ...NO_CODE });
-    this.button(g, { icon: 'workflow', title: '插入圖表（Mermaid）', text: '圖表', label: '圖表', big: true, demo: 'mermaid', desc: '插入流程圖、循序圖、甘特圖、圓餅圖、心智圖等圖表。用表單編輯內容，或直接點預覽圖上的文字修改。' }, { onClick: () => this.d.mermaid(), ...NO_CODE });
+    this.button(g, MERMAID, { onClick: () => this.d.mermaid(), ...NO_CODE });
     this.button(g, { icon: 'omega', title: '插入符號', text: 'Ω', label: '符號', big: true, demo: 'symbol', desc: '插入中文標點、箭頭、希臘字母、單位等符號。' }, { onClick: (e, b) => this.openSymbolPopup(b) });
     g = G.links;
     this.button(g, A.link, { onClick: () => this.d.link(), ...NO_CODE });

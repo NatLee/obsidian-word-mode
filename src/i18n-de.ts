@@ -1341,4 +1341,13 @@ export default {
  "標成鍵盤按鍵": "Als Tastaturtaste markieren",
  "標成按鍵": "Als Taste markieren",
  "把選取的文字標成鍵盤按鍵的樣子（寫操作說明時常見的 Ctrl＋C 小方框），存成 <kbd>。這不是用來輸入的按鍵：要按 Ctrl、方向鍵，請用鍵盤上方的控制鍵。": "Markiert den ausgewählten Text als Tastaturtaste (die kleinen Kästchen wie Strg+C in Anleitungen), gespeichert als <kbd>. Das ist keine Taste zum Tippen: Für Strg oder Pfeiltasten nehmen Sie die Steuertasten über der Tastatur.",
+ "手機上鍵盤收著時的工具列": "Werkzeugleiste auf dem Smartphone bei ausgeblendeter Tastatur",
+ "功能區大部分的按鈕按下去都會把游標放回筆記、叫出鍵盤，鍵盤收著時用不太到。「只留不用打字的按鈕」：一列插入圖片、方程式、圖表、大綱與「開始打字」。「藏起來」：畫面全部留給筆記，這幾項放在右上角的「⋯」選單。「完整的工具列」：跟以前一樣。點一下文字叫出鍵盤時，一律換成打字用的精簡工具列。只影響手機。": "Die meisten Schaltflächen im Menüband setzen den Cursor zurück in die Notiz und blenden die Tastatur ein; bei ausgeblendeter Tastatur nützen sie wenig. „Nur Schaltflächen ohne Tippen“: eine Zeile mit Bild, Formel, Diagramm einfügen, Gliederung und „Schreiben beginnen“. „Ausgeblendet“: der ganze Bildschirm für die Notiz, diese Punkte stehen im Menü „⋯“ oben rechts. „Vollständige Werkzeugleiste“: wie bisher. Tippen auf Text blendet die Tastatur ein und wechselt immer zur kompakten Schreibleiste. Nur auf Smartphones.",
+ "只留不用打字的按鈕（建議）": "Nur Schaltflächen ohne Tippen (empfohlen)",
+ "藏起來": "Ausgeblendet",
+ "完整的工具列": "Vollständige Werkzeugleiste",
+ "開始打字": "Schreiben beginnen",
+ "打字": "Schreiben",
+ "把游標放回筆記、叫出鍵盤，換成打字用的工具列。": "Setzt den Cursor zurück in die Notiz, blendet die Tastatur ein und wechselt zur Schreibleiste.",
+ "返回表單": "Zurück zum Formular",
 };

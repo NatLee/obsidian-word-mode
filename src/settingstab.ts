@@ -207,6 +207,9 @@ function settingSections(settingTab: WordModeSettings): SettingSection[] {
       } },
       sub('手機與平板'),
       toggleRow(t('打字時精簡工具列'), t('手機、平板的螢幕鍵盤開著時，工具列只留一列：分頁收成最前面的選單按鈕，按鈕只顯示圖示，多留一點地方打字。鍵盤收起來就恢復。'), 'compactOnKeyboard'),
+      row(t('手機上鍵盤收著時的工具列'), t('功能區大部分的按鈕按下去都會把游標放回筆記、叫出鍵盤，鍵盤收著時用不太到。「只留不用打字的按鈕」：一列插入圖片、方程式、圖表、大綱與「開始打字」。「藏起來」：畫面全部留給筆記，這幾項放在右上角的「⋯」選單。「完整的工具列」：跟以前一樣。點一下文字叫出鍵盤時，一律換成打字用的精簡工具列。只影響手機。'),
+        s => s.addDropdown(d => d.addOptions({ short: t('只留不用打字的按鈕（建議）'), hidden: t('藏起來'), full: t('完整的工具列') })
+          .setValue(S.phoneIdle === 'hidden' || S.phoneIdle === 'full' ? S.phoneIdle : 'short').onChange(async v => { S.phoneIdle = v === 'hidden' || v === 'full' ? v : 'short'; await save(); p.refreshToolbars(); }))),
       // 拖曳移動游標（手機、平板）：改了下一次拖曳就生效，不用重建工具列（整列觸控板的開關例外）
       toggleRow(t('鍵盤上方整列當觸控板'),
         t('手機、平板的鍵盤開著時，在鍵盤上方那一列按住一下、等按鈕變淡，再拖曳就能移動游標。關閉時只有最前面的分頁選單按鈕可以拖。'), 'padRow', () => p.refreshToolbars()),

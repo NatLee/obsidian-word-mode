@@ -37,6 +37,12 @@ export function frontmatterOf(text: string): string | null {
   return null;
 }
 
+// 文件屬性的 YAML 本文（不含前後的 ---）包回完整的區塊；本文是空的時候是 ---\n---
+export function wrapFrontmatter(body: string): string {
+  const b = body.replace(/\s+$/, '');
+  return '---\n' + (b ? b + '\n' : '') + '---';
+}
+
 // 「查看文件屬性」小視窗要顯示的內容：沒有文件屬性、看不懂的 YAML（顯示原文），或屬性的值
 export type PropsPeekData = { kind: 'none' } | { kind: 'raw'; text: string } | { kind: 'props'; values: Record<string, unknown> };
 

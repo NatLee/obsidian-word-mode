@@ -2658,7 +2658,11 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
   const menu = new mock.Menu();
   v2.onPaneMenu(menu, 'more-options');
   const titles = menu.items.map(x => x.title);
-  assert(titles.some(x => x.startsWith('字數統計：')) && titles.includes('閱讀模式'), '「⋯」選單有字數統計（帶著字數）與閱讀模式：' + titles.join('、'));
+  assert(titles.some(x => x.startsWith('字數統計：')) && !titles.includes('閱讀模式'), '「⋯」選單有字數統計（帶著字數）；閱讀模式在右上角，不重複：' + titles.join('、'));
+  const icons = v2.actions.map(a => a.dataset.icon).join();
+  assert(icons === 'book-open,code-2,clipboard-list', 'Word 模式右上角三顆：閱讀模式、Markdown 編輯、文件屬性（跟 Markdown 模式一樣多）：' + icons);
+  v2.actions[0].click();
+  assert(e2.plugin.switched === 1, '右上角的閱讀模式：切換過去');
   assert(titles.includes('尋找與取代'), '手機：功能區右邊的放大鏡拿掉了，「⋯」選單有尋找與取代');
   v2.toolbar.d.outline(document.body.createDiv());
   assert(document.querySelector('.wm-popup.wm-outline-popup'), '手機：大綱用抽屜（不另外開分頁）');
@@ -2676,8 +2680,6 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
     items[1].fn();
     assert(line === 5, '點標題：捲到那一行');
   }
-  menu.items.find(x => x.title === '閱讀模式').fn();
-  assert(e2.plugin.switched === 1, '「⋯」選單的閱讀模式：切換過去');
   v2.peekProperties(v2.propsAction);
   const m = mock.Modal.last;
   const press = el => el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
@@ -2713,6 +2715,20 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
     assert(nameInput.value === 'a[[]]b' && nameInput.selectionStart === 3, '連結：插入 [[]]，游標放在中間：' + nameInput.value);
     nameInput.value = '';
   }
+  {
+    // 編輯 YAML 原文：在同一個視窗裡換成文字框，不另外跳一個視窗
+    const footBtn = text => [...m.contentEl.querySelectorAll('.wm-props-sheet-foot button')].find(b => b.textContent === text);
+    mock.Modal.last = m;
+    footBtn('編輯 YAML 原文').click();
+    const ta = m.contentEl.querySelector('textarea.wm-props-yaml');
+    assert(ta && mock.Modal.last === m && m.contentEl.isConnected && /status: done/.test(ta.value) && !ta.value.includes('---'), '編輯 YAML 原文：同一個視窗裡換成文字框（只有 --- 之間的內容）：' + (ta && JSON.stringify(ta.value)));
+    ta.value = 'title: 新標題\nstatus: done';
+    footBtn('套用').click();
+    assert(/^---\ntitle: 新標題\nstatus: done\n---/.test(v2.getViewData()) && !m.contentEl.querySelector('textarea.wm-props-yaml') && [...m.contentEl.querySelectorAll('.wm-prop-name')].some(n => n.textContent === 'title'), '套用：寫回文件，回到表單：' + JSON.stringify(v2.getViewData()));
+    footBtn('編輯 YAML 原文').click();
+    footBtn('返回表單').click();
+    assert(!m.contentEl.querySelector('textarea.wm-props-yaml') && m.contentEl.querySelector('.wm-prop'), '返回表單：不寫回，回到表單');
+  }
   m.close();
   // 沒有文件屬性的筆記：在視窗裡新增就加在最前面
   await e2.open('筆記/手機2.md', '內文');
@@ -2744,6 +2760,27 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
   e2.plugin.settings.phoneStatus = 'bar';
   v2.buildToolbar();
   assert(v2.propsAction.style.display === 'none' && !v2.contentEl.classList.contains('wm-status-header'), '設定改成畫面下方的狀態列：右上角的按鈕藏起來，狀態列回來');
+  {
+    // 鍵盤收著時的功能區（設定 phoneIdle）：預設只留一列不用打字的按鈕
+    const idle = v2.toolbar.dom.querySelector('.wm-idlebar');
+    const names = idle ? [...idle.querySelectorAll('.wm-btn')].map(b => b.getAttribute('aria-label') || b.title).map(s => s.split(' (')[0]) : [];
+    assert(v2.contentEl.classList.contains('wm-idle-short') && names.join('、') === '插入圖片、插入方程式、插入圖表（Mermaid）、大綱、開始打字', '手機預設：鍵盤收著時只有一列不用打字的按鈕：' + names.join('、'));
+    const kbOn = { open: true, cover: 300, subscribe() { return () => {}; } };
+    v2.plugin.keyboard = kbOn; v2.syncIdle();
+    assert(!v2.contentEl.classList.contains('wm-idle-short'), '鍵盤開著：照常是打字用的功能區');
+    v2.plugin.keyboard = undefined;
+    e2.plugin.settings.phoneIdle = 'hidden';
+    v2.buildToolbar();
+    assert(v2.contentEl.classList.contains('wm-idle-hidden') && !v2.contentEl.classList.contains('wm-idle-short'), '設定「藏起來」：鍵盤收著時整條功能區藏起來');
+    const menu2 = new mock.Menu();
+    v2.onPaneMenu(menu2, 'more-options');
+    const t2 = menu2.items.map(x => x.title);
+    assert(['大綱', '插入圖片', '插入方程式', '插入圖表（Mermaid）'].every(x => t2.includes(x)), '藏起來時：不用打字的幾項放進「⋯」選單：' + t2.join('、'));
+    e2.plugin.settings.phoneIdle = 'full';
+    v2.buildToolbar();
+    assert(!v2.contentEl.classList.contains('wm-idle-hidden') && !v2.contentEl.classList.contains('wm-idle-short'), '設定「完整的工具列」：跟以前一樣');
+    e2.plugin.settings.phoneIdle = 'short';
+  }
   mock.Platform.isPhone = keep.phone; mock.Platform.isMobile = keep.mobile;
 }
 // ======== 手機：方程式、圖表編輯器打開時不自動叫出鍵盤（dialogs.ts 的 mayAutoFocus）========
