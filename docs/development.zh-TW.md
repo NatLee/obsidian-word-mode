@@ -124,6 +124,7 @@ Word 模式的功能區（`src/toolbar.ts`）與 Markdown、閱讀模式的功�
 | `src/statusbar.ts` | 狀態列的內容（字數、存檔狀態、檢視切換、文件屬性、縮放），Word 模式與 Markdown、閱讀模式共用。 |
 | `src/paths.ts` | 檔案的路徑：狀態列上的顯示，以及「複製路徑」的項目（筆記自己、文件裡連結與圖片指向的檔案）。 |
 | `src/caret.ts` | 自己畫的游標（形狀、閃爍、平滑移動）與設定頁的游標預覽。內建的游標用 CSS 藏起來，輸入法組字時放回來；手機、平板只在自己的游標畫出來時藏（選取的把手跟著 `caret-color`）；手指按著的時候每一格照系統的選取畫，長按拖曳時才會跟 iOS 的放大鏡同步。 |
+| `src/keyrow.ts` | 手機、平板的控制鍵列（Esc、Tab、Ctrl／⌘、Shift、方向鍵、Home、End）。修飾鍵點一下作用一次、連點兩下鎖住；Ctrl 加上打的字改送成鍵盤事件，讓編輯器自己的快速鍵處理。游標由各模式自己移動：`toolbar.ts`（Word 模式）與 `mdbar.ts`（Markdown）各有一個 `keyMove`。 |
 | `src/props.ts`、`src/propview.ts` | 文件屬性的值（類型、轉換、讀出文件屬性），以及查看文件屬性的小視窗與固定在上方的屬性列。 |
 | `src/bubble.ts` | 連結與圖片的浮動工具列。 |
 | `src/tablegrips.ts` | 游標所在表格的列與欄把手（選取整列或整欄並開選單）。 |
