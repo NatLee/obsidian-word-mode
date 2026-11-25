@@ -1451,7 +1451,8 @@ await fresh('---\ntags:\n  - 會議\n  - 專案\ndate: 2026-11-16\ndone: false\n
       assert(view.findBar.replInput.getAttribute('enterkeyhint') === 'done', '取代欄位：鍵盤右下角顯示「完成」');
       assert(view.findBar.dom.querySelectorAll('.wm-find-nav').length === 2 && view.findBar.dom.querySelectorAll('.wm-find-close').length === 1 && view.findBar.dom.querySelectorAll('.wm-find-opt').length === 4, '尋找列的按鈕分成三類（上下一個、關閉、選項），手機的樣式用它排成兩列、關閉固定在最右邊');
       const kbd = view.toolbar.dom.querySelector('.wm-btn-kbd');
-      assert(kbd && kbd.querySelector('.wm-btn-text').textContent === 'Ctrl' && !kbd.querySelector('svg'), '「按鍵樣式」按鈕畫成一顆鍵帽（Ctrl），不是鍵盤圖示');
+      assert(kbd && kbd.querySelector('.wm-btn-text').textContent === 'Ctrl' && !kbd.querySelector('svg'), '「標成按鍵」按鈕畫成一顆鍵帽（Ctrl），不是鍵盤圖示');
+      assert(view.toolbar.items.some(i => i.dom === kbd && i.title.startsWith('標成鍵盤按鍵')), '名稱寫明是「標成」鍵盤按鍵（套在文字上的格式），不會被當成輸入用的控制鍵');
       await view.loadFile(view.file, '一般段落 `行內` 文字\n\n```js\nprint(1)\n```\n');
       const at = text => { let p = 0; pm.state.doc.descendants((n, pos) => { if (n.isText && n.text.includes(text)) p = pos + n.text.indexOf(text) + 1; }); pm.dispatch(pm.state.tr.setSelection(B.TextSelection.create(pm.state.doc, p))); };
       at('一般');
