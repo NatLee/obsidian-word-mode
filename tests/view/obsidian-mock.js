@@ -120,8 +120,22 @@ function merge3(base, mine, theirs) {
   return b.map((line, i) => (m[i] !== line ? m[i] : th[i])).join('\n');
 }
 export class Plugin {}
-export class PluginSettingTab {}
-export class Setting {}
+// 設定頁：只做出 Obsidian 的 DOM 結構（setting-item 的名稱、說明、控制項），控制項是什麼方法都接受、回傳自己的替身
+export class PluginSettingTab { constructor(app, plugin) { this.app = app; this.plugin = plugin; this.containerEl = document.createElement('div'); } }
+const settingControl = () => { const base = { inputEl: document.createElement('input') }; const p = new Proxy(base, { get: (t, k) => (k in t ? t[k] : () => p) }); return p; };
+export class Setting {
+  constructor(el) {
+    this.settingEl = el.createDiv('setting-item');
+    this.infoEl = this.settingEl.createDiv('setting-item-info');
+    this.nameEl = this.infoEl.createDiv('setting-item-name');
+    this.descEl = this.infoEl.createDiv('setting-item-description');
+    this.controlEl = this.settingEl.createDiv('setting-item-control');
+  }
+  setName(n) { this.nameEl.textContent = n; return this; }
+  setDesc(d) { this.descEl.textContent = d; return this; }
+  setHeading() { this.settingEl.classList.add('setting-item-heading'); return this; }
+}
+for (const k of ['addToggle', 'addDropdown', 'addSlider', 'addText', 'addTextArea', 'addButton', 'addColorPicker']) Setting.prototype[k] = function (cb) { cb(settingControl()); return this; };
 export class WorkspaceLeafX { setViewState() {} }
 export class MarkdownView {}
 export { Events };

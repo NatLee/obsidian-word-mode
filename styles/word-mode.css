@@ -520,7 +520,8 @@ body {
 .setting-group.wm-set-nav > .setting-items { background: transparent; border: none; }
 .setting-group.wm-set-nav .setting-item.wm-set-navrow { display: block; padding: 0; }
 .wm-set-navrow > .setting-item-info, .wm-set-navrow > .setting-item-control { display: none; }
-.setting-group.wm-set-nav ~ .setting-group.wm-set-sec { margin-top: 8px; }
+/* 每一類的第一個群組緊接在分類列下面；同一類裡的小節之間照 Obsidian 原本群組的間距，小節標題才分得開 */
+.setting-group.wm-set-nav ~ .setting-group.wm-set-sec.wm-set-first { margin-top: 8px; }
 @media (prefers-reduced-motion: reduce) { .wm-set-sec { animation: none; } }
 
 /* 手機：分頁＋可左右捲動的面板、較大的按鈕 */

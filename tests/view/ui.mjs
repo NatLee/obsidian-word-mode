@@ -2160,4 +2160,40 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
   off.destroy();
 }
 
+// ======== 設定頁的小節：一類裡再分幾節（settingstab.ts）========
+{
+  const { readFileSync } = await import('node:fs');
+  const keymap = { stack: [], pushScope(s) { this.stack.push(s); }, popScope(s) { this.stack = this.stack.filter(x => x !== s); } };
+  const fake = { settings: plugin.settings, manifest: { version: '0.0.0' }, app: {} };
+  const tab = new B.WordModeSettings({ keymap, scope: new mock.Scope() }, fake);
+  tab.display();
+  const c = tab.containerEl;
+  const heads = id => [...c.querySelectorAll('.wm-set-sec.wm-set-' + id + ' .setting-item-heading')].map(h => h.textContent).join();
+  assert(heads('display') === '頁面,游標,文件屬性,文件內容', '顯示：分成頁面、游標、文件屬性、文件內容：' + heads('display'));
+  assert(heads('toolbar') === '版面與按鈕,分頁與群組,手機與平板,放大鏡,Markdown／閱讀模式,狀態列與大綱', '工具列的小節：' + heads('toolbar'));
+  assert(heads('edit') === '輸入與格式,切換模式' && heads('math') === '方程式,圖表' && heads('general') === '', '編輯、方程式與圖表也分節；一般不分：' + heads('edit') + ' / ' + heads('math'));
+  const demoRow = c.querySelector('.wm-set-display .wm-caret-demo');
+  const rows = [...c.querySelectorAll('.wm-set-display .setting-item')];
+  const at = name => rows.findIndex(r => r.querySelector('.setting-item-name').textContent === name);
+  assert(demoRow && at('預覽') === at('游標') + 1 && at('游標的樣式') === at('預覽') + 1, '游標這一節的第一列是預覽');
+  // 說明裡提到「下一項設定」的兩列，下一列真的是那一項
+  const tb = [...c.querySelectorAll('.wm-set-toolbar .setting-item:not(.setting-item-heading)')].map(r => r.querySelector('.setting-item-name').textContent);
+  assert(tb[tb.indexOf('Markdown／閱讀模式的工具列') + 1] === '切換到 Markdown／閱讀模式時保留狀態列' && tb[tb.indexOf('切換到 Markdown／閱讀模式時保留狀態列') + 1] === '字數的算法', '說明提到的「下一項設定」排在下一列');
+  // 搜尋找不到小節標題
+  const items = tab.searchItems();
+  assert(!items.some(i => i.name === '游標' || i.name === '頁面') && items.some(i => i.name === '游標的樣式'), '搜尋：找得到設定，找不到小節標題');
+  // Obsidian 1.13：每一節是一個有標題的群組，每一類的第一個群組標 wm-set-first
+  const defs = tab.getSettingDefinitions();
+  const groups = id => defs.filter(g => g.cls && g.cls.split(' ').includes('wm-set-' + id));
+  const disp = groups('display');
+  assert(disp.map(g => g.heading).join() === '頁面,游標,文件屬性,文件內容' && disp[0].cls.includes('wm-set-first') && !disp[1].cls.includes('wm-set-first'), '1.13：顯示分成四個有標題的群組');
+  const gen = groups('general');
+  assert(gen.length === 1 && gen[0].heading === undefined && gen[0].cls.includes('wm-set-first') && gen[0].items.length === 3, '1.13：沒有小節的分類是一個沒有標題的群組');
+  const total = defs.slice(1).reduce((n, g) => n + g.items.length, 0);
+  const rowsIn = tab.sections.reduce((n, s) => n + s.rows.filter(r => r.kind !== 'heading').length, 0);
+  assert(total === rowsIn, '1.13：每一列都在某個群組裡（小節標題不算一列）：' + total + '／' + rowsIn);
+  const css = readFileSync(new URL('../../styles/word-mode.css', import.meta.url), 'utf8');
+  assert(css.includes('.setting-group.wm-set-nav ~ .setting-group.wm-set-sec.wm-set-first {'), '只有每一類的第一個群組貼近分類列，小節之間照 Obsidian 的間距');
+}
+
 finish();

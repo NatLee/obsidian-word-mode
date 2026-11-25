@@ -27,4 +27,5 @@ export { matchSlash } from '../../src/suggest.js';
 export { DEFAULTS } from '../../src/settings.js';
 export * as CARET from '../../src/caret.js';
 export * as LOUPE from '../../src/loupe.js';
+export { WordModeSettings } from '../../src/settingstab.js';
 export { padSteps, padHold, padSpeed } from '../../src/toolbar.js';
