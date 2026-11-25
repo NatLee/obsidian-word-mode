@@ -2429,3 +2429,8 @@ body.wm-kb-up.wm-native-keys-open .mobile-toolbar-spacer { height: calc(var(--mo
 /* 編輯區不用再固定在上方（符號不在中間了），內容短，整個看得到 */
 .is-phone .modal.wm-eq-modal .wm-eq-editor { position: static; box-shadow: none; }
 
+/* 手機的文件屬性視窗可以直接編輯（propview.ts 的 editSheet）：跟文件裡同一份表單，不畫框線（視窗本身就是框），
+   下面是「編輯 YAML 原文」「前往文件屬性」 */
+.wm-props-modal .wm-props.wm-props-sheet { display: flex; flex-direction: column; gap: 8px; }
+.wm-props-modal .wm-props.wm-props-sheet .wm-props-body { padding: 0; }
+.wm-props-modal .wm-props-sheet-foot { display: flex; flex-wrap: wrap; gap: 8px; }

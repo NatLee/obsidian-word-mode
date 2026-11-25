@@ -6,6 +6,9 @@ import { el, isRtl, popupLeft, visibleBottom, keyboardHints } from './dom.js';
 import { hideHint } from './hints.js';
 import { propType, summarize, isTagKey, PROP_ICONS } from './props.js';
 import type { PropsPeekData } from './props.js';
+import { PropsForm } from './propform.js';
+import type { PropsFormHost } from './propform.js';
+import type { PropValues } from './nodeviews.js';
 import { Modal, Platform } from 'obsidian';
 import type { App } from 'obsidian';
 
@@ -28,6 +31,18 @@ export interface PropsPeekOptions {
   isMobile?: boolean;
   // 不畫標題列（固定在上方的屬性列展開時，標題已經在屬性列上）
   bare?: boolean;
+  // 手機的彈出視窗可以直接編輯（showProps）：怎麼讀、怎麼寫回由 Word 模式或 Markdown 模式提供
+  edit?: PropsEdit;
+}
+
+export interface PropsEdit {
+  // 現在的屬性（每次寫回之後重新讀）
+  read(): PropsPeekData;
+  // 寫回整份屬性；沒有文件屬性時新增
+  commit(obj: PropValues): void;
+  ctx: PropsFormHost['ctx'];
+  // 用 YAML 原文編輯（格式特殊、表單顯示不了的時候）；沒有時不顯示這顆按鈕
+  raw?: () => void;
 }
 
 // 屬性超過這個數量才顯示篩選框
@@ -211,6 +226,41 @@ export function showProps(app: App, owner: HTMLElement, data: PropsPeekData, o: 
   const m = new Modal(app);
   m.modalEl.addClass('wm-props-modal');
   m.titleEl.setText(t('文件屬性'));
-  fillPropsPeek(m.contentEl.createDiv('wm-peek is-mobile is-sheet'), data, Object.assign({}, o, { bare: true, go: o.go ? () => { m.close(); o.go!(); } : null }));
+  if (o.edit) editSheet(m, o.edit, o);
+  else fillPropsPeek(m.contentEl.createDiv('wm-peek is-mobile is-sheet'), data, Object.assign({}, o, { bare: true, go: o.go ? () => { m.close(); o.go!(); } : null }));
   m.open();
+}
+
+// 手機的文件屬性視窗：跟 Word 模式文件開頭同一份表單（propform.ts），在視窗裡就能改值、新增、刪除、換類型。
+// 改一個值就寫回去，關掉視窗不用另外存
+function editSheet(m: Modal, edit: PropsEdit, o: PropsPeekOptions): void {
+  // wm-mobile：手機上刪除、新增這些按鈕一直顯示（平常是滑鼠移上去才出現，樣式跟 Word 模式手機版的文件屬性一樣）
+  m.contentEl.addClass('wm-mobile');
+  const box = m.contentEl.createDiv('wm-props wm-props-sheet');
+  // 寫回之後重畫（文字欄位打字中先不重畫，離開欄位時才畫，見 PropsForm 的 quiet）
+  const form = new PropsForm({ ctx: edit.ctx, commit: obj => { edit.commit(obj); if (!form.quiet) draw(); }, render: () => draw() });
+  const draw = (): void => {
+    form.drawn++;
+    form.keeper.redraw(box, () => {
+      box.replaceChildren();
+      const d = edit.read();
+      const body = el('div', 'wm-props-body', box);
+      if (d.kind === 'raw') {
+        el('div', 'wm-props-note', body, t('這份文件屬性的格式比較特殊，請用「編輯 YAML 原文」修改。'));
+        el('pre', 'wm-fm-body', body, d.text);
+      } else form.fill(body, d.kind === 'props' ? d.values : {});
+      if (!edit.raw && !o.go) return;
+      const foot = el('div', 'wm-peek-foot wm-props-sheet-foot', box);
+      const button = (icon: string, label: string, run: () => void): void => {
+        const b = form.keeper.keep('foot-' + icon, el('button', 'wm-peek-go', foot));
+        b.type = 'button';
+        o.icon(el('span', 'wm-peek-go-icon', b), icon, '');
+        el('span', null, b, label);
+        b.addEventListener('click', () => { m.close(); run(); });
+      };
+      if (edit.raw) button('code-2', t('編輯 YAML 原文'), edit.raw);
+      if (o.go && d.kind !== 'none') button('arrow-up-to-line', t('前往文件屬性'), o.go);
+    });
+  };
+  draw();
 }
