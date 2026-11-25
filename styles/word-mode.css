@@ -520,7 +520,8 @@ body {
 .setting-group.wm-set-nav > .setting-items { background: transparent; border: none; }
 .setting-group.wm-set-nav .setting-item.wm-set-navrow { display: block; padding: 0; }
 .wm-set-navrow > .setting-item-info, .wm-set-navrow > .setting-item-control { display: none; }
-.setting-group.wm-set-nav ~ .setting-group.wm-set-sec { margin-top: 8px; }
+/* 每一類的第一個群組緊接在分類列下面；同一類裡的小節之間照 Obsidian 原本群組的間距，小節標題才分得開 */
+.setting-group.wm-set-nav ~ .setting-group.wm-set-sec.wm-set-first { margin-top: 8px; }
 @media (prefers-reduced-motion: reduce) { .wm-set-sec { animation: none; } }
 
 /* 手機：分頁＋可左右捲動的面板、較大的按鈕 */
@@ -2198,11 +2199,14 @@ button.wm-kb-hide { display: none; }
 
 /* ---------- 游標（caret.ts）----------
    顏色：強調色（預設）、文字顏色（.wm-caret-text），或設定裡自訂的顏色（--wm-caret-color，由 view.ts 寫上）。
-   桌機自己畫游標（.wm-caret-custom）：內建的變透明，輸入法組字中（.wm-caret-composing）放回來 */
-.wm-view { --wm-caret-paint: var(--wm-caret-color, var(--interactive-accent)); }
-.wm-view.wm-caret-text { --wm-caret-paint: var(--wm-caret-color, var(--text-normal)); }
+   自己畫游標（.wm-caret-custom）：內建的變透明，輸入法組字中（.wm-caret-composing）放回來。
+   手機、平板（.wm-caret-touch）只在自己的游標畫出來的時候（.wm-caret-on）才藏內建的：
+   選取範圍的把手跟著 caret-color，長按拖曳時系統的放大鏡裡也是內建的游標 */
+.wm-view, .wm-caret-demo { --wm-caret-paint: var(--wm-caret-color, var(--interactive-accent)); }
+.wm-view.wm-caret-text, .wm-caret-demo.wm-caret-text { --wm-caret-paint: var(--wm-caret-color, var(--text-normal)); }
 .wm-editor { caret-color: var(--wm-caret-paint); }
-.wm-caret-custom .wm-editor { caret-color: transparent; }
+.wm-caret-custom:not(.wm-caret-touch) .wm-editor { caret-color: transparent; }
+.wm-caret-custom.wm-caret-touch .wm-page.wm-caret-on .wm-editor { caret-color: transparent; }
 .wm-caret-custom .wm-page.wm-caret-composing .wm-editor { caret-color: var(--wm-caret-paint); }
 /* 編輯區裡自己的輸入框（程式碼的語言、提示框標題、方程式的格子）不歸 caret.ts 管，游標要看得到 */
 .wm-caret-custom .wm-editor :is([contenteditable="false"], input, textarea) { caret-color: var(--wm-caret-paint); }
@@ -2214,16 +2218,27 @@ button.wm-kb-hide { display: none; }
 .wm-caret[data-shape="block"] { width: calc(var(--wm-caret-h, 1em) * .5); margin-left: 0; background: transparent; }
 .wm-caret[data-shape="block"]::before { content: ''; position: absolute; inset: 0; border-radius: 2px; background: var(--wm-caret-paint); opacity: .4; }
 .wm-caret[data-shape="underline"] { width: calc(var(--wm-caret-h, 1em) * .5); height: 2px; margin-left: 0; margin-top: calc(var(--wm-caret-h, 1em) - 2px); }
-/* 停下來才閃（is-idle）：打字與移動的時候一直是實心的 */
-/* 速度：--wm-caret-period 是閃一次的秒數（設定；view.ts 只在不是預設值時寫上） */
-.wm-caret.is-idle[data-blink="fade"] { animation: wm-caret-fade var(--wm-caret-period, 1.3s) ease-in-out infinite; }
-.wm-caret.is-idle[data-blink="blink"] { animation: wm-caret-blink var(--wm-caret-period, 1.3s) steps(1, end) infinite; }
-@keyframes wm-caret-fade { 0%, 100% { opacity: 1; } 50% { opacity: .12; } }
+/* 閃爍：每次移動、點擊、按鍵都從亮的那一半重新開始（caret.ts 切換 is-odd，換成另一組一樣的動畫，瀏覽器就從頭播放）。
+   淡入淡出先亮一下（前 20%）再變淡，打字時看起來一直是亮的。
+   速度：--wm-caret-period 是閃一次的秒數（設定；view.ts 只在不是預設值時寫上） */
+.wm-caret[data-blink="fade"] { animation: wm-caret-fade var(--wm-caret-period, 1.3s) ease-in-out infinite; }
+.wm-caret[data-blink="fade"].is-odd { animation-name: wm-caret-fade2; }
+.wm-caret[data-blink="blink"] { animation: wm-caret-blink var(--wm-caret-period, 1.3s) steps(1, end) infinite; }
+.wm-caret[data-blink="blink"].is-odd { animation-name: wm-caret-blink2; }
+@keyframes wm-caret-fade { 0%, 20%, 100% { opacity: 1; } 60% { opacity: .12; } }
+@keyframes wm-caret-fade2 { 0%, 20%, 100% { opacity: 1; } 60% { opacity: .12; } }
 @keyframes wm-caret-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+@keyframes wm-caret-blink2 { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
   .wm-caret.is-smooth { transition: none; }
-  .wm-caret.is-idle[data-blink="fade"] { animation: wm-caret-blink var(--wm-caret-period, 1.3s) steps(1, end) infinite; }
+  .wm-caret[data-blink="fade"] { animation: wm-caret-blink var(--wm-caret-period, 1.3s) steps(1, end) infinite; }
+  .wm-caret[data-blink="fade"].is-odd { animation-name: wm-caret-blink2; }
 }
+/* 設定頁的游標預覽（caret.ts 的 caretDemo）：一行範例文字，用編輯區的字型；「系統原本的」畫成 1px 的直線、固定的速度閃 */
+.wm-caret-demo { position: relative; min-width: 180px; max-width: 100%; padding: 6px 10px; border-radius: var(--radius-s, 4px); background: var(--background-primary); box-shadow: inset 0 0 0 1px var(--background-modifier-border); color: var(--text-normal); font-family: var(--font-text); font-size: var(--font-text-size, 16px); line-height: 1.6; white-space: nowrap; overflow: hidden; text-align: start; }
+.wm-caret-demo .wm-caret[data-shape="native"] { width: 1px; margin-left: 0; border-radius: 0; animation: wm-caret-blink 1.06s steps(1, end) infinite; }
+.wm-caret-demo .wm-caret[data-shape="native"].is-odd { animation-name: wm-caret-blink2; }
+.wm-caret-demo .wm-caret[data-shape="native"].is-smooth { transition: none; }
 
 /* ---------- 手機：整列按鈕當觸控板（toolbar.ts 的 caretPad，按住一下再拖）----------
    按住夠久時按鈕變淡、上面蓋一層說明；開始拖之後說明收掉，游標上方是放大的預覽 */
@@ -2252,22 +2267,24 @@ button.wm-kb-hide { display: none; }
 }
 
 /* ---------- 放大鏡旁的位置資訊（設定；loupe.ts 的 caretInfo）----------
-   在鏡片離游標遠的那一邊：鏡片在游標上面時放在鏡片上方，鏡片在游標下面時放在鏡片下方，不會蓋到游標那一行 */
-.wm-loupe .wm-loupe-info { position: absolute; left: 50%; bottom: calc(100% + 6px); display: flex; align-items: center; gap: 6px; max-width: 100%; padding: 3px 10px; border-radius: 999px; background: var(--background-primary); box-shadow: inset 0 0 0 .5px var(--background-modifier-border-hover); color: var(--text-muted); font-family: var(--font-interface); font-size: 12px; line-height: 16px; white-space: nowrap; transform: translateX(-50%); }
+   在鏡片離游標遠的那一邊：鏡片在游標上面時放在鏡片上方，鏡片在游標下面時放在鏡片下方，不會蓋到游標那一行。
+   字多時不截斷：可以比鏡片寬（loupe.ts 的 centerInfo 以鏡片為中心、收在畫面內），再放不下就換行，每一段不從中間斷開。
+   圓角是一行的高度的一半：一行時是膠囊，換行時是圓角方框 */
+.wm-loupe .wm-loupe-info { position: absolute; left: 0; bottom: calc(100% + 6px); display: flex; flex-wrap: wrap; justify-content: center; align-items: center; row-gap: 2px; box-sizing: border-box; width: max-content; max-width: calc(100vw - 16px); padding: 3px 10px; border-radius: 11px; background: var(--background-primary); box-shadow: inset 0 0 0 .5px var(--background-modifier-border-hover); color: var(--text-muted); font-family: var(--font-interface); font-size: 12px; line-height: 16px; text-align: center; }
 .wm-loupe.is-below .wm-loupe-info { bottom: auto; top: calc(100% + 6px); }
-.wm-loupe .wm-loupe-info-part:first-child { color: var(--text-normal); font-weight: 600; }
-.wm-loupe .wm-loupe-info-dot { opacity: .5; }
-.wm-loupe .wm-loupe-info-part { overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.wm-loupe .wm-loupe-info-part { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.wm-loupe .wm-loupe-info-part + .wm-loupe-info-part::before { content: '·'; margin: 0 6px; opacity: .5; }
+.wm-loupe .wm-loupe-info-part:is(.is-where, .is-object) { color: var(--text-normal); font-weight: 600; }
 
 /* ---------- 放大鏡：停在物件上、到文件頭尾（loupe.ts）----------
    物件（方程式、圖表、分隔線…）沒有文字可以放大，只留資訊那一條，寫出是什麼；物件本身照 ProseMirror 的選取外框標出來。
-   到文件開頭、結尾時資訊變成強調色的提示，鏡片左右晃一下 */
+   資訊壓在物件框的下緣、靠左，寬度不超過物件（loupe.ts 把整個放大鏡的寬度設成物件的寬度）。
+   到文件開頭、結尾時，資訊最前面多一段強調色的提示，後面照常是位置；鏡片左右晃一下 */
 .wm-loupe.is-object .wm-loupe-lens, .wm-loupe.is-object .wm-loupe-tail { display: none; }
-.wm-loupe.is-edge .wm-loupe-info { color: var(--interactive-accent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--interactive-accent) 45%, transparent); }
-.wm-loupe.is-edge .wm-loupe-info .wm-loupe-info-part:first-child { color: var(--interactive-accent); }
+.wm-loupe.is-edge .wm-loupe-info { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--interactive-accent) 45%, transparent); }
+.wm-loupe .wm-loupe-info-part.is-edge { color: var(--interactive-accent); font-weight: 600; }
 .wm-loupe.is-edge .wm-loupe-lens { animation: wm-loupe-nudge .32s cubic-bezier(.36, .07, .19, .97); }
 @keyframes wm-loupe-nudge { 20% { transform: translateX(-5px); } 45% { transform: translateX(4px); } 70% { transform: translateX(-2px); } 100% { transform: none; } }
 @media (prefers-reduced-motion: reduce) { .wm-loupe.is-edge .wm-loupe-lens { animation: none; } }
 .wm-loupe.is-object { height: 0; }
-/* 物件的資訊對齊物件左邊（loupe.ts 把整個放大鏡的左邊放在物件左邊） */
-.wm-loupe.is-object .wm-loupe-info { left: 0; transform: none; }
+.wm-loupe.is-object .wm-loupe-info { top: 0; bottom: auto; max-width: 100%; justify-content: flex-start; }

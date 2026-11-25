@@ -6,7 +6,7 @@ const g = globalThis;
 for (const k of ['window', 'document', 'HTMLElement', 'Node', 'Element', 'MutationObserver', 'getComputedStyle', 'requestAnimationFrame', 'cancelAnimationFrame', 'KeyboardEvent', 'MouseEvent', 'Event', 'InputEvent', 'DOMParser', 'Text']) g[k] = dom.window[k];
 // Obsidian 提供的全域：目前視窗的 document／window，以及建立元素的函式
 g.activeDocument = dom.window.document; g.activeWindow = dom.window;
-g.createEl = (tag, o) => { const e = dom.window.document.createElement(tag); if (typeof o === 'string') e.className = o; else if (o) { if (o.cls) e.className = o.cls; if (o.text) e.textContent = o.text; if (o.type) e.type = o.type; } return e; };
+g.createEl = (tag, o) => { const e = dom.window.document.createElement(tag); if (typeof o === 'string') e.className = o; else if (o) { if (o.cls) e.className = o.cls; if (o.text) e.textContent = o.text; if (o.type) e.type = o.type; if (o.attr) for (const [k, v] of Object.entries(o.attr)) e.setAttribute(k, String(v)); } return e; };
 g.createSpan = o => g.createEl('span', o); g.createDiv = o => g.createEl('div', o);
 Object.defineProperty(g, 'navigator', { value: dom.window.navigator, configurable: true });
 Element.prototype.getClientRects = function () { return []; };
