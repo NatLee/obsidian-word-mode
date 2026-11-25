@@ -1327,4 +1327,9 @@ export default {
  "取消勾選用不到的鍵，控制鍵列就短一點，不用左右捲。": "Bỏ chọn những phím không dùng để hàng ngắn hơn và không phải cuộn ngang.",
  "在「收起鍵盤」左邊放一顆開關（鍵盤開著時才出現），按下去在工具列上方展開一排螢幕鍵盤沒有的鍵：Esc、Tab、Ctrl（Apple 的裝置是 ⌘）、Shift、方向鍵、Home、End。Ctrl、Shift 點一下作用在下一個鍵，連點兩下鎖住；Ctrl 開著時用鍵盤打字母就是快速鍵（例如 Ctrl＋B 粗體）。方向鍵按住不放會連續移動。Word 模式與 Markdown 編輯都能用，包括 Obsidian 自己的工具列。": "Đặt một công tắc bên trái nút “Ẩn bàn phím” (chỉ hiện khi bàn phím đang mở). Nhấn vào sẽ mở một hàng phía trên thanh công cụ với những phím bàn phím ảo không có: Esc, Tab, Ctrl (⌘ trên thiết bị Apple), Shift, phím mũi tên, Home, End. Chạm Ctrl hoặc Shift một lần để áp dụng cho phím kế tiếp, hai lần để khóa; khi Ctrl đang bật, gõ một chữ sẽ chạy phím tắt (ví dụ Ctrl+B để in đậm). Giữ phím mũi tên để di chuyển liên tục. Dùng được trong chế độ Word lẫn khi soạn Markdown, kể cả trên thanh công cụ của chính Obsidian.",
  "＋ 段落": "+ Đoạn",
+ "第 {l} 行，第 {c} 字": "Dòng {l}, ký tự {c}",
+ "手機上的字數與文件屬性": "Số từ và thuộc tính trên điện thoại",
+ "「放到右上角」：文件屬性是右上角的一顆按鈕，字數統計與閱讀模式在右上角的「⋯」選單裡，畫面下方不放狀態列，編輯區比較大。「畫面下方的狀態列」：跟 1.37 以前一樣，放在工具列下方。只影響手機。": "“Góc trên bên phải”: thuộc tính là một nút ở góc trên bên phải, số từ và chế độ đọc nằm trong menu “⋯” ở góc trên bên phải. Không có thanh trạng thái ở dưới, nên vùng soạn thảo rộng hơn. “Thanh trạng thái ở dưới”: như trước 1.37, nằm dưới thanh công cụ. Chỉ áp dụng cho điện thoại.",
+ "放到右上角與「⋯」選單（建議）": "Góc trên bên phải và menu “⋯” (khuyên dùng)",
+ "畫面下方的狀態列": "Thanh trạng thái ở dưới",
 };

@@ -39,7 +39,7 @@ import { SourceModal, PromptModal, LinkDialog, FilePicker, ShortcutModal, Equati
 import { countSource, countText, docText, docStats } from './textstats.js';
 import { renderPath, pathEntries, copyPath } from './paths.js';
 import { buildStatusBar, renderSaveStatus, renderCount, showWordCount, showZoom } from './statusbar.js';
-import { openPropsPeek, propertyWidget, fillPropsPeek, fillPinSummary, markOverflow } from './propview.js';
+import { showProps, propertyWidget, fillPropsPeek, fillPinSummary, markOverflow } from './propview.js';
 import { isRtl, hiddenBelow, layoutHeight } from './dom.js';
 import { installTouch } from './touch.js';
 import { frontmatterBody, peekData } from './props.js';
@@ -158,6 +158,8 @@ export class WordModeView extends TextFileView {
   declare savedAt: Date | undefined;
   declare conflict: ConflictState | null | undefined;
   declare toolbarHost: HTMLDivElement;
+  // 手機右上角的「查看文件屬性」（設定 phoneStatus 是 header 時才顯示）
+  declare propsAction?: HTMLElement;
   declare findHost: HTMLDivElement;
   declare bannerHost: HTMLDivElement;
   // 文件屬性固定在上方（設定）：捲動區上方的屬性列。pinHost 在 onOpen 建立；pin 第一次需要時才建立；
@@ -304,6 +306,13 @@ export class WordModeView extends TextFileView {
     reg(['Mod', 'Shift'], 'h', cmd(C.toggleHighlight), true);
     reg(['Mod', 'Shift'], 'x', cmd(C.toggleStrike), true);
     this.addAction('code-2', withKey('切換到 Markdown 編輯', 'Mod+E'), () => this.plugin.switchToMarkdown(this.leaf));
+    // 手機：文件屬性放在右上角（字數統計、閱讀模式在「⋯」選單，見 onPaneMenu），畫面下方就不用放一列小按鈕。
+    // 設定 phoneStatus 是 bar（畫面下方的狀態列）時藏起來（buildToolbar）
+    if (Platform.isPhone) {
+      const b = this.addAction('clipboard-list', t('查看文件屬性'), () => this.peekProperties(b));
+      this.propsAction = b;
+      b.toggle(this.plugin.settings.phoneStatus !== 'bar');
+    }
   }
 
   // 建立（或依設定重建）上方功能區
@@ -311,6 +320,10 @@ export class WordModeView extends TextFileView {
     if (this.toolbar) { this.toolbar.destroy(); this.toolbarHost.empty(); }
     const S = this.plugin.settings;
     this.contentEl.toggleClass('wm-no-labels', S.buttonStyle === 'icon');
+    // 手機：狀態列的東西放在右上角與「⋯」選單（設定 phoneStatus），畫面下方的狀態列藏起來（樣式表）
+    const header = !!Platform.isPhone && S.phoneStatus !== 'bar';
+    this.contentEl.toggleClass('wm-status-header', header);
+    if (this.propsAction) this.propsAction.toggle(header);
     const pos = S.toolbarPosition || 'auto';
     this.contentEl.toggleClass('wm-toolbar-bottom', pos === 'bottom' || (pos === 'auto' && !!Platform.isPhone));
     this.toolbar = new Toolbar(this.toolbarHost, {
@@ -381,6 +394,12 @@ export class WordModeView extends TextFileView {
 
   onPaneMenu(menu: Menu, source: string): void {
     menu.addItem(i => i.setTitle(withKey('切換到 Markdown 編輯', 'Mod+E')).setIcon('code-2').setSection('pane').onClick(() => this.plugin.switchToMarkdown(this.leaf)));
+    // 手機：原本在畫面下方狀態列的字數統計與閱讀模式
+    if (Platform.isPhone) {
+      const count = this.countEl ? (this.countEl.textContent || '').trim() : '';
+      menu.addItem(i => i.setTitle(count ? t('字數統計') + t('：') + count : t('字數統計')).setIcon('text').setSection('pane').onClick(() => this.openWordCount()));
+      menu.addItem(i => i.setTitle(t('閱讀模式')).setIcon('book-open').setSection('pane').onClick(() => { void this.plugin.switchToMarkdown(this.leaf, 'preview'); }));
+    }
     super.onPaneMenu(menu, source);
   }
 
@@ -852,7 +871,7 @@ export class WordModeView extends TextFileView {
 
   peekProperties(btn: HTMLElement): void {
     if (!this.pm) return;
-    openPropsPeek(btn, this.propsPeekData(), {
+    showProps(this.app, btn, this.propsPeekData(), {
       icon: iconOr,
       typeHint: k => propertyWidget(this.app, k),
       go: () => this.openProperties(),

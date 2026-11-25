@@ -6,6 +6,7 @@ import { el, isRtl, popupLeft, visibleBottom, keyboardHints } from './dom.js';
 import { hideHint } from './hints.js';
 import { propType, summarize, isTagKey, PROP_ICONS } from './props.js';
 import type { PropsPeekData } from './props.js';
+import { Modal, Platform } from 'obsidian';
 import type { App } from 'obsidian';
 
 // Obsidian 為這個屬性設定的類型（設定 → 屬性）：metadataTypeManager 是非公開 API，沒有時回傳 null，改依值判斷
@@ -200,4 +201,16 @@ function clampable(v: HTMLElement): void {
 // 小視窗放進畫面、量得到高度之後，標出真的被截掉的值（下緣變淡、可以點開）
 export function markOverflow(p: HTMLElement): void {
   for (const v of Array.from(p.querySelectorAll<HTMLElement>('.wm-peek-value.is-clamped'))) v.classList.toggle('is-more', v.scrollHeight > v.clientHeight + 1);
+}
+
+// 查看文件屬性：手機上用彈出的視窗（Obsidian 的對話框，從下面滑上來），小框貼在小按鈕旁邊太擠；其他裝置照舊是按鈕旁的小框
+export function showProps(app: App, owner: HTMLElement, data: PropsPeekData, o: PropsPeekOptions): void {
+  if (!Platform.isPhone) { openPropsPeek(owner, data, o); return; }
+  closePropsPeek();
+  hideHint();
+  const m = new Modal(app);
+  m.modalEl.addClass('wm-props-modal');
+  m.titleEl.setText(t('文件屬性'));
+  fillPropsPeek(m.contentEl.createDiv('wm-peek is-mobile is-sheet'), data, Object.assign({}, o, { bare: true, go: o.go ? () => { m.close(); o.go!(); } : null }));
+  m.open();
 }

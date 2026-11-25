@@ -5,7 +5,7 @@
 import { Notice, setIcon } from 'obsidian';
 import { t, key } from './i18n.js';
 import { keepFocus, keyboardHints } from './dom.js';
-import { buttonBar } from './dialogs.js';
+import { buttonBar, mayAutoFocus } from './dialogs.js';
 import { EditingModal } from './confirmclose.js';
 import { DIAGRAM_KINDS, DIAGRAM_REASONS, COMMON_OPTS, editableDiagram, generateDiagram, detectKind, textSlots, findSlot, setValue, restoreName, dropRefs, squash, sameSlot, slotNth, rowSlot } from './diagrams.js';
 import { uniqueName } from './templates.js';
@@ -293,7 +293,7 @@ export class MermaidModal extends EditingModal {
     this.ok.addEventListener('click', () => this.submit());
     c.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); this.submit(); } });
 
-    this.setTab(this.tab === 'visual' && !this.getModel() ? 'code' : this.tab);
+    this.setTab(this.tab === 'visual' && !this.getModel() ? 'code' : this.tab, mayAutoFocus(this.modalEl.ownerDocument, true));
     this.markKind();
     this.preview();
   }
@@ -461,14 +461,15 @@ export class MermaidModal extends EditingModal {
     p.createDiv({ cls: 'wm-mmd-hint', text: t('同名的範本會被新的內容取代。改名、修改、刪除在「設定 → 方程式與圖表」。') });
   }
 
-  setTab(tab: MermaidTab): void {
+  // focus：換到程式碼時把焦點放進去（手機上見 dialogs.ts 的 mayAutoFocus）
+  setTab(tab: MermaidTab, focus = mayAutoFocus(this.modalEl.ownerDocument, false)): void {
     this.tab = tab;
     this.closeInline();
     this.tabVisual.toggleClass('is-active', tab === 'visual');
     this.tabCode.toggleClass('is-active', tab === 'code');
     this.visualPane.toggle(tab === 'visual');
     this.codePane.toggle(tab === 'code');
-    if (tab === 'visual') this.buildVisual(); else { this.ta.value = this.src; window.setTimeout(() => this.ta.focus(), 10); }
+    if (tab === 'visual') this.buildVisual(); else { this.ta.value = this.src; if (focus) window.setTimeout(() => this.ta.focus(), 10); }
   }
 
   // 表單（或圖上）改了：重新產生程式碼並更新預覽。rebuild：清單的列有增減或移動，表單要重畫

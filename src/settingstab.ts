@@ -259,6 +259,9 @@ function settingSections(settingTab: WordModeSettings): SettingSection[] {
       row(t('字數的算法'), t('狀態列與「字數統計」視窗的字數怎麼算。「只算看得到的文字」像 Word：中文、日文、韓文一字算一個，英文一個單字算一個，Markdown 符號、連結網址與文件屬性不算。「跟 Obsidian 內建的一樣」算 Markdown 原文，符號與連結網址也算，數字跟 Obsidian 內建的字數相同。'),
         s => s.addDropdown(d => d.addOptions({ word: t('只算看得到的文字'), obsidian: t('跟 Obsidian 內建的一樣') })
           .setValue(S.countMethod === 'obsidian' ? 'obsidian' : 'word').onChange(async v => { S.countMethod = v === 'obsidian' ? 'obsidian' : 'word'; await save(); p.refreshCounts(); }))),
+      row(t('手機上的字數與文件屬性'), t('「放到右上角」：文件屬性是右上角的一顆按鈕，字數統計與閱讀模式在右上角的「⋯」選單裡，畫面下方不放狀態列，編輯區比較大。「畫面下方的狀態列」：跟 1.37 以前一樣，放在工具列下方。只影響手機。'),
+        s => s.addDropdown(d => d.addOptions({ header: t('放到右上角與「⋯」選單（建議）'), bar: t('畫面下方的狀態列') })
+          .setValue(S.phoneStatus === 'bar' ? 'bar' : 'header').onChange(async v => { S.phoneStatus = v === 'bar' ? 'bar' : 'header'; await save(); p.refreshToolbars(); p.updateStatus(null); }))),
       toggleRow(t('在狀態列顯示筆記的路徑'),
         t('電腦上，在右下角的狀態列顯示這份筆記在保管庫裡的位置（資料夾與檔名）。按一下或按右鍵可以複製：保管庫內的路徑、電腦上的完整路徑、Obsidian 網址、檔名、所在資料夾。文件裡的連結與圖片按右鍵也能複製它們指向的檔案路徑。'), 'showPath', () => p.rebuildStatus()),
       row(t('大綱的位置'), t('「另開一欄」在筆記左邊再展開一個大綱欄（像第二個側邊欄，不會蓋掉檔案總管）；也可以放進 Obsidian 的左或右側邊欄，或用小型下拉選單。'),

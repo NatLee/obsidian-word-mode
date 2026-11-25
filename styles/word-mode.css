@@ -2243,7 +2243,7 @@ button.wm-kb-hide { display: none; }
 /* ---------- 手機：整列按鈕當觸控板（toolbar.ts 的 caretPad，按住一下再拖）----------
    按住夠久時按鈕變淡、上面蓋一層說明；開始拖之後說明收掉，游標上方是放大的預覽 */
 .wm-toolbar.is-trackpad > * { opacity: .25; transition: opacity .12s ease-out; }
-.wm-pad-tip { position: fixed; z-index: var(--layer-popover, 30); display: flex; align-items: center; justify-content: center; padding: 0 12px; border-radius: 20px; background: color-mix(in srgb, var(--interactive-accent) 14%, transparent); color: var(--interactive-accent); font-size: var(--font-ui-small); font-weight: 600; text-align: center; pointer-events: none; animation: wm-pad-tip-in .14s ease-out; }
+.wm-pad-tip { position: fixed; z-index: calc(var(--layer-menu, 65) + 1); display: flex; align-items: center; justify-content: center; padding: 0 12px; border-radius: 20px; background: color-mix(in srgb, var(--interactive-accent) 14%, transparent); color: var(--interactive-accent); font-size: var(--font-ui-small); font-weight: 600; text-align: center; pointer-events: none; animation: wm-pad-tip-in .14s ease-out; }
 @keyframes wm-pad-tip-in { from { opacity: 0; transform: scale(.96); } }
 
 /* ---------- 放大鏡的外觀（設定；loupe.ts）----------
@@ -2373,3 +2373,21 @@ button.wm-keys-btn { display: none; }
 body.wm-kb-up.wm-native-keys-open .mobile-toolbar-spacer { height: calc(var(--mobile-toolbar-height, 48px) + 46px); }
 .mobile-toolbar-floating-options.wm-native-keys { margin-inline-end: 6px; }
 .mobile-toolbar-floating-options.wm-native-keys.is-active .mobile-toolbar-option { color: var(--text-accent); }
+/* 觸控板的說明要蓋在 Obsidian 自己的手機工具列上面（它的層級是 --layer-menu），上面已經把 .wm-pad-tip 提到它之上；
+   Obsidian 工具列變成觸控板時按鈕也跟著變淡，跟這個外掛的工具列一樣 */
+.mobile-toolbar-options-list-container.is-trackpad .mobile-toolbar-option { opacity: .25; transition: opacity .12s ease-out; }
+/* Markdown 模式拖曳時的位置提示（mdbar.ts 的 padPosition）：工具列上方一顆膠囊，寫出第幾行、第幾字與游標旁邊的字 */
+.wm-pad-pos { position: fixed; z-index: calc(var(--layer-menu, 65) + 1); display: flex; align-items: center; gap: 8px; max-width: calc(100vw - 16px); padding: 4px 12px; border-radius: 14px; background: var(--background-primary); box-shadow: var(--wm-shadow-float); color: var(--text-muted); font-family: var(--font-interface); font-size: var(--font-ui-small); white-space: nowrap; pointer-events: none; transform: translateX(-50%); }
+.wm-pad-pos-where { color: var(--text-normal); font-weight: 600; font-variant-numeric: tabular-nums; }
+.wm-pad-pos-text { overflow: hidden; text-overflow: ellipsis; font-family: var(--font-text); color: var(--text-normal); }
+.wm-pad-pos-caret { display: inline-block; width: 2px; height: 1.1em; margin: 0 1px; vertical-align: -.15em; border-radius: 1px; background: var(--interactive-accent); }
+
+/* ---------- 手機：狀態列的東西放在右上角與「⋯」選單（設定 phoneStatus；view.ts 加上 wm-status-header）----------
+   畫面下方不放狀態列；文件屬性在右上角，按下去是彈出的視窗（propview.ts 的 showProps） */
+.wm-phone.wm-status-header .wm-bottombar { display: none; }
+.wm-props-modal .wm-peek.is-sheet { display: flex; flex-direction: column; gap: 8px; font-size: var(--font-ui-small); }
+.wm-props-modal .wm-peek.is-sheet .wm-peek-list { max-height: none; overflow: visible; }
+
+/* 鍵盤開著、功能區精簡成一列時，切換分頁的按鈕只留圖示（分頁名稱在按下去的選單裡），按鈕列多一點位置 */
+.wm-kb-compact .wm-toolbar button.wm-tab-switch :is(.wm-tab-text, .wm-tab-switch-arrow) { display: none; }
+.wm-mobile.wm-kb-compact .wm-toolbar button.wm-tab-switch, .wm-kb-compact .wm-mobile .wm-toolbar button.wm-tab-switch, .wm-kb-compact .wm-mobile.wm-ribbon .wm-toolbar button.wm-tab-switch { width: 38px; padding: 0; justify-content: center; }

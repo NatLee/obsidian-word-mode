@@ -2485,8 +2485,18 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
 
 // ======== 手機的 Markdown／閱讀模式：工具列下方的狀態列，跟 Word 模式一樣（mdbar.ts 的 syncStatus）========
 {
-  const keep = { phone: mock.Platform.isPhone, mobile: mock.Platform.isMobile, st: plugin.settings.mdStatusBar };
+  const keep = { phone: mock.Platform.isPhone, mobile: mock.Platform.isMobile, st: plugin.settings.mdStatusBar, ps: plugin.settings.phoneStatus };
   mock.Platform.isPhone = true; mock.Platform.isMobile = true;
+  {
+    // 預設（phoneStatus 是 header）：狀態列的東西放在右上角與「⋯」選單，畫面下方不放
+    plugin.settings.phoneStatus = 'header';
+    const c0 = document.body.createDiv(); c0.createDiv('view-content');
+    const md0 = { containerEl: c0, contentEl: c0.firstElementChild, leaf: {}, mode: 'source', file: new mock.TFile('筆記/測試.md'), getMode() { return this.mode; }, editor: { focus() {}, getValue: () => 'abc', getSelection: () => '' }, getState() { return {}; }, async setState(st) { this.mode = st.mode; } };
+    const b0 = new B.MarkdownBar(plugin, md0);
+    assert(!c0.querySelector('.wm-mdbar-status') && !b0.dom.classList.contains('has-status'), '手機預設：Markdown 模式不在畫面下方放狀態列（改放右上角與「⋯」選單）');
+    b0.destroy(); c0.remove();
+  }
+  plugin.settings.phoneStatus = 'bar';
   const containerEl = document.body.createDiv();
   const contentEl = containerEl.createDiv('view-content');
   const md = { containerEl, contentEl, leaf: {}, mode: 'source', file: new mock.TFile('筆記/測試.md'), getMode() { return this.mode; }, editor: { focus() {}, getValue: () => 'abc', getSelection: () => '' }, getState() { return {}; }, async setState(st) { this.mode = st.mode; } };
@@ -2508,6 +2518,7 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
   bar.destroy();
   assert(!containerEl.querySelector('.wm-mdbar-status, .wm-keyrow'), '工具列拿掉：狀態列與控制鍵列一起拿掉');
   containerEl.remove();
+  plugin.settings.phoneStatus = keep.ps;
   mock.Platform.isPhone = keep.phone; mock.Platform.isMobile = keep.mobile;
 }
 
@@ -2602,7 +2613,12 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
   plugin.settings.padHold = 150;
   const t = (type, x) => { const pt = [{ identifier: 3, clientX: x, clientY: 0 }]; list.dispatchEvent(Object.assign(new Event(type, { bubbles: true, cancelable: true }), { touches: type === 'touchend' ? [] : pt, changedTouches: pt })); };
   const before = off(head);
-  t('touchstart', 100); await sleep(250); t('touchmove', 112); t('touchmove', 170); t('touchend', 170);
+  t('touchstart', 100); await sleep(250); t('touchmove', 112); t('touchmove', 170);
+  const pill = document.querySelector('.wm-pad-pos');
+  assert(pill && pill.querySelector('.wm-pad-pos-where').textContent === '第 ' + (head.line + 1) + ' 行，第 ' + head.ch + ' 字' && pill.querySelector('.wm-pad-pos-text .wm-pad-pos-caret'),
+    '拖曳中：工具列上方顯示游標在第幾行第幾字與旁邊的字（Markdown 模式沒有放大鏡）：' + (pill && pill.textContent));
+  t('touchend', 170);
+  assert(!document.querySelector('.wm-pad-pos'), '放開：位置提示拿掉');
   assert(off(head) > before, '在 Obsidian 的按鈕列上按住再拖：游標往後移（' + before + ' → ' + off(head) + '）');
   nb.sync();
   assert(container.querySelectorAll('.wm-native-keys').length === 1, '重複檢查：不會多裝一份');
@@ -2620,12 +2636,80 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
   const bar = new B.MarkdownBar(plugin, md);
   const barEl = bar.shell.bar;
   const t2 = (type, x) => { const pt = [{ identifier: 4, clientX: x, clientY: 0 }]; barEl.dispatchEvent(Object.assign(new Event(type, { bubbles: true, cancelable: true }), { touches: type === 'touchend' ? [] : pt, changedTouches: pt })); };
-  t2('touchstart', 100); await sleep(250); t2('touchmove', 112); t2('touchmove', 170); t2('touchend', 170);
+  t2('touchstart', 100); await sleep(250); t2('touchmove', 112); t2('touchmove', 170);
+  assert(document.querySelector('.wm-pad-pos'), 'Markdown 模式的工具列：拖曳中也有位置提示');
+  t2('touchend', 170);
+  assert(!document.querySelector('.wm-pad-pos'), 'Markdown 模式的工具列：放開後拿掉位置提示');
   assert(off(head) > 2 && bar.padMoved, 'Markdown 模式的工具列：按住再拖移動游標，放開後那一下點擊不開選單');
   bar.destroy();
   containerEl.remove();
   Object.assign(plugin.settings, { keyRowOpen: keep.open, padHold: keep.hold });
   mock.Platform.isMobile = keep.mobile;
+}
+
+// ======== 手機：文件屬性在右上角、字數統計與閱讀模式在「⋯」選單，畫面下方不放狀態列（設定 phoneStatus）========
+{
+  const keep = { phone: mock.Platform.isPhone, mobile: mock.Platform.isMobile };
+  mock.Platform.isPhone = true; mock.Platform.isMobile = true;
+  const e2 = await makeEnv({});
+  const v2 = e2.view;
+  await e2.open('筆記/手機.md', '---\ntags: a\n---\n內文 一 二');
+  assert(v2.propsAction && v2.propsAction.style.display === '' && v2.contentEl.classList.contains('wm-status-header'), '手機預設：右上角有「查看文件屬性」，畫面下方的狀態列藏起來');
+  const menu = new mock.Menu();
+  v2.onPaneMenu(menu, 'more-options');
+  const titles = menu.items.map(x => x.title);
+  assert(titles.some(x => x.startsWith('字數統計：')) && titles.includes('閱讀模式'), '「⋯」選單有字數統計（帶著字數）與閱讀模式：' + titles.join('、'));
+  menu.items.find(x => x.title === '閱讀模式').fn();
+  assert(e2.plugin.switched === 1, '「⋯」選單的閱讀模式：切換過去');
+  v2.peekProperties(v2.propsAction);
+  const m = mock.Modal.last;
+  assert(m && m.modalEl.classList.contains('wm-props-modal') && m.contentEl.querySelector('.wm-peek.is-sheet') && !document.querySelector('body > .wm-peek'), '手機：文件屬性用彈出的視窗，不是按鈕旁的小框');
+  m.close();
+  e2.plugin.settings.phoneStatus = 'bar';
+  v2.buildToolbar();
+  assert(v2.propsAction.style.display === 'none' && !v2.contentEl.classList.contains('wm-status-header'), '設定改成畫面下方的狀態列：右上角的按鈕藏起來，狀態列回來');
+  mock.Platform.isPhone = keep.phone; mock.Platform.isMobile = keep.mobile;
+}
+// ======== 手機：方程式、圖表編輯器打開時不自動叫出鍵盤（dialogs.ts 的 mayAutoFocus）========
+{
+  const keep = mock.Platform.isPhone;
+  mock.Platform.isPhone = true;
+  await fresh('');
+  view.openEquation();
+  const eq = mock.Modal.last;
+  await sleep(30);
+  assert(!eq.contentEl.contains(document.activeElement), '手機：方程式編輯器打開時焦點不放進輸入框（不叫出鍵盤，看得到整個編輯器）');
+  eq.setEdit('latex');
+  await sleep(30);
+  assert(document.activeElement !== eq.ta, '手機：鍵盤收著時切換到 LaTeX 也不叫出鍵盤');
+  document.body.classList.add('wm-kb-up');
+  eq.setEdit('latex');
+  await sleep(30);
+  assert(document.activeElement === eq.ta, '手機：鍵盤本來開著，切換之後焦點放進輸入框');
+  document.body.classList.remove('wm-kb-up');
+  eq.close();
+  view.openMermaid();
+  const mm = mock.Modal.last;
+  mm.setTab('code');
+  await sleep(30);
+  assert(document.activeElement !== mm.ta, '手機：圖表編輯器換到程式碼，鍵盤收著時不叫出鍵盤');
+  mm.close();
+  mock.Platform.isPhone = false;
+  // 用 LaTeX 檢查（jsdom 的 contentEditable 拿不到焦點，視覺化的格子量不出來）
+  const mode = plugin.settings.mathMode;
+  plugin.settings.mathMode = 'latex';
+  view.openEquation();
+  await sleep(30);
+  assert(document.activeElement === mock.Modal.last.ta, '電腦：方程式編輯器照舊一打開就能打字');
+  mock.Modal.last.close();
+  plugin.settings.mathMode = mode;
+  mock.Platform.isPhone = keep;
+}
+{
+  const { readFileSync } = await import('node:fs');
+  const css = readFileSync(new URL('../../styles/word-mode.css', import.meta.url), 'utf8');
+  assert(css.includes('.wm-kb-compact .wm-toolbar button.wm-tab-switch :is(.wm-tab-text, .wm-tab-switch-arrow) { display: none; }'), '鍵盤開著的精簡功能區：切換分頁的按鈕只留圖示');
+  assert(/\.wm-pad-tip \{[^}]*z-index: calc\(var\(--layer-menu, 65\) \+ 1\)/.test(css), '觸控板的說明蓋得過 Obsidian 的手機工具列（--layer-menu）');
 }
 
 finish();

@@ -1327,4 +1327,9 @@ export default {
  "取消勾選用不到的鍵，控制鍵列就短一點，不用左右捲。": "Deaktivieren Sie ungenutzte Tasten, dann ist die Leiste kürzer und muss nicht seitlich gescrollt werden.",
  "在「收起鍵盤」左邊放一顆開關（鍵盤開著時才出現），按下去在工具列上方展開一排螢幕鍵盤沒有的鍵：Esc、Tab、Ctrl（Apple 的裝置是 ⌘）、Shift、方向鍵、Home、End。Ctrl、Shift 點一下作用在下一個鍵，連點兩下鎖住；Ctrl 開著時用鍵盤打字母就是快速鍵（例如 Ctrl＋B 粗體）。方向鍵按住不放會連續移動。Word 模式與 Markdown 編輯都能用，包括 Obsidian 自己的工具列。": "Setzt links neben „Tastatur ausblenden“ einen Schalter (nur bei geöffneter Tastatur sichtbar). Er öffnet über der Symbolleiste eine Reihe mit Tasten, die der Bildschirmtastatur fehlen: Esc, Tab, Strg (auf Apple-Geräten ⌘), Umschalt, Pfeiltasten, Pos1 und Ende. Strg oder Umschalt einmal tippen gilt für die nächste Taste, zweimal tippen hält sie fest; bei aktivem Strg wird ein getippter Buchstabe zum Tastenkürzel (zum Beispiel Strg+B für Fett). Pfeiltasten gedrückt halten bewegt fortlaufend. Funktioniert im Word-Modus und beim Bearbeiten von Markdown, auch auf Obsidians eigener Symbolleiste.",
  "＋ 段落": "+ Absatz",
+ "第 {l} 行，第 {c} 字": "Zeile {l}, Zeichen {c}",
+ "手機上的字數與文件屬性": "Wortzahl und Eigenschaften auf dem Smartphone",
+ "「放到右上角」：文件屬性是右上角的一顆按鈕，字數統計與閱讀模式在右上角的「⋯」選單裡，畫面下方不放狀態列，編輯區比較大。「畫面下方的狀態列」：跟 1.37 以前一樣，放在工具列下方。只影響手機。": "„Oben rechts“: Die Eigenschaften werden zu einer Schaltfläche oben rechts, Wortzahl und Lesemodus stehen im Menü „⋯“ oben rechts. Unten gibt es keine Statusleiste, der Editor bekommt mehr Platz. „Statusleiste unten“: wie vor 1.37, unter der Werkzeugleiste. Nur auf Smartphones.",
+ "放到右上角與「⋯」選單（建議）": "Oben rechts und im Menü „⋯“ (empfohlen)",
+ "畫面下方的狀態列": "Statusleiste unten",
 };

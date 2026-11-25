@@ -121,13 +121,13 @@ All styles are in `styles/word-mode.css`, and every class starts with `wm-`. The
 | `src/settingsearch.ts` | Matching and ranking for the settings search: setting names, descriptions, dropdown options, the names in other languages, and synonyms. Pure functions. |
 | `src/colorpicker.ts` | Color panel for font color and highlight. |
 | `src/mdbar.ts` | Ribbon shown in Markdown and reading mode: what each button does to the Markdown editor. |
-| `src/statusbar.ts` | Status bar contents (word count, save status, view switch, properties, zoom), shared by Word mode and Markdown and reading mode. |
+| `src/statusbar.ts` | Status bar contents (word count, save status, view switch, properties, zoom), shared by Word mode and Markdown and reading mode. On phones there is no status bar by default (setting `phoneStatus`): properties sit in the top-right of the view header, word count and reading view in the “⋯” menu. |
 | `src/paths.ts` | File paths: the path shown in the status bar and the "copy path" entries (for the note itself and for files that links and images point to). |
 | `src/caret.ts` | The custom cursor (shape, blinking, smooth movement) and its live preview on the settings page. The built-in caret is hidden with CSS and comes back during IME composition; on phones and tablets it is hidden only while the custom cursor is drawn (selection handles follow `caret-color`), and while a finger is down the custom cursor follows the system selection every frame, so it stays with the iOS magnifier during a long-press drag. |
 | `src/keyrow.ts` | The control key row on phones and tablets (Esc, Tab, Ctrl/⌘, Shift, arrows, Home, End). One-shot and locked modifiers; Ctrl plus a typed letter is re-sent as a key event so the editor's own shortcuts run. Each mode moves the cursor itself: `toolbar.ts` (Word mode) and `mdbar.ts` (Markdown) both have a `keyMove`. |
 | `src/trackpad.ts` | The toolbar-as-trackpad gesture (hold, then drag to move the cursor) with speed and acceleration. Word mode (`toolbar.ts`), the Markdown toolbar (`mdbar.ts`) and Obsidian's own mobile toolbar (`nativebar.ts`) each pass hooks for how to move the cursor. |
 | `src/nativebar.ts` | Adds the control-key toggle (left of Obsidian's keyboard button), the key row and the trackpad to Obsidian's own mobile toolbar in Markdown editing. Its DOM is not public API, so if it cannot be found nothing happens. |
-| `src/props.ts`, `src/propview.ts` | Property values (types, conversion, reading the frontmatter), and the properties popover and the pinned properties bar. |
+| `src/props.ts`, `src/propview.ts` | Property values (types, conversion, reading the frontmatter), and the properties popover (a pop-up window on phones, `showProps`) and the pinned properties bar. |
 | `src/bubble.ts` | Floating toolbar for links and images. |
 | `src/tablegrips.ts` | Row and column handles on the table at the cursor (select a whole row or column and open its menu). |
 | `src/nodeviews.ts` | Rendering of links, images, tables, and raw blocks. |

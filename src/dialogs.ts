@@ -15,6 +15,15 @@ import type WordModePlugin from './main.js';
 import type { WordModeView } from './view.js';
 import type { I18nKey } from './i18n.js';
 import type { DemoName } from './hints.js';
+
+// 方程式、圖表編輯器自己把焦點放進輸入框好不好。手機上焦點一放進去螢幕鍵盤就升起來，對話框被壓到鍵盤上方
+// 那一小塊、標題與模式切換也收起來（樣式表的 wm-kb-up），一打開就看不到整個編輯器。所以手機上：
+// 剛打開時不放（Obsidian 打開對話框時已經把鍵盤收掉了；body 的 wm-kb-up 這時還是剛才編輯器的狀態，不能拿來判斷），
+// 之後切換編輯方式時，鍵盤本來就開著才放。要打字時點輸入框，鍵盤才出來
+export function mayAutoFocus(doc: Document, opening: boolean): boolean {
+  if (!Platform.isPhone) return true;
+  return !opening && doc.body.classList.contains('wm-kb-up');
+}
 import type { WordStats } from './textstats.js';
 
 // 原文編輯、輸入框按「套用／確定」後收到輸入的文字
@@ -544,11 +553,12 @@ export class EquationModal extends EditingModal {
     this.ta.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); ok.click(); } });
     showGroup(recent.length && !this.init.src ? 0 : (recent.length ? 1 : 0));
     setMode(this.display);
-    this.setEdit(this.plugin && this.plugin.settings.mathMode === 'latex' ? 'latex' : 'visual');
+    this.setEdit(this.plugin && this.plugin.settings.mathMode === 'latex' ? 'latex' : 'visual', mayAutoFocus(this.modalEl.ownerDocument, true));
   }
   // 切換編輯方式。切到視覺化時，LaTeX 有改過才重新建立格子（當成可以復原的一步）；
   // 沒有在格子裡改東西就不會動到原本的 LaTeX
-  setEdit(mode: EquationEditMode): void {
+  // focus：切換之後把焦點放進輸入框（手機上見 mayAutoFocus）
+  setEdit(mode: EquationEditMode, focus = mayAutoFocus(this.modalEl.ownerDocument, false)): void {
     this.editMode = mode;
     this.tabVisual.toggleClass('is-active', mode === 'visual');
     this.tabLatex.toggleClass('is-active', mode === 'latex');
@@ -558,8 +568,8 @@ export class EquationModal extends EditingModal {
     this.ta.toggle(mode === 'latex');
     if (mode === 'visual') {
       if (this.fieldSrc !== this.ta.value) { this.field.setLatex(this.ta.value, this.fieldSrc != null); this.fieldSrc = this.ta.value; }
-      window.setTimeout(() => this.field.focus(true), 10);
-    } else window.setTimeout(() => { this.ta.focus(); this.ta.setSelectionRange(this.ta.value.length, this.ta.value.length); }, 10);
+      if (focus) window.setTimeout(() => this.field.focus(true), 10);
+    } else if (focus) window.setTimeout(() => { this.ta.focus(); this.ta.setSelectionRange(this.ta.value.length, this.ta.value.length); }, 10);
   }
   insertRaw(text: string): void {
     if (this.editMode === 'visual') { this.field.insert(text); return; }
