@@ -1318,6 +1318,4 @@ export default {
  "點一下移動一格，按住不放會連續移動。": "Toca para moverte un paso; mantén pulsado para seguir moviéndote.",
  "在表格上方插入段落": "Insertar párrafo encima de la tabla",
  "在表格下方插入段落": "Insertar párrafo debajo de la tabla",
- "點文字時不跳出系統的編輯選單": "No mostrar el menú de edición del sistema al tocar el texto",
- "iOS 上點到游標所在的位置時，會跳出「貼上、選取、全選」的選單，要關掉又容易點到別行。開啟時點文字由 Word 模式自己放游標，不出現這個選單；連點兩下選取一個詞，長按照常是系統的放大鏡與選取。貼上可以用工具列的按鈕。": "En iOS, tocar donde ya está el cursor abre el menú Pegar / Seleccionar / Seleccionar todo, y al tocar fuera para cerrarlo es fácil caer en otra línea. Si está activado, el modo Word coloca el cursor al tocar el texto y el menú no aparece; un doble toque selecciona una palabra y una pulsación larga sigue mostrando la lupa y la selección del sistema. Para pegar, usa el botón de la barra de herramientas.",
 };

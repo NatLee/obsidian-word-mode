@@ -358,9 +358,9 @@ export class Toolbar {
     const quick = shell.finish();
     shell.apart(() => {
       this.button(quick, A.findQuick, { onClick: () => this.d.find(), active: () => this.isFindOpen() });
-      if (!shell.hiddenGroups.has('help')) this.button(quick, { icon: 'help-circle', title: '快速鍵說明', keys: 'Mod+/', text: '?', demo: 'kbd', desc: '列出所有快速鍵；點一列可以看動畫示範。' }, { onClick: () => this.d.shortcuts() });
+      if (!shell.hiddenGroups.has('help')) this.button(quick, { icon: 'help-circle', title: '快速鍵說明', keys: 'Mod+/', text: '?', demo: 'kbd', desc: '列出所有快速鍵；點一列可以看動畫示範。', cls: 'wm-quick-keys' }, { onClick: () => this.d.shortcuts() });
       // 跟「檢視」分頁的 Markdown 按鈕是同一個功能：這裡只有圖示，說明多了怎麼切回來
-      this.button(quick, { ...A.markdownMode, label: undefined, big: false, desc: '用 Obsidian 原本的 Markdown 編輯這份筆記，再按一次（或在 Markdown 畫面按同樣的快速鍵）切回 Word 模式。' }, { onClick: () => this.d.markdown() });
+      this.button(quick, { ...A.markdownMode, label: undefined, big: false, desc: '用 Obsidian 原本的 Markdown 編輯這份筆記，再按一次（或在 Markdown 畫面按同樣的快速鍵）切回 Word 模式。', cls: 'wm-quick-md' }, { onClick: () => this.d.markdown() });
     });
   }
 

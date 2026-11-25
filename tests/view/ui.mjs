@@ -2204,18 +2204,16 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
 }
 
 
-// ======== 手機：點文字不跳出 iOS 的選單、連點兩下選詞、點兩個表格之間的縫隙（touch.ts）========
+// ======== 手機：點兩個表格之間的縫隙插入段落；點一般的文字照常交給 iOS（touch.ts）========
 {
-  await fresh('hello world 今天天氣很好\n\n| a |\n| --- |\n| 1 |\n\n| b |\n| --- |\n| 2 |\n\n[連結](https://example.com) 後面');
+  await fresh('hello world\n\n| a |\n| --- |\n| 1 |\n\n| b |\n| --- |\n| 2 |\n\n後面');
   const P = view.pm.constructor;
   const St = view.pm.state.constructor;
   const host = document.body.createDiv();
   const v = new P(host.createDiv(), { state: St.create({ doc: view.pm.state.doc, schema: view.pm.state.schema }) });
   v.hasFocus = () => true;
-  let tapPos = 3;
-  v.posAtCoords = () => ({ pos: tapPos, inside: -1 });
-  let noMenu = true;
-  const stop = B.installTouch(host, () => v, { tapNoMenu: () => noMenu });
+  v.posAtCoords = () => ({ pos: 3, inside: -1 });
+  const stop = B.installTouch(host, () => v);
   const touch = (target, type, x = 10, y = 10) => {
     const list = [{ clientX: x, clientY: y }];
     const e = Object.assign(new Event(type, { bubbles: true, cancelable: true }), { touches: type === 'touchend' ? [] : list, changedTouches: list });
@@ -2224,28 +2222,8 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
   };
   const tap = (target, x, y) => { touch(target, 'touchstart', x, y); return touch(target, 'touchend', x, y); };
   const para = v.dom.querySelector('p');
-  assert(tap(para).defaultPrevented && v.state.selection.empty && v.state.selection.head === 3, '點文字：自己放游標，擋掉系統的處理（不跳出貼上／選取的選單）');
+  assert(!tap(para).defaultPrevented, '點一般的文字：照常交給 iOS（1.35.0 試過自己放游標，iOS 的編輯選單照樣出現，已拿掉）');
   await sleep(400);
-  tapPos = 4;
-  tap(para); const second = tap(para);
-  assert(second.defaultPrevented && v.state.doc.textBetween(v.state.selection.from, v.state.selection.to) === 'hello', '連點兩下：選取那個詞：' + v.state.doc.textBetween(v.state.selection.from, v.state.selection.to));
-  await sleep(400);
-  noMenu = false;
-  assert(!tap(para).defaultPrevented, '設定關掉：照常交給系統');
-  noMenu = true;
-  await sleep(400);
-  const link = v.dom.querySelector('a');
-  assert(link && !tap(link).defaultPrevented, '點連結：交給連結自己處理');
-  await sleep(400);
-  v.hasFocus = () => false;
-  assert(!tap(para).defaultPrevented, '編輯區沒有焦點（鍵盤收著）：交給系統，靠它叫出鍵盤');
-  v.hasFocus = () => true;
-  // 連點兩下選詞：中文用瀏覽器的斷詞，詞的範圍包含點的位置
-  const doc = v.state.doc;
-  const cjk = 1 + 'hello world '.length + 1;
-  const w = B.TOUCH.wordAt(doc, cjk);
-  assert(w && w.from <= cjk && cjk < w.to && w.to - w.from >= 1 && w.to - w.from <= 4, '中文的詞：' + doc.textBetween(w.from, w.to));
-  assert(JSON.stringify(B.TOUCH.wordAt(doc, 9)) === JSON.stringify({ from: 7, to: 12 }), '英文的詞：world');
   // 兩個表格之間的縫隙：插入空段落。jsdom 沒有版面，替每個區塊給假的位置（每個區塊高 40、間隔 20）
   const tops = new Map();
   let y0 = 0;
@@ -2331,12 +2309,70 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
   assert(['thick', 'block', 'underline'].every(k => css.includes('.wm-loupe .wm-loupe-caret[data-shape="' + k + '"]')) && css.includes('.wm-loupe .wm-loupe-caret { height: var(--wm-mark-h'), '標記的形狀與高度在樣式表');
 }
 
-// ======== 手機：功能區與狀態列用 Obsidian 的 mod-raised（浮動導覽列的毛玻璃膠囊）========
+// ======== 手機：功能區與狀態列合成一張浮動的毛玻璃卡片（view.ts 的 placeBottomBar）========
 {
   const { readFileSync } = await import('node:fs');
   const css = readFileSync(new URL('../../styles/word-mode.css', import.meta.url), 'utf8');
-  assert(css.includes('.is-floating-nav .wm-phone .wm-ribbon.mod-raised {') && css.includes('.is-floating-nav .wm-phone .wm-bottombar.mod-raised {') && css.includes('body:not(.is-floating-nav) .wm-ribbon.mod-raised {'), '膠囊只在浮動導覽列時；不是浮動的時候蓋回原本的底色');
-  assert(!view.toolbar.dom.classList.contains('mod-raised'), '電腦：不加 mod-raised');
+  assert(css.includes('.is-floating-nav .wm-phone:not(.wm-kb-open) .wm-toolbar-host.mod-raised {') && css.includes('body:not(.is-floating-nav) .wm-phone .wm-toolbar-host.mod-raised, .wm-phone.wm-kb-open .wm-toolbar-host.mod-raised { --raised: none; }'),
+    '卡片只在浮動導覽列、鍵盤收著時；其他時候用 --raised: none 關掉 Obsidian 的 mod-raised');
+  assert(!view.toolbarHost.classList.contains('mod-raised') && !view.toolbar.dom.classList.contains('mod-raised'), '電腦：不加 mod-raised');
+  const keep = { phone: mock.Platform.isPhone, pos: plugin.settings.toolbarPosition };
+  mock.Platform.isPhone = true;
+  view.bottomBarEl = view.contentEl.createDiv('wm-bottombar');
+  plugin.settings.toolbarPosition = 'bottom';
+  view.buildToolbar();
+  assert(view.toolbarHost.classList.contains('mod-raised') && view.bottomBarEl.parentElement === view.toolbarHost && view.toolbarHost.lastElementChild === view.bottomBarEl && view.contentEl.classList.contains('wm-dock'),
+    '手機、功能區在下方：外層掛 mod-raised，狀態列放進同一張卡片的最下面');
+  view.buildToolbar();
+  assert(view.bottomBarEl.parentElement === view.toolbarHost && view.toolbarHost.querySelectorAll('.wm-ribbon').length === 1, '重建功能區（會清空外層）：狀態列放回卡片裡');
+  plugin.settings.toolbarPosition = 'top';
+  view.buildToolbar();
+  assert(view.bottomBarEl.parentElement === view.contentEl && !view.contentEl.classList.contains('wm-dock'), '功能區在上方：狀態列留在檢視的最下面');
+  assert(css.includes('.wm-phone .wm-tabs-quick :is(.wm-quick-keys, .wm-quick-md) { display: none; }') && view.toolbar.dom.querySelector('.wm-quick-keys') && view.toolbar.dom.querySelector('.wm-quick-md'), '手機：分頁列右邊的快速鍵說明與 Markdown 按鈕由樣式表藏起來');
+  view.bottomBarEl.remove();
+  view.bottomBarEl = undefined;
+  mock.Platform.isPhone = keep.phone;
+  plugin.settings.toolbarPosition = keep.pos;
+  view.toolbarHost.classList.remove('mod-raised');
+  view.contentEl.classList.remove('wm-dock');
+  view.buildToolbar();
+}
+
+
+// ======== 設定頁的搜尋框：手機上收得起鍵盤（settingsnav.ts）========
+{
+  const box = document.body.createDiv();
+  const el = box.createDiv();
+  const docs = [{ name: '頁面縮放', desc: '', terms: [], alt: [], section: '顯示', icon: 'monitor', el }];
+  const picked = [];
+  const { input } = B.SETNAV.buildSettingSearch(box, () => docs, (item, byKeyboard) => picked.push(item.name + ':' + byKeyboard));
+  const outside = document.body.createDiv();
+  const key = k => { const e = new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }); input.dispatchEvent(e); return e; };
+  const type = v => { input.value = v; input.dispatchEvent(new Event('input')); };
+  const keep = mock.Platform.isMobile;
+  mock.Platform.isMobile = true;
+  input.focus();
+  outside.dispatchEvent(new Event('touchstart', { bubbles: true }));
+  assert(document.activeElement !== input, '手機：手指在搜尋框以外的地方按下（捲動、點別的設定），搜尋框失去焦點、鍵盤收起來');
+  input.focus();
+  box.querySelector('.wm-set-find-box').dispatchEvent(new Event('touchstart', { bubbles: true }));
+  assert(document.activeElement === input, '手機：按在搜尋框裡不收');
+  type('縮放');
+  key('Enter');
+  assert(picked.join() === '頁面縮放:true' && document.activeElement !== input, '手機：按鍵盤的「搜尋」鍵選了結果，鍵盤也收起來');
+  input.focus();
+  type('沒有這個設定');
+  const e = key('Enter');
+  assert(document.activeElement !== input && e.defaultPrevented, '手機：沒有結果時按「搜尋」鍵：收起鍵盤');
+  mock.Platform.isMobile = false;
+  input.focus();
+  type('縮放');
+  key('Enter');
+  assert(document.activeElement === input, '電腦：用 Enter 選的不收（焦點交給設定頁移到那一列）');
+  mock.Platform.isMobile = keep;
+  outside.dispatchEvent(new Event('touchstart', { bubbles: true }));
+  input.blur();
+  box.remove(); outside.remove();
 }
 
 finish();

@@ -1318,6 +1318,4 @@ export default {
  "點一下移動一格，按住不放會連續移動。": "Chạm để di chuyển một bước; giữ để di chuyển liên tục.",
  "在表格上方插入段落": "Chèn đoạn văn phía trên bảng",
  "在表格下方插入段落": "Chèn đoạn văn phía dưới bảng",
- "點文字時不跳出系統的編輯選單": "Không hiện menu chỉnh sửa của hệ thống khi chạm vào chữ",
- "iOS 上點到游標所在的位置時，會跳出「貼上、選取、全選」的選單，要關掉又容易點到別行。開啟時點文字由 Word 模式自己放游標，不出現這個選單；連點兩下選取一個詞，長按照常是系統的放大鏡與選取。貼上可以用工具列的按鈕。": "Trên iOS, chạm vào đúng chỗ con trỏ sẽ hiện menu Dán / Chọn / Chọn tất cả, và chạm chỗ khác để đóng thường lại trúng dòng khác. Khi bật, chế độ Word tự đặt con trỏ khi bạn chạm vào chữ nên menu không xuất hiện; chạm hai lần để chọn một từ, nhấn giữ vẫn là kính lúp và vùng chọn của hệ thống. Dùng nút trên thanh công cụ để dán.",
 };

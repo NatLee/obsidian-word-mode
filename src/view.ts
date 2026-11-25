@@ -158,6 +158,8 @@ export class WordModeView extends TextFileView {
   declare savedAt: Date | undefined;
   declare conflict: ConflictState | null | undefined;
   declare toolbarHost: HTMLDivElement;
+  // 手機的狀態列（檢視下方；手機的功能區在下方時放進 toolbarHost，見 placeBottomBar）
+  declare bottomBarEl?: HTMLDivElement;
   declare findHost: HTMLDivElement;
   declare bannerHost: HTMLDivElement;
   // 文件屬性固定在上方（設定）：捲動區上方的屬性列。pinHost 在 onOpen 建立；pin 第一次需要時才建立；
@@ -246,7 +248,11 @@ export class WordModeView extends TextFileView {
     }).catch(() => { /* 沒有 Prism 就不上色 */ });
     this.status = 'saved';
     // 手機沒有 Obsidian 狀態列：在畫面下方放自己的狀態列；桌機則整合進 Obsidian 右下角的狀態列
-    if (Platform.isMobile) this.buildBottomBar(this.contentEl.createDiv('wm-bottombar' + (Platform.isPhone ? ' mod-raised' : '')), false);
+    if (Platform.isMobile) {
+      this.bottomBarEl = this.contentEl.createDiv('wm-bottombar');
+      this.buildBottomBar(this.bottomBarEl, false);
+      this.placeBottomBar();
+    }
     // 螢幕鍵盤升起、收起時調整版面（keyboard.ts；桌機沒有這個）
     if (this.plugin.keyboard) {
       this.register(this.plugin.keyboard.subscribe(() => this.syncKeyboard()));
@@ -259,7 +265,7 @@ export class WordModeView extends TextFileView {
       }
     }
     // 觸控手勢：表格儲存格自己放游標、兩指點一下選整段（touch.ts）
-    if (Platform.isMobile) this.register(installTouch(this.page, () => this.pm, { tapNoMenu: () => this.plugin.settings.tapNoMenu !== false }));
+    if (Platform.isMobile) this.register(installTouch(this.page, () => this.pm));
     this.applyZoom();
     this.applyPropsLook();
     this.applyCaretLook();
@@ -369,9 +375,22 @@ export class WordModeView extends TextFileView {
         notice: msg => new Notice(msg),
       },
     });
-    // 手機：Obsidian 的 mod-raised（浮動導覽列的毛玻璃底、陰影、iOS 的細邊框），換佈景主題也跟著變；形狀與間距在樣式表
-    if (Platform.isPhone) this.toolbar.dom.addClass('mod-raised');
+    this.placeBottomBar();
     if (this.pm) this.toolbar.update(this.pm.state);
+  }
+
+  // 手機：功能區與狀態列合成一張浮動的卡片。外層（toolbarHost）掛 Obsidian 的 mod-raised（浮動導覽列的毛玻璃底、陰影、
+  // iOS 的細邊框，換佈景主題也跟著變），功能區在下方時狀態列也放進去，排在功能區下面；形狀與間距在樣式表。
+  // 功能區在上方時狀態列留在檢視的最下面。重建功能區會清空 toolbarHost，所以每次建完都再放一次
+  placeBottomBar(): void {
+    if (!Platform.isPhone) return;
+    this.toolbarHost.addClass('mod-raised');
+    const bar = this.bottomBarEl;
+    if (!bar) return;
+    const dock = this.contentEl.classList.contains('wm-toolbar-bottom');
+    this.contentEl.toggleClass('wm-dock', dock);
+    if (dock) this.toolbarHost.appendChild(bar);
+    else if (bar.parentElement !== this.contentEl) this.contentEl.appendChild(bar);
   }
 
   async onClose(): Promise<void> {

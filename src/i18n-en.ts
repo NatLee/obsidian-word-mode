@@ -1318,6 +1318,4 @@ export default {
  "點一下移動一格，按住不放會連續移動。": "Tap to move one step; hold to keep moving.",
  "在表格上方插入段落": "Insert paragraph above table",
  "在表格下方插入段落": "Insert paragraph below table",
- "點文字時不跳出系統的編輯選單": "Don’t show the system edit menu when tapping text",
- "iOS 上點到游標所在的位置時，會跳出「貼上、選取、全選」的選單，要關掉又容易點到別行。開啟時點文字由 Word 模式自己放游標，不出現這個選單；連點兩下選取一個詞，長按照常是系統的放大鏡與選取。貼上可以用工具列的按鈕。": "On iOS, tapping where the cursor already is pops up the Paste / Select / Select All menu, and tapping elsewhere to close it often lands on another line. When on, Word mode places the cursor itself when you tap text, so the menu does not appear; a double tap selects a word, and a long press still brings up the system magnifier and selection. Use the toolbar button to paste.",
 };
