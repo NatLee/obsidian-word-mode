@@ -2204,18 +2204,16 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
 }
 
 
-// ======== 手機：點文字不跳出 iOS 的選單、連點兩下選詞、點兩個表格之間的縫隙（touch.ts）========
+// ======== 手機：點兩個表格之間的縫隙插入段落；點一般的文字照常交給 iOS（touch.ts）========
 {
-  await fresh('hello world 今天天氣很好\n\n| a |\n| --- |\n| 1 |\n\n| b |\n| --- |\n| 2 |\n\n[連結](https://example.com) 後面');
+  await fresh('hello world\n\n| a |\n| --- |\n| 1 |\n\n| b |\n| --- |\n| 2 |\n\n後面');
   const P = view.pm.constructor;
   const St = view.pm.state.constructor;
   const host = document.body.createDiv();
   const v = new P(host.createDiv(), { state: St.create({ doc: view.pm.state.doc, schema: view.pm.state.schema }) });
   v.hasFocus = () => true;
-  let tapPos = 3;
-  v.posAtCoords = () => ({ pos: tapPos, inside: -1 });
-  let noMenu = true;
-  const stop = B.installTouch(host, () => v, { tapNoMenu: () => noMenu });
+  v.posAtCoords = () => ({ pos: 3, inside: -1 });
+  const stop = B.installTouch(host, () => v);
   const touch = (target, type, x = 10, y = 10) => {
     const list = [{ clientX: x, clientY: y }];
     const e = Object.assign(new Event(type, { bubbles: true, cancelable: true }), { touches: type === 'touchend' ? [] : list, changedTouches: list });
@@ -2224,28 +2222,8 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
   };
   const tap = (target, x, y) => { touch(target, 'touchstart', x, y); return touch(target, 'touchend', x, y); };
   const para = v.dom.querySelector('p');
-  assert(tap(para).defaultPrevented && v.state.selection.empty && v.state.selection.head === 3, '點文字：自己放游標，擋掉系統的處理（不跳出貼上／選取的選單）');
+  assert(!tap(para).defaultPrevented, '點一般的文字：照常交給 iOS（1.35.0 試過自己放游標，iOS 的編輯選單照樣出現，已拿掉）');
   await sleep(400);
-  tapPos = 4;
-  tap(para); const second = tap(para);
-  assert(second.defaultPrevented && v.state.doc.textBetween(v.state.selection.from, v.state.selection.to) === 'hello', '連點兩下：選取那個詞：' + v.state.doc.textBetween(v.state.selection.from, v.state.selection.to));
-  await sleep(400);
-  noMenu = false;
-  assert(!tap(para).defaultPrevented, '設定關掉：照常交給系統');
-  noMenu = true;
-  await sleep(400);
-  const link = v.dom.querySelector('a');
-  assert(link && !tap(link).defaultPrevented, '點連結：交給連結自己處理');
-  await sleep(400);
-  v.hasFocus = () => false;
-  assert(!tap(para).defaultPrevented, '編輯區沒有焦點（鍵盤收著）：交給系統，靠它叫出鍵盤');
-  v.hasFocus = () => true;
-  // 連點兩下選詞：中文用瀏覽器的斷詞，詞的範圍包含點的位置
-  const doc = v.state.doc;
-  const cjk = 1 + 'hello world '.length + 1;
-  const w = B.TOUCH.wordAt(doc, cjk);
-  assert(w && w.from <= cjk && cjk < w.to && w.to - w.from >= 1 && w.to - w.from <= 4, '中文的詞：' + doc.textBetween(w.from, w.to));
-  assert(JSON.stringify(B.TOUCH.wordAt(doc, 9)) === JSON.stringify({ from: 7, to: 12 }), '英文的詞：world');
   // 兩個表格之間的縫隙：插入空段落。jsdom 沒有版面，替每個區塊給假的位置（每個區塊高 40、間隔 20）
   const tops = new Map();
   let y0 = 0;

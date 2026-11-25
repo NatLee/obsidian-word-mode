@@ -259,7 +259,7 @@ export class WordModeView extends TextFileView {
       }
     }
     // 觸控手勢：表格儲存格自己放游標、兩指點一下選整段（touch.ts）
-    if (Platform.isMobile) this.register(installTouch(this.page, () => this.pm, { tapNoMenu: () => this.plugin.settings.tapNoMenu !== false }));
+    if (Platform.isMobile) this.register(installTouch(this.page, () => this.pm));
     this.applyZoom();
     this.applyPropsLook();
     this.applyCaretLook();
