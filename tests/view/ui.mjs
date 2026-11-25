@@ -2679,6 +2679,23 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
   press(tagsRow.querySelector('.wm-prop-del'));
   assert(!/tags/.test(v2.getViewData()) && /status: done/.test(v2.getViewData()), '視窗裡刪除屬性');
   assert([...m.contentEl.querySelectorAll('.wm-props-sheet-foot button')].map(b => b.textContent).join('、') === '編輯 YAML 原文、前往文件屬性', '視窗下方：編輯 YAML 原文、前往文件屬性');
+  {
+    // 鍵盤上方的擴充列：在欄位間移動、跳到新增屬性、插入連結與標籤的符號
+    const acc = m.modalEl.querySelector('.wm-acc');
+    const key = label => acc.querySelector('button[aria-label="' + label + '"]');
+    assert(acc && key('上一欄') && key('下一欄') && key('新增屬性') && key('連結'), '文件屬性視窗：鍵盤上方有專用的擴充列');
+    key('下一欄').click();
+    const first = document.activeElement;
+    assert(m.contentEl.contains(first) && first.tagName === 'INPUT', '下一欄：焦點放進第一個欄位');
+    key('新增屬性').click();
+    const nameInput = m.contentEl.querySelector('.wm-prop-add input');
+    assert(document.activeElement === nameInput, '新增屬性：焦點放進新增屬性的名稱');
+    nameInput.value = 'ab';
+    nameInput.setSelectionRange(1, 1);
+    key('連結').click();
+    assert(nameInput.value === 'a[[]]b' && nameInput.selectionStart === 3, '連結：插入 [[]]，游標放在中間：' + nameInput.value);
+    nameInput.value = '';
+  }
   m.close();
   // 沒有文件屬性的筆記：在視窗裡新增就加在最前面
   await e2.open('筆記/手機2.md', '內文');
@@ -2806,6 +2823,17 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
   assert(css.includes('.is-phone .modal-container .modal:is(.wm-eq-modal, .wm-mmd-modal) { position: fixed;') && css.includes('bottom: var(--wm-kb-cover, 0px);'), '手機的方程式、圖表編輯器是整個畫面，下緣貼著鍵盤（收起鍵盤時不會跑掉）');
   assert(css.includes('.wm-kb-compact .wm-toolbar button.wm-tab-switch :is(.wm-tab-text, .wm-tab-switch-arrow) { display: none; }'), '鍵盤開著的精簡功能區：切換分頁的按鈕只留圖示');
   assert(/\.wm-pad-tip \{[^}]*z-index: calc\(var\(--layer-menu, 65\) \+ 1\)/.test(css), '觸控板的說明蓋得過 Obsidian 的手機工具列（--layer-menu）');
+  assert(css.includes('.is-phone .modal-container .modal.wm-props-modal { position: fixed;') && css.includes('.wm-kb-up .wm-props-modal .wm-acc { display: flex; }'), '手機的文件屬性視窗貼著鍵盤上緣，擴充列在鍵盤開著時出現');
+}
+
+// ======== 提示框裡獨立一行的方程式：跟外面一樣是方程式區塊，有編輯按鈕（markdown.ts 的 displayMathBlock）========
+{
+  await fresh('> [!tip] 提示\n> 文字\n>\n> $$\n> a+b\n> $$\n');
+  const blk = view.pm.dom.querySelector('.callout .wm-raw-block[data-kind="math"]');
+  assert(blk && !view.pm.dom.querySelector('.callout .wm-raw-inline.is-math'), '提示框裡的 $$…$$ 顯示成方程式區塊（不是段落裡的行內方程式）');
+  blk.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }));
+  assert(mock.Modal.last && mock.Modal.last.init && mock.Modal.last.init.src === 'a+b' && mock.Modal.last.init.display, '按兩下打開方程式編輯器，是獨立一行的方程式');
+  mock.Modal.last.close();
 }
 
 finish();

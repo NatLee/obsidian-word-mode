@@ -2434,3 +2434,11 @@ body.wm-kb-up.wm-native-keys-open .mobile-toolbar-spacer { height: calc(var(--mo
 .wm-props-modal .wm-props.wm-props-sheet { display: flex; flex-direction: column; gap: 8px; }
 .wm-props-modal .wm-props.wm-props-sheet .wm-props-body { padding: 0; }
 .wm-props-modal .wm-props-sheet-foot { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* 手機的文件屬性視窗：貼在畫面下緣的面板，鍵盤開著時下緣貼著鍵盤上緣（--wm-kb-cover），正在填的欄位不會被鍵盤蓋住；
+   最下面是擴充列（accessory.ts；上一欄、下一欄、新增屬性、連結與標籤的符號），鍵盤開著時才出現 */
+.is-phone .modal-container .modal.wm-props-modal { position: fixed; left: 0; right: 0; top: auto; bottom: var(--wm-kb-cover, 0px); width: auto; max-width: none; max-height: calc(100vh - var(--safe-area-inset-top, 0px) - var(--wm-kb-cover, 0px)); margin: 0; border-radius: 14px 14px 0 0; display: flex; flex-direction: column; overflow: hidden; }
+.is-phone .modal.wm-props-modal > .modal-content { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-bottom: calc(12px + var(--safe-area-inset-bottom, 0px)); }
+.is-phone.wm-kb-up .modal.wm-props-modal > .modal-content { padding-bottom: 12px; }
+.wm-props-modal .wm-acc { display: none; }
+.wm-kb-up .wm-props-modal .wm-acc { display: flex; }

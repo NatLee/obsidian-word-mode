@@ -88,6 +88,30 @@ export function insertAt(ta: HTMLTextAreaElement | HTMLInputElement, token: stri
   ta.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
+// root 裡的下一個（d 是 1）或上一個（-1）可以打字的欄位。下拉選單不算：焦點一放上去 iOS 就打開選擇器
+export function stepField(root: HTMLElement, d: number): void {
+  const doc = root.ownerDocument;
+  const shown = (e: HTMLElement): boolean => {
+    for (let p: HTMLElement | null = e; p && p !== root; p = p.parentElement) if (p.hidden || p.style.display === 'none') return false;
+    return true;
+  };
+  const list = Array.from(root.querySelectorAll<HTMLElement>('input, textarea'))
+    .filter(e => isTypingTarget(e) && !(e as HTMLInputElement).disabled && shown(e));
+  if (!list.length) return;
+  const i = list.indexOf(doc.activeElement as HTMLElement);
+  const next = list[i < 0 ? (d > 0 ? 0 : list.length - 1) : Math.max(0, Math.min(list.length - 1, i + d))];
+  next.focus();
+  if (typeof next.scrollIntoView === 'function') next.scrollIntoView({ block: 'nearest' });
+}
+
+// 現在有焦點、可以插入文字的欄位（文字欄位或多行文字；日期、數字欄位不能設定游標位置）
+export function textField(doc: Document): HTMLInputElement | HTMLTextAreaElement | null {
+  const a = doc.activeElement as HTMLInputElement | null;
+  if (!a) return null;
+  if (a.tagName === 'TEXTAREA') return a;
+  return a.tagName === 'INPUT' && /^(text|search|url|)$/.test(a.type) ? a : null;
+}
+
 // 輸入框的游標往前（負數）或往後移幾格
 export function moveCaret(ta: HTMLTextAreaElement | HTMLInputElement, d: number): void {
   const from = d < 0 ? (ta.selectionStart ?? 0) : (ta.selectionEnd ?? ta.value.length);
