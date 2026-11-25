@@ -2442,3 +2442,7 @@ body.wm-kb-up.wm-native-keys-open .mobile-toolbar-spacer { height: calc(var(--mo
 .is-phone.wm-kb-up .modal.wm-props-modal > .modal-content { padding-bottom: 12px; }
 .wm-props-modal .wm-acc { display: none; }
 .wm-kb-up .wm-props-modal .wm-acc { display: flex; }
+
+/* 手機：功能區右邊的快速按鈕（尋找、切換模式）拿掉。切換模式在右上角，尋找在右上角的「⋯」選單（view.ts 的 onPaneMenu；
+   Markdown 模式 Obsidian 的選單本來就有），Word 模式與 Markdown 模式右上角的按鈕數一樣 */
+body.is-phone .wm-tabs-quick { display: none; }

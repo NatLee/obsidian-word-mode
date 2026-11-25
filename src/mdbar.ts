@@ -317,7 +317,7 @@ export class MarkdownBar {
     this.button(g, A.markdownMode, { active: () => this.mode === 'source', run: () => { void this.setMode('source'); }, always: true });
     this.button(g, A.readingMode, { active: () => this.mode === 'preview', run: () => { void this.setMode('preview'); }, always: true });
     g = G.show;
-    this.button(g, A.outline, { run: () => { void this.plugin.toggleOutline(); }, active: () => this.plugin.outlineOpen(), always: true });
+    this.button(g, A.outline, { run: (e, b) => { if (Platform.isPhone) this.outlineMenu(b); else void this.plugin.toggleOutline(); }, active: () => this.plugin.outlineOpen(), always: true });
     this.button(g, A.peekProperties, { run: (e, b) => openMarkdownPeek(this.plugin, this.view, b), always: true });
     this.button(g, A.foldAll, { run: this.cmd('editor:fold-all') });
     this.button(g, A.unfoldAll, { run: this.cmd('editor:unfold-all') });
@@ -331,6 +331,24 @@ export class MarkdownBar {
     });
     if (shell.layout === 'tabs') this.showTab(shell.usableTab(this.plugin.lastTab), true);
     this.update();
+  }
+
+  // 手機的大綱：列出標題的選單（Obsidian 的選單在手機上從畫面下方滑上來），點一個就捲過去；不開新的分頁蓋住筆記
+  outlineMenu(owner: HTMLElement): void {
+    const file = this.view.file;
+    const cache = file ? this.plugin.app.metadataCache.getFileCache(file) : null;
+    const heads = (cache && cache.headings) || [];
+    const menu = new Menu();
+    if (!heads.length) menu.addItem(i => i.setTitle(t('這份筆記沒有標題')).setDisabled(true));
+    const min = Math.min(...heads.map(h => h.level));
+    for (const h of heads) {
+      // 縮排用全形空白：選單項目不能自己設定樣式
+      menu.addItem(i => i.setTitle('\u3000'.repeat(h.level - min) + h.heading).onClick(() => {
+        this.view.setEphemeralState({ line: h.position.start.line });
+      }));
+    }
+    const r = owner.getBoundingClientRect();
+    menu.showAtPosition({ x: r.left, y: r.top });
   }
 
   // 切換分頁；跟 Word 模式共用「上次的分頁」，切換模式後停在同一個分頁
