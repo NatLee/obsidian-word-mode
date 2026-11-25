@@ -90,7 +90,12 @@ export interface DiagramKind {
   lists: ListSpec[];
   // 每次修改後整理資料（例如心智圖的階層不能一次跳兩層）
   fix?(m: DiagramModel): void;
+  // 程式碼模式常用的符號：手機鍵盤上方的擴充列（mermaid.ts 的 phoneBar）。iOS 鍵盤要切到符號頁才打得到箭頭、括號
+  keys?: readonly string[];
 }
+
+// 認不出種類（自由編寫）時擴充列放的符號
+export const CODE_KEYS: readonly string[] = ['-->', ':', '[]', '()', '{}', '""', '|', '%% '];
 
 // ---------------------------------------------------------------- 共用的小工具
 
@@ -146,6 +151,7 @@ const NODE_STYLE = /^style\s+(\S+)\s+fill:(#[0-9a-fA-F]{6})(,stroke:#[0-9a-fA-F]
 
 const flowchart: DiagramKind = {
   id: 'flowchart', name: '流程圖', icon: 'workflow', head: /^(flowchart|graph)\b/, template: template('流程圖'),
+  keys: ['-->', '---', '-.->', '==>', '|', '[]', '()', '{}', '(())', '""'],
   parse(src) {
     const f = parseFlowchart(src);
     if (!f.ok) return f.reason === 'notFlowchart' ? 'unknownKind' : f.reason;
@@ -235,6 +241,7 @@ const SEQUENCE_ARROWS: [string, I18nKey][] = [
 const SEQ_MESSAGE = /^(.+?)\s*(-->>|->>|--x|-x|--\)|-\)|-->|->)\s*([^:]+?)\s*:\s*(.*)$/;
 const sequence: DiagramKind = {
   id: 'sequence', name: '循序圖', icon: 'arrow-left-right', head: /^sequenceDiagram\s*$/, template: template('循序圖'),
+  keys: ['->>', '-->>', '->', '-->', '-x', ':', '+', 'Note over ', 'loop ', 'end'],
   parse(src) {
     const s = split(src, this.head);
     if (!s) return 'unknownKind';
@@ -331,6 +338,7 @@ const GANTT_TAGS = new Set(['done', 'active', 'crit', 'milestone']);
 const GANTT_KEEP = /^(axisFormat|tickInterval|excludes|includes|todayMarker|weekday|inclusiveEndDates|topAxis)(\s|$)/;
 const gantt: DiagramKind = {
   id: 'gantt', name: '甘特圖', icon: 'gantt-chart', head: /^gantt\s*$/, template: template('甘特圖'),
+  keys: [':', ',', 'section ', 'after ', 'done, ', 'active, ', 'crit, ', 'milestone, '],
   parse(src) {
     const s = split(src, this.head);
     if (!s) return 'unknownKind';
@@ -400,6 +408,7 @@ const gantt: DiagramKind = {
 
 const pie: DiagramKind = {
   id: 'pie', name: '圓餅圖', icon: 'pie-chart', head: /^pie(\s+showData)?(?:\s+title\s+(.*))?\s*$/, template: template('圓餅圖'),
+  keys: ['""', ':'],
   parse(src) {
     const s = split(src, this.head);
     if (!s) return 'unknownKind';
@@ -444,6 +453,7 @@ const STATE = '(\\[\\*\\]|[^\\s:]+)';
 const stateNames = (m: DiagramModel): string[] => [...new Set(['[*]', ...m.lists.moves.flatMap(r => [r.from, r.to]), ...m.lists.states.map(r => r.name)].filter(Boolean))];
 const state: DiagramKind = {
   id: 'state', name: '狀態圖', icon: 'circle-dot', head: /^stateDiagram(-v2)?\s*$/, template: template('狀態圖'),
+  keys: ['-->', '[*]', ':', '{}', 'state ', 'note right of ', 'end note'],
   parse(src) {
     const s = split(src, this.head);
     if (!s) return 'unknownKind';
@@ -517,6 +527,7 @@ const CLASS_REL_TIGHT = /^([^\s:<>|*."{}-]+)\s*(?:"([^"]*)"\s*)?(<\|--|<\|\.\.|\
 const classNameOk = (name: string): boolean => /^[^\s:<>|*."{}]+$/.test(name) && !name.includes('--');
 const classDiagram: DiagramKind = {
   id: 'class', name: '類別圖', icon: 'boxes', head: /^classDiagram(-v2)?\s*$/, template: template('類別圖'),
+  keys: ['<|--', '*--', 'o--', '-->', '..>', '..|>', ':', '+', '-', '#', '()', '{}'],
   parse(src) {
     const s = split(src, this.head);
     if (!s) return 'unknownKind';
@@ -617,6 +628,7 @@ const MIND_RE: [string, RegExp][] = [
 ];
 const mindmap: DiagramKind = {
   id: 'mindmap', name: '心智圖', icon: 'network', head: /^mindmap\s*$/, template: template('心智圖'),
+  keys: ['[]', '()', '(())', '{{}}', '))(('],
   parse(src) {
     const s = split(src, this.head);
     if (!s) return 'unknownKind';
@@ -689,6 +701,7 @@ const mindmap: DiagramKind = {
 
 const timeline: DiagramKind = {
   id: 'timeline', name: '時間軸', icon: 'milestone', head: /^timeline\s*$/, template: template('時間軸'),
+  keys: [':', 'section '],
   parse(src) {
     const s = split(src, this.head);
     if (!s) return 'unknownKind';
@@ -756,6 +769,7 @@ const ER_ALONE = new RegExp('^' + ER_NAME + '$');
 const erName = (v: string): string => { const s = one(v); return /^[A-Za-z_][A-Za-z0-9_-]*$/.test(s) ? s : '"' + s.replace(/"/g, '\'') + '"'; };
 const er: DiagramKind = {
   id: 'er', name: 'ER 圖', icon: 'database', head: /^erDiagram\s*$/, template: template('ER 圖'),
+  keys: ['||--o{', '}o--||', '||--||', '|o--o{', ':', '""', '{}'],
   parse(src) {
     const s = split(src, this.head);
     if (!s) return 'unknownKind';
@@ -832,6 +846,7 @@ const er: DiagramKind = {
 
 const journey: DiagramKind = {
   id: 'journey', name: '旅程圖', icon: 'map', head: /^journey\s*$/, template: template('旅程圖'),
+  keys: [':', 'section '],
   parse(src) {
     const s = split(src, this.head);
     if (!s) return 'unknownKind';
@@ -892,6 +907,7 @@ const QUAD_POINT = new RegExp('^' + QUAD_TEXT + '\\s*:\\s*\\[\\s*(\\d*\\.?\\d+)\
 const unit = (v: string): string => { const s = one(v); const n = parseFloat(s); return n >= 0 && n <= 1 ? (/^\d+(\.\d+)?$/.test(s) ? s : String(n)) : '0.5'; };
 const quadrant: DiagramKind = {
   id: 'quadrant', name: '象限圖', icon: 'layout-grid', head: /^quadrantChart\s*$/, template: template('象限圖'),
+  keys: [':', '[]', ',', 'x-axis ', 'y-axis ', '-->', 'quadrant-1 '],
   parse(src) {
     const s = split(src, this.head);
     if (!s) return 'unknownKind';

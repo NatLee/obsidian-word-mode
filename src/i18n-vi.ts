@@ -1332,4 +1332,12 @@ export default {
  "「放到右上角」：文件屬性是右上角的一顆按鈕，字數統計與閱讀模式在右上角的「⋯」選單裡，畫面下方不放狀態列，編輯區比較大。「畫面下方的狀態列」：跟 1.37 以前一樣，放在工具列下方。只影響手機。": "“Góc trên bên phải”: thuộc tính là một nút ở góc trên bên phải, số từ và chế độ đọc nằm trong menu “⋯” ở góc trên bên phải. Không có thanh trạng thái ở dưới, nên vùng soạn thảo rộng hơn. “Thanh trạng thái ở dưới”: như trước 1.37, nằm dưới thanh công cụ. Chỉ áp dụng cho điện thoại.",
  "放到右上角與「⋯」選單（建議）": "Góc trên bên phải và menu “⋯” (khuyên dùng)",
  "畫面下方的狀態列": "Thanh trạng thái ở dưới",
+ "收起或叫出鍵盤": "Ẩn hoặc hiện bàn phím",
+ "游標往前": "Lùi con trỏ",
+ "游標往後": "Tiến con trỏ",
+ "換行": "Xuống dòng",
+ "上一欄": "Ô trước",
+ "下一欄": "Ô sau",
+ "縮排": "Thụt lề",
+ "這份文件屬性的格式比較特殊，請用「編輯 YAML 原文」修改。": "Thuộc tính này có định dạng đặc biệt. Hãy dùng “Sửa mã nguồn YAML” để thay đổi.",
 };

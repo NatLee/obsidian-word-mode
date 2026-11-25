@@ -2,12 +2,15 @@
 // 表單依 diagrams.ts 對各種圖表的描述畫出來：流程圖、循序圖、甘特圖、圓餅圖、狀態圖、類別圖、心智圖、時間軸、ER 圖。
 // 很長的圖表：表單的清單分批顯示、可以篩選，下拉選單的選項按下去才產生；預覽重畫時先在背後畫好再換上去，捲動位置不會跑掉。
 // opts: { src, existing, mode: 'visual'|'code', render(src, el) → { unload(), ready? }, validate(src) → Promise<錯誤訊息|null> }
-import { Notice, setIcon } from 'obsidian';
+import { Notice, Platform, setIcon } from 'obsidian';
+import { Accessory, insertAt, moveCaret } from './accessory.js';
+import { iconOr } from './icons.js';
+import { isTypingTarget } from './keyboard.js';
 import { t, key } from './i18n.js';
 import { keepFocus, keyboardHints } from './dom.js';
 import { buttonBar, mayAutoFocus } from './dialogs.js';
 import { EditingModal } from './confirmclose.js';
-import { DIAGRAM_KINDS, DIAGRAM_REASONS, COMMON_OPTS, editableDiagram, generateDiagram, detectKind, textSlots, findSlot, setValue, restoreName, dropRefs, squash, sameSlot, slotNth, rowSlot } from './diagrams.js';
+import { CODE_KEYS, DIAGRAM_KINDS, DIAGRAM_REASONS, COMMON_OPTS, editableDiagram, generateDiagram, detectKind, textSlots, findSlot, setValue, restoreName, dropRefs, squash, sameSlot, slotNth, rowSlot } from './diagrams.js';
 import { uniqueName } from './templates.js';
 import type { App } from 'obsidian';
 import type { Choice, ColorField, DiagramKind, DiagramModel, DiagramReason, Field, ListSpec, Row, SelectField, TextField, TextSlot } from './diagrams.js';
@@ -88,6 +91,11 @@ export class MermaidModal extends EditingModal {
   declare tab: MermaidTab;
   declare tabVisual: HTMLButtonElement;
   declare tabCode: HTMLButtonElement;
+  // 手機：鍵盤上方的擴充列（accessory.ts）；表單時的鍵、程式碼時的鍵，以及程式碼的符號是照哪一種圖表放的
+  declare acc?: Accessory;
+  declare formKeys?: HTMLDivElement;
+  declare codeKeys?: HTMLDivElement;
+  declare codeKind?: string;
   declare kindsEl: HTMLDivElement;
   // 「自由編寫」：目前的內容不是上方任何一種圖表（或還是空白）時標在這一顆
   declare freeBtn: HTMLButtonElement;
@@ -287,6 +295,7 @@ export class MermaidModal extends EditingModal {
       this.setZoom(this.zoom + (e.deltaY < 0 ? 0.25 : -0.25));
     }, { passive: false });
 
+    if (Platform.isPhone) this.phoneBar();
     const bar = buttonBar(this);
     bar.createEl('button', { text: t('取消') }).addEventListener('click', () => { this.closeInline(); this.closeNow(); });
     this.ok = bar.createEl('button', { text: this.opts.existing ? t('套用') : t('插入'), cls: 'mod-cta' });
@@ -366,6 +375,48 @@ export class MermaidModal extends EditingModal {
     for (const b of this.kindsEl.querySelectorAll<HTMLElement>('.wm-mmd-kind[data-kind]')) b.toggleClass('is-active', !!kind && b.dataset.kind === kind.id);
     this.freeBtn.toggleClass('is-active', !kind);
     if (!light) this.tip.toggle(!!this.getModel());
+    this.fillCodeKeys();
+  }
+
+  // 手機：鍵盤上方的擴充列。表單時是上一欄、下一欄；程式碼時是移動游標、縮排與這種圖表常用的符號
+  phoneBar(): void {
+    const acc = this.acc = new Accessory(this.modalEl, iconOr, () => { if (this.tab === 'code') this.ta.focus(); else this.fieldStep(1); });
+    this.formKeys = acc.group('wm-mmd-formkeys', [
+      { icon: 'chevron-left', text: '‹', label: t('上一欄'), run: () => this.fieldStep(-1) },
+      { icon: 'chevron-right', text: '›', label: t('下一欄'), run: () => this.fieldStep(1) },
+    ]);
+    this.codeKeys = acc.group('wm-mmd-codekeys', []);
+    this.codeKeys.hide();
+  }
+  // 程式碼的符號跟著圖表種類換（打程式碼時種類可能變）
+  fillCodeKeys(): void {
+    if (!this.acc || !this.codeKeys) return;
+    const kind = detectKind(this.src);
+    const id = kind ? kind.id : '';
+    if (this.codeKind === id && this.codeKeys.childElementCount) return;
+    this.codeKind = id;
+    const tokens = (kind && kind.keys) || CODE_KEYS;
+    this.acc.fill(this.codeKeys, [
+      { icon: 'arrow-left', text: '←', label: t('游標往前'), run: () => moveCaret(this.ta, -1) },
+      { icon: 'arrow-right', text: '→', label: t('游標往後'), run: () => moveCaret(this.ta, 1) },
+      { icon: 'indent', text: '⇥', label: t('縮排'), run: () => insertAt(this.ta, '    ') },
+      ...tokens.map(tok => ({ text: tok.trim(), label: tok.trim(), run: () => insertAt(this.ta, tok) })),
+    ]);
+  }
+  // 表單裡的下一個（d 是 1）或上一個（-1）可以打字的欄位。下拉選單不算：焦點一放上去 iOS 就打開選擇器
+  fieldStep(d: number): void {
+    const doc = this.modalEl.ownerDocument;
+    const shown = (e: HTMLElement): boolean => {
+      for (let p: HTMLElement | null = e; p && p !== this.visualPane; p = p.parentElement) if (p.hidden || p.style.display === 'none') return false;
+      return true;
+    };
+    const list = Array.from(this.visualPane.querySelectorAll<HTMLElement>('input, textarea'))
+      .filter(e => isTypingTarget(e) && !(e as HTMLInputElement).disabled && shown(e));
+    if (!list.length) return;
+    const i = list.indexOf(doc.activeElement as HTMLElement);
+    const next = list[i < 0 ? (d > 0 ? 0 : list.length - 1) : Math.max(0, Math.min(list.length - 1, i + d))];
+    next.focus();
+    if (typeof next.scrollIntoView === 'function') next.scrollIntoView({ block: 'nearest' });
   }
 
   // 目前的內容是不是還沒動過的範本（內建的或自己存的）：是的話換範本不用先問
@@ -469,6 +520,8 @@ export class MermaidModal extends EditingModal {
     this.tabCode.toggleClass('is-active', tab === 'code');
     this.visualPane.toggle(tab === 'visual');
     this.codePane.toggle(tab === 'code');
+    if (this.formKeys) this.formKeys.toggle(tab === 'visual');
+    if (this.codeKeys) { this.codeKeys.toggle(tab === 'code'); this.fillCodeKeys(); }
     if (tab === 'visual') this.buildVisual(); else { this.ta.value = this.src; if (focus) window.setTimeout(() => this.ta.focus(), 10); }
   }
 

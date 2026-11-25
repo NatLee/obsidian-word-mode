@@ -1931,12 +1931,8 @@ mark.wm-set-find-hl { padding: 0 1px; border-radius: 3px; background: hsla(var(-
    就會被壓扁，內容疊在一起（圖表種類那一排被切掉一半、步驟疊在按鈕底下）。每一塊都維持自己的高度，由對話框捲動 */
 .is-phone .wm-eq > *, .is-phone .wm-mmd > * { flex-shrink: 0; }
 /* 按鈕列在捲動區外面（dialogs.ts 的 buttonBar）：固定在對話框最下面，兩顆按鈕排成一列，少佔一點高度 */
-.is-phone .modal:is(.wm-eq-modal, .wm-mmd-modal) > .modal-button-container { flex: 0 0 auto; flex-direction: row; gap: 8px; padding-block: 8px; border-top: 1px solid var(--background-modifier-border); }
+.is-phone .modal:is(.wm-eq-modal, .wm-mmd-modal) > .modal-button-container { flex: 0 0 auto; flex-direction: row; gap: 8px; padding-block: 8px; border-bottom: 1px solid var(--background-modifier-border); }
 .is-phone .modal:is(.wm-eq-modal, .wm-mmd-modal) > .modal-button-container button { flex: 1 1 0; min-width: 0; margin: 0; }
-/* 螢幕鍵盤開著（body 的 wm-kb-up 與 --wm-kb-cover，見 keyboard.ts）：Obsidian 的對話框不會避開鍵盤，下半段連按鈕
-   都在鍵盤後面。上緣留在原位（平常是置中，上方空出安全區域的一半），下緣收到鍵盤上方 */
-.is-phone.wm-kb-up .modal-container .modal:is(.wm-eq-modal, .wm-mmd-modal) { align-self: flex-start; margin-top: calc(var(--safe-area-inset-top, 0px) / 2); max-height: calc(100vh - var(--safe-area-inset-top, 0px) / 2 - var(--wm-kb-cover, 0px)); }
-.is-phone.wm-kb-up .modal:is(.wm-eq-modal, .wm-mmd-modal) > .modal-button-container { margin-bottom: 0; }
 /* 引言區塊裡的表格：Obsidian 的 .callout-content 會裁掉超出去的部分，表格外框往左讓給列把手的 8px 被切掉一半。
    在引言區塊裡不往左讓，把手留在外框自己的留白裡 */
 .wm-editor .callout-content .tableWrapper { margin-inline-start: 0; }
@@ -2391,3 +2387,45 @@ body.wm-kb-up.wm-native-keys-open .mobile-toolbar-spacer { height: calc(var(--mo
 /* 鍵盤開著、功能區精簡成一列時，切換分頁的按鈕只留圖示（分頁名稱在按下去的選單裡），按鈕列多一點位置 */
 .wm-kb-compact .wm-toolbar button.wm-tab-switch :is(.wm-tab-text, .wm-tab-switch-arrow) { display: none; }
 .wm-mobile.wm-kb-compact .wm-toolbar button.wm-tab-switch, .wm-kb-compact .wm-mobile .wm-toolbar button.wm-tab-switch, .wm-kb-compact .wm-mobile.wm-ribbon .wm-toolbar button.wm-tab-switch { width: 38px; padding: 0; justify-content: center; }
+
+/* ---------- 手機的方程式、圖表編輯器：整個畫面（dialogs.ts、mermaid.ts 的 phoneBar；擴充列在 accessory.ts）----------
+   Obsidian 的對話框置中、不避開螢幕鍵盤，鍵盤一開就被壓扁或推出畫面，收起鍵盤時又跟著跑掉。手機上改成固定在畫面上的
+   編輯器：上緣在安全區域下面，下緣一直貼著鍵盤上緣（--wm-kb-cover，鍵盤收著時是 0）。由上而下：取消、插入的按鈕列，
+   可以捲動的內容，最下面是擴充列（常用的鍵與符號），打字時不用上下捲 */
+.is-phone .modal-container .modal:is(.wm-eq-modal, .wm-mmd-modal) { position: fixed; top: var(--safe-area-inset-top, 0px); left: 0; right: 0; bottom: var(--wm-kb-cover, 0px); width: auto; max-width: none; height: auto; max-height: none; margin: 0; border: none; border-radius: 0; overflow: hidden; display: flex; flex-direction: column; }
+.is-phone .modal:is(.wm-eq-modal, .wm-mmd-modal) > :is(.modal-header, .modal-title, .modal-header-button, .modal-close-button) { display: none; }
+.is-phone .modal:is(.wm-eq-modal, .wm-mmd-modal) > .modal-button-container { order: -1; margin: 0; padding-inline: 12px; }
+.is-phone .modal:is(.wm-eq-modal, .wm-mmd-modal) > .modal-button-container > button.wm-kb-hide { display: none; }
+.is-phone .modal:is(.wm-eq-modal, .wm-mmd-modal) > .modal-content { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-top: 10px; padding-bottom: 12px; }
+
+/* 擴充列：第一列是鍵（左右滑）與最右邊的鍵盤按鈕；方程式的話下面再加符號的分類與一列符號 */
+.wm-acc { order: 1; flex: 0 0 auto; display: flex; flex-direction: column; gap: 4px; padding: 5px 6px calc(5px + var(--safe-area-inset-bottom, 0px)); border-top: 1px solid var(--background-modifier-border); background: var(--background-secondary); }
+.wm-kb-up .wm-acc { padding-bottom: 5px; }
+.wm-acc-row { display: flex; align-items: center; gap: 6px; min-height: 40px; }
+.wm-acc-keys { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 4px; overflow-x: auto; --scrollbar-native-width: none; -webkit-overflow-scrolling: touch; }
+.wm-acc-keys::-webkit-scrollbar { display: none; }
+.wm-acc-group { flex: 0 0 auto; display: flex; align-items: center; gap: 4px; }
+/* 上一格那組（方程式編輯區標題列搬過來的）在擴充列裡靠左 */
+.wm-acc .wm-acc-group.wm-eq-tools { margin-inline-start: 0; gap: 4px; }
+.wm-acc button.wm-acc-key, .wm-acc .wm-acc-group > button.wm-eq-tool { flex: 0 0 auto; min-width: 38px; height: 38px; padding: 0 9px; border: 1px solid var(--background-modifier-border); border-radius: 8px; background: var(--background-primary); box-shadow: none; color: var(--text-normal); font-family: var(--font-monospace); font-size: 15px; white-space: pre; }
+.wm-acc button.wm-acc-key.is-icon { padding: 0; font-family: inherit; }
+.wm-acc button.wm-acc-key:active, .wm-acc .wm-acc-group > button.wm-eq-tool:active { background: var(--background-modifier-hover); }
+.wm-acc .wm-acc-group > .wm-eq-tools-sep { align-self: stretch; width: 1px; margin: 4px 2px; background: var(--background-modifier-border); }
+.wm-acc button.wm-acc-kb { flex: 0 0 44px; width: 44px; height: 38px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border: none; background: transparent; box-shadow: none; color: var(--text-muted); }
+.wm-acc-kb-hide { display: none; }
+.wm-kb-up .wm-acc-kb-hide { display: inline-flex; }
+.wm-kb-up .wm-acc-kb-show { display: none; }
+.wm-acc-kb-show { display: inline-flex; }
+/* 符號：分類一列、符號一列，都是左右滑（原本在對話框中間的卡片） */
+.wm-acc .wm-eq-palbox.wm-acc-palette { padding: 0; border: none; background: transparent; }
+.wm-acc .wm-eq-palbox .wm-eq-cats { border-bottom: none; }
+.wm-acc .wm-eq-palbox .wm-eq-cats button.wm-eq-cat { height: 30px; padding: 0 10px; }
+.wm-acc .wm-eq-palbox .wm-eq-palette { margin: 2px 0 0; padding: 0; min-height: 0; max-height: none; }
+.wm-acc .wm-eq-palbox .wm-eq-items { flex-wrap: nowrap; overflow-x: auto; gap: 5px; --scrollbar-native-width: none; -webkit-overflow-scrolling: touch; }
+.wm-acc .wm-eq-palbox .wm-eq-items::-webkit-scrollbar { display: none; }
+.is-phone .wm-acc .wm-eq-palbox .wm-eq-items > .wm-eq-btn { flex: 0 0 auto; min-height: 40px; }
+.is-phone .wm-acc .wm-eq-palbox .wm-eq-items > .wm-eq-btn.is-struct, .is-phone.wm-kb-up .wm-acc .wm-eq-palbox .wm-eq-items > .wm-eq-btn.is-struct { flex: 0 0 auto; min-width: 54px; max-width: none; height: 48px; min-height: 0; padding: 3px 8px; }
+.wm-acc .wm-eq-items > .wm-eq-btn.is-struct .wm-eq-btn-label, .wm-acc .wm-eq-items > .wm-eq-btn.is-formula .wm-eq-btn-label { display: none; }
+/* 編輯區不用再固定在上方（符號不在中間了），內容短，整個看得到 */
+.is-phone .modal.wm-eq-modal .wm-eq-editor { position: static; box-shadow: none; }
+
