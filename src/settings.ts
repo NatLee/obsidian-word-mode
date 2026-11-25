@@ -41,6 +41,9 @@ export interface Settings {
   // ---- 拖曳移動游標（手機、平板；toolbar.ts 的 caretPad、loupe.ts）：整列按鈕當觸控板、按住多久開始、移動速度（1 慢～5 快）、
   // 放大鏡要不要顯示、倍率、寬度、外觀
   padRow: boolean;
+  // 手機上字數、存檔狀態、檢視切換、文件屬性放在哪裡：header 是右上角（文件屬性）與「⋯」選單（字數統計、閱讀模式），
+  // 畫面下方不放狀態列；bar 是畫面下方的狀態列（1.37 以前的樣子）
+  phoneStatus: 'header' | 'bar';
   // 控制鍵列（keyrow.ts，手機、平板）：要不要放開關、要顯示哪些鍵（KeyId）、上次是不是開著（不在設定頁上，開關時記下來）
   keyRow: boolean;
   keyRowKeys: string[];
@@ -159,6 +162,7 @@ export const DEFAULTS: Settings = {
   readingLite: true,
   padRow: true,
   keyRow: true,
+  phoneStatus: 'header',
   keyRowKeys: ['esc', 'tab', 'mod', 'shift', 'left', 'up', 'down', 'right', 'home', 'end'],
   keyRowOpen: false,
   padHold: 300,

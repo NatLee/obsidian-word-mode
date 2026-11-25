@@ -9,10 +9,10 @@ import { autoformatOptions } from './autoformat.js';
 import { MarkdownConverter } from './markdown.js';
 import { WordModeView, VIEW_TYPE } from './view.js';
 import { OutlineView, OUTLINE_TYPE } from './outline.js';
-import { MarkdownBar, mdToolbarMode, wantsMdBar } from './mdbar.js';
+import { MarkdownBar, mdToolbarMode, openMarkdownPeek, wantsMdBar } from './mdbar.js';
 import { NativeBar } from './nativebar.js';
 import { KeyboardWatch } from './keyboard.js';
-import { MdStatusBar } from './statusbar.js';
+import { MdStatusBar, mdWordCount } from './statusbar.js';
 import { closePropsPeek } from './propview.js';
 import { cleanTemplates } from './templates.js';
 import type { Command, Editor, MarkdownViewModeType, View, ViewState } from 'obsidian';
@@ -74,6 +74,8 @@ export default class WordModePlugin extends Plugin {
   declare converter: MarkdownConverter;
   declare forceMarkdown: WeakMap<WorkspaceLeaf, string>;
   declare mdActions: Map<MarkdownView, HTMLElement>;
+  // 手機：Markdown 檢視右上角的「查看文件屬性」
+  declare mdPropsActions: Map<MarkdownView, HTMLElement>;
   declare zoomSave: number | undefined;
   declare history: Map<string, HistoryEntry>;
   declare mdBars: Map<MarkdownView, MarkdownBar>;
@@ -106,6 +108,7 @@ export default class WordModePlugin extends Plugin {
     this.converter = new MarkdownConverter();
     this.forceMarkdown = new WeakMap(); // leaf -> 使用者手動切回 Markdown 的檔案路徑
     this.mdActions = new Map();
+    this.mdPropsActions = new Map();
     this.history = new Map(); // 檔案路徑 → 編輯狀態（切換模式時保留復原紀錄）
     // 手機、平板：量螢幕鍵盤蓋住多少，檢視與對話框依此讓出位置。各家裝置、輸入法回報的高度不一樣，
     // 版面不對時要有實際的數字才查得出來，所以附一個把量到的數字複製出來的指令
@@ -175,6 +178,11 @@ export default class WordModePlugin extends Plugin {
 
     this.registerEvent(this.app.workspace.on('file-menu', (menu, file, source, leaf) => {
       if (!(file instanceof TFile) || file.extension !== 'md') return;
+      // 手機的 Markdown／閱讀模式：右上角「⋯」選單加上字數統計（原本在畫面下方的狀態列；Word 模式的在 view.ts 的 onPaneMenu）
+      const mdv = leaf && leaf.view instanceof MarkdownView ? leaf.view : null;
+      if (Platform.isPhone && source === 'more-options' && mdv) {
+        menu.addItem(i => i.setTitle(t('字數統計')).setIcon('text').setSection('pane').onClick(() => mdWordCount(this, mdv)));
+      }
       menu.addItem(i => i.setTitle(t('以 Word 模式開啟')).setIcon('file-text').setSection('open').onClick(async () => {
         const l = leaf && leaf.view && (leaf.view as LeafView).file === file ? leaf : this.app.workspace.getLeaf(false);
         this.forceMarkdown.delete(l);
@@ -193,11 +201,18 @@ export default class WordModePlugin extends Plugin {
       // 已經關掉的檢視從紀錄裡拿掉，不然每開過一份筆記就多留一個檢視（連同它的編輯器）在記憶體裡
       const open = new Set<unknown>(leaves.map(leaf => leaf.view));
       for (const v of [...this.mdActions.keys()]) if (!open.has(v)) this.mdActions.delete(v);
+      for (const v of [...this.mdPropsActions.keys()]) if (!open.has(v)) this.mdPropsActions.delete(v);
       leaves.forEach(leaf => {
         const v = leaf.view;
         if (!(v instanceof MarkdownView) || this.mdActions.has(v)) return;
         const btn = v.addAction('file-text', this.settings.ctrlE !== false ? withKey('切換到 Word 模式', 'Mod+E') : t('切換到 Word 模式'), () => this.switchToWord(leaf));
         this.mdActions.set(v, btn);
+        // 手機：文件屬性也放在右上角，跟 Word 模式一樣（設定 phoneStatus 是 bar 時藏起來）
+        if (Platform.isPhone) {
+          const pb = v.addAction('clipboard-list', t('查看文件屬性'), () => openMarkdownPeek(this, v, pb));
+          pb.toggle(this.settings.phoneStatus !== 'bar');
+          this.mdPropsActions.set(v, pb);
+        }
       });
     };
     this.registerEvent(this.app.workspace.on('layout-change', addActions));
@@ -281,6 +296,8 @@ export default class WordModePlugin extends Plugin {
     for (const b of this.mdBars.values()) b.destroy();
     this.mdBars.clear();
     for (const [, btn] of this.mdActions) btn.remove();
+    for (const [, btn] of this.mdPropsActions) btn.remove();
+    this.mdPropsActions.clear();
     this.mdActions.clear();
     if (this.restoreSetViewState) this.restoreSetViewState();
     this.app.workspace.getLeavesOfType(VIEW_TYPE).forEach(leaf => {
@@ -320,6 +337,8 @@ export default class WordModePlugin extends Plugin {
 
   // 設定改變：重建所有工具列
   refreshToolbars(): void {
+    // 手機右上角的「查看文件屬性」跟著設定 phoneStatus
+    for (const b of this.mdPropsActions.values()) b.toggle(this.settings.phoneStatus !== 'bar');
     for (const v of this.views()) v.buildToolbar();
     if (this.nativeBar) this.nativeBar.refresh();
     for (const b of this.mdBars.values()) b.destroy();

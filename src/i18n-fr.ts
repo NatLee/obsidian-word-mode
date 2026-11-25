@@ -1327,4 +1327,9 @@ export default {
  "取消勾選用不到的鍵，控制鍵列就短一點，不用左右捲。": "Décochez les touches inutiles : la rangée est plus courte et n’a plus besoin de défiler.",
  "在「收起鍵盤」左邊放一顆開關（鍵盤開著時才出現），按下去在工具列上方展開一排螢幕鍵盤沒有的鍵：Esc、Tab、Ctrl（Apple 的裝置是 ⌘）、Shift、方向鍵、Home、End。Ctrl、Shift 點一下作用在下一個鍵，連點兩下鎖住；Ctrl 開著時用鍵盤打字母就是快速鍵（例如 Ctrl＋B 粗體）。方向鍵按住不放會連續移動。Word 模式與 Markdown 編輯都能用，包括 Obsidian 自己的工具列。": "Place un interrupteur à gauche de « Masquer le clavier » (visible seulement quand le clavier est ouvert). Il ouvre au-dessus de la barre d’outils une rangée de touches absentes du clavier virtuel : Échap, Tab, Ctrl (⌘ sur les appareils Apple), Maj, flèches, Début et Fin. Touchez Ctrl ou Maj une fois pour la touche suivante, deux fois pour la verrouiller ; avec Ctrl actif, taper une lettre lance le raccourci (Ctrl+B pour le gras, par exemple). Maintenez une flèche pour continuer à avancer. Fonctionne en mode Word et en édition Markdown, y compris sur la barre d’outils d’Obsidian.",
  "＋ 段落": "+ Paragraphe",
+ "第 {l} 行，第 {c} 字": "Ligne {l}, caractère {c}",
+ "手機上的字數與文件屬性": "Nombre de mots et propriétés sur téléphone",
+ "「放到右上角」：文件屬性是右上角的一顆按鈕，字數統計與閱讀模式在右上角的「⋯」選單裡，畫面下方不放狀態列，編輯區比較大。「畫面下方的狀態列」：跟 1.37 以前一樣，放在工具列下方。只影響手機。": "« En haut à droite » : les propriétés deviennent un bouton en haut à droite, le nombre de mots et le mode lecture passent dans le menu « ⋯ » en haut à droite. Pas de barre d’état en bas, l’éditeur a plus de place. « Barre d’état en bas » : comme avant la 1.37, sous la barre d’outils. Téléphones uniquement.",
+ "放到右上角與「⋯」選單（建議）": "En haut à droite et menu « ⋯ » (recommandé)",
+ "畫面下方的狀態列": "Barre d’état en bas",
 };

@@ -261,13 +261,17 @@ export class MdStatusBar {
     } catch { return countText(text); }
   }
 
-  openWordCount(): void {
-    const c = this.plugin.converter;
-    let text = '';
-    try { text = this.view.getViewData(); } catch { return; }
-    try {
-      const sel = this.mode === 'source' && this.view.editor ? this.view.editor.getSelection() : '';
-      showWordCount(this.plugin.app, this.plugin.settings.countMethod, docStats(c.parse(text).doc), sel ? docStats(c.parseFragment(sel)) : null, () => text, () => sel);
-    } catch (e) { console.error('[Word 模式] 無法統計字數', e); }
-  }
+  openWordCount(): void { mdWordCount(this.plugin, this.view); }
+}
+
+// Markdown／閱讀模式的字數統計（狀態列的字數、手機「⋯」選單的「字數統計」）：原文轉成 Word 模式的文件再算，數字跟 Word 模式一樣
+export function mdWordCount(plugin: WordModePlugin, view: MarkdownView): void {
+  const c = plugin.converter;
+  let text = '';
+  try { text = view.getViewData(); } catch { return; }
+  try {
+    const source = !view.getMode || view.getMode() === 'source';
+    const sel = source && view.editor ? view.editor.getSelection() : '';
+    showWordCount(plugin.app, plugin.settings.countMethod, docStats(c.parse(text).doc), sel ? docStats(c.parseFragment(sel)) : null, () => text, () => sel);
+  } catch (e) { console.error('[Word 模式] 無法統計字數', e); }
 }

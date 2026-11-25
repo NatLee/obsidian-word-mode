@@ -11,7 +11,7 @@ import { iconOr } from './icons.js';
 import { t } from './i18n.js';
 import { KeyRow, keyRowKeys } from './keyrow.js';
 import { installTrackpad, padHold } from './trackpad.js';
-import { editorKeyMove, editorStep } from './mdbar.js';
+import { editorKeyMove, editorStep, padPosition } from './mdbar.js';
 import type WordModePlugin from './main.js';
 
 export class NativeBar {
@@ -61,12 +61,14 @@ export class NativeBar {
     // 觸控板只裝一次（事件拿不掉）；設定關掉時 focused() 回傳 false，不會啟動
     if (list && !list.dataset.wmPad) {
       list.dataset.wmPad = 'true';
+      let pos: ReturnType<typeof padPosition> | null = null;
       installTrackpad(list, () => padHold(this.plugin.settings.padHold), {
         focused: () => { const ed = this.editor(); return this.plugin.settings.padRow !== false && !!ed && ed.hasFocus(); },
         speed: () => this.plugin.settings.padSpeed,
-        begin: () => { /* 沒有放大鏡 */ },
-        step: (nx, ny) => { const ed = this.editor(); if (ed) editorStep(ed, nx, ny); },
-        end: () => { /* 沒有要收的東西 */ },
+        // 沒有放大鏡：工具列上方顯示游標的位置與旁邊的字（mdbar.ts 的 padPosition）
+        begin: () => { const ed = this.editor(); pos = ed ? padPosition(list, ed) : null; },
+        step: (nx, ny) => { const ed = this.editor(); if (ed) editorStep(ed, nx, ny); if (pos) pos.update(); },
+        end: () => { if (pos) { pos.remove(); pos = null; } },
       });
     }
   }

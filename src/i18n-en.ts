@@ -1327,4 +1327,9 @@ export default {
  "取消勾選用不到的鍵，控制鍵列就短一點，不用左右捲。": "Uncheck keys you don’t use so the row is shorter and doesn’t need scrolling.",
  "在「收起鍵盤」左邊放一顆開關（鍵盤開著時才出現），按下去在工具列上方展開一排螢幕鍵盤沒有的鍵：Esc、Tab、Ctrl（Apple 的裝置是 ⌘）、Shift、方向鍵、Home、End。Ctrl、Shift 點一下作用在下一個鍵，連點兩下鎖住；Ctrl 開著時用鍵盤打字母就是快速鍵（例如 Ctrl＋B 粗體）。方向鍵按住不放會連續移動。Word 模式與 Markdown 編輯都能用，包括 Obsidian 自己的工具列。": "Puts a switch to the left of “Hide keyboard” (it only shows while the keyboard is up). It opens a row above the toolbar with keys the on-screen keyboard lacks: Esc, Tab, Ctrl (⌘ on Apple devices), Shift, arrow keys, Home and End. Tap Ctrl or Shift once for the next key, twice to lock it; with Ctrl on, typing a letter runs the shortcut (Ctrl+B for bold, for example). Hold an arrow key to keep moving. Works in Word mode and in Markdown editing, including on Obsidian’s own toolbar.",
  "＋ 段落": "+ Paragraph",
+ "第 {l} 行，第 {c} 字": "Line {l}, character {c}",
+ "手機上的字數與文件屬性": "Word count and properties on phones",
+ "「放到右上角」：文件屬性是右上角的一顆按鈕，字數統計與閱讀模式在右上角的「⋯」選單裡，畫面下方不放狀態列，編輯區比較大。「畫面下方的狀態列」：跟 1.37 以前一樣，放在工具列下方。只影響手機。": "“Top right”: properties are a button in the top-right corner, and word count and reading view are in the top-right “⋯” menu. There is no status bar at the bottom, so the editor gets more room. “Status bar at the bottom”: as before 1.37, below the toolbar. Phones only.",
+ "放到右上角與「⋯」選單（建議）": "Top right and the “⋯” menu (recommended)",
+ "畫面下方的狀態列": "Status bar at the bottom",
 };

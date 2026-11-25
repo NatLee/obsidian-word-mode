@@ -9,7 +9,7 @@ import { CODE_LANGUAGES } from './commands.js';
 import { el } from './dom.js';
 import { iconOr } from './icons.js';
 import { frontmatterOf, peekData } from './props.js';
-import { openPropsPeek, closePropsPeek, propertyWidget } from './propview.js';
+import { closePropsPeek, propertyWidget, showProps } from './propview.js';
 import { ACTIONS as A, RibbonShell, ribbonClass } from './ribbon.js';
 import type { ButtonClick, MenuItem, RibbonAction, RibbonButton, TabId } from './ribbon.js';
 import type { App, Editor, EditorPosition, MarkdownViewModeType } from 'obsidian';
@@ -160,7 +160,7 @@ export class MarkdownBar {
 
   // 手機的狀態列：要有的時候放在檢視最下面（工具列在下方時就在工具列下面）；換了編輯／閱讀模式重建（按鈕不一樣）
   syncStatus(): void {
-    const want = !!Platform.isPhone && this.plugin.settings.mdStatusBar !== false && !!this.view.file && /\.md$/i.test(this.view.file.path);
+    const want = !!Platform.isPhone && this.plugin.settings.phoneStatus === 'bar' && this.plugin.settings.mdStatusBar !== false && !!this.view.file && /\.md$/i.test(this.view.file.path);
     if (!want) {
       if (this.statusWrap) { this.statusWrap.remove(); this.statusWrap = null; this.status = null; this.statusKey = ''; }
       this.dom.removeClass('has-status');
@@ -185,14 +185,16 @@ export class MarkdownBar {
   // 工具列當觸控板（trackpad.ts）：跟 Word 模式一樣，分頁選單按鈕直接拖、整列按鈕按住一下再拖；用 Obsidian 編輯器的指令移動
   trackpad(shell: RibbonShell): void {
     const S = this.plugin.settings;
+    let pos: ReturnType<typeof padPosition> | null = null;
     const hooks: TrackpadHooks = {
       focused: () => !this.isReading() && !!this.view.editor && this.view.editor.hasFocus(),
       speed: () => this.plugin.settings.padSpeed,
       moved: m => { this.padMoved = m; },
       skip: '.wm-tab-switch',
-      begin: () => { /* Markdown 模式沒有放大鏡 */ },
-      step: (nx, ny) => editorStep(this.view.editor, nx, ny),
-      end: () => { /* 沒有要收的東西 */ },
+      // Markdown 模式沒有放大鏡：工具列上方顯示游標的位置與旁邊的字
+      begin: () => { pos = padPosition(shell.bar, this.view.editor); },
+      step: (nx, ny) => { editorStep(this.view.editor, nx, ny); if (pos) pos.update(); },
+      end: () => { if (pos) { pos.remove(); pos = null; } },
     };
     if (shell.tabSwitch) installTrackpad(shell.tabSwitch, 0, hooks);
     if (S.padRow !== false) installTrackpad(shell.bar, () => padHold(this.plugin.settings.padHold), hooks);
@@ -420,7 +422,7 @@ export function openMarkdownPeek(plugin: WordModePlugin, view: MarkdownView, btn
   // 有屬性：捲到最上方（Obsidian 把屬性顯示在那裡）；沒有屬性：編輯模式才能新增
   const go = data.kind !== 'none' ? () => { try { view.currentMode.applyScroll(0); } catch { /* 沒有捲動的方法 */ } }
     : reading ? null : () => addMarkdownProperty(plugin, view);
-  openPropsPeek(btn, data, {
+  showProps(plugin.app, btn, data, {
     icon: iconOr,
     typeHint: k => propertyWidget(plugin.app, k), go, isMobile: !!Platform.isMobile,
   });
@@ -475,4 +477,34 @@ function offsetBy(ed: Editor, pos: EditorPosition, n: number): EditorPosition {
   const last = ed.lastLine();
   const end = ed.posToOffset({ line: last, ch: ed.getLine(last).length });
   return ed.offsetToPos(Math.max(0, Math.min(ed.posToOffset(pos) + n, end)));
+}
+
+// 在 Obsidian 的編輯器裡拖曳移動游標（觸控板）時的位置提示：工具列上方一顆膠囊，寫出第幾行、第幾字，
+// 以及游標前後幾個字（中間畫一條游標）。Word 模式有放大鏡；Markdown 模式的編輯器是 Obsidian 的，沒辦法複製一段放大，用這個代替
+const PAD_AROUND = 10;
+export function padPosition(bar: HTMLElement, ed: Editor): { update(): void; remove(): void } {
+  const doc = bar.ownerDocument;
+  const pill = el('div', 'wm-pad-pos', doc.body);
+  pill.setAttribute('aria-hidden', 'true');
+  const where = el('span', 'wm-pad-pos-where', pill);
+  const text = el('span', 'wm-pad-pos-text', pill);
+  const update = (): void => {
+    const head = ed.getCursor('head');
+    const line = ed.getLine(head.line);
+    where.setText(t('第 {l} 行，第 {c} 字', { l: String(head.line + 1), c: String(head.ch) }));
+    text.replaceChildren();
+    const before = line.slice(Math.max(0, head.ch - PAD_AROUND), head.ch);
+    const after = line.slice(head.ch, head.ch + PAD_AROUND);
+    text.appendText((head.ch > PAD_AROUND ? '…' : '') + before);
+    el('span', 'wm-pad-pos-caret', text);
+    text.appendText(after + (line.length > head.ch + PAD_AROUND ? '…' : ''));
+    // 放在工具列上方、水平置中（工具列在畫面下方，膠囊不會被手指擋住）
+    const r = bar.getBoundingClientRect();
+    pill.style.left = Math.round(r.left + r.width / 2) + 'px';
+    // 工具列放在上方時上面沒有位置，改放在工具列下方
+    const above = r.top - pill.offsetHeight - 8;
+    pill.style.top = Math.round(above >= 8 ? above : r.bottom + 8) + 'px';
+  };
+  update();
+  return { update, remove: () => pill.remove() };
 }

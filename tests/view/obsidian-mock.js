@@ -40,7 +40,7 @@ export class Menu {
 }
 export class Modal {
   constructor(app) { this.app = app; this.titleEl = document.createElement('div'); this.contentEl = document.createElement('div'); this.modalEl = document.createElement('div'); }
-  open() { Modal.last = this; document.body.appendChild(this.contentEl); this.onOpen(); }
+  open() { Modal.last = this; document.body.appendChild(this.contentEl); if (this.onOpen) this.onOpen(); }
   close() { this.contentEl.remove(); this.onClose && this.onClose(); }
 }
 export class FuzzySuggestModal extends Modal { setPlaceholder() {} open() { FuzzySuggestModal.last = this; } }
