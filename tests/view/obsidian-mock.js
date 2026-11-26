@@ -33,7 +33,7 @@ export class FileSystemAdapter { getFullPath(p) { return '/vault/' + p; } }
 export class Notice { constructor(m) { log.push(['notice', m]); } }
 export class Menu {
   constructor() { this.items = []; }
-  addItem(f) { const it = { title: '', disabled: false, setTitle(t) { this.title = t; return this; }, setIcon() { return this; }, setSection() { return this; }, onClick(fn) { this.fn = fn; return this; }, setDisabled(d) { this.disabled = d; return this; }, setSubmenu() { this.submenu = new Menu(); return this.submenu; } }; f(it); this.items.push(it); return this; }
+  addItem(f) { const it = { title: '', disabled: false, setTitle(t) { this.title = t; return this; }, setIcon() { return this; }, setSection() { return this; }, onClick(fn) { this.fn = fn; return this; }, setDisabled(d) { this.disabled = d; return this; }, setChecked(c) { this.checked = c; return this; }, setSubmenu() { this.submenu = new Menu(); return this.submenu; } }; f(it); this.items.push(it); return this; }
   addSeparator() { return this; }
   showAtMouseEvent() { Menu.last = this; }
   showAtPosition() { Menu.last = this; }

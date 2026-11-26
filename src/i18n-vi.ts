@@ -61,6 +61,8 @@ export default {
  "取代為…": "Thay bằng…",
  "全部取代": "Thay thế tất cả",
  "找不到": "Không có kết quả",
+ "尋找選項": "Tùy chọn tìm",
+ "點一下選大小，再點一下插入": "Chạm để chọn kích thước, chạm lần nữa để chèn",
  "已取代 {n} 處": "Đã thay {n} chỗ",
  "展開": "Mở rộng",
  "摺疊": "Thu gọn",

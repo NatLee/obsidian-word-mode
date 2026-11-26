@@ -3,7 +3,7 @@
 // 比鍵盤實際的高度小（iPhone 17 Pro、iOS 26 的注音鍵盤）。這裡把拿得到的來源都量一遍、取最大的：
 // visualViewport 變矮了多少、Obsidian 的 --keyboard-height、鍵盤升起事件帶的高度。
 // 結果寫在 body 的 --wm-kb-cover 與 wm-kb-up，樣式表與 Word 模式的檢視（view.ts 的 syncKeyboard）各自讓出位置
-import { layoutHeight, visibleBottom } from './dom.js';
+import { centerInScroller, layoutHeight, visibleBottom } from './dom.js';
 
 // 鍵盤升起、收起時 Obsidian 的 app 送到 window 的事件；高度是原生端量的，不一定有
 interface KeyboardEventLike extends Event { keyboardHeight?: unknown; }
@@ -128,7 +128,7 @@ export class KeyboardWatch {
     if (!this.open || !a || !a.closest('.modal')) return;
     if (!(vv && vv.offsetTop > 0) && !(win.scrollY > 0)) return;
     win.scrollTo(0, 0);
-    win.requestAnimationFrame(() => { if (a.isConnected) a.scrollIntoView({ block: 'center' }); });
+    win.requestAnimationFrame(() => { if (a.isConnected) centerInScroller(a); });
   }
 
   private apply(cover: number, open: boolean): void {
@@ -147,7 +147,7 @@ export class KeyboardWatch {
     for (const fn of Array.from(this.subs)) fn();
     // 對話框變矮之後，正在打字的欄位可能跑到看不到的地方
     const a = this.win.document.activeElement;
-    if (open && a && a.closest('.modal')) this.win.requestAnimationFrame(() => { if (a.isConnected) a.scrollIntoView({ block: 'center' }); });
+    if (open && a && a.closest('.modal')) this.win.requestAnimationFrame(() => { if (a.isConnected) centerInScroller(a); });
   }
 
   // 目前量得到的數字（一行）

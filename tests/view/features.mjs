@@ -1462,6 +1462,40 @@ await fresh('---\ntags:\n  - 會議\n  - 專案\ndate: 2026-11-16\ndone: false\n
       at('print');
       assert(B.C.typingCode(pm.state), 'typingCode：游標在程式碼區塊裡');
     }
+    // 尋找列（手機）：選項收進「選項」鈕；有選項開著時它會亮；在尋找框打字時檢視加上 wm-finding（樣式表藏起編輯功能區）
+    {
+      const fb = view.findBar;
+      const more = fb.dom.querySelector('.wm-find-more');
+      assert(more && !fb.dom.classList.contains('is-opts'), '尋找列有「選項」鈕，選項一開始收起來');
+      more.click();
+      assert(fb.dom.classList.contains('is-opts'), '按「選項」展開選項');
+      more.click();
+      fb.open();
+      fb.showReplace(false);
+      assert(!more.classList.contains('is-active'), '沒有選項開著時「選項」鈕不亮');
+      fb.caseBtn.click();
+      assert(more.classList.contains('is-active'), '區分大小寫開著時「選項」鈕亮起來');
+      fb.caseBtn.click();
+      assert(!more.classList.contains('is-active'), '選項都關掉時「選項」鈕不亮');
+      fb.input.focus();
+      assert(view.contentEl.classList.contains('wm-finding'), '焦點在尋找框：檢視加上 wm-finding');
+      fb.close();
+      assert(!view.contentEl.classList.contains('wm-finding'), '關掉尋找列：拿掉 wm-finding');
+      const css = (await import('node:fs')).readFileSync(new URL('../../styles/word-mode.css', import.meta.url), 'utf8');
+      assert(css.includes('.wm-mobile.wm-finding > .wm-toolbar-host { display: none; }'), '樣式表：在尋找框打字時藏起編輯功能區');
+    }
+    // 表格的儲存格裡關掉自動修正、方程式後面不自動大寫（手機）
+    {
+      await view.loadFile(view.file, '| A | B |\n| --- | --- |\n| 1 | 2 |\n');
+      let cell = 0; pm.state.doc.descendants((n, pos) => { if (!cell && n.isText && n.text === '1') cell = pos + 1; });
+      pm.dispatch(pm.state.tr.setSelection(B.TextSelection.create(pm.state.doc, cell)));
+      assert(B.C.typingInCell(pm.state), 'typingInCell：游標在儲存格裡');
+      const was = mock.Platform.isMobile;
+      mock.Platform.isMobile = true;
+      assert(view.editorAttrs(pm.state).autocorrect === 'off', '手機：儲存格裡不自動修正');
+      mock.Platform.isMobile = was;
+      assert(view.editorAttrs(pm.state).autocorrect === undefined, '桌機：儲存格裡照常');
+    }
     // 往上滑的按鍵：行動裝置的功能區才有；點一下是原本的功能，往上滑再放開是另一個
     {
       const host = document.body.appendChild(document.createElement('div'));

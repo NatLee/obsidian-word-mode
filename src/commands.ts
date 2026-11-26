@@ -816,6 +816,17 @@ export function typingCode(state: EditorState): boolean {
   return !!M.code.isInSet(state.storedMarks || $from.marks());
 }
 
+// 游標在表格的儲存格裡。手機的鍵盤看不出儲存格之間的分界，會把相鄰兩格的字當成一個字來自動修正（例如「NameQty」），
+// view.ts 在這裡關掉自動修正
+export function typingInCell(state: EditorState): boolean {
+  const { $from } = state.selection;
+  for (let d = $from.depth; d > 0; d--) {
+    const role = $from.node(d).type.spec.tableRole as string | undefined;
+    if (role === 'cell' || role === 'header_cell') return true;
+  }
+  return false;
+}
+
 // 用一對括號或引號把選取的內容包起來，選取範圍留在裡面；沒有選取時插入一對，游標停在中間
 export function wrapPair(open: string, close: string): Command {
   return (state, dispatch) => {

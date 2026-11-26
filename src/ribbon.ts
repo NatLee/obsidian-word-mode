@@ -239,6 +239,8 @@ export type ButtonClick = (e: MouseEvent, btn: HTMLButtonElement) => void;
 export interface MenuItem {
   title: string;
   icon?: string;
+  // 目前選中的項目（例如切換分頁選單裡現在的分頁），選單上打勾
+  checked?: boolean;
   run: () => void;
 }
 
@@ -299,6 +301,7 @@ export class RibbonShell {
   declare contextNames: Partial<Record<ContextTabId, string>>;
   // 分頁收成選單時的選單按鈕
   declare tabSwitch: HTMLButtonElement | null;
+  declare curTab: AnyTabId | null;
   declare groups: GroupBodies;
   // 全部排在一起的版面：已經放過的功能（按鈕的 title）
   declare seen: Set<string>;
@@ -331,6 +334,7 @@ export class RibbonShell {
     this.tabNames = {};
     this.contextNames = {};
     this.tabSwitch = null;
+    this.curTab = null;
     this.groups = {};
     this.seen = new Set();
     this.byTitle = o.isMobile ? new Map() : null;
@@ -339,6 +343,10 @@ export class RibbonShell {
       // 捲到頭再滑一下就把側邊欄拉出來；在分頁按鈕上拖曳移動游標時也會被它搶走（往下拖一下放大鏡就不見）。
       // 功能區上的滑動都是給功能區自己用的，整條標起來；筆記內容上的滑動不受影響，側邊欄照樣滑得出來
       root.dataset.ignoreSwipe = 'true';
+      // 按鈕列左右捲得動、後面還有按鈕時加上 wm-scroll-more，樣式表在尾端淡出一段：不然看不出右邊還藏著按鈕
+      this.bar.addEventListener('scroll', () => this.syncScrollHint(), { passive: true });
+      const win = root.ownerDocument.defaultView;
+      if (win && 'ResizeObserver' in win) new win.ResizeObserver(() => this.syncScrollHint()).observe(this.bar);
       this.swipeKeys();
       // 收起鍵盤：放在功能區最外層、疊在按鈕列的結尾（樣式表用 absolute），不跟著按鈕左右捲。
       // 放在按鈕列裡用 sticky 的話，按鈕列一捲它就跟著跑（面板本身比按鈕列寬，它的原位不在內容的最後面）
@@ -372,7 +380,7 @@ export class RibbonShell {
       this.icon(el('span', 'wm-tab-switch-arrow', sw), 'chevron-down', '▾');
       keepFocus(sw);
       sw.addEventListener('click', () => o.openMenu(sw, [...TABS.map(([id]) => id), ...CONTEXT_TABS].filter(id => this.tabNames[id] != null)
-        .map(id => ({ title: this.tabNames[id]!, icon: TAB_ICONS[id], run: () => o.pickTab(id) }))));
+        .map(id => ({ title: this.tabNames[id]!, icon: TAB_ICONS[id], checked: id === this.curTab, run: () => o.pickTab(id) }))));
       this.tabSwitch = sw;
       for (const [id, label] of TABS) {
         const panel = el('div', 'wm-panel', this.bar);
@@ -435,8 +443,16 @@ export class RibbonShell {
     if (show) this.tabNames[id] = name; else delete this.tabNames[id];
   }
 
+  syncScrollHint(): void {
+    const b = this.bar;
+    // 介面由右到左時 scrollLeft 是 0 到負數
+    b.classList.toggle('wm-scroll-more', b.scrollWidth - b.clientWidth - Math.abs(b.scrollLeft) > 4);
+  }
+
   // 顯示某個分頁的面板，並更新分頁按鈕（或選單按鈕）的樣子
   showTab(id: AnyTabId): void {
+    this.curTab = id;
+    this.syncScrollHint();
     for (const [k, p] of Object.entries(this.panels)) p.classList.toggle('is-hidden', k !== id);
     for (const [k, b] of Object.entries(this.tabBtns)) b.classList.toggle('is-active', k === id);
     if (this.tabSwitch) {

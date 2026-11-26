@@ -2,7 +2,7 @@
 // 手機上這兩個對話框是整個畫面的編輯器（樣式表的「手機的方程式、圖表編輯器：整個畫面」）：最上面是取消、插入，
 // 中間捲動，最下面是這一列。常用的鍵與符號放在這裡，打字時不用上下捲對話框去找。
 // 最右邊的鍵盤按鈕：鍵盤開著時收起來，收著時叫出來（焦點放回剛才打字的欄位）；收起鍵盤時編輯器整個留著
-import { el, hideKeyboard, keepFocus } from './dom.js';
+import { centerInScroller, el, hideKeyboard, keepFocus } from './dom.js';
 import { isTypingTarget } from './keyboard.js';
 import { t } from './i18n.js';
 
@@ -101,7 +101,8 @@ export function stepField(root: HTMLElement, d: number): void {
   const i = list.indexOf(doc.activeElement as HTMLElement);
   const next = list[i < 0 ? (d > 0 ? 0 : list.length - 1) : Math.max(0, Math.min(list.length - 1, i + d))];
   next.focus();
-  if (typeof next.scrollIntoView === 'function') next.scrollIntoView({ block: 'nearest' });
+  // 只捲對話框自己：scrollIntoView 會連畫面一起往上推（見 dom.ts 的 centerInScroller）
+  centerInScroller(next);
 }
 
 // 現在有焦點、可以插入文字的欄位（文字欄位或多行文字；日期、數字欄位不能設定游標位置）

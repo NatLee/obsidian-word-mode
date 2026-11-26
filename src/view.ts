@@ -694,6 +694,20 @@ export class WordModeView extends TextFileView {
     this.pin.classList.remove('is-shown');
   }
 
+  // 編輯器元素的屬性。拼字檢查跟著 Obsidian 的設定（設定 → 編輯器 → 拼字檢查）。手機、平板的鍵盤另外調整：
+  // - 游標在程式碼裡：不要自動大寫、自動修正（程式碼打什麼就是什麼）
+  // - 游標在表格的儲存格裡：不要自動修正（鍵盤會把相鄰兩格的字連成一個字來改）
+  // - 游標緊接在方程式這類不是文字的東西後面：不要自動大寫（鍵盤看不到前面的字，以為是句子開頭）
+  editorAttrs(st: EditorState): Record<string, string> {
+    const attrs: Record<string, string> = { class: 'wm-editor', spellcheck: this.spellcheckOn() ? 'true' : 'false' };
+    if (!Platform.isMobile) return attrs;
+    if (C.typingCode(st)) return Object.assign(attrs, { spellcheck: 'false', autocapitalize: 'off', autocorrect: 'off' });
+    if (C.typingInCell(st)) attrs.autocorrect = 'off';
+    const before = st.selection.empty ? st.selection.$from.nodeBefore : null;
+    if (before && before.isInline && !before.isText && before.type.name !== 'hard_break') attrs.autocapitalize = 'off';
+    return attrs;
+  }
+
   // 編輯器要把游標捲進畫面時：游標被上方的屬性列蓋住，就多往上捲一點讓它露出來。
   // ProseMirror 只知道捲動區的上緣，不知道上面有東西蓋著；回傳 false 交給 ProseMirror 原本的捲動
   scrollPastProps(v: EditorView): boolean {
@@ -1251,7 +1265,9 @@ export class WordModeView extends TextFileView {
         dom.classList.add('wm-flash');
         window.setTimeout(() => dom.classList.remove('wm-flash'), 1200);
       } else v.dispatch(v.state.tr.scrollIntoView());
-      v.focus();
+      // 手機、平板鍵盤收著時（在瀏覽、用大綱跳段落）不要叫出鍵盤蓋掉半個畫面；游標已經移過去，點一下就能打字
+      const kb = this.plugin.keyboard;
+      if (!Platform.isMobile || (kb && kb.open)) v.focus();
     } catch { /* 忽略 */ }
   }
 
@@ -1297,11 +1313,9 @@ export class WordModeView extends TextFileView {
         state,
         nodeViews: createNodeViews(this.nodeViewContext()),
         dispatchTransaction: tr => this.dispatch(tr),
-        // 拼字檢查跟著 Obsidian 的設定（設定 → 編輯器 → 拼字檢查）
-        // 手機、平板：游標在程式碼裡時請鍵盤不要自動大寫、自動修正（程式碼打什麼就是什麼），離開就恢復
-        attributes: (st): Record<string, string> => Platform.isMobile && C.typingCode(st)
-          ? { class: 'wm-editor', spellcheck: 'false', autocapitalize: 'off', autocorrect: 'off' }
-          : { class: 'wm-editor', spellcheck: this.spellcheckOn() ? 'true' : 'false' },
+        attributes: st => this.editorAttrs(st),
+        // 手機：游標、選取離捲動區下緣太近時多捲一點。下面緊接著功能區與鍵盤，選取的把手、下一行、剛插入的表格都要看得到
+        ...(Platform.isMobile ? { scrollThreshold: { top: 8, bottom: 56, left: 0, right: 0 }, scrollMargin: { top: 16, bottom: 88, left: 5, right: 5 } } : {}),
         handleDOMEvents: {
           mousedown: (v, e) => this.onMouseDown(e as ElementEvent),
           mouseover: (v, e) => {

@@ -2522,3 +2522,50 @@ body.is-mobile { --mobile-toolbar-height: calc(var(--wm-bar-size, 44px) + 8px); 
 .mobile-toolbar.wm-native-styled .mobile-toolbar-option.is-active { color: var(--text-accent); }
 .mobile-toolbar.wm-native-styled .mobile-toolbar-floating-options { height: var(--wm-bs); width: var(--wm-bs); min-width: var(--wm-bs); border-radius: 50%; background-color: var(--touch-background, var(--background-modifier-hover)); }
 .mobile-toolbar.wm-native-styled .mobile-toolbar-floating-options .mobile-toolbar-option { min-width: var(--wm-bs); }
+
+/* ===== 手機：使用性修正（尋找列、抽屜、圖表編輯器、表格、功能區） ===== */
+/* 尋找列：大小寫、全字、正規表示式、取代收進「選項」鈕（桌機沒有這顆，選項照舊排在後面）。
+   鍵盤開著時畫面只剩一半，選項一列平常用不到，收起來多一行內文；有選項開著時「選項」鈕會亮（find.ts 的 syncMore） */
+.wm-findbar button.wm-find-more { display: none; }
+.wm-mobile .wm-find-row button.wm-find-more { display: inline-flex; order: 4; }
+.wm-mobile .wm-findbar:not(.is-opts) button.wm-find-opt { display: none; }
+.wm-mobile .wm-findbar:not(.is-opts) .wm-find-row::after { display: none; }
+.wm-mobile .wm-findbar.is-opts button.wm-find-more { background: var(--background-modifier-hover); }
+/* 在尋找框、取代框打字時藏起下方的編輯功能區（find.ts 加上 wm-finding）：那些按鈕是改內文的，讓出位置看結果 */
+.wm-mobile.wm-finding > .wm-toolbar-host { display: none; }
+
+/* 圖表編輯器：鍵盤開著時預覽不要黏在上面。黏著的預覽會蓋住正在打字的欄位（鍵盤把可見範圍壓得很矮） */
+body.is-phone.wm-kb-up .wm-mmd-right { position: relative; box-shadow: none; }
+
+/* 抽屜最上面已經有標題（開它的按鈕的名稱），色彩面板自己的標題不用再出現一次 */
+.wm-popup.is-sheet .wm-cp-title { display: none; }
+/* 自訂色彩的色盤：iOS 的色彩輸入框自帶外框與內距，色塊會超出圓角框。拿掉，讓色塊填滿 */
+.wm-cp input.wm-cp-well { appearance: none; overflow: hidden; }
+.wm-cp input.wm-cp-well::-webkit-color-swatch-wrapper { padding: 2px; }
+.wm-cp input.wm-cp-well::-webkit-color-swatch { border: none; border-radius: 4px; }
+.wm-popup.wm-cp.is-mobile input.wm-cp-well { width: 40px; height: 36px; }
+.wm-popup.wm-cp.is-mobile input.wm-cp-hex, .wm-popup.wm-cp.is-mobile button.wm-cp-apply { height: 36px; }
+
+/* 插入表格的格子：手機的抽屜裡放大到手指點得準（原本約 17pt），說明文字置中 */
+.wm-popup.is-sheet .wm-table-grid { grid-template-columns: repeat(8, 34px); gap: 5px; }
+.wm-popup.is-sheet .wm-table-cell { width: 34px; height: 34px; border-radius: 6px; }
+.wm-popup.is-sheet .wm-table-label { margin-bottom: 10px; text-align: center; font-size: var(--font-ui-small); }
+
+/* 表格的工具（複製、選項、刪除）在手機上浮在表格上方：表格上面留出它的高度，不要蓋住上一段的文字 */
+.wm-mobile .wm-editor .wm-table { margin-block-start: 44px; }
+.wm-mobile .wm-editor .wm-table .wm-table-corner button { min-width: 40px; height: 34px; }
+
+/* 功能區的按鈕列左右捲得動、右邊還有按鈕時（ribbon.ts 的 wm-scroll-more），尾端淡出一段。
+   用黏在尾端的漸層蓋著（掃描不接受 mask-image）：膠囊的底色疊在頁面底色上 */
+.wm-mobile .wm-toolbar::after { content: ''; position: sticky; inset-inline-end: 0; flex: 0 0 28px; align-self: stretch; margin-inline-start: -28px; background: linear-gradient(to left, var(--wm-bar-fade, var(--background-primary)), transparent); opacity: 0; transition: opacity .15s; pointer-events: none; }
+.wm-mobile .wm-toolbar.wm-scroll-more::after { opacity: 1; }
+.mod-rtl .wm-mobile .wm-toolbar::after { background: linear-gradient(to right, var(--wm-bar-fade, var(--background-primary)), transparent); }
+.wm-kb-up .wm-kb-compact .wm-ribbon > .wm-toolbar::after { border-radius: 0 20px 20px 0; background: linear-gradient(to left, var(--touch-background, var(--background-modifier-hover)), transparent), linear-gradient(to left, var(--background-primary), transparent); }
+/* 分割按鈕右邊的小箭頭：手機上加寬到手指點得到 */
+.wm-mobile.wm-mobile.wm-mobile .wm-split-arrow { min-width: 28px; }
+body.mod-rtl.wm-kb-up .wm-kb-compact .wm-ribbon > .wm-toolbar::after { border-radius: 20px 0 0 20px; background: linear-gradient(to right, var(--touch-background, var(--background-modifier-hover)), transparent), linear-gradient(to right, var(--background-primary), transparent); }
+/* 觸控螢幕的 :hover 會黏在最後點過的地方：色票放大、外圈留在手指點過的那一格，看起來像選中了兩個 */
+@media (hover: none) {
+  .wm-popup button.wm-cp-swatch:hover { transform: none; z-index: auto; }
+  .wm-popup button.wm-cp-swatch:hover:not(.is-active) { box-shadow: none; }
+}

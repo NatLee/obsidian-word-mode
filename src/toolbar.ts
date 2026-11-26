@@ -966,8 +966,9 @@ export class Toolbar {
     this.openPopup(owner, p => {
       p.classList.add('wm-menu-popup');
       for (const it of items) {
-        const b = el('button', 'wm-menu-item', p);
+        const b = el('button', 'wm-menu-item' + (it.checked ? ' is-active' : ''), p);
         b.type = 'button';
+        if (it.checked) b.setAttribute('aria-current', 'true');
         if (it.icon) { const i = el('span', 'wm-menu-icon', b); this.ctx.icon(i, it.icon, ''); }
         el('span', 'wm-menu-text', b, it.title);
         keepFocus(b);
@@ -1084,13 +1085,16 @@ export class Toolbar {
     if (!this.view || !C.insertTable(2, 2)(this.view.state)) return;
     this.openPopup(owner, p => {
       p.classList.add('wm-table-popup');
-      const label = el('div', 'wm-table-label', p, t('插入表格'));
+      // 手機的抽屜上面已經有標題「插入表格」：這裡改成說明怎麼點（觸控要點兩下）
+      const phone = owner.ownerDocument.body.classList.contains('is-phone');
+      const label = el('div', 'wm-table-label', p, phone ? t('點一下選大小，再點一下插入') : t('插入表格'));
       const grid = el('div', 'wm-table-grid', p);
       const R = 8; const COLS = 8; const cells: HTMLDivElement[] = [];
       let picked: string | null = null;
       const mark = (r: number, c: number) => {
         for (const x of cells) x.classList.toggle('is-on', +x.dataset.r! <= r && +x.dataset.c! <= c);
-        label.textContent = t('{c} 欄 × {r} 列（第一列為標題列）', { c, r });
+        // 觸控點過一次（picked）的大小：說明後面接著「再點一下插入」。觸控之後 iOS 還會補一個 mouseenter 再呼叫這裡，提示要留著
+        label.textContent = t('{c} 欄 × {r} 列（第一列為標題列）', { c, r }) + (picked === r + 'x' + c ? ' ' + t('— 再點一下插入') : '');
       };
       for (let r = 1; r <= R; r++) {
         for (let c = 1; c <= COLS; c++) {
@@ -1101,7 +1105,7 @@ export class Toolbar {
           cell.addEventListener('mousedown', e => e.preventDefault());
           // 觸控：第一下選大小、第二下確認；滑鼠：按一下就插入
           cell.addEventListener('pointerup', e => {
-            if (e.pointerType !== 'mouse' && picked !== r + 'x' + c) { picked = r + 'x' + c; mark(r, c); label.textContent += ' ' + t('— 再點一下插入'); return; }
+            if (e.pointerType !== 'mouse' && picked !== r + 'x' + c) { picked = r + 'x' + c; mark(r, c); return; }
             this.closePopup();
             // 插入之後切到「表格」分頁（像 Word），接著要加列、對齊都在那裡
             if (this.run(C.insertTable(r, c))) this.showTab('tabletab');

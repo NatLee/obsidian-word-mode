@@ -61,6 +61,8 @@ export default {
  "取代為…": "Reemplazar con…",
  "全部取代": "Reemplazar todo",
  "找不到": "Sin resultados",
+ "尋找選項": "Opciones de búsqueda",
+ "點一下選大小，再點一下插入": "Toca para elegir el tamaño y vuelve a tocar para insertar",
  "已取代 {n} 處": "{n} reemplazados",
  "展開": "Expandir",
  "摺疊": "Contraer",

@@ -436,7 +436,7 @@ export class MarkdownBar {
 
   menu(owner: HTMLElement, items: MenuItem[]): void {
     const m = new Menu();
-    for (const it of items) m.addItem(i => { i.setTitle(it.title).onClick(it.run); if (it.icon) i.setIcon(it.icon); });
+    for (const it of items) m.addItem(i => { i.setTitle(it.title).onClick(it.run); if (it.icon) i.setIcon(it.icon); if (it.checked) i.setChecked(true); });
     const r = owner.getBoundingClientRect();
     m.showAtPosition({ x: r.left, y: r.bottom + 4 });
   }
