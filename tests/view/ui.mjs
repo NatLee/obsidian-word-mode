@@ -2931,6 +2931,8 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
   const css = readFileSync(new URL('../../styles/word-mode.css', import.meta.url), 'utf8');
   assert(css.includes('.is-phone .modal-container .modal:is(.wm-eq-modal, .wm-mmd-modal) { position: fixed;') && css.includes('bottom: var(--wm-kb-cover, 0px);'), '手機的方程式、圖表編輯器是整個畫面，下緣貼著鍵盤（收起鍵盤時不會跑掉）');
   assert(css.includes('.wm-kb-compact .wm-toolbar button.wm-tab-switch :is(.wm-tab-text, .wm-tab-switch-arrow) { display: none; }'), '鍵盤開著的精簡功能區：切換分頁的按鈕只留圖示');
+  assert(!/\.wm-toolbar[^{,]*::(after|before)\s*\{[^}]*sticky/.test(css), '左右捲的按鈕列裡不放黏著的偽元素（iOS 畫在錯的位置，蓋住中間的按鈕）');
+  assert(css.includes('.wm-mobile .wm-toolbar.wm-scroll-more { box-shadow: inset'), '還能往後捲時，按鈕列尾端用內側陰影提示');
   assert(/\.wm-pad-tip \{[^}]*z-index: calc\(var\(--layer-menu, 65\) \+ 1\)/.test(css), '觸控板的說明蓋得過 Obsidian 的手機工具列（--layer-menu）');
   assert(css.includes('.is-phone .modal-container .modal.wm-props-modal { position: fixed;') && css.includes('.wm-kb-up .wm-props-modal .wm-acc { display: flex; }'), '手機的文件屬性視窗貼著鍵盤上緣，擴充列在鍵盤開著時出現');
   assert(css.includes('body.is-phone .wm-tabs-quick { display: none; }'), '手機：功能區右邊的放大鏡、切換模式拿掉（在右上角與「⋯」選單）');
