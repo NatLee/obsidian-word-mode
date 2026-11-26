@@ -2455,27 +2455,52 @@ body.is-phone .wm-tabs-quick { display: none; }
 .wm-idle-short .wm-ribbon { position: relative; }
 .wm-idle-short .wm-ribbon.wm-mobile, .wm-idle-short .wm-mobile .wm-ribbon, .wm-idle-short.wm-mobile .wm-ribbon { background: var(--background-primary); }
 .wm-idle-short .wm-ribbon > :is(.wm-tabs, .wm-toolbar) { display: none; }
-.wm-idle-short .wm-ribbon > .wm-idlebar { display: flex; align-items: center; gap: 2px; margin-block: 6px; margin-inline: 8px 58px; padding-block: 0; padding-inline: 4px; min-height: 42px; border-radius: 21px; background: var(--touch-background, var(--background-modifier-hover)); overflow-x: auto; --scrollbar-native-width: none; }
+.wm-idle-short .wm-ribbon > .wm-idlebar { display: flex; align-items: center; gap: 2px; margin-inline-start: 8px; padding-block: 0; padding-inline: 4px; background: var(--touch-background, var(--background-modifier-hover)); overflow-x: auto; --scrollbar-native-width: none; }
 .wm-idle-short .wm-ribbon > .wm-idlebar::-webkit-scrollbar { display: none; }
 /* 按鈕跟功能區的一樣（透明底、按下的狀態）；這一列不在 .wm-toolbar 裡，功能區按鈕的樣式套不到，這裡另外寫 */
-.wm-idlebar > button.wm-btn { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; min-width: 38px; height: 38px; padding: 0; background: transparent; box-shadow: none; border: 0; border-radius: 19px; color: var(--text-normal); }
+.wm-idlebar > button.wm-btn { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; padding: 0; background: transparent; box-shadow: none; border: 0; color: var(--text-normal); }
 .wm-idlebar > button.wm-btn:active { background: var(--background-modifier-active-hover, var(--background-modifier-hover)); }
 .wm-idlebar > button.wm-btn.is-active { background: hsla(var(--wm-accent-hsl), .16); color: var(--text-accent); }
 .wm-idlebar > button.wm-btn.is-disabled { opacity: var(--wm-disabled-opacity); }
-.wm-idlebar > button.wm-btn svg { width: 19px; height: 19px; }
 .wm-idlebar > .wm-idlebar-sep { flex: 0 0 1px; align-self: center; height: 20px; margin-inline: 3px; background: var(--background-modifier-border); }
 button.wm-kb-show { display: none; }
-.wm-idle-short .wm-ribbon > button.wm-kb-show { display: inline-flex; align-items: center; justify-content: center; position: absolute; inset-inline-end: 8px; top: 50%; margin-top: -21px; width: 42px; height: 42px; padding: 0; border: 0; border-radius: 50%; background: var(--interactive-accent); box-shadow: none; color: var(--text-on-accent); z-index: 2; transition: transform .12s ease; }
+.wm-idle-short .wm-ribbon > button.wm-kb-show { display: inline-flex; align-items: center; justify-content: center; position: absolute; inset-inline-end: 8px; top: 50%; padding: 0; border: 0; border-radius: 50%; background: var(--interactive-accent); box-shadow: none; color: var(--text-on-accent); z-index: 2; transition: transform .12s ease; }
 .wm-idle-short .wm-ribbon > button.wm-kb-show:active { transform: scale(.92); }
-.wm-idle-short .wm-ribbon > button.wm-kb-show svg { width: 21px; height: 21px; }
 .wm-phone.wm-idle-hidden .wm-toolbar-host, .wm-idle-hidden .wm-mdbar { display: none; }
 
 /* 手機的閱讀模式（wm-reading-lite）：同一條膠囊，只有圖示；這裡沒有打字，膠囊佔滿整列 */
 .wm-mdbar.wm-reading-lite { background: var(--background-primary); }
-.wm-mdbar.wm-reading-lite > .wm-toolbar { margin-block: 6px; margin-inline: 8px; padding-block: 0; padding-inline: 4px; min-height: 42px; border-radius: 21px; background: var(--touch-background, var(--background-modifier-hover)); }
+.wm-mdbar.wm-reading-lite > .wm-toolbar { margin-inline: 8px; padding-block: 0; padding-inline: 4px; background: var(--touch-background, var(--background-modifier-hover)); }
 .wm-mdbar.wm-reading-lite .wm-btn-label { display: none; }
-.wm-mdbar.wm-reading-lite.wm-reading-lite .wm-btn.has-label { min-width: 38px; min-height: 38px; }
-.wm-mdbar.wm-reading-lite.wm-reading-lite .wm-btn.has-label svg { width: 19px; height: 19px; }
 
 /* 文件屬性視窗的 YAML 原文：在同一個視窗裡換成文字框（propview.ts 的 editSheet），不另外跳一個視窗 */
 .wm-props-sheet textarea.wm-props-yaml { width: 100%; min-height: 8em; font-family: var(--font-monospace); font-size: 16px; line-height: 1.5; resize: vertical; }
+
+/* ===== 手機工具列的大小（設定 barSize；main.ts 的 applyOptions 寫在 body 的 --wm-bar-size，預設 44px）=====
+   一列的膠囊（打字時的 wm-kb-compact、鍵盤收著時的 wm-idlebar、閱讀模式的 wm-reading-lite）都用同一個高度，
+   換模式時工具列一樣高；按鈕比膠囊矮 4px、圖示是高度的一半，右邊的圓鈕跟膠囊一樣高。44 跟 Obsidian 自己的鍵盤工具列一樣。
+   按鈕之間沒有框線，靠群組之間的細線分組、按下時的底色看出是哪一顆 */
+.wm-ribbon, .wm-bsdemo { --wm-bs: var(--wm-bar-size, 44px); --wm-bs-btn: calc(var(--wm-bs) - 4px); --wm-bs-icon: calc(var(--wm-bs) * .5); }
+.wm-kb-up .wm-kb-compact .wm-ribbon > .wm-toolbar,
+.wm-idle-short .wm-ribbon > .wm-idlebar,
+.wm-mdbar.wm-reading-lite > .wm-toolbar { margin-block: 4px; min-height: var(--wm-bs); border-radius: calc(var(--wm-bs) / 2); }
+.wm-kb-up .wm-kb-compact .wm-ribbon > .wm-toolbar, .wm-idle-short .wm-ribbon > .wm-idlebar { margin-inline-end: calc(var(--wm-bs) + 16px); }
+.wm-kb-up .wm-kb-compact .wm-ribbon.has-keys > .wm-toolbar { margin-inline-end: calc(var(--wm-bs) * 2 + 22px); }
+:is(.wm-kb-up .wm-kb-compact .wm-ribbon > .wm-toolbar, .wm-idle-short .wm-ribbon > .wm-idlebar, .wm-mdbar.wm-reading-lite > .wm-toolbar) button.wm-btn.wm-btn.wm-btn:not(.wm-split-arrow) { min-width: var(--wm-bs-btn); height: var(--wm-bs-btn); min-height: 0; padding-block: 0; padding-inline: 4px; border-radius: calc(var(--wm-bs-btn) / 2); }
+:is(.wm-kb-up .wm-kb-compact .wm-ribbon > .wm-toolbar, .wm-idle-short .wm-ribbon > .wm-idlebar, .wm-mdbar.wm-reading-lite > .wm-toolbar) button.wm-btn.wm-btn.wm-btn:not(.wm-split-arrow) svg { width: var(--wm-bs-icon); height: var(--wm-bs-icon); }
+.wm-kb-up .wm-kb-compact .wm-ribbon .wm-toolbar button.wm-tab-switch.wm-tab-switch { width: var(--wm-bs-btn); height: var(--wm-bs-btn); border-radius: calc(var(--wm-bs-btn) / 2); }
+.wm-kb-up .wm-kb-compact .wm-ribbon .wm-toolbar button.wm-tab-switch.wm-tab-switch .wm-tab-icon svg { width: calc(var(--wm-bs-icon) - 2px); height: calc(var(--wm-bs-icon) - 2px); }
+.wm-kb-up .wm-ribbon > button.wm-kb-hide.wm-kb-hide, .wm-idle-short .wm-ribbon > button.wm-kb-show.wm-kb-show, .wm-kb-up .wm-ribbon > button.wm-keys-btn.wm-keys-btn { width: var(--wm-bs); height: var(--wm-bs); }
+.wm-kb-up .wm-kb-compact .wm-ribbon > button.wm-kb-hide.wm-kb-hide, .wm-kb-up .wm-kb-compact .wm-ribbon > button.wm-keys-btn.wm-keys-btn, .wm-idle-short .wm-ribbon > button.wm-kb-show.wm-kb-show { margin-top: calc(var(--wm-bs) / -2); }
+.wm-kb-up .wm-ribbon > button.wm-keys-btn.wm-keys-btn { inset-inline-end: calc(var(--wm-bs) + 14px); }
+.wm-kb-up .wm-ribbon > button.wm-kb-hide.wm-kb-hide svg, .wm-kb-up .wm-ribbon > button.wm-keys-btn.wm-keys-btn svg, .wm-idle-short .wm-ribbon > button.wm-kb-show.wm-kb-show svg { width: var(--wm-bs-icon); height: var(--wm-bs-icon); }
+
+/* 設定頁的預覽（ribbon.ts 的 barSizeDemo）：跟打字時那一列同樣的膠囊與圓鈕，大小用同一個變數 */
+.wm-bsdemo { display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 10px; padding: 8px; border-radius: var(--radius-m, 8px); background: var(--background-primary); border: 1px solid var(--background-modifier-border); overflow: hidden; }
+.setting-item.wm-bsdemo-row { flex-wrap: wrap; }
+.wm-bsdemo-bar { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 2px; height: var(--wm-bs); padding-inline: 4px; border-radius: calc(var(--wm-bs) / 2); background: var(--touch-background, var(--background-modifier-hover)); overflow: hidden; }
+.wm-bsdemo-btn, .wm-bsdemo-tab { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; min-width: var(--wm-bs-btn); height: var(--wm-bs-btn); border-radius: calc(var(--wm-bs-btn) / 2); color: var(--text-normal); }
+.wm-bsdemo-tab { background: var(--background-primary); color: var(--text-accent); }
+.wm-bsdemo-btn svg, .wm-bsdemo-tab svg, .wm-bsdemo-round svg { width: var(--wm-bs-icon); height: var(--wm-bs-icon); }
+.wm-bsdemo-sep { flex: 0 0 1px; height: calc(var(--wm-bs) * .45); margin-inline: 3px; background: var(--background-modifier-border); }
+.wm-bsdemo-round { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: var(--wm-bs); height: var(--wm-bs); border-radius: 50%; background: var(--touch-background, var(--background-modifier-hover)); color: var(--text-normal); }

@@ -109,6 +109,9 @@ export interface Settings {
   // 手機上鍵盤收著時的功能區：short 只放一列鍵盤收著也用得到的按鈕（復原、插入圖片、大綱、摺疊…，右邊的圓鈕叫出鍵盤）；hidden 整條藏起來
   // （Word 模式的大綱、插入圖片、方程式、圖表放進右上角的「⋯」選單）；full 完整的兩列功能區。Word 與 Markdown 編輯模式都照這個
   phoneIdle: 'short' | 'hidden' | 'full';
+  // 手機、平板上一列的膠囊工具列（打字時、鍵盤收著時、閱讀模式）的高度（px），按鈕與圖示跟著放大縮小。
+  // 預設 44 跟 Obsidian 手機版自己的鍵盤工具列一樣；整理成範圍內的值用 barSize()
+  barSize: number;
   // 上次選的字型色彩（CSS 色碼）
   lastFontColor?: string;
   // 上次選的醒目提示色彩（CSS 色碼）；空字串＝預設黃色
@@ -206,6 +209,7 @@ export const DEFAULTS: Settings = {
   tabLabels: {},
   compactOnKeyboard: true,
   phoneIdle: 'short',
+  barSize: 44,
   richHints: true,
   mdToolbar: 'both',
   mdStatusBar: true,
@@ -230,3 +234,10 @@ export const DEFAULTS: Settings = {
   conflict: 'ask',
   maxSizeMB: 2,
 };
+
+// 手機工具列的高度（設定 barSize）：不是數字或超出範圍時整理成範圍內、step 的倍數
+export const BAR_SIZE = { min: 36, max: 56, step: 2, default: 44 } as const;
+export function barSize(v: unknown): number {
+  const n = typeof v === 'number' && isFinite(v) ? v : BAR_SIZE.default;
+  return Math.round(Math.max(BAR_SIZE.min, Math.min(BAR_SIZE.max, n)) / BAR_SIZE.step) * BAR_SIZE.step;
+}

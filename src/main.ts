@@ -1,6 +1,6 @@
 // Word 模式：把 Obsidian 筆記變成像 Office Word 一樣編輯
 import { Plugin, WorkspaceLeaf, MarkdownView, TFile, Notice, Platform, apiVersion } from 'obsidian';
-import { DEFAULTS } from './settings.js';
+import { BAR_SIZE, DEFAULTS, barSize } from './settings.js';
 import { WordModeSettings } from './settingstab.js';
 import type { Settings, LanguageSetting } from './settings.js';
 import { t, withKey, setLanguage } from './i18n.js';
@@ -289,6 +289,7 @@ export default class WordModePlugin extends Plugin {
 
   onunload(): void {
     this.unloaded = true;
+    activeDocument.body.style.removeProperty('--wm-bar-size');
     // 縮放剛調完、還沒存就停用外掛：現在存
     if (this.zoomSave != null) { window.clearTimeout(this.zoomSave); this.zoomSave = undefined; void this.saveSettings(); }
     closePropsPeek();
@@ -419,6 +420,11 @@ export default class WordModePlugin extends Plugin {
   applyOptions(): void {
     cmdOptions.wordAtCursor = this.settings.wordAtCursor !== false;
     autoformatOptions.enabled = this.settings.autoFormat !== false;
+    // 手機工具列的高度（設定 barSize）：寫在 body 上，Word 模式、Markdown／閱讀模式的工具列與設定頁的預覽一起用（樣式表的 --wm-bar-size）。
+    // 預設值不寫，樣式表的 var(--wm-bar-size, 44px) 就是預設
+    const size = barSize(this.settings.barSize);
+    if (size === BAR_SIZE.default) activeDocument.body.style.removeProperty('--wm-bar-size');
+    else activeDocument.body.style.setProperty('--wm-bar-size', size + 'px');
   }
 
   views(): WordModeView[] { return this.app.workspace.getLeavesOfType(VIEW_TYPE).map(l => l.view).filter((v): v is WordModeView => v instanceof WordModeView); }
