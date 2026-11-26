@@ -2,7 +2,7 @@
 import { Plugin, PluginKey, TextSelection } from 'prosemirror-state';
 import { t, withKey } from './i18n.js';
 import { Decoration, DecorationSet } from 'prosemirror-view';
-import { el, keyboardHints } from './dom.js';
+import { centerInScroller, el, keyboardHints } from './dom.js';
 import type { Node as PMNode } from 'prosemirror-model';
 import type { EditorView } from 'prosemirror-view';
 
@@ -127,7 +127,8 @@ function replacementFor(doc: PMNode, at: FindMatch, query: string, opts: FindOpt
 
 function compute(doc: PMNode, s: FindState): FindState {
   const mt = buildMatcher(s.query, s);
-  return Object.assign({}, s, { matches: findMatches(doc, s.query, s), error: !!(mt && mt.error) });
+  // 快取的裝飾不能跟著複製過去：文件與目前第幾個沒變時會沿用上一次搜尋的標記（打字改搜尋字串時舊的標記留在畫面上）
+  return Object.assign({}, s, { matches: findMatches(doc, s.query, s), error: !!(mt && mt.error), decos: undefined });
 }
 
 export const findPlugin = new Plugin<FindState>({
@@ -157,6 +158,10 @@ export const findPlugin = new Plugin<FindState>({
 });
 
 // 尋找列需要的外部功能（由 view.js 提供）
+function isInput(t: EventTarget | null): boolean {
+  return !!t && (t as Node).nodeType === 1 && (t as Element).tagName === 'INPUT';
+}
+
 export interface FindBarContext {
   // 還沒載入筆記時是 null；尋找列只在編輯器存在時開啟、操作，所以 state()、step() 等處用 ! 略過檢查
   getView(): EditorView | null;
@@ -176,6 +181,7 @@ export class FindBar {
   declare wordBtn: HTMLButtonElement;
   declare regexBtn: HTMLButtonElement;
   declare replToggle: HTMLButtonElement;
+  declare moreBtn: HTMLButtonElement;
   declare row2: HTMLDivElement;
   declare replInput: HTMLInputElement;
   declare replacing: boolean;
@@ -198,8 +204,15 @@ export class FindBar {
     this.wordBtn = this.btn(row1, 'whole-word', t('全字相符（前後不是字母或數字）'), () => { if (this.view) this.setOption('wholeWord', !this.state().wholeWord); }, 'ab');
     this.regexBtn = this.btn(row1, 'regex', t('使用正規表示式（取代時可用 $1、$2）'), () => { if (this.view) this.setOption('regex', !this.state().regex); }, '.*');
     this.replToggle = this.btn(row1, 'replace', withKey('取代', 'Mod+H'), () => this.showReplace(!this.replacing));
+    // 手機：選項那一列平常收起來（鍵盤開著時畫面很矮，多一列就少一行內文），按這顆才展開；桌機藏著這顆
+    this.moreBtn = this.btn(row1, 'sliders-horizontal', t('尋找選項'), () => this.dom.classList.toggle('is-opts'), '⋯');
+    this.moreBtn.classList.add('wm-find-more');
     this.btn(row1, 'x', t('關閉 (Esc)'), () => this.close()).classList.add('wm-find-close');
     for (const b of [this.caseBtn, this.wordBtn, this.regexBtn, this.replToggle]) b.classList.add('wm-find-opt');
+    // 手機：在尋找框、取代框打字時把下方的編輯功能區藏起來（那些按鈕是改內文的，這時用不到），讓出位置給內文
+    const finding = (on: boolean) => { const view = this.dom.closest('.wm-view'); if (view) view.classList.toggle('wm-finding', on); };
+    this.dom.addEventListener('focusin', e => finding(isInput(e.target)));
+    this.dom.addEventListener('focusout', () => finding(false));
     this.row2 = el('div', 'wm-find-row', this.dom);
     this.replInput = el('input', 'wm-find-input', this.row2);
     this.replInput.type = 'text';
@@ -272,11 +285,18 @@ export class FindBar {
     this.replacing = on;
     this.row2.style.display = on ? '' : 'none';
     this.replToggle.classList.toggle('is-active', on);
+    this.syncMore();
     if (on && this.isOpen && this.input.value) window.setTimeout(() => this.replInput.focus(), 0);
     if (this.ctx.onChange) this.ctx.onChange();
   }
 
   setCase(on: boolean) { this.setOption('caseSensitive', on); }
+
+  // 選項收起來時，有任何一個開著就讓「選項」鈕亮起來，不然看不出現在是用什麼條件在找
+  syncMore() {
+    if (!this.moreBtn) return;
+    this.moreBtn.classList.toggle('is-active', [this.caseBtn, this.wordBtn, this.regexBtn, this.replToggle].some(b => b.classList.contains('is-active')));
+  }
 
   // 區分大小寫、全字相符、正規表示式
   setOption(name: FindOption, on: boolean) {
@@ -284,6 +304,7 @@ export class FindBar {
     btn.classList.toggle('is-active', on);
     // 正規表示式自己可以寫 \b，開啟時「全字相符」不作用
     if (name === 'regex') this.wordBtn.classList.toggle('is-disabled', on);
+    this.syncMore();
     this.search(this.input.value, { [name]: on });
   }
 
@@ -321,6 +342,8 @@ export class FindBar {
     const m = s.matches[s.current];
     if (!m) return;
     v.dispatch(v.state.tr.setSelection(TextSelection.create(v.state.doc, m.from, m.to)).scrollIntoView());
+    // ProseMirror 只在畫面上的選取落在編輯器裡時才捲；焦點在尋找框時它什麼都不做，結果可能在畫面外（手機上常被鍵盤擋住）
+    if (!v.hasFocus()) { const m = v.dom.querySelector('.wm-find-match.is-current'); if (m) centerInScroller(m); }
   }
 
   replaceOne() {

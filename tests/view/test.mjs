@@ -421,6 +421,12 @@ assert(view.findBar.count.textContent.endsWith('/2'), '預設不分大小寫');
 view.findBar.caseBtn.click();
 assert(view.findBar.count.textContent === '1/1', '區分大小寫');
 view.findBar.caseBtn.click();
+// 改搜尋字串、文件與「目前第幾個」都沒變時，舊的標示不能留下來
+view.findBar.input.value = 'App'; view.findBar.input.dispatchEvent(new Event('input'));
+view.findBar.input.value = 'Ban'; view.findBar.input.dispatchEvent(new Event('input'));
+assert(!q.dom.querySelector('.wm-find-match'), '換成找不到的字之後清掉舊的標示');
+view.findBar.input.value = '香蕉'; view.findBar.input.dispatchEvent(new Event('input'));
+assert(q.dom.querySelector('.wm-find-match.is-current').textContent === '香蕉', '目前的標示是新的搜尋字串');
 view.findBar.input.value = '蘋果'; view.findBar.input.dispatchEvent(new Event('input'));
 keyQ('h');
 view.findBar.replInput.value = '芒果';

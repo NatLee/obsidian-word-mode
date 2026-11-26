@@ -9,6 +9,18 @@ export function el(tag: string, cls?: string | null, parent?: Node | null, text?
   return e;
 }
 
+// 把元素捲到最近的捲動區中間（已經完整看得到就不動）。只捲那一個捲動區：元素自己的 scrollIntoView 會連整個畫面一起捲，
+// iOS 鍵盤開著時畫面會被推上去（對話框的標題跑到狀態列底下、功能區與鍵盤之間空一塊）
+export function centerInScroller(e: Element): void {
+  const win = e.ownerDocument.defaultView;
+  let box = e.parentElement;
+  while (box && !(box.scrollHeight > box.clientHeight && win && /auto|scroll/.test(win.getComputedStyle(box).overflowY))) box = box.parentElement;
+  if (!box) return;
+  const r = e.getBoundingClientRect(), b = box.getBoundingClientRect();
+  if (r.top >= b.top + 8 && r.bottom <= b.bottom - 8) return;
+  box.scrollTop += r.top - b.top - (b.height - r.height) / 2;
+}
+
 // 元素是不是由右到左排。Obsidian 1.15 的介面語言是阿拉伯文、希伯來文時，工作區與對話框是 direction: rtl。
 // 看元素實際的方向而不是 body 的 mod-rtl：舊版 Obsidian 沒有 mod-rtl，佈景主題也可能自己改方向
 export function isRtl(e: Element): boolean {
