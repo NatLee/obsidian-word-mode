@@ -6,7 +6,7 @@ import { Notice, Platform, setIcon } from 'obsidian';
 import { Accessory, insertAt, moveCaret, stepField } from './accessory.js';
 import { iconOr } from './icons.js';
 import { t, key } from './i18n.js';
-import { keepFocus, keyboardHints } from './dom.js';
+import { centerInScroller, keepFocus, keyboardHints } from './dom.js';
 import { buttonBar, mayAutoFocus } from './dialogs.js';
 import { EditingModal } from './confirmclose.js';
 import { CODE_KEYS, DIAGRAM_KINDS, DIAGRAM_REASONS, COMMON_OPTS, editableDiagram, generateDiagram, detectKind, textSlots, findSlot, setValue, restoreName, dropRefs, squash, sameSlot, slotNth, rowSlot } from './diagrams.js';
@@ -584,7 +584,7 @@ export class MermaidModal extends EditingModal {
       if (!el) return;
     }
     el.addClass('is-current');
-    if (el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
+    centerInScroller(el);
     this.current = { list, row };
     this.placeMarker(false);
     if (!focus) return;
@@ -914,7 +914,8 @@ export class MermaidModal extends EditingModal {
     const room = this.room();
     if (!room) return;
     const fit = room / width;
-    this.applyZoom(fit >= 0.6 ? Math.min(1, fit) : 1);
+    // 手機的預覽框很窄，常常差一點點就放不下：縮小的下限放寬，先看到整張圖（字太小時再放大）
+    this.applyZoom(fit >= (Platform.isPhone ? 0.4 : 0.6) ? Math.min(1, fit) : 1);
   }
 
   // ---------------------------------------------------------- 表單與圖互相定位

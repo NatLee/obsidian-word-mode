@@ -61,6 +61,8 @@ export default {
  "取代為…": "Ersetzen durch…",
  "全部取代": "Alle ersetzen",
  "找不到": "Keine Treffer",
+ "尋找選項": "Suchoptionen",
+ "點一下選大小，再點一下插入": "Tippen, um die Größe zu wählen, erneut tippen zum Einfügen",
  "已取代 {n} 處": "{n} ersetzt",
  "展開": "Ausklappen",
  "摺疊": "Einklappen",

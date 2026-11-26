@@ -1629,6 +1629,7 @@ await fresh('一段文字\n');
   assert(menuShape(view.toolbar.dom) === 'wm-tab-switch:常用:wm-tabs-quick:wm-tabs is-hidden' && menuShape(bar.dom) === menuShape(view.toolbar.dom), '分頁收成選單：兩條功能區的選單按鈕與快速按鈕位置一樣：' + menuShape(bar.dom));
   click(bar.dom.querySelector('.wm-tab-switch'));
   assert(mock.Menu.last.items.map(i => i.title).join() === '常用,插入,校閱,檢視', 'Markdown 功能區的分頁選單列出所有分頁');
+  assert(mock.Menu.last.items.map(i => i.checked ? 'v' : '-').join('') === 'v---', '分頁選單在目前的分頁上打勾');
   mock.Menu.last.items[1].fn();
   assert(!bar.panels.insert.classList.contains('is-hidden') && bar.panels.home.classList.contains('is-hidden') && plugin.lastTab === 'insert' && bar.dom.querySelector('.wm-tab-switch').textContent.includes('插入'), 'Markdown 功能區從選單切換分頁，也會記住分頁');
   S.tabStyle = 'text'; S.ribbonLayout = 'wrap';
