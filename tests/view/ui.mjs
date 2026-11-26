@@ -2205,8 +2205,9 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
   const sizeRow = [...c.querySelectorAll('.wm-set-toolbar .setting-item')].find(r => r.querySelector('.setting-item-name') && r.querySelector('.setting-item-name').textContent === '工具列按鈕的大小');
   const bsDemo = sizeRow && sizeRow.querySelector('.wm-bsdemo');
   assert(bsDemo && sizeRow.classList.contains('wm-bsdemo-row') && bsDemo.querySelectorAll('.wm-bsdemo-btn').length === 9 && bsDemo.querySelector('.wm-bsdemo-round') && bsDemo.querySelectorAll('.wm-bsdemo-sep').length === 3, '工具列按鈕的大小：有預覽（膠囊裡的按鈕、分隔線與右邊的圓鈕）');
-  assert(css.includes('.wm-ribbon, .wm-bsdemo { --wm-bs: var(--wm-bar-size, 44px);'), '工具列與預覽用同一個大小變數，預設 44px');
-  for (const sel of ['.wm-kb-up .wm-kb-compact .wm-ribbon > .wm-toolbar,', '.wm-idle-short .wm-ribbon > .wm-idlebar,', '.wm-mdbar.wm-reading-lite > .wm-toolbar { margin-block: 4px; min-height: var(--wm-bs);']) assert(css.includes(sel), '打字時、鍵盤收著時、閱讀模式的工具列一樣高：' + sel);
+  assert(css.includes('.wm-ribbon, .wm-bsdemo, .mobile-toolbar.wm-native-styled { --wm-bs: var(--wm-bar-size, 44px);'), '工具列與預覽用同一個大小變數，預設 44px');
+  for (const sel of ['.wm-kb-up .wm-kb-compact .wm-ribbon > .wm-toolbar.wm-toolbar.wm-toolbar,', '.wm-idle-short .wm-ribbon > .wm-idlebar.wm-idlebar.wm-idlebar,', '.wm-mdbar.wm-reading-lite > .wm-toolbar.wm-toolbar.wm-toolbar { margin-block: 4px; min-height: var(--wm-bs);']) assert(css.includes(sel), '打字時、鍵盤收著時、閱讀模式的工具列一樣高（優先順序蓋過兩列功能區的 min-height）：' + sel);
+  assert(css.includes('.wm-ribbon, .wm-bsdemo, .mobile-toolbar.wm-native-styled { --wm-bs:') && css.includes('body.is-mobile { --mobile-toolbar-height: calc(var(--wm-bar-size, 44px) + 8px); }'), 'Obsidian 的工具列用同一個大小，留給它的高度跟著改');
 }
 
 
@@ -2608,6 +2609,7 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
   const toggle = container.querySelector('.wm-native-keys');
   assert(toggle && toggle.nextElementSibling === kbBtn && toggle.classList.contains('mobile-toolbar-floating-options') && toggle.querySelector('.mobile-toolbar-option[role="button"]'),
     'Obsidian 的工具列：控制鍵的開關是跟「切換鍵盤」一樣的圓形按鈕，放在它左邊');
+  assert(w.classList.contains('wm-native-styled'), 'Obsidian 的工具列：加上 wm-native-styled，樣子跟 Word 模式那一列一樣');
   const row = w.querySelector('.wm-keyrow.wm-native-keyrow');
   assert(row && !row.classList.contains('is-open') && list.dataset.wmPad === 'true', '控制鍵列放在 Obsidian 的工具列上（一開始關著）；按鈕列裝上觸控板');
   toggle.querySelector('.mobile-toolbar-option').click();
@@ -2631,7 +2633,7 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
   nb.refresh();
   assert(container.querySelectorAll('.wm-native-keys').length === 1 && w.querySelectorAll('.wm-native-keyrow').length === 1, '設定改了：拿掉重裝');
   nb.remove();
-  assert(!container.querySelector('.wm-native-keys') && !w.querySelector('.wm-keyrow') && !document.body.classList.contains('wm-native-keys-open'), '停用外掛：加進去的東西都拿掉');
+  assert(!container.querySelector('.wm-native-keys') && !w.querySelector('.wm-keyrow') && !document.body.classList.contains('wm-native-keys-open') && !w.classList.contains('wm-native-styled'), '停用外掛：加進去的東西與樣式都拿掉');
   w.remove();
 
   // 我們自己的 Markdown 工具列（打字時不讓給 Obsidian 的時候）也是觸控板
