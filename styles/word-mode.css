@@ -2555,15 +2555,13 @@ body.is-phone.wm-kb-up .wm-mmd-right { position: relative; box-shadow: none; }
 .wm-mobile .wm-editor .wm-table { margin-block-start: 44px; }
 .wm-mobile .wm-editor .wm-table .wm-table-corner button { min-width: 40px; height: 34px; }
 
-/* 功能區的按鈕列左右捲得動、右邊還有按鈕時（ribbon.ts 的 wm-scroll-more），尾端淡出一段。
-   用黏在尾端的漸層蓋著（掃描不接受 mask-image）：膠囊的底色疊在頁面底色上 */
-.wm-mobile .wm-toolbar::after { content: ''; position: sticky; inset-inline-end: 0; flex: 0 0 28px; align-self: stretch; margin-inline-start: -28px; background: linear-gradient(to left, var(--wm-bar-fade, var(--background-primary)), transparent); opacity: 0; transition: opacity .15s; pointer-events: none; }
-.wm-mobile .wm-toolbar.wm-scroll-more::after { opacity: 1; }
-.mod-rtl .wm-mobile .wm-toolbar::after { background: linear-gradient(to right, var(--wm-bar-fade, var(--background-primary)), transparent); }
-.wm-kb-up .wm-kb-compact .wm-ribbon > .wm-toolbar::after { border-radius: 0 20px 20px 0; background: linear-gradient(to left, var(--touch-background, var(--background-modifier-hover)), transparent), linear-gradient(to left, var(--background-primary), transparent); }
+/* 功能區的按鈕列左右捲得動、右邊還有按鈕時（ribbon.ts 的 wm-scroll-more），尾端內側加一道陰影。
+   陰影畫在捲動的那一層自己身上（不跟著內容捲），按鈕畫在它上面，不會被蓋住。不用黏在尾端的漸層：
+   iOS 的 WebKit 把左右捲動的 flex 容器裡 position: sticky 的偽元素畫在錯的位置，蓋住中間的按鈕（實機上「檢視」的屬性按鈕左半邊） */
+.wm-mobile .wm-toolbar.wm-scroll-more { box-shadow: inset -18px 0 12px -12px rgba(0, 0, 0, .22); }
+.mod-rtl .wm-mobile .wm-toolbar.wm-scroll-more { box-shadow: inset 18px 0 12px -12px rgba(0, 0, 0, .22); }
 /* 分割按鈕右邊的小箭頭：手機上加寬到手指點得到 */
 .wm-mobile.wm-mobile.wm-mobile .wm-split-arrow { min-width: 28px; }
-body.mod-rtl.wm-kb-up .wm-kb-compact .wm-ribbon > .wm-toolbar::after { border-radius: 20px 0 0 20px; background: linear-gradient(to right, var(--touch-background, var(--background-modifier-hover)), transparent), linear-gradient(to right, var(--background-primary), transparent); }
 /* 觸控螢幕的 :hover 會黏在最後點過的地方：色票放大、外圈留在手指點過的那一格，看起來像選中了兩個 */
 @media (hover: none) {
   .wm-popup button.wm-cp-swatch:hover { transform: none; z-index: auto; }

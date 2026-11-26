@@ -452,7 +452,6 @@ export class RibbonShell {
   // 顯示某個分頁的面板，並更新分頁按鈕（或選單按鈕）的樣子
   showTab(id: AnyTabId): void {
     this.curTab = id;
-    this.syncScrollHint();
     for (const [k, p] of Object.entries(this.panels)) p.classList.toggle('is-hidden', k !== id);
     for (const [k, b] of Object.entries(this.tabBtns)) b.classList.toggle('is-active', k === id);
     if (this.tabSwitch) {
@@ -461,6 +460,8 @@ export class RibbonShell {
       if (label) fillTab(label, id, name, 'both', this.icon);
       this.tabSwitch.setAttribute('aria-label', t('切換分頁') + t('：') + name);
     }
+    // 換好面板之後才量：換之前量到的是上一個分頁的寬度
+    this.syncScrollHint();
   }
 
   // 一開始要顯示的分頁：想要的那個（上次的分頁）還在就用它，否則用第一個有按鈕的分頁
