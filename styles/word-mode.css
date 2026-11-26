@@ -2480,10 +2480,11 @@ button.wm-kb-show { display: none; }
    一列的膠囊（打字時的 wm-kb-compact、鍵盤收著時的 wm-idlebar、閱讀模式的 wm-reading-lite）都用同一個高度，
    換模式時工具列一樣高；按鈕比膠囊矮 4px、圖示是高度的一半，右邊的圓鈕跟膠囊一樣高。44 跟 Obsidian 自己的鍵盤工具列一樣。
    按鈕之間沒有框線，靠群組之間的細線分組、按下時的底色看出是哪一顆 */
-.wm-ribbon, .wm-bsdemo { --wm-bs: var(--wm-bar-size, 44px); --wm-bs-btn: calc(var(--wm-bs) - 4px); --wm-bs-icon: calc(var(--wm-bs) * .5); }
-.wm-kb-up .wm-kb-compact .wm-ribbon > .wm-toolbar,
-.wm-idle-short .wm-ribbon > .wm-idlebar,
-.wm-mdbar.wm-reading-lite > .wm-toolbar { margin-block: 4px; min-height: var(--wm-bs); border-radius: calc(var(--wm-bs) / 2); }
+.wm-ribbon, .wm-bsdemo, .mobile-toolbar.wm-native-styled { --wm-bs: var(--wm-bar-size, 44px); --wm-bs-btn: calc(var(--wm-bs) - 4px); --wm-bs-icon: calc(var(--wm-bs) * .5); }
+/* 選擇器重複 class 提高優先順序：兩列功能區在手機上有 min-height（59px，顯示群組名稱時 67px），規則比這裡具體 */
+.wm-kb-up .wm-kb-compact .wm-ribbon > .wm-toolbar.wm-toolbar.wm-toolbar,
+.wm-idle-short .wm-ribbon > .wm-idlebar.wm-idlebar.wm-idlebar,
+.wm-mdbar.wm-reading-lite > .wm-toolbar.wm-toolbar.wm-toolbar { margin-block: 4px; min-height: var(--wm-bs); border-radius: calc(var(--wm-bs) / 2); }
 .wm-kb-up .wm-kb-compact .wm-ribbon > .wm-toolbar, .wm-idle-short .wm-ribbon > .wm-idlebar { margin-inline-end: calc(var(--wm-bs) + 16px); }
 .wm-kb-up .wm-kb-compact .wm-ribbon.has-keys > .wm-toolbar { margin-inline-end: calc(var(--wm-bs) * 2 + 22px); }
 :is(.wm-kb-up .wm-kb-compact .wm-ribbon > .wm-toolbar, .wm-idle-short .wm-ribbon > .wm-idlebar, .wm-mdbar.wm-reading-lite > .wm-toolbar) button.wm-btn.wm-btn.wm-btn:not(.wm-split-arrow) { min-width: var(--wm-bs-btn); height: var(--wm-bs-btn); min-height: 0; padding-block: 0; padding-inline: 4px; border-radius: calc(var(--wm-bs-btn) / 2); }
@@ -2504,3 +2505,20 @@ button.wm-kb-show { display: none; }
 .wm-bsdemo-btn svg, .wm-bsdemo-tab svg, .wm-bsdemo-round svg { width: var(--wm-bs-icon); height: var(--wm-bs-icon); }
 .wm-bsdemo-sep { flex: 0 0 1px; height: calc(var(--wm-bs) * .45); margin-inline: 3px; background: var(--background-modifier-border); }
 .wm-bsdemo-round { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: var(--wm-bs); height: var(--wm-bs); border-radius: 50%; background: var(--touch-background, var(--background-modifier-hover)); color: var(--text-normal); }
+
+/* ===== Obsidian 自己的手機工具列（Markdown 模式打字時；nativebar.ts 加上 wm-native-styled）：跟 Word 模式那一列同一個樣子 =====
+   Obsidian 原本：按鈕沒有形狀、看不出一顆一顆的；文字按鈕用等寬字、其他外掛的指令圖示大小不一。
+   改成：膠囊高度、按鈕、圖示的大小都跟 Word 模式一樣（--wm-bs，設定「工具列按鈕的大小」），每顆按鈕是圓角的，按下時有底色。
+   Obsidian 用 --mobile-toolbar-height 算工具列的位置與留給它的空間，跟著膠囊高度改（預設 44 + 上下 4 = 52，跟 Obsidian 原本一樣） */
+body.is-mobile { --mobile-toolbar-height: calc(var(--wm-bar-size, 44px) + 8px); }
+.mobile-toolbar.wm-native-styled .mobile-toolbar-options-container { --icon-size: var(--wm-bs-icon); margin-block: 4px; align-items: center; }
+.mobile-toolbar.wm-native-styled .mobile-toolbar-options-list,
+.mobile-toolbar.wm-native-styled .mobile-toolbar-options-list-container { height: var(--wm-bs); border-radius: calc(var(--wm-bs) / 2); }
+.mobile-toolbar.wm-native-styled .mobile-toolbar-options-list { align-items: center; gap: 2px; padding-inline: 4px; background-color: var(--touch-background, var(--background-modifier-hover)); }
+.mobile-toolbar.wm-native-styled .mobile-toolbar-options-list .mobile-toolbar-option { flex: 0 0 auto; min-width: var(--wm-bs-btn); height: var(--wm-bs-btn); padding-inline: 4px; border-radius: calc(var(--wm-bs-btn) / 2); font-family: var(--font-interface); font-size: calc(var(--wm-bs-icon) * .8); font-weight: 600; }
+.mobile-toolbar.wm-native-styled .mobile-toolbar-option svg { width: var(--wm-bs-icon); height: var(--wm-bs-icon); }
+.mobile-toolbar.wm-native-styled .mobile-toolbar-options-list .mobile-toolbar-option:active { background: var(--background-modifier-active-hover, var(--background-modifier-hover)); }
+.mobile-toolbar.wm-native-styled .mobile-toolbar-option.is-active::before { inset: 0; border-radius: calc(var(--wm-bs-btn) / 2); background: hsla(var(--wm-accent-hsl), .16); }
+.mobile-toolbar.wm-native-styled .mobile-toolbar-option.is-active { color: var(--text-accent); }
+.mobile-toolbar.wm-native-styled .mobile-toolbar-floating-options { height: var(--wm-bs); width: var(--wm-bs); min-width: var(--wm-bs); border-radius: 50%; background-color: var(--touch-background, var(--background-modifier-hover)); }
+.mobile-toolbar.wm-native-styled .mobile-toolbar-floating-options .mobile-toolbar-option { min-width: var(--wm-bs); }

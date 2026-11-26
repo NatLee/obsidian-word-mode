@@ -42,6 +42,8 @@ export class NativeBar {
 
   install(w: HTMLElement): void {
     const S = this.plugin.settings;
+    // 外觀跟 Word 模式打字時那一列一樣（樣式表的 wm-native-styled：同樣的高度、圖示大小、按下時的圓角底色）
+    w.addClass('wm-native-styled');
     const container = w.querySelector<HTMLElement>('.mobile-toolbar-options-container');
     const list = w.querySelector<HTMLElement>('.mobile-toolbar-options-list-container');
     if (S.keyRow !== false && container) {
@@ -88,6 +90,7 @@ export class NativeBar {
   }
 
   remove(): void {
+    if (this.wrapper) this.wrapper.removeClass('wm-native-styled');
     if (this.row) { this.row.destroy(); this.row = null; }
     if (this.toggle) { this.toggle.remove(); this.toggle = null; }
     this.body().removeClass('wm-native-keys-open');
