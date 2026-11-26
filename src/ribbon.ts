@@ -265,6 +265,9 @@ export interface ShellOptions {
   // 手機、平板的控制鍵列（keyrow.ts）；沒有時不放開關（電腦、閱讀模式、設定關掉）。
   // mount 把控制鍵列放到功能區旁邊（它不在功能區裡面：放在裡面會把「收起鍵盤」那顆按鈕的位置擠歪）
   keys?: { list: readonly KeyId[]; open: boolean; setOpen(open: boolean): void; move: KeyRowOptions['move']; mount(row: HTMLElement): void } | null;
+  // 手機上鍵盤收著時的「開始打字」圓鈕（設定 phoneIdle 是 short 時，樣式表在 wm-idle-short 底下才顯示）：把游標放回筆記、叫出鍵盤。
+  // 沒有時不放（電腦、閱讀模式）
+  showKeyboard?: (() => void) | null;
 }
 
 // 功能區最外層元素的 class（版面、按鈕樣式、分頁列樣式、要不要顯示群組名稱）
@@ -340,6 +343,15 @@ export class RibbonShell {
       // 收起鍵盤：放在功能區最外層、疊在按鈕列的結尾（樣式表用 absolute），不跟著按鈕左右捲。
       // 放在按鈕列裡用 sticky 的話，按鈕列一捲它就跟著跑（面板本身比按鈕列寬，它的原位不在內容的最後面）
       keyboardHideButton(root, t('收起鍵盤'), this.icon);
+      // 鍵盤收著時同一個位置換成「開始打字」：功能區的樣子跟打字時一樣，鍵盤出來時只換這一顆
+      const show = o.showKeyboard;
+      if (show) {
+        const b = el('button', 'wm-kb-show', root);
+        b.type = 'button';
+        b.setAttribute('aria-label', t('開始打字'));
+        this.icon(b, 'keyboard', '⌨');
+        b.addEventListener('click', e => { e.preventDefault(); show(); });
+      }
     }
     this.keyRow = null; this.keyToggles = []; this.keyOpts = o.keys;
     if (o.isMobile && o.keys) {
