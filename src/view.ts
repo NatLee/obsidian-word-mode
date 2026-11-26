@@ -458,9 +458,9 @@ export class WordModeView extends TextFileView {
     });
   }
 
-  // 功能區精簡成一列（樣式表的 wm-kb-compact：分頁收成最前面的選單按鈕、按鈕只顯示圖示、整列是一條膠囊）：
-  // 打字時看設定 compactOnKeyboard；手機上鍵盤收著時看設定 phoneIdle：short 跟打字時同一個樣子，只有右邊的圓鈕換成
-  // 「開始打字」（wm-idle-short），鍵盤出來、收起時功能區不變形；hidden 整條藏起來；full 是完整的兩列功能區
+  // 打字時精簡功能區（設定 compactOnKeyboard；樣式表的 wm-kb-compact：分頁收成選單、按鈕只顯示圖示、整列是一條膠囊）。
+  // 手機上鍵盤收著時看設定 phoneIdle：short 只顯示鍵盤收著也用得到的那一列（toolbar.ts 的 buildIdle，同樣是膠囊，
+  // 右邊的圓鈕是「開始打字」）；hidden 整條藏起來；full 是完整的兩列功能區
   syncIdle(): void {
     const S = this.plugin.settings;
     const kb = this.plugin.keyboard;
@@ -468,7 +468,7 @@ export class WordModeView extends TextFileView {
     const idle = Platform.isPhone && !open ? (S.phoneIdle || 'short') : 'full';
     this.contentEl.toggleClass('wm-idle-short', idle === 'short');
     this.contentEl.toggleClass('wm-idle-hidden', idle === 'hidden');
-    this.contentEl.toggleClass('wm-kb-compact', open ? S.compactOnKeyboard !== false : idle === 'short');
+    this.contentEl.toggleClass('wm-kb-compact', open && S.compactOnKeyboard !== false);
   }
 
   // 鍵盤升起、收起時功能區的位置是一格就換過去的（我們留的高度、Obsidian 把 app 縮到鍵盤上方都是瞬間的），看起來是用跳的。
@@ -756,7 +756,7 @@ export class WordModeView extends TextFileView {
   setMarks(on: boolean): void {
     if (!this.pm) return;
     this.pm.dispatch(this.pm.state.tr.setMeta(marksKey, { on }));
-    this.pm.focus();
+    if (this.typing()) this.pm.focus();
   }
 
   jumpToWeird(kind: WeirdKindId): void {
@@ -770,7 +770,12 @@ export class WordModeView extends TextFileView {
   foldAll(fold: boolean): void {
     if (!this.pm) return;
     this.pm.dispatch(this.pm.state.tr.setMeta(foldKey, fold ? { all: true } : { clear: true }));
-    this.pm.focus();
+    if (this.typing()) this.pm.focus();
+  }
+
+  // 現在在打字：電腦，或手機、平板的螢幕鍵盤開著。只改顯示的功能（編輯標記、摺疊）在鍵盤收著時不放焦點，不然一按鍵盤就跳出來
+  typing(): boolean {
+    return !Platform.isMobile || this.contentEl.ownerDocument.body.classList.contains('wm-kb-up');
   }
 
   // ---------------------------------------------------------- 剪貼簿（功能區的貼上／剪下／複製）
