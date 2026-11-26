@@ -2448,16 +2448,22 @@ body.wm-kb-up.wm-native-keys-open .mobile-toolbar-spacer { height: calc(var(--mo
 body.is-phone .wm-tabs-quick { display: none; }
 
 /* ---------- 手機上鍵盤收著時的功能區（設定 phoneIdle；view.ts 的 syncIdle、mdbar.ts 的 syncKeyboard）----------
-   short：跟打字時同一條膠囊（wm-kb-compact：分頁收成最前面的選單、按鈕只顯示圖示，所有分頁的按鈕都在），
-   右邊那顆圓鈕從「收起鍵盤」換成「開始打字」，鍵盤出來、收起時功能區不變形。鍵盤收著時位置夠，分頁選單按鈕顯示分頁名稱，
-   一看就知道還有別的分頁。hidden：整條藏起來 */
+   short：只顯示鍵盤收著也用得到的那一列（toolbar.ts、mdbar.ts 的 buildIdle）；要打字的按鈕按下去只會叫出鍵盤，不放。
+   樣子跟打字時的膠囊一樣：只有圖示、細線分組，右邊那顆圓鈕是「開始打字」（打字時同一個位置是「收起鍵盤」）。
+   hidden：整條藏起來 */
+.wm-idlebar { display: none; }
 .wm-idle-short .wm-ribbon { position: relative; }
 .wm-idle-short .wm-ribbon.wm-mobile, .wm-idle-short .wm-mobile .wm-ribbon, .wm-idle-short.wm-mobile .wm-ribbon { background: var(--background-primary); }
-.wm-idle-short .wm-ribbon > .wm-toolbar { margin-block: 6px; margin-inline: 8px 58px; padding-block: 0; padding-inline: 4px; min-height: 42px; border-radius: 21px; background: var(--touch-background, var(--background-modifier-hover)); }
-.wm-idle-short .wm-toolbar button.wm-tab-switch { height: 34px; border-radius: 17px; background: var(--background-primary); }
-.wm-idle-short .wm-toolbar button.wm-tab-switch .wm-tab-text { display: inline; }
-.wm-idle-short .wm-toolbar button.wm-tab-switch .wm-tab-switch-arrow { display: inline-flex; }
-.wm-idle-short.wm-idle-short .wm-mobile .wm-toolbar button.wm-tab-switch, .wm-idle-short.wm-idle-short.wm-mobile .wm-toolbar button.wm-tab-switch { width: auto; padding-block: 0; padding-inline: 10px 8px; }
+.wm-idle-short .wm-ribbon > :is(.wm-tabs, .wm-toolbar) { display: none; }
+.wm-idle-short .wm-ribbon > .wm-idlebar { display: flex; align-items: center; gap: 2px; margin-block: 6px; margin-inline: 8px 58px; padding-block: 0; padding-inline: 4px; min-height: 42px; border-radius: 21px; background: var(--touch-background, var(--background-modifier-hover)); overflow-x: auto; --scrollbar-native-width: none; }
+.wm-idle-short .wm-ribbon > .wm-idlebar::-webkit-scrollbar { display: none; }
+/* 按鈕跟功能區的一樣（透明底、按下的狀態）；這一列不在 .wm-toolbar 裡，功能區按鈕的樣式套不到，這裡另外寫 */
+.wm-idlebar > button.wm-btn { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; min-width: 38px; height: 38px; padding: 0; background: transparent; box-shadow: none; border: 0; border-radius: 19px; color: var(--text-normal); }
+.wm-idlebar > button.wm-btn:active { background: var(--background-modifier-active-hover, var(--background-modifier-hover)); }
+.wm-idlebar > button.wm-btn.is-active { background: hsla(var(--wm-accent-hsl), .16); color: var(--text-accent); }
+.wm-idlebar > button.wm-btn.is-disabled { opacity: var(--wm-disabled-opacity); }
+.wm-idlebar > button.wm-btn svg { width: 19px; height: 19px; }
+.wm-idlebar > .wm-idlebar-sep { flex: 0 0 1px; align-self: center; height: 20px; margin-inline: 3px; background: var(--background-modifier-border); }
 button.wm-kb-show { display: none; }
 .wm-idle-short .wm-ribbon > button.wm-kb-show { display: inline-flex; align-items: center; justify-content: center; position: absolute; inset-inline-end: 8px; top: 50%; margin-top: -21px; width: 42px; height: 42px; padding: 0; border: 0; border-radius: 50%; background: var(--interactive-accent); box-shadow: none; color: var(--text-on-accent); z-index: 2; transition: transform .12s ease; }
 .wm-idle-short .wm-ribbon > button.wm-kb-show:active { transform: scale(.92); }

@@ -20,7 +20,7 @@ import { keyRowKeys } from './keyrow.js';
 import { installTrackpad, padHold } from './trackpad.js';
 import type { TrackpadHooks } from './trackpad.js';
 import type { KeyMods, MoveKey } from './keyrow.js';
-import { MdStatusBar } from './statusbar.js';
+import { MdStatusBar, mdWordCount } from './statusbar.js';
 import type WordModePlugin from './main.js';
 import type { I18nKey } from './i18n.js';
 
@@ -156,8 +156,8 @@ export class MarkdownBar {
     if (this.sizer) this.sizer.observe(this.dom);
   }
 
-  // 跟 Word 模式的 syncIdle 同一套：打字時看 compactOnKeyboard；手機上鍵盤收著時看 phoneIdle（short 同樣是一列、
-  // 右邊的圓鈕換成「開始打字」，hidden 整條藏起來）。閱讀模式不能打字，不管 phoneIdle（手機另有 wm-reading-lite）
+  // 跟 Word 模式的 syncIdle 同一套：打字時看 compactOnKeyboard；手機上鍵盤收著時看 phoneIdle（short 只顯示鍵盤收著也
+  // 用得到的那一列（buildIdle），hidden 整條藏起來）。閱讀模式不能打字，不管 phoneIdle（手機另有 wm-reading-lite）
   syncKeyboard(): void {
     const S = this.plugin.settings;
     const kb = this.plugin.keyboard;
@@ -166,7 +166,7 @@ export class MarkdownBar {
     const c = this.view.containerEl;
     c.toggleClass('wm-idle-short', idle === 'short');
     c.toggleClass('wm-idle-hidden', idle === 'hidden');
-    c.toggleClass('wm-kb-compact', open ? S.compactOnKeyboard !== false : idle === 'short');
+    c.toggleClass('wm-kb-compact', open && S.compactOnKeyboard !== false);
   }
 
   // 手機的狀態列：要有的時候放在檢視最下面（工具列在下方時就在工具列下面）；換了編輯／閱讀模式重建（按鈕不一樣）
@@ -339,8 +339,31 @@ export class MarkdownBar {
       this.button(quick, A.findQuick, find);
       this.button(quick, { ...toWord, big: false, label: undefined }, goWord);
     });
+    if (Platform.isMobile) this.buildIdle();
     if (shell.layout === 'tabs') this.showTab(shell.usableTab(this.plugin.lastTab), true);
     this.update();
+  }
+
+  // 手機上鍵盤收著時的一列（設定 phoneIdle 是 short；樣式表在 wm-idle-short 底下只顯示這一列）：跟 Word 模式的 buildIdle
+  // 一樣只放鍵盤收著也用得到的（不把游標放回編輯器）。插入圖片、方程式在 Markdown 是在游標處插入文字，要先有游標，不放
+  buildIdle(): void {
+    const row = el('div', 'wm-idlebar', this.dom);
+    row.setAttribute('role', 'toolbar');
+    const icon = (look: RibbonAction): RibbonAction => ({ ...look, label: undefined, big: false });
+    const sep = (): void => { el('span', 'wm-idlebar-sep', row); };
+    const quiet = (fn: (ed: Editor) => void): MdHandler => ({ run: () => { const ed = this.editor; if (ed) fn(ed); } });
+    this.shell.apart(() => {
+      this.button(row, A.undo, quiet(ed => ed.undo()));
+      this.button(row, A.redo, quiet(ed => ed.redo()));
+      sep();
+      this.button(row, icon(A.outline), { run: (e, b) => this.outlineMenu(b), always: true });
+      this.button(row, icon(A.peekProperties), { run: (e, b) => openMarkdownPeek(this.plugin, this.view, b), always: true });
+      this.button(row, icon(A.foldAll), { run: this.cmd('editor:fold-all') });
+      this.button(row, icon(A.unfoldAll), { run: this.cmd('editor:unfold-all') });
+      sep();
+      this.button(row, { icon: 'bar-chart-3', title: '字數統計', text: '數', demo: 'wordcount', desc: '顯示字數、字元數、段落數與預估閱讀時間；有選取時也會算選取範圍。' }, { run: () => mdWordCount(this.plugin, this.view), always: true });
+      this.button(row, icon(A.settings), { run: () => this.plugin.openSettings(), always: true });
+    });
   }
 
   // 手機的大綱：列出標題的選單（Obsidian 的選單在手機上從畫面下方滑上來），點一個就捲過去；不開新的分頁蓋住筆記

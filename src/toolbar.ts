@@ -264,7 +264,12 @@ const NO_CODE: Pick<WordHandler, 'enabled' | 'why'> = { enabled: C.notInCode, wh
 const MARKS_BIG: RibbonAction = { icon: 'pilcrow', title: '顯示／隱藏編輯標記', text: '¶', label: '編輯標記', big: true, demo: 'marks', desc: '顯示空白、換行與段落結尾，也會標出奇怪的符號。' };
 
 // 功能區；popup 是目前開著的下拉面板（沒有時是 null 或 undefined），painter 是格式刷記住的格式
+// 插入圖片、圖表：「插入」分頁與手機鍵盤收著時的一列（buildIdle）共用
 const IMAGE: RibbonAction = { icon: 'image', title: '插入圖片', text: '圖', label: '圖片', big: true, demo: 'image', desc: '插入保管庫裡的圖片、電腦上的圖片或網路圖片。' };
+// 「校閱」「檢視」分頁與手機鍵盤收著時的一列（buildIdle）共用
+const FULL_WIDTH: RibbonAction = { icon: 'move-horizontal', title: '全寬頁面', text: '寬', label: '全寬', big: true, demo: 'fullwidth', desc: '頁面使用整個視窗寬度；關閉時是 A4 紙張寬度。' };
+const CLEANUP: RibbonAction = { icon: 'sparkles', title: '清理符號', text: '淨', label: '清理符號', big: true, demo: 'cleanup', desc: '找出看不見的字元、亂碼、殘留的 ** 與落單的引號，勾選後一次清除。' };
+const WORD_COUNT: RibbonAction = { icon: 'bar-chart-3', title: '字數統計', text: '數', label: '字數', big: true, demo: 'wordcount', desc: '顯示字數、字元數、段落數與預估閱讀時間；有選取時也會算選取範圍。' };
 const MERMAID: RibbonAction = { icon: 'workflow', title: '插入圖表（Mermaid）', text: '圖表', label: '圖表', big: true, demo: 'mermaid', desc: '插入流程圖、循序圖、甘特圖、圓餅圖、心智圖等圖表。用表單編輯內容，或直接點預覽圖上的文字修改。' };
 
 export class Toolbar {
@@ -407,6 +412,41 @@ export class Toolbar {
       if (!shell.hiddenGroups.has('help')) this.button(quick, { icon: 'help-circle', title: '快速鍵說明', keys: 'Mod+/', text: '?', demo: 'kbd', desc: '列出所有快速鍵；點一列可以看動畫示範。', cls: 'wm-quick-keys' }, { onClick: () => this.d.shortcuts() });
       // 跟「檢視」分頁的 Markdown 按鈕是同一個功能：這裡只有圖示，說明多了怎麼切回來
       this.button(quick, { ...A.markdownMode, label: undefined, big: false, desc: '用 Obsidian 原本的 Markdown 編輯這份筆記，再按一次（或在 Markdown 畫面按同樣的快速鍵）切回 Word 模式。' }, { onClick: () => this.d.markdown() });
+    });
+    if (this.ctx.isMobile) this.buildIdle();
+  }
+
+  // 手機上鍵盤收著時的一列（設定 phoneIdle 是 short；view.ts 的 syncIdle 加上 wm-idle-short，樣式表只顯示這一列）。
+  // 只放鍵盤收著也用得到的：按下去開視窗、選單，或改變整份筆記的顯示，不會把游標放回筆記叫出鍵盤。
+  // 要打字、要游標位置的（粗體、清單、表格…）不放：放了也是一按就叫出鍵盤，換成打字用的功能區。
+  // 樣子跟打字時的膠囊一樣、只有圖示；右邊的圓鈕「開始打字」是 RibbonShell 的 wm-kb-show。
+  // 同一個功能在功能區裡已經放過，用 apart 避開「全部排在一起的版面同一個功能只放一次」
+  buildIdle(): void {
+    const row = el('div', 'wm-idlebar', this.dom);
+    row.setAttribute('role', 'toolbar');
+    const icon = (look: RibbonAction): RibbonAction => ({ ...look, label: undefined, big: false });
+    const sep = (): void => { el('span', 'wm-idlebar-sep', row); };
+    // 復原、取消復原不放焦點（功能區的 run 會放，鍵盤就出來了）
+    const quiet = (cmd: Command): WordHandler => ({ onClick: () => { const v = this.view; if (v) cmd(v.state, v.dispatch, v); }, enabled: s => cmd(s) });
+    this.shell.apart(() => {
+      this.button(row, A.undo, quiet(undo));
+      this.button(row, A.redo, quiet(redo));
+      sep();
+      this.button(row, icon(IMAGE), { onClick: (e, b) => this.d.image(b), ...NO_CODE });
+      this.button(row, icon(A.equation), { onClick: () => this.d.equation(), ...NO_CODE });
+      this.button(row, icon(MERMAID), { onClick: () => this.d.mermaid(), ...NO_CODE });
+      sep();
+      this.button(row, icon(A.outline), { onClick: (e, b) => this.d.outline(b) });
+      this.button(row, icon(A.peekProperties), { onClick: (e, b) => this.d.peekProperties(b) });
+      this.button(row, icon(A.foldAll), { onClick: () => this.d.foldAll(true) });
+      this.button(row, icon(A.unfoldAll), { onClick: () => this.d.foldAll(false) });
+      sep();
+      this.button(row, icon(WORD_COUNT), { onClick: () => this.d.wordCount() });
+      this.button(row, icon(CLEANUP), { onClick: () => this.d.cleanup() });
+      this.button(row, icon(MARKS_BIG), this.marksHandler());
+      sep();
+      this.button(row, icon(FULL_WIDTH), { onClick: () => this.d.toggleFullWidth(), active: () => !!(this.ctx.isFullWidth && this.ctx.isFullWidth()) });
+      this.button(row, icon(A.settings), { onClick: () => this.d.settings() });
     });
   }
 
@@ -598,9 +638,9 @@ export class Toolbar {
     const g = G.proofing;
     this.button(g, A.findBig, this.findHandler());
     this.button(g, A.replaceBig, this.replaceHandler());
-    this.button(g, { icon: 'sparkles', title: '清理符號', text: '淨', label: '清理符號', big: true, demo: 'cleanup', desc: '找出看不見的字元、亂碼、殘留的 ** 與落單的引號，勾選後一次清除。' }, { onClick: () => this.d.cleanup() });
+    this.button(g, CLEANUP, { onClick: () => this.d.cleanup() });
     this.button(g, MARKS_BIG, this.marksHandler());
-    this.button(G.stats, { icon: 'bar-chart-3', title: '字數統計', text: '數', label: '字數', big: true, demo: 'wordcount', desc: '顯示字數、字元數、段落數與預估閱讀時間；有選取時也會算選取範圍。' }, { onClick: () => this.d.wordCount() });
+    this.button(G.stats, WORD_COUNT, { onClick: () => this.d.wordCount() });
     // 跟「插入」分頁的註解是同一個功能，這裡換一個圖示與名稱
     this.button(G.comments, { ...A.comment, icon: 'message-square-plus', label: '新增註解' }, this.commentHandler());
   }
@@ -618,7 +658,7 @@ export class Toolbar {
     this.button(g, A.peekProperties, { onClick: (e, b) => this.d.peekProperties(b) });
     this.button(g, A.foldAll, { onClick: () => this.d.foldAll(true) });
     this.button(g, A.unfoldAll, { onClick: () => this.d.foldAll(false) });
-    this.button(g, { icon: 'move-horizontal', title: '全寬頁面', text: '寬', label: '全寬', big: true, demo: 'fullwidth', desc: '頁面使用整個視窗寬度；關閉時是 A4 紙張寬度。' }, { onClick: () => this.d.toggleFullWidth(), active: () => !!(this.ctx.isFullWidth && this.ctx.isFullWidth()) });
+    this.button(g, FULL_WIDTH, { onClick: () => this.d.toggleFullWidth(), active: () => !!(this.ctx.isFullWidth && this.ctx.isFullWidth()) });
     g = G.zoom;
     this.button(g, { icon: 'zoom-out', title: '縮小', text: '－', demo: 'zoom', desc: '縮小頁面（也可以按住 Ctrl 滾動滑鼠滾輪）。' }, { onClick: () => this.d.zoom(-10) });
     this.button(g, { icon: 'zoom-in', title: '放大', text: '＋', demo: 'zoom', desc: '放大頁面（也可以按住 Ctrl 滾動滑鼠滾輪）。' }, { onClick: () => this.d.zoom(10) });
