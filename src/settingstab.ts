@@ -1,14 +1,15 @@
 // 設定頁
 import { PluginSettingTab, Setting, Notice, Platform } from 'obsidian';
 import { t, withKey, key, setLanguage, getLanguage, LANGUAGES, LANGUAGE_NAMES } from './i18n.js';
-import { DEFAULTS } from './settings.js';
+import { BAR_SIZE, DEFAULTS, barSize } from './settings.js';
 import { caretDemo, caretLook, caretPeriod, CARET_PERIOD } from './caret.js';
 import { PAD_HOLD, padHold, padSpeed } from './toolbar.js';
 import { LOUPE_WIDTH, LOUPE_ZOOM, loupeOptions } from './loupe.js';
 import { KEY_IDS, KEY_LOOK, keyRowKeys } from './keyrow.js';
 import { renderMathInto } from './mathrender.js';
 import { mdToolbarMode } from './mdbar.js';
-import { TABS } from './ribbon.js';
+import { TABS, barSizeDemo } from './ribbon.js';
+import { iconOr } from './icons.js';
 import { fillGroupSettings } from './groupsettings.js';
 import { buildSettingNav, buildSettingSearch, revealSetting, settingTerms, showSettingSection, trackSettingPadding } from './settingsnav.js';
 import { ShortcutModal } from './dialogs.js';
@@ -210,6 +211,15 @@ function settingSections(settingTab: WordModeSettings): SettingSection[] {
       row(t('手機上鍵盤收著時的工具列'), t('手機上鍵盤收著時工具列的樣子。粗體、清單這類要打字的按鈕一按就會叫出鍵盤，鍵盤收著時放了也沒用。「不用打字的工具」：一列跟打字時同樣樣子的膠囊，只放鍵盤收著也用得到的：復原、插入圖片、方程式、圖表、大綱、文件屬性、摺疊、字數統計、編輯標記、全寬、設定，右邊的圓鈕叫出鍵盤。「藏起來」：畫面全部留給筆記，Word 模式的大綱、插入圖片、方程式、圖表放在右上角的「⋯」選單。「完整的工具列」：分頁列加上有名稱的按鈕。Word 模式與 Markdown 編輯模式都照這個設定。只影響手機。'),
         s => s.addDropdown(d => d.addOptions({ short: t('不用打字的工具（建議）'), hidden: t('藏起來'), full: t('完整的工具列') })
           .setValue(S.phoneIdle === 'hidden' || S.phoneIdle === 'full' ? S.phoneIdle : 'short').onChange(async v => { S.phoneIdle = v === 'hidden' || v === 'full' ? v : 'short'; await save(); p.refreshToolbars(); }))),
+      // 預覽是設定值寫在 body 的 --wm-bar-size 直接畫的（main.ts 的 applyOptions），拉動滑桿時跟真的工具列一起變
+      row(t('工具列按鈕的大小'), t('手機、平板上一列的工具列（打字時、鍵盤收著時、閱讀模式）有多高，按鈕與圖示跟著放大縮小。預設 44，跟 Obsidian 在 Markdown 模式鍵盤上方的工具列一樣大。'),
+        s => {
+          s.addSlider(sl => sl.setLimits(BAR_SIZE.min, BAR_SIZE.max, BAR_SIZE.step).setValue(barSize(S.barSize)).setDynamicTooltip()
+            .onChange(async v => { S.barSize = barSize(v); await save(); }));
+          s.addExtraButton(b => b.setIcon('rotate-ccw').setTooltip(t('恢復預設大小')).onClick(async () => { S.barSize = BAR_SIZE.default; await save(); refreshSettingTab(settingTab); }));
+          s.settingEl.addClass('wm-bsdemo-row');
+          barSizeDemo(s.settingEl, iconOr);
+        }),
       // 拖曳移動游標（手機、平板）：改了下一次拖曳就生效，不用重建工具列（整列觸控板的開關例外）
       toggleRow(t('鍵盤上方整列當觸控板'),
         t('手機、平板的鍵盤開著時，在鍵盤上方那一列按住一下、等按鈕變淡，再拖曳就能移動游標。關閉時只有最前面的分頁選單按鈕可以拖。'), 'padRow', () => p.refreshToolbars()),

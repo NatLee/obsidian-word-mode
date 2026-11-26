@@ -627,3 +627,19 @@ export class RibbonShell {
     if (this.keyRow) { this.keyRow.destroy(); this.keyRow = null; }
   }
 }
+
+// 設定頁「工具列按鈕的大小」的預覽：照打字時那一列畫一條小的膠囊（分頁選單、幾顆按鈕、分隔線）與右邊的圓鈕。
+// 大小全部用樣式表的 --wm-bar-size（設定值由 main.ts 寫在 body 上），拉動滑桿時跟著變，不用重畫
+export function barSizeDemo(parent: HTMLElement, icon: IconFn): HTMLElement {
+  const box = el('div', 'wm-bsdemo', parent);
+  box.setAttribute('aria-hidden', 'true');
+  const bar = el('div', 'wm-bsdemo-bar', box);
+  icon(el('span', 'wm-bsdemo-tab', bar), 'home', '⌂');
+  const groups = [['undo-2', 'redo-2'], ['bold', 'italic', 'underline'], ['list', 'list-checks'], ['image', 'sigma']];
+  groups.forEach((g, i) => {
+    if (i) el('span', 'wm-bsdemo-sep', bar);
+    for (const name of g) icon(el('span', 'wm-bsdemo-btn', bar), name, '•');
+  });
+  icon(el('span', 'wm-bsdemo-round', box), 'keyboard', '⌨');
+  return box;
+}

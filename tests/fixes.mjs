@@ -391,5 +391,12 @@ const select = (state, text, len = text.length) => { const p = posOf(state.doc, 
   check('段落開頭是空白加 Tab：存檔再讀回不會變成程式碼', spaced.st.doc.firstChild.textContent === '  \ty' && c.parse(spaced.out).doc.firstChild.type === N.paragraph && c.parse(spaced.out).doc.firstChild.textContent.includes('\ty'), JSON.stringify(spaced.out));
 }
 
+// 手機工具列的高度（設定 barSize）：整理成 36～56 之間、2 的倍數，不是數字用預設 44
+{
+  const { barSize, BAR_SIZE } = await import('../src/settings.js');
+  check('工具列高度：預設 44', barSize(undefined) === 44 && barSize('x') === 44 && barSize(NaN) === 44 && BAR_SIZE.default === 44);
+  check('工具列高度：超出範圍收回 36～56、取 2 的倍數', barSize(10) === 36 && barSize(99) === 56 && barSize(47) === 48, [barSize(10), barSize(99), barSize(47)].join());
+}
+
 if (failed) { console.log(`\n${failed} 項失敗`); process.exit(1); }
 console.log('\nALL PASS');

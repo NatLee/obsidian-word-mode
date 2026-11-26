@@ -136,7 +136,7 @@ export class Setting {
   setDesc(d) { this.descEl.textContent = d; return this; }
   setHeading() { this.settingEl.classList.add('setting-item-heading'); return this; }
 }
-for (const k of ['addToggle', 'addDropdown', 'addSlider', 'addText', 'addTextArea', 'addButton', 'addColorPicker']) Setting.prototype[k] = function (cb) { cb(settingControl()); return this; };
+for (const k of ['addToggle', 'addDropdown', 'addSlider', 'addText', 'addTextArea', 'addButton', 'addColorPicker', 'addExtraButton']) Setting.prototype[k] = function (cb) { cb(settingControl()); return this; };
 export class WorkspaceLeafX { setViewState() {} }
 export class MarkdownView {}
 export { Events };

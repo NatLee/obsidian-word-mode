@@ -2201,6 +2201,12 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
   assert(total === rowsIn, '1.13：每一列都在某個群組裡（小節標題不算一列）：' + total + '／' + rowsIn);
   const css = readFileSync(new URL('../../styles/word-mode.css', import.meta.url), 'utf8');
   assert(css.includes('.setting-group.wm-set-nav ~ .setting-group.wm-set-sec.wm-set-first {'), '只有每一類的第一個群組貼近分類列，小節之間照 Obsidian 的間距');
+  // 工具列按鈕的大小：滑桿與預覽在同一列，預覽用跟工具列一樣的 --wm-bar-size
+  const sizeRow = [...c.querySelectorAll('.wm-set-toolbar .setting-item')].find(r => r.querySelector('.setting-item-name') && r.querySelector('.setting-item-name').textContent === '工具列按鈕的大小');
+  const bsDemo = sizeRow && sizeRow.querySelector('.wm-bsdemo');
+  assert(bsDemo && sizeRow.classList.contains('wm-bsdemo-row') && bsDemo.querySelectorAll('.wm-bsdemo-btn').length === 9 && bsDemo.querySelector('.wm-bsdemo-round') && bsDemo.querySelectorAll('.wm-bsdemo-sep').length === 3, '工具列按鈕的大小：有預覽（膠囊裡的按鈕、分隔線與右邊的圓鈕）');
+  assert(css.includes('.wm-ribbon, .wm-bsdemo { --wm-bs: var(--wm-bar-size, 44px);'), '工具列與預覽用同一個大小變數，預設 44px');
+  for (const sel of ['.wm-kb-up .wm-kb-compact .wm-ribbon > .wm-toolbar,', '.wm-idle-short .wm-ribbon > .wm-idlebar,', '.wm-mdbar.wm-reading-lite > .wm-toolbar { margin-block: 4px; min-height: var(--wm-bs);']) assert(css.includes(sel), '打字時、鍵盤收著時、閱讀模式的工具列一樣高：' + sel);
 }
 
 
