@@ -106,8 +106,8 @@ export interface Settings {
   tabLabels: Partial<Record<TabId, string>>;
   // 手機、平板的螢幕鍵盤開著時把功能區精簡成一列（分頁列收成選單、按鈕只顯示圖示），鍵盤收起來就恢復
   compactOnKeyboard: boolean;
-  // 手機上鍵盤收著時的功能區：short 只留一列不用打字的按鈕（插入圖片、方程式、圖表、大綱…）；hidden 整條藏起來
-  // （這些放進右上角的「⋯」選單）；full 完整的功能區。功能區上的其他按鈕按下去都會把游標放回筆記、叫出鍵盤
+  // 手機上鍵盤收著時的功能區：short 跟打字時同一條一列的功能區（所有分頁都在，右邊的圓鈕叫出鍵盤）；hidden 整條藏起來
+  // （Word 模式的大綱、插入圖片、方程式、圖表放進右上角的「⋯」選單）；full 完整的兩列功能區。Word 與 Markdown 編輯模式都照這個
   phoneIdle: 'short' | 'hidden' | 'full';
   // 上次選的字型色彩（CSS 色碼）
   lastFontColor?: string;

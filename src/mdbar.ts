@@ -138,7 +138,7 @@ export class MarkdownBar {
     this.statusWrap = null; this.status = null; this.statusKey = '';
     this.dom = el('div', 'wm-ribbon wm-mdbar ' + ribbonClass(plugin.settings) + (Platform.isMobile ? ' wm-mobile' : '') + (bottom ? ' wm-mdbar-bottom' : ''));
     view.containerEl.insertBefore(this.dom, bottom ? view.contentEl.nextSibling : view.contentEl);
-    // 螢幕鍵盤開著時跟 Word 模式一樣精簡成一列（樣式表的 wm-kb-compact，掛在這個檢視的外框上）
+    // 螢幕鍵盤開著時、手機上鍵盤收著時，跟 Word 模式一樣精簡成一列（樣式表的 wm-kb-compact，掛在這個檢視的外框上）
     this.offKeyboard = plugin.keyboard ? plugin.keyboard.subscribe(() => this.syncKeyboard()) : null;
     this.syncKeyboard();
     this.items = [];
@@ -156,9 +156,17 @@ export class MarkdownBar {
     if (this.sizer) this.sizer.observe(this.dom);
   }
 
+  // 跟 Word 模式的 syncIdle 同一套：打字時看 compactOnKeyboard；手機上鍵盤收著時看 phoneIdle（short 同樣是一列、
+  // 右邊的圓鈕換成「開始打字」，hidden 整條藏起來）。閱讀模式不能打字，不管 phoneIdle（手機另有 wm-reading-lite）
   syncKeyboard(): void {
+    const S = this.plugin.settings;
     const kb = this.plugin.keyboard;
-    this.view.containerEl.toggleClass('wm-kb-compact', !!kb && kb.open && this.plugin.settings.compactOnKeyboard !== false);
+    const open = !!kb && kb.open;
+    const idle = Platform.isPhone && !open && !this.isReading() ? (S.phoneIdle || 'short') : 'full';
+    const c = this.view.containerEl;
+    c.toggleClass('wm-idle-short', idle === 'short');
+    c.toggleClass('wm-idle-hidden', idle === 'hidden');
+    c.toggleClass('wm-kb-compact', open ? S.compactOnKeyboard !== false : idle === 'short');
   }
 
   // 手機的狀態列：要有的時候放在檢視最下面（工具列在下方時就在工具列下面）；換了編輯／閱讀模式重建（按鈕不一樣）
@@ -212,7 +220,7 @@ export class MarkdownBar {
     if (this.offKeyboard) this.offKeyboard();
     if (this.shell) this.shell.destroy();
     if (this.statusWrap) this.statusWrap.remove();
-    this.view.containerEl.removeClass('wm-kb-compact');
+    this.view.containerEl.removeClass('wm-kb-compact', 'wm-idle-short', 'wm-idle-hidden');
     this.view.containerEl.style.removeProperty('--wm-mdbar-height');
     this.dom.remove();
   }
@@ -252,6 +260,8 @@ export class MarkdownBar {
           this.view.containerEl.insertBefore(row, this.bottom ? this.dom : this.dom.nextSibling);
         },
       } : null,
+      // 換到閱讀模式不會重建工具列：一律放，閱讀模式沒有 wm-idle-short，樣式表不顯示
+      showKeyboard: Platform.isMobile ? () => { const ed = this.editor; if (ed && !this.isReading()) ed.focus(); } : null,
     });
     this.shell = shell;
     if (Platform.isMobile && !this.isReading()) this.trackpad(shell);
@@ -367,6 +377,7 @@ export class MarkdownBar {
 
   update(): void {
     this.syncStatus();
+    this.syncKeyboard();
     const reading = this.isReading();
     this.mode = reading ? 'preview' : 'source';
     for (const it of this.items) {

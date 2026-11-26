@@ -2761,14 +2761,50 @@ await fresh('名稱\t數量\n\n蘋果\t3\n');
   v2.buildToolbar();
   assert(v2.propsAction.style.display === 'none' && !v2.contentEl.classList.contains('wm-status-header'), '設定改成畫面下方的狀態列：右上角的按鈕藏起來，狀態列回來');
   {
-    // 鍵盤收著時的功能區（設定 phoneIdle）：預設只留一列不用打字的按鈕
-    const idle = v2.toolbar.dom.querySelector('.wm-idlebar');
-    const names = idle ? [...idle.querySelectorAll('.wm-btn')].map(b => b.getAttribute('aria-label') || b.title).map(s => s.split(' (')[0]) : [];
-    assert(v2.contentEl.classList.contains('wm-idle-short') && names.join('、') === '插入圖片、插入方程式、插入圖表（Mermaid）、大綱、開始打字', '手機預設：鍵盤收著時只有一列不用打字的按鈕：' + names.join('、'));
+    // 鍵盤收著時的功能區（設定 phoneIdle）：預設跟打字時同一條一列的功能區（所有分頁都在），右邊的圓鈕是「開始打字」
+    const cls = v2.contentEl.classList;
+    const show = v2.toolbar.dom.querySelector('button.wm-kb-show');
+    assert(cls.contains('wm-idle-short') && cls.contains('wm-kb-compact') && !v2.toolbar.dom.querySelector('.wm-idlebar'), '手機預設：鍵盤收著時是精簡成一列的功能區，不另外做一條短列');
+    assert(Object.keys(v2.toolbar.shell.tabNames).length === 4 && v2.toolbar.shell.tabSwitch, '鍵盤收著時四個分頁都用得到（最前面的分頁選單）');
+    assert(show && show.getAttribute('aria-label') === '開始打字', '右邊的圓鈕：開始打字');
+    let focused = 0;
+    const keepFocus = v2.pm.focus;
+    v2.pm.focus = () => { focused++; };
+    show.click();
+    v2.pm.focus = keepFocus;
+    assert(focused === 1, '按「開始打字」把游標放回筆記');
     const kbOn = { open: true, cover: 300, subscribe() { return () => {}; } };
     v2.plugin.keyboard = kbOn; v2.syncIdle();
-    assert(!v2.contentEl.classList.contains('wm-idle-short'), '鍵盤開著：照常是打字用的功能區');
-    v2.plugin.keyboard = undefined;
+    assert(!cls.contains('wm-idle-short') && cls.contains('wm-kb-compact'), '鍵盤開著：同一條功能區，只是圓鈕換成收起鍵盤');
+    e2.plugin.settings.compactOnKeyboard = false; v2.syncIdle();
+    assert(!cls.contains('wm-kb-compact'), '關掉「打字時精簡工具列」：打字時是完整的功能區');
+    e2.plugin.settings.compactOnKeyboard = true;
+    v2.plugin.keyboard = undefined; v2.syncIdle();
+    assert(cls.contains('wm-idle-short') && cls.contains('wm-kb-compact'), '鍵盤收起來：回到一列的功能區');
+    // Markdown 模式跟著同一個設定；閱讀模式不能打字，用自己的一列（wm-reading-lite）
+    {
+      const containerEl = document.createElement('div');
+      const contentEl = containerEl.createDiv('view-content');
+      document.body.appendChild(containerEl);
+      let mdFocus = 0;
+      const md = { containerEl, contentEl, leaf: {}, mode: 'source', getMode() { return this.mode; }, editor: { focus() { mdFocus++; }, hasFocus() { return false; } }, getState() { return {}; }, async setState(st) { this.mode = st.mode; } };
+      const mb = new B.MarkdownBar(e2.plugin, md);
+      const c = containerEl.classList;
+      assert(c.contains('wm-idle-short') && c.contains('wm-kb-compact'), 'Markdown 模式：鍵盤收著時同樣是一列的功能區');
+      mb.dom.querySelector('button.wm-kb-show').click();
+      assert(mdFocus === 1, 'Markdown 模式：「開始打字」把游標放回編輯器');
+      md.mode = 'preview'; mb.update();
+      assert(!c.contains('wm-idle-short') && !c.contains('wm-kb-compact') && mb.dom.classList.contains('wm-reading-lite'), '閱讀模式：不套用鍵盤收著時的設定，用閱讀模式自己的一列');
+      mb.dom.querySelector('button.wm-kb-show').click();
+      assert(mdFocus === 1, '閱讀模式：圓鈕不會叫出鍵盤');
+      md.mode = 'source'; mb.update();
+      e2.plugin.settings.phoneIdle = 'hidden'; mb.syncKeyboard();
+      assert(c.contains('wm-idle-hidden') && !c.contains('wm-kb-compact'), 'Markdown 模式：設定「藏起來」時鍵盤收著就藏起來');
+      e2.plugin.settings.phoneIdle = 'short';
+      mb.destroy();
+      assert(!c.contains('wm-idle-short') && !c.contains('wm-idle-hidden') && !c.contains('wm-kb-compact'), '工具列拿掉時把 class 一起拿掉');
+      containerEl.remove();
+    }
     e2.plugin.settings.phoneIdle = 'hidden';
     v2.buildToolbar();
     assert(v2.contentEl.classList.contains('wm-idle-hidden') && !v2.contentEl.classList.contains('wm-idle-short'), '設定「藏起來」：鍵盤收著時整條功能區藏起來');

@@ -443,8 +443,6 @@ export class WordModeView extends TextFileView {
     const layout = layoutHeight(win);
     const inset = kb.open ? hiddenBelow(this.contentEl.getBoundingClientRect().bottom + win.scrollY, layout - kb.cover) : 0;
     this.contentEl.toggleClass('wm-kb-open', kb.open);
-    // 打字時精簡功能區：分頁列收成選單、按鈕只顯示圖示（樣式表的 wm-kb-compact），鍵盤收起來就恢復
-    this.contentEl.toggleClass('wm-kb-compact', kb.open && this.plugin.settings.compactOnKeyboard !== false);
     this.syncIdle();
     if (inset !== this.kbInset) this.contentEl.style.setProperty('--wm-kb-inset', inset + 'px');
     this.slideToolbar();
@@ -460,13 +458,17 @@ export class WordModeView extends TextFileView {
     });
   }
 
-  // 手機上鍵盤收著時的功能區（設定 phoneIdle）：short 只顯示不用打字的短列（toolbar.ts 的 buildIdle），hidden 整條藏起來，
-  // full 照舊。鍵盤開著時一律是平常（精簡）的功能區
+  // 功能區精簡成一列（樣式表的 wm-kb-compact：分頁收成最前面的選單按鈕、按鈕只顯示圖示、整列是一條膠囊）：
+  // 打字時看設定 compactOnKeyboard；手機上鍵盤收著時看設定 phoneIdle：short 跟打字時同一個樣子，只有右邊的圓鈕換成
+  // 「開始打字」（wm-idle-short），鍵盤出來、收起時功能區不變形；hidden 整條藏起來；full 是完整的兩列功能區
   syncIdle(): void {
+    const S = this.plugin.settings;
     const kb = this.plugin.keyboard;
-    const idle = Platform.isPhone && !(kb && kb.open) ? (this.plugin.settings.phoneIdle || 'short') : 'full';
+    const open = !!(kb && kb.open);
+    const idle = Platform.isPhone && !open ? (S.phoneIdle || 'short') : 'full';
     this.contentEl.toggleClass('wm-idle-short', idle === 'short');
     this.contentEl.toggleClass('wm-idle-hidden', idle === 'hidden');
+    this.contentEl.toggleClass('wm-kb-compact', open ? S.compactOnKeyboard !== false : idle === 'short');
   }
 
   // 鍵盤升起、收起時功能區的位置是一格就換過去的（我們留的高度、Obsidian 把 app 縮到鍵盤上方都是瞬間的），看起來是用跳的。
